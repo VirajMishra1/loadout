@@ -144,7 +144,8 @@ that a developer's home directory may be committed.
 ### Phase 4 — platform breadth and product UI
 
 - Pass adapter conformance suites for each claimed platform.
-- Complete interactive dashboard actions and progress events.
+- Complete interactive dashboard progress events and richer per-file review (safe
+  preview/apply/rollback with a session token is implemented).
 - Verify Windows, macOS, and Linux using native CI fixtures.
 - Add accessibility, recovery UX, offline behavior, and performance gates.
 

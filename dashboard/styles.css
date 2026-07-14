@@ -42,3 +42,9 @@ li { margin: 5px 0; }
 .finding-level { display: inline-block; min-width: 58px; color: #a1a1aa; text-transform: uppercase; font-size: 10px; letter-spacing: .08em; }
 section { margin-top: 36px; }
 footer { margin-top: 52px; padding-top: 18px; border-top: 1px solid #27272a; color: #71717a; font-size: 13px; }
+.action-bar { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; }
+button { appearance: none; border: 1px solid #7c3aed; border-radius: 10px; background: #7c3aed; color: white; padding: 10px 14px; font: inherit; font-weight: 650; cursor: pointer; }
+button.secondary { background: transparent; color: #d4d4d8; border-color: #3f3f46; }
+button:disabled { cursor: not-allowed; opacity: .45; }
+button:focus-visible { outline: 3px solid #c4b5fd; outline-offset: 2px; }
+code { color: #c4b5fd; }

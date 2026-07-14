@@ -121,9 +121,9 @@ npm run dashboard
 
 Open <http://127.0.0.1:4173>. The page reads the detected agents and the real catalog
 from this checkout. It also shows health, updates, local project recommendations,
-tested profiles, and locally published registry packages. Dashboard actions remain
-read-only; approvals and mutations stay in the CLI until the authenticated local
-mutation API is finished.
+tested profiles, and locally published registry packages. The dashboard can preview
+and apply plans that require no risk override, then undo that exact dashboard change.
+Mutations require a private same-origin session token; risky plans remain CLI-only.
 
 In terminal 2, run the story in this order:
 
@@ -183,8 +183,8 @@ flowchart LR
 
 Discovery and planning are read-only. Installation writes only the selected package's
 managed directories, and the current implementation never executes third-party
-repository lifecycle scripts. The loopback API and dashboard expose read-only status,
-catalog, and update views.
+repository lifecycle scripts. The loopback API and dashboard expose status, health,
+catalog, updates, recommendations, and authenticated safe sync/rollback actions.
 
 ## Current demo boundaries
 

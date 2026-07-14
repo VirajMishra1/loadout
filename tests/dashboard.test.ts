@@ -27,4 +27,19 @@ describe("dashboard server", () => {
     expect((await updates.json()).updates).toBeInstanceOf(Array);
     await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
   });
+
+  it("requires a session token for apply and rollback mutations", async () => {
+    let restored = "";
+    const plan = { manifest: "loadout.json", packages: [], mcpPlans: [], skipped: [], policyViolations: [] };
+    const server = createDashboardServer({ buildSync: async () => plan, applySync: async () => ({ snapshotId: "snap-123", lockfile: "loadout.lock" }), rollback: async (id) => { restored = id; } });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address(); if (!address || typeof address === "string") throw new Error("server did not bind");
+    const base = `http://127.0.0.1:${address.port}`;
+    const preview = await fetch(`${base}/api/sync-plan`); expect(preview.status).toBe(200); expect((await preview.json()).plan.policyViolations).toEqual([]);
+    const denied = await fetch(`${base}/api/sync`, { method: "POST", headers: { "content-type": "application/json" }, body: "{}" }); expect(denied.status).toBe(403);
+    const token = (await (await fetch(`${base}/api/session`)).json()).token;
+    const applied = await fetch(`${base}/api/sync`, { method: "POST", headers: { "content-type": "application/json", "x-loadout-token": token }, body: "{}" }); expect(applied.status).toBe(200); expect((await applied.json()).result.snapshotId).toBe("snap-123");
+    const rolledBack = await fetch(`${base}/api/rollback`, { method: "POST", headers: { "content-type": "application/json", "x-loadout-token": token }, body: JSON.stringify({ snapshotId: "snap-123" }) }); expect(rolledBack.status).toBe(200); expect(restored).toBe("snap-123");
+    await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  });
 });

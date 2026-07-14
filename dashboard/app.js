@@ -10,12 +10,26 @@ const projectSignals = document.querySelector("#project-signals");
 const profiles = document.querySelector("#profiles");
 const registry = document.querySelector("#registry");
 const registryCount = document.querySelector("#registry-count");
+const previewSync = document.querySelector("#preview-sync");
+const applySync = document.querySelector("#apply-sync");
+const rollbackSync = document.querySelector("#rollback-sync");
+const syncResult = document.querySelector("#sync-result");
+let sessionToken;
+let latestSnapshot;
 
 async function load(path) {
   const response = await fetch(path);
   const body = await response.json();
   if (!response.ok) throw new Error(body.error || `Request failed (${response.status})`);
   return body;
+}
+
+async function mutate(path, value) {
+  if (!sessionToken) sessionToken = (await load("/api/session")).token;
+  const response = await fetch(path, { method: "POST", headers: { "content-type": "application/json", "x-loadout-token": sessionToken }, body: JSON.stringify(value) });
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.error || `Request failed (${response.status})`);
+  return result;
 }
 
 function escapeHtml(value) {
@@ -27,6 +41,36 @@ function renderUpdate(plan) {
   const details = plan.diff?.length ? `<details><summary>${plan.diff.length} changed file${plan.diff.length === 1 ? "" : "s"}</summary><ul>${plan.diff.slice(0, 20).map((change) => `<li><code>${escapeHtml(change.path)}</code> <small>${escapeHtml(change.kind)}</small></li>`).join("")}</ul></details>` : "";
   return `<article class="update ${escapeHtml(plan.status)}"><div class="update-heading"><h3>${escapeHtml(plan.packageId)}</h3><span class="badge">${label}</span></div><p>${escapeHtml(plan.action)}</p>${plan.repository ? `<small>${escapeHtml(plan.repository)}${plan.availableCommit ? ` · ${escapeHtml(plan.availableCommit.slice(0, 12))}` : ""}</small>` : ""}${plan.error ? `<p class="error-text">${escapeHtml(plan.error)}</p>` : ""}${details}</article>`;
 }
+
+function describeSync(plan) {
+  const files = plan.packages.reduce((total, pkg) => total + pkg.files.length, 0);
+  const risky = plan.packages.filter((pkg) => pkg.safety.approvalRequired).map((pkg) => pkg.packageId);
+  return { text: `${plan.packages.length} package(s), ${files} file target(s), ${plan.mcpChanges.length} MCP plan(s)${risky.length ? `; CLI risk approval required for ${risky.join(", ")}` : ""}`, safe: !risky.length && !plan.policyViolations.length };
+}
+
+previewSync.addEventListener("click", async () => {
+  previewSync.disabled = true; applySync.disabled = true; syncResult.className = "state"; syncResult.textContent = "Building a read-only plan…";
+  try {
+    const { plan } = await load("/api/sync-plan"); const summary = describeSync(plan);
+    syncResult.className = `state ${summary.safe ? "success" : "attention"}`; syncResult.textContent = summary.text;
+    applySync.disabled = !summary.safe;
+  } catch (error) { syncResult.className = "state error"; syncResult.textContent = `Could not build sync plan: ${error.message}`; }
+  finally { previewSync.disabled = false; }
+});
+
+applySync.addEventListener("click", async () => {
+  applySync.disabled = true; syncResult.className = "state"; syncResult.textContent = "Applying the reviewed safe plan…";
+  try {
+    const { result } = await mutate("/api/sync", { approveRisk: false }); latestSnapshot = result.snapshotId;
+    syncResult.className = "state success"; syncResult.textContent = `Synchronized successfully.${latestSnapshot ? ` Snapshot: ${latestSnapshot}` : ""}`; rollbackSync.disabled = !latestSnapshot;
+  } catch (error) { syncResult.className = "state error"; syncResult.textContent = `Synchronization failed: ${error.message}`; }
+});
+
+rollbackSync.addEventListener("click", async () => {
+  if (!latestSnapshot) return; rollbackSync.disabled = true; syncResult.className = "state"; syncResult.textContent = "Restoring the exact previous snapshot…";
+  try { await mutate("/api/rollback", { snapshotId: latestSnapshot }); syncResult.className = "state success"; syncResult.textContent = `Restored snapshot ${latestSnapshot}.`; latestSnapshot = undefined; }
+  catch (error) { syncResult.className = "state error"; syncResult.textContent = `Rollback failed: ${error.message}`; rollbackSync.disabled = false; }
+});
 
 async function render() {
   try {

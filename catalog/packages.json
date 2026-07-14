@@ -1,0 +1,56 @@
+[
+  {
+    "id": "superpowers",
+    "displayName": "Superpowers",
+    "repository": "obra/superpowers",
+    "description": "Engineering workflow skills for planning, implementation, testing, and review.",
+    "category": "engineering-workflow",
+    "tier": "stable",
+    "stars": 254000
+  },
+  {
+    "id": "graphify",
+    "displayName": "Graphify",
+    "repository": "Graphify-Labs/graphify",
+    "description": "Query a generated knowledge graph of code, documentation, and project structure.",
+    "category": "codebase-intelligence",
+    "tier": "stable",
+    "stars": 85000
+  },
+  {
+    "id": "context7",
+    "displayName": "Context7",
+    "repository": "upstash/context7",
+    "description": "Retrieve current library and framework documentation for coding agents.",
+    "category": "documentation",
+    "tier": "stable",
+    "stars": 59000
+  },
+  {
+    "id": "playwright-mcp",
+    "displayName": "Playwright MCP",
+    "repository": "microsoft/playwright-mcp",
+    "description": "Browser automation and verification through Playwright.",
+    "category": "browser-verification",
+    "tier": "official",
+    "stars": 35000
+  },
+  {
+    "id": "ui-ux-pro-max",
+    "displayName": "UI UX Pro Max",
+    "repository": "nextlevelbuilder/ui-ux-pro-max-skill",
+    "description": "Design intelligence for professional interfaces and frontend workflows.",
+    "category": "frontend-design",
+    "tier": "stable",
+    "stars": 105000
+  },
+  {
+    "id": "github-mcp-server",
+    "displayName": "GitHub MCP Server",
+    "repository": "github/github-mcp-server",
+    "description": "Official GitHub tools for repositories, issues, pull requests, and workflows.",
+    "category": "source-control",
+    "tier": "official",
+    "stars": 31000
+  }
+]

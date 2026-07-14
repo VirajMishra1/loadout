@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { applySyncPlan, buildSyncPlan } from "../src/core/sync.js";
 import { readInstallState } from "../src/core/state.js";
+import { readSnapshot, restoreSnapshot } from "../src/core/snapshot.js";
 
 describe("manifest synchronization", () => {
   let root = "";
@@ -45,5 +46,29 @@ describe("manifest synchronization", () => {
     const plan = await buildSyncPlan(manifestPath);
     expect(plan.policyViolations).toEqual(["demo references blocked domain 'blocked.example'"]);
     await expect(applySyncPlan(plan, join(root, "loadout.lock"), { approveRisk: true })).rejects.toThrow(/violates manifest policy/);
+  });
+
+  it("applies MCP-only packages transactionally and rolls back config plus state", async () => {
+    root = await mkdtemp(join(tmpdir(), "loadout-sync-mcp-"));
+    const bin = join(root, "bin"); const source = join(root, "package"); const home = join(root, "home");
+    await mkdir(bin); await mkdir(source);
+    const codex = join(bin, "codex"); await writeFile(codex, "#!/bin/sh\nexit 0\n"); await chmod(codex, 0o755);
+    await writeFile(join(source, "mcp.json"), JSON.stringify({ mcpServers: { docs: { command: "npx", args: ["-y", "docs-server"], env: { DOCS_TOKEN: "${DOCS_TOKEN}" } } } }));
+    const config = join(root, "agent-mcp.json"); const original = JSON.stringify({ theme: "dark", mcpServers: { existing: { command: "keep" } } }); await writeFile(config, original);
+    const manifestPath = join(root, "loadout.json"); const lockPath = join(root, "loadout.lock");
+    await writeFile(manifestPath, JSON.stringify({ schemaVersion: 1, name: "mcp", scope: "global", agents: ["codex"], packages: [{ id: "docs", source: { type: "local", path: source }, mcp: { config, servers: ["docs"] } }] }));
+    process.env.PATH = `${bin}:${originalPath ?? ""}`; process.env.LOADOUT_HOME = join(root, ".loadout"); process.env.LOADOUT_USER_HOME = home;
+    const plan = await buildSyncPlan(manifestPath);
+    expect(plan.mcpPlans).toHaveLength(1);
+    expect(plan.packages[0].safety.approvalRequired).toBe(true);
+    await expect(applySyncPlan(plan, lockPath)).rejects.toThrow(/risk approval/);
+    const result = await applySyncPlan(plan, lockPath, { approveRisk: true });
+    const updated = JSON.parse(await readFile(config, "utf8"));
+    expect(updated.theme).toBe("dark"); expect(updated.mcpServers.existing.command).toBe("keep"); expect(updated.mcpServers.docs.command).toBe("npx");
+    expect((await readInstallState()).mcpInstalls).toEqual([expect.objectContaining({ packageId: "docs", serverName: "docs", configPath: config })]);
+    expect(JSON.parse(await readFile(lockPath, "utf8")).mcpServers).toEqual([expect.objectContaining({ packageId: "docs", serverName: "docs" })]);
+    await restoreSnapshot(await readSnapshot(result.snapshotId!));
+    expect(await readFile(config, "utf8")).toBe(original);
+    expect((await readInstallState()).installs).toEqual([]);
   });
 });

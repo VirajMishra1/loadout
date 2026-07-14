@@ -59,6 +59,17 @@ export async function auditLoadout(manifestPath = "loadout.json", lockPath = "lo
       } catch { findings.push({ level: "error", code: "file-missing", message: `Managed file is missing: ${file.path}` }); }
     }
   }
+  const stateMcp = state.mcpInstalls ?? [];
+  for (const lockedMcp of lockfile.mcpServers ?? []) {
+    const installed = stateMcp.find((entry) => entry.packageId === lockedMcp.packageId && entry.configPath === lockedMcp.configPath && entry.serverName === lockedMcp.serverName);
+    if (!installed) { findings.push({ level: "error", code: "missing-mcp-state", message: `MCP server '${lockedMcp.serverName}' for '${lockedMcp.packageId}' is missing from installed state.` }); continue; }
+    if (installed.fingerprint !== lockedMcp.fingerprint) findings.push({ level: "error", code: "mcp-lock-mismatch", message: `MCP server '${lockedMcp.serverName}' state differs from the lockfile.` });
+    try {
+      const config = JSON.parse(await readFile(lockedMcp.configPath, "utf8")) as { mcpServers?: Record<string, unknown> };
+      const fingerprint = createHash("sha256").update(JSON.stringify(config.mcpServers?.[lockedMcp.serverName] ?? null)).digest("hex");
+      if (fingerprint !== lockedMcp.fingerprint) findings.push({ level: "error", code: "mcp-drift", message: `MCP server '${lockedMcp.serverName}' changed or is missing in ${lockedMcp.configPath}.` });
+    } catch { findings.push({ level: "error", code: "mcp-config-missing", message: `MCP configuration is missing or invalid: ${lockedMcp.configPath}` }); }
+  }
   if (!findings.length) findings.push({ level: "ok", code: "reproducible", message: "Manifest, lockfile, installed state, and managed file hashes agree." });
   return { valid: !findings.some((finding) => finding.level === "error"), manifest: resolve(manifestPath), lockfile: resolve(lockPath), findings };
 }

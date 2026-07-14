@@ -55,6 +55,24 @@ node dist/src/cli.js lock
 evidence and produces acceptance tests; it never edits, installs, publishes, merges,
 or grants permissions autonomously.
 
+MCP packages are configured explicitly in `loadout.json`; Loadout never guesses a
+configuration path. A package can select all discovered servers or a named subset:
+
+```json
+{
+  "id": "docs-mcp",
+  "source": { "type": "github", "repository": "owner/docs-mcp" },
+  "mcp": {
+    "config": "/absolute/path/to/agent-mcp.json",
+    "servers": ["docs"]
+  }
+}
+```
+
+`sync --yes` still refuses MCP changes until `--approve-risk` is also provided. MCP
+ownership is recorded by fingerprint, health/audit detect drift, removal preserves
+unrelated keys and servers, and rollback restores both configuration and Loadout state.
+
 ## Try the real install path
 
 ```bash
@@ -169,7 +187,7 @@ catalog, and update views.
   disabled, or cyclic dependencies are rejected. Skills, conventional rule directories,
   command directories, and agent directories are normalized; unsupported targets are
   skipped rather than falsely converted. Plugin/root-file application, automated MCP
-  targeting, transitive package-owned manifests, remote authentication, and a hosted
+  targeting for non-JSON agent formats, transitive package-owned manifests, remote authentication, and a hosted
   publishing registry remain planned. The implemented local registry is immutable,
   digest-verified, searchable, and risk-gated, but it is not presented as hosted.
 

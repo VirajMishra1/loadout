@@ -46,7 +46,14 @@ export function parseManifest(value: unknown): LoadoutManifest {
       if (new Set(pkg.dependsOn).size !== pkg.dependsOn.length) throw new Error(`packages[${index}].dependsOn contains duplicates`);
       return pkg.dependsOn as string[];
     })();
-    return { id: pkg.id, source: source(pkg.source, `packages[${index}]`), ...(pkg.agents === undefined ? {} : { agents: agents(pkg.agents, `packages[${index}].agents`) }), ...(dependsOn ? { dependsOn } : {}), ...(typeof pkg.enabled === "boolean" ? { enabled: pkg.enabled } : {}) };
+    const mcp = pkg.mcp === undefined ? undefined : (() => {
+      if (!pkg.mcp || typeof pkg.mcp !== "object" || Array.isArray(pkg.mcp)) throw new Error(`packages[${index}].mcp must be an object`);
+      const value = pkg.mcp as Record<string, unknown>;
+      if (typeof value.config !== "string" || !value.config) throw new Error(`packages[${index}].mcp.config is required`);
+      if (value.servers !== undefined && (!Array.isArray(value.servers) || value.servers.some((name) => typeof name !== "string" || !name))) throw new Error(`packages[${index}].mcp.servers must contain server names`);
+      return { config: value.config, ...(value.servers ? { servers: value.servers as string[] } : {}) };
+    })();
+    return { id: pkg.id, source: source(pkg.source, `packages[${index}]`), ...(pkg.agents === undefined ? {} : { agents: agents(pkg.agents, `packages[${index}].agents`) }), ...(dependsOn ? { dependsOn } : {}), ...(mcp ? { mcp } : {}), ...(typeof pkg.enabled === "boolean" ? { enabled: pkg.enabled } : {}) };
   });
   const ids = parsedPackages.map((pkg) => pkg.id);
   if (new Set(ids).size !== ids.length) throw new Error("Manifest package ids must be unique");
@@ -140,6 +147,7 @@ export async function writeLockfile(manifest: LoadoutManifest, path = "loadout.l
       files: entry.files,
       installedAt: entry.installedAt,
     })),
+    mcpServers: (state.mcpInstalls ?? []).filter((entry) => sourceById.has(entry.packageId)).map(({ packageId, configPath, serverName, fingerprint }) => ({ packageId, configPath, serverName, fingerprint })),
   };
   await writeFile(resolve(path), `${JSON.stringify(lockfile, null, 2)}\n`);
   return lockfile;

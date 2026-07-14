@@ -50,4 +50,10 @@ describe("manifest and lockfile", () => {
     expect(() => parseManifest({ schemaVersion: 1, name: "x", scope: "project", agents: ["codex"], packages: [{ ...app, dependsOn: ["missing"] }] })).toThrow(/missing package/);
     expect(() => parseManifest({ schemaVersion: 1, name: "x", scope: "project", agents: ["codex"], packages: [{ ...app, dependsOn: ["base"] }, { ...dependency, dependsOn: ["app"] }] })).toThrow(/cycle/);
   });
+
+  it("validates explicit MCP targets without guessing agent config paths", () => {
+    const manifest = parseManifest({ schemaVersion: 1, name: "mcp", scope: "project", agents: ["codex"], packages: [{ id: "docs", source: { type: "catalog", id: "context7" }, mcp: { config: ".config/mcp.json", servers: ["docs"] } }] });
+    expect(manifest.packages[0].mcp).toEqual({ config: ".config/mcp.json", servers: ["docs"] });
+    expect(() => parseManifest({ schemaVersion: 1, name: "mcp", scope: "project", agents: ["codex"], packages: [{ id: "docs", source: { type: "catalog", id: "context7" }, mcp: {} }] })).toThrow(/mcp.config/);
+  });
 });

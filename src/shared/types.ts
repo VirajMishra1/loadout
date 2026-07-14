@@ -80,6 +80,16 @@ export interface InstallRecord {
 export interface InstallState {
   version: 1;
   installs: InstallRecord[];
+  mcpInstalls?: McpInstallRecord[];
+}
+
+export interface McpInstallRecord {
+  packageId: string;
+  configPath: string;
+  serverName: string;
+  fingerprint: string;
+  snapshotId: string;
+  installedAt: string;
 }
 
 export type PackageSource =
@@ -110,6 +120,7 @@ export interface ManifestPackage {
   source: PackageSource;
   agents?: AgentId[];
   dependsOn?: string[];
+  mcp?: { config: string; servers?: string[] };
   enabled?: boolean;
 }
 
@@ -142,6 +153,7 @@ export interface LoadoutLockfile {
   manifestName: string;
   generatedAt: string;
   packages: LockedPackage[];
+  mcpServers?: Array<{ packageId: string; configPath: string; serverName: string; fingerprint: string }>;
 }
 
 export type SafetyRiskLevel = "safe" | "review" | "blocked";
@@ -160,6 +172,7 @@ export interface HealthReport {
   installedPackages: number;
   updatesAvailable: number;
   driftedFiles: number;
+  driftedMcpServers: number;
   findings: HealthFinding[];
 }
 

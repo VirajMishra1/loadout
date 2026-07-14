@@ -3,7 +3,7 @@ import { basename, relative, resolve } from "node:path";
 import type { InstallPlan } from "../shared/types.js";
 
 export type SafetySeverity = "blocking" | "warning";
-export type SafetyCategory = "hook" | "script" | "binary" | "domain" | "environment" | "secret" | "instruction";
+export type SafetyCategory = "hook" | "script" | "binary" | "domain" | "environment" | "secret" | "instruction" | "mcp";
 
 export interface SafetyFinding {
   severity: SafetySeverity;

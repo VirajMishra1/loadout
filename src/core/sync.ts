@@ -1,18 +1,22 @@
 import { resolve, sep } from "node:path";
-import type { AgentId, LoadoutManifest, ManifestPackage } from "../shared/types.js";
+import type { AgentId, LoadoutManifest, ManifestPackage, McpConfigPlan } from "../shared/types.js";
 import { loadEffectiveCatalog } from "./catalog.js";
-import { applySkillInstallBatch, installedAgents, type InstallBatchEntry } from "./install.js";
+import { installedAgents, type InstallBatchEntry } from "./install.js";
 import { orderManifestPackages, readManifest, writeLockfile } from "./manifest.js";
 import { detectAgents } from "./paths.js";
 import { fetchGitSnapshot, fetchRepositorySnapshot } from "./source.js";
 import { buildUniversalPackagePlan } from "./components.js";
 import { analyzeInstallPlanSafety, type UpdateSafetyAnalysis } from "./safety.js";
 import { resolveRegistryPackage } from "./registry.js";
-import { readSnapshot, restoreSnapshot } from "./snapshot.js";
+import { createSnapshot, restoreSnapshot } from "./snapshot.js";
+import { discoverMcpManifests, planMcpConfigBatch, writeMcpConfigPlan } from "./mcp.js";
+import { applySkillPlan } from "./skills.js";
+import { installStatePath, recordInstallTransaction } from "./state.js";
 
 export interface SyncPlan {
   manifest: string;
   packages: Array<InstallBatchEntry & { safety: UpdateSafetyAnalysis }>;
+  mcpPlans: Array<{ packageId: string; plan: McpConfigPlan }>;
   skipped: Array<{ packageId: string; reason: string }>;
   policyViolations: string[];
 }
@@ -68,32 +72,61 @@ export async function buildSyncPlan(manifestPath = "loadout.json"): Promise<Sync
   }
   const detected = await detectAgents();
   const packages: SyncPlan["packages"] = [];
+  const mcpPlans: SyncPlan["mcpPlans"] = [];
   const skipped: SyncPlan["skipped"] = [];
   for (const pkg of orderManifestPackages(manifest.packages).filter((item) => item.enabled !== false)) {
     const requested = pkg.agents ?? manifest.agents;
     const agents = installedAgents(detected, requested as AgentId[]);
     const source = await resolvePackage(pkg);
-    try {
-      const plan = await buildUniversalPackagePlan(source.path, pkg.id, agents);
-      packages.push({ plan, metadata: { repository: source.repository, resolvedCommit: source.commit }, safety: await analyzeInstallPlanSafety(plan) });
-    } catch (error) {
-      if (error instanceof Error && error.message.startsWith("No supported")) skipped.push({ packageId: pkg.id, reason: "No supported skill, rule, command, or agent component was found; inspect MCP components separately." });
+    let plan;
+    try { plan = await buildUniversalPackagePlan(source.path, pkg.id, agents); }
+    catch (error) {
+      if (error instanceof Error && error.message.startsWith("No supported")) plan = { packageId: pkg.id, files: [], targetAgents: agents.map((agent) => agent.id), warnings: [] };
       else throw error;
     }
+    const manifests = pkg.mcp ? await discoverMcpManifests(source.path) : [];
+    const allServers = manifests.flatMap((manifest) => manifest.servers);
+    const requestedServers = pkg.mcp?.servers ?? allServers.map((server) => server.name);
+    const selectedServers = requestedServers.map((name) => {
+      const matches = allServers.filter((server) => server.name === name);
+      if (matches.length === 0) throw new Error(`MCP server '${name}' was not found in package '${pkg.id}'`);
+      if (matches.length > 1) throw new Error(`MCP server '${name}' is ambiguous in package '${pkg.id}'`);
+      return matches[0];
+    });
+    if (pkg.mcp && selectedServers.length === 0) throw new Error(`Package '${pkg.id}' has MCP configuration enabled but contains no MCP servers`);
+    if (pkg.mcp) mcpPlans.push({ packageId: pkg.id, plan: await planMcpConfigBatch(resolve(pkg.mcp.config), selectedServers.map((server) => ({ server }))) });
+    if (plan.files.length === 0 && selectedServers.length === 0) { skipped.push({ packageId: pkg.id, reason: "No supported skill, rule, command, agent, or configured MCP component was found." }); continue; }
+    const safetyPlan = { ...plan, files: [...plan.files, ...manifests.map((manifest) => ({ source: manifest.path, target: manifest.path, componentType: "mcp" as const }))] };
+    const safety = await analyzeInstallPlanSafety(safetyPlan);
+    if (pkg.mcp) {
+      safety.approvalRequired = true;
+      safety.findings.push({ severity: "blocking", category: "mcp", message: "Package changes MCP configuration and requires explicit approval.", paths: [resolve(pkg.mcp.config)], names: selectedServers.map((server) => server.name) });
+    }
+    packages.push({ plan, metadata: { repository: source.repository, resolvedCommit: source.commit }, safety });
   }
-  return { manifest: manifestPath, packages, skipped, policyViolations: policyViolations(manifest, packages) };
+  return { manifest: manifestPath, packages, mcpPlans, skipped, policyViolations: policyViolations(manifest, packages) };
 }
 
 export async function applySyncPlan(plan: SyncPlan, lockPath = "loadout.lock", options: { approveRisk?: boolean } = {}): Promise<{ snapshotId?: string; lockfile: string }> {
   if (plan.policyViolations.length) throw new Error(`Synchronization violates manifest policy: ${plan.policyViolations.join("; ")}`);
   const blocked = plan.packages.filter((entry) => entry.safety.approvalRequired);
   if (blocked.length && !options.approveRisk) throw new Error(`Synchronization requires explicit risk approval for: ${blocked.map((entry) => entry.plan.packageId).join(", ")}`);
-  const snapshotId = plan.packages.length ? await applySkillInstallBatch(plan.packages, [resolve(lockPath)]) : undefined;
+  if (!plan.packages.length && !plan.mcpPlans.length) {
+    const manifest: LoadoutManifest = await readManifest(plan.manifest);
+    await writeLockfile(manifest, lockPath);
+    return { lockfile: lockPath };
+  }
+  const snapshot = await createSnapshot([...plan.packages.flatMap((entry) => entry.plan.files.map((file) => file.target)), ...plan.mcpPlans.map((entry) => entry.plan.path), installStatePath(), resolve(lockPath)]);
   const manifest: LoadoutManifest = await readManifest(plan.manifest);
-  try { await writeLockfile(manifest, lockPath); }
+  try {
+    for (const entry of plan.packages) if (entry.plan.files.length) await applySkillPlan(entry.plan);
+    for (const entry of plan.mcpPlans) await writeMcpConfigPlan(entry.plan);
+    await recordInstallTransaction(plan.packages, plan.mcpPlans, snapshot.id);
+    await writeLockfile(manifest, lockPath);
+  }
   catch (error) {
-    if (snapshotId) await restoreSnapshot(await readSnapshot(snapshotId));
+    await restoreSnapshot(snapshot);
     throw error;
   }
-  return { snapshotId, lockfile: lockPath };
+  return { snapshotId: snapshot.id, lockfile: lockPath };
 }

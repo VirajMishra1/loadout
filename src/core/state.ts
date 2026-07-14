@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { readFile, readdir, stat, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { InstallPlan, InstallRecord, InstallState } from "../shared/types.js";
+import type { InstallPlan, InstallRecord, InstallState, McpConfigPlan, McpInstallRecord } from "../shared/types.js";
 import { ensureDirectory, loadoutHome } from "./paths.js";
 
 const stateFile = () => join(loadoutHome(), "state.json");
@@ -16,10 +16,11 @@ export async function readInstallState(): Promise<InstallState> {
   try {
     const parsed = JSON.parse(await readFile(stateFile(), "utf8")) as Partial<InstallState>;
     if (parsed.version !== 1 || !Array.isArray(parsed.installs)) throw new Error("invalid state");
-    return parsed as InstallState;
+    if (parsed.mcpInstalls !== undefined && !Array.isArray(parsed.mcpInstalls)) throw new Error("invalid state");
+    return { ...(parsed as InstallState), mcpInstalls: parsed.mcpInstalls ?? [] };
   } catch (error) {
     if (error && typeof error === "object" && "code" in error && (error as { code?: string }).code === "ENOENT") {
-      return { version: 1, installs: [] };
+      return { version: 1, installs: [], mcpInstalls: [] };
     }
     throw new Error(`Loadout state is invalid at ${stateFile()}`);
   }
@@ -79,9 +80,30 @@ export async function recordInstallBatch(entries: Array<{ plan: InstallPlan; met
   return records;
 }
 
+function mcpFingerprint(plan: McpConfigPlan): string {
+  const servers = (plan.proposed.mcpServers ?? {}) as Record<string, unknown>;
+  return createHash("sha256").update(JSON.stringify(servers[plan.serverName] ?? null)).digest("hex");
+}
+
+export async function recordInstallTransaction(
+  entries: Array<{ plan: InstallPlan; metadata?: { repository?: string; resolvedCommit?: string } }>,
+  mcpEntries: Array<{ packageId: string; plan: McpConfigPlan }>,
+  snapshotId: string
+): Promise<{ installs: InstallRecord[]; mcpInstalls: McpInstallRecord[] }> {
+  const installs = await Promise.all(entries.map((entry) => createInstallRecord(entry.plan, snapshotId, entry.metadata)));
+  const now = new Date().toISOString();
+  const mcpInstalls = mcpEntries.flatMap((entry) => entry.plan.changes.map((change) => ({ packageId: entry.packageId, configPath: entry.plan.path, serverName: change.serverName, fingerprint: mcpFingerprint({ ...entry.plan, serverName: change.serverName }), snapshotId, installedAt: now })));
+  const state = await readInstallState();
+  const ids = new Set([...installs.map((entry) => entry.packageId), ...mcpInstalls.map((entry) => entry.packageId)]);
+  state.installs = [...state.installs.filter((entry) => !ids.has(entry.packageId)), ...installs];
+  state.mcpInstalls = [...(state.mcpInstalls ?? []).filter((entry) => !ids.has(entry.packageId)), ...mcpInstalls];
+  await writeInstallState(state);
+  return { installs, mcpInstalls };
+}
+
 export async function forgetInstall(packageId: string): Promise<void> {
   const state = await readInstallState();
   const installs = state.installs.filter((entry) => entry.packageId !== packageId);
   if (installs.length === state.installs.length) throw new Error(`Package is not managed by Loadout: ${packageId}`);
-  await writeInstallState({ version: 1, installs });
+  await writeInstallState({ version: 1, installs, mcpInstalls: (state.mcpInstalls ?? []).filter((entry) => entry.packageId !== packageId) });
 }

@@ -40,7 +40,7 @@ async function render() {
     const report = data.health;
     healthLabel.textContent = report.status;
     health.className = `health-list ${report.status === "healthy" ? "success" : report.status === "unhealthy" ? "error" : "attention"}`;
-    health.innerHTML = `<div class="metric-row"><strong>${report.installedPackages}</strong><span>packages</span><strong>${report.updatesAvailable}</strong><span>updates</span><strong>${report.driftedFiles}</strong><span>drifted files</span></div>${report.findings.map((finding) => `<p><span class="finding-level">${escapeHtml(finding.level)}</span>${escapeHtml(finding.message)}</p>`).join("")}`;
+    health.innerHTML = `<div class="metric-row"><strong>${report.installedPackages}</strong><span>packages</span><strong>${report.updatesAvailable}</strong><span>updates</span><strong>${report.driftedFiles}</strong><span>drifted files</span><strong>${report.driftedMcpServers}</strong><span>drifted MCP</span></div>${report.findings.map((finding) => `<p><span class="finding-level">${escapeHtml(finding.level)}</span>${escapeHtml(finding.message)}</p>`).join("")}`;
   } catch (error) { health.className = "state error"; health.textContent = `Could not load health: ${error.message}`; }
   try {
     const data = await load("/api/update");

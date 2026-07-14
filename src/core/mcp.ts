@@ -92,7 +92,12 @@ function safeName(name: string): void {
 
 /** Build a mutation without touching disk. Existing top-level config keys are preserved. */
 export async function planMcpConfig(path: string, server: McpServer, name = server.name): Promise<McpConfigPlan> {
-  safeName(name);
+  return planMcpConfigBatch(path, [{ server, name }]);
+}
+
+export async function planMcpConfigBatch(path: string, entries: Array<{ server: McpServer; name?: string }>): Promise<McpConfigPlan> {
+  if (!entries.length) throw new Error("MCP configuration batch is empty");
+  for (const entry of entries) safeName(entry.name ?? entry.server.name);
   const target = resolve(path);
   let current: Record<string, unknown> = {};
   try {
@@ -105,13 +110,20 @@ export async function planMcpConfig(path: string, server: McpServer, name = serv
   const existing = current.mcpServers;
   if (existing !== undefined && (!existing || typeof existing !== "object" || Array.isArray(existing))) throw new Error("mcpServers must be an object");
   const servers = { ...((existing ?? {}) as Record<string, unknown>) };
-  const had = Object.prototype.hasOwnProperty.call(servers, name);
-  const entry: Record<string, unknown> = server.url
-    ? { url: server.url, ...(server.args.length ? { args: server.args } : {}), ...(Object.keys(server.env).length ? { env: server.env } : {}) }
-    : { command: server.command, ...(server.args.length ? { args: server.args } : {}), ...(Object.keys(server.env).length ? { env: server.env } : {}) };
-  servers[name] = entry;
+  const changes = [];
+  const warnings: string[] = [];
+  for (const item of entries) {
+    const server = item.server; const name = item.name ?? server.name;
+    const had = Object.prototype.hasOwnProperty.call(servers, name);
+    const entry: Record<string, unknown> = server.url
+      ? { url: server.url, ...(server.args.length ? { args: server.args } : {}), ...(Object.keys(server.env).length ? { env: server.env } : {}) }
+      : { command: server.command, ...(server.args.length ? { args: server.args } : {}), ...(Object.keys(server.env).length ? { env: server.env } : {}) };
+    servers[name] = entry;
+    changes.push({ serverName: name, action: had ? "replace" as const : "add" as const, summary: `${had ? "Replace" : "Add"} MCP server '${name}' (${server.url ? "URL" : "command"}; ${Object.keys(server.env).length} environment variable(s))` });
+    warnings.push(...server.warnings);
+  }
   const proposed = { ...current, mcpServers: servers };
-  return { path: target, serverName: name, changes: [{ serverName: name, action: had ? "replace" : "add", summary: `${had ? "Replace" : "Add"} MCP server '${name}' (${server.url ? "URL" : "command"}; ${Object.keys(server.env).length} environment variable(s))` }], warnings: server.warnings, proposed };
+  return { path: target, serverName: changes[0].serverName, changes, warnings: [...new Set(warnings)], proposed };
 }
 
 export function summarizeMcpConfigPlan(plan: McpConfigPlan): string {
@@ -127,10 +139,21 @@ export async function applyMcpConfigPlan(plan: McpConfigPlan): Promise<McpConfig
   try { content = await readFile(plan.path, "utf8"); } catch (error) { if ((error as NodeJS.ErrnoException).code === "ENOENT") { existed = false; } else throw error; }
   const snapshot: McpConfigSnapshot = { id: randomUUID(), path: plan.path, existed, content, createdAt: new Date().toISOString() };
   const snap = await snapshotPath(snapshot.id); await mkdir(dirname(snap), { recursive: true }); await writeFile(snap, JSON.stringify(snapshot), { mode: 0o600 });
-  const temporary = join(dirname(plan.path), `.${basename(plan.path)}.loadout-${randomUUID()}.tmp`);
-  await writeFile(temporary, `${JSON.stringify(plan.proposed, null, 2)}\n`, { mode: 0o600 });
-  await rename(temporary, plan.path);
+  await writeMcpConfigPlan(plan);
   return snapshot;
+}
+
+/** Write an already-reviewed plan atomically; transaction callers own snapshot/rollback. */
+export async function writeMcpConfigPlan(plan: McpConfigPlan): Promise<void> {
+  await mkdir(dirname(plan.path), { recursive: true });
+  const temporary = join(dirname(plan.path), `.${basename(plan.path)}.loadout-${randomUUID()}.tmp`);
+  try {
+    await writeFile(temporary, `${JSON.stringify(plan.proposed, null, 2)}\n`, { mode: 0o600 });
+    await rename(temporary, plan.path);
+  } catch (error) {
+    await rm(temporary, { force: true });
+    throw error;
+  }
 }
 
 export async function restoreMcpConfig(snapshot: McpConfigSnapshot): Promise<void> {

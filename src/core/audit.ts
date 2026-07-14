@@ -18,7 +18,7 @@ export interface AuditReport {
   findings: AuditFinding[];
 }
 
-function parseLockfile(value: unknown): LoadoutLockfile {
+export function parseLockfile(value: unknown): LoadoutLockfile {
   if (!value || typeof value !== "object") throw new Error("Lockfile must be an object");
   const item = value as Partial<LoadoutLockfile>;
   if (item.schemaVersion !== 1 || typeof item.manifestName !== "string" || !Array.isArray(item.packages)) throw new Error("Lockfile schema is invalid");

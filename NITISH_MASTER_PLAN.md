@@ -4,6 +4,10 @@ Status: active implementation plan for `dev/nitish`
 Branch boundary: all work stays on `dev/nitish` until Nitish reviews it and opens a PR  
 Product position: OpenPackage-compatible package management plus safer installs, explainable updates, recovery, health checks, tested recommendations, and continuous catalog improvement
 
+Current evidence: manifest/lock portability includes validated `export` and dry-run-first
+`import`, with secret screening, atomic writes, overwrite protection, and recovery snapshots.
+The native CI matrix covers Windows, macOS, and Linux on Node 20 and 22.
+
 ## 1. Product promise
 
 Loadout is a universal package manager and safety control center for AI coding agents.

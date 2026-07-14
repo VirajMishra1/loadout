@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { tmpdir } from "node:os";
 import { discoverMcpManifests, parseMcpManifest, summarizeMcpManifest } from "../src/core/mcp.js";
 
 describe("MCP manifest discovery", () => {
@@ -12,7 +13,7 @@ describe("MCP manifest discovery", () => {
   });
 
   it("finds supported manifests recursively and reports malformed JSON", async () => {
-    const root = await mkdtemp(join(process.env.TMPDIR ?? "/tmp", "loadout-mcp-"));
+    const root = await mkdtemp(join(tmpdir(), "loadout-mcp-"));
     await mkdir(join(root, "nested"));
     await writeFile(join(root, "nested", ".mcp.json"), JSON.stringify({ servers: { local: { command: "node" } } }));
     await writeFile(join(root, "claude_desktop_config.json"), "{bad");

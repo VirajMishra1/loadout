@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { applySyncPlan, buildSyncPlan } from "../src/core/sync.js";
@@ -16,14 +16,14 @@ describe("manifest synchronization", () => {
 
   it("plans and applies mixed components as one locked transaction", async () => {
     root = await mkdtemp(join(tmpdir(), "loadout-sync-"));
-    const bin = join(root, "bin"); const source = join(root, "package"); const home = join(root, "home");
-    await mkdir(bin); await mkdir(join(source, "skills", "demo"), { recursive: true }); await mkdir(join(source, "commands"));
-    for (const name of ["codex", "claude"]) { const path = join(bin, name); await writeFile(path, "#!/bin/sh\nexit 0\n"); await chmod(path, 0o755); }
+    const source = join(root, "package"); const home = join(root, "home");
+    await mkdir(join(home, ".agents"), { recursive: true }); await mkdir(join(home, ".claude"));
+    await mkdir(join(source, "skills", "demo"), { recursive: true }); await mkdir(join(source, "commands"));
     await writeFile(join(source, "skills", "demo", "SKILL.md"), "---\nname: demo\ndescription: Demo skill\n---\n");
     await writeFile(join(source, "commands", "review.md"), "Review carefully.\n");
     const manifestPath = join(root, "loadout.json"); const lockPath = join(root, "loadout.lock");
     await writeFile(manifestPath, JSON.stringify({ schemaVersion: 1, name: "test", scope: "global", agents: ["codex", "claude-code"], packages: [{ id: "demo", source: { type: "local", path: source } }] }));
-    process.env.PATH = `${bin}:${originalPath ?? ""}`; process.env.LOADOUT_HOME = join(root, ".loadout"); process.env.LOADOUT_USER_HOME = home;
+    process.env.LOADOUT_HOME = join(root, ".loadout"); process.env.LOADOUT_USER_HOME = home;
     const plan = await buildSyncPlan(manifestPath);
     expect(plan.packages[0].plan.files.map((file) => file.componentType)).toEqual(expect.arrayContaining(["skill", "command"]));
     const result = await applySyncPlan(plan, lockPath);
@@ -36,13 +36,12 @@ describe("manifest synchronization", () => {
 
   it("reports and enforces blocked-domain policy", async () => {
     root = await mkdtemp(join(tmpdir(), "loadout-sync-policy-"));
-    const bin = join(root, "bin"); const source = join(root, "package"); const home = join(root, "home");
-    await mkdir(bin); await mkdir(source);
-    const codex = join(bin, "codex"); await writeFile(codex, "#!/bin/sh\nexit 0\n"); await chmod(codex, 0o755);
+    const source = join(root, "package"); const home = join(root, "home");
+    await mkdir(join(home, ".agents"), { recursive: true }); await mkdir(source);
     await writeFile(join(source, "SKILL.md"), "---\nname: demo\ndescription: Demo skill\n---\nUse https://blocked.example/api\n");
     const manifestPath = join(root, "loadout.json");
     await writeFile(manifestPath, JSON.stringify({ schemaVersion: 1, name: "policy", scope: "global", agents: ["codex"], policy: { blockedDomains: ["blocked.example"] }, packages: [{ id: "demo", source: { type: "local", path: source } }] }));
-    process.env.PATH = `${bin}:${originalPath ?? ""}`; process.env.LOADOUT_HOME = join(root, ".loadout"); process.env.LOADOUT_USER_HOME = home;
+    process.env.LOADOUT_HOME = join(root, ".loadout"); process.env.LOADOUT_USER_HOME = home;
     const plan = await buildSyncPlan(manifestPath);
     expect(plan.policyViolations).toEqual(["demo references blocked domain 'blocked.example'"]);
     await expect(applySyncPlan(plan, join(root, "loadout.lock"), { approveRisk: true })).rejects.toThrow(/violates manifest policy/);
@@ -50,14 +49,13 @@ describe("manifest synchronization", () => {
 
   it("applies MCP-only packages transactionally and rolls back config plus state", async () => {
     root = await mkdtemp(join(tmpdir(), "loadout-sync-mcp-"));
-    const bin = join(root, "bin"); const source = join(root, "package"); const home = join(root, "home");
-    await mkdir(bin); await mkdir(source);
-    const codex = join(bin, "codex"); await writeFile(codex, "#!/bin/sh\nexit 0\n"); await chmod(codex, 0o755);
+    const source = join(root, "package"); const home = join(root, "home");
+    await mkdir(join(home, ".agents"), { recursive: true }); await mkdir(source);
     await writeFile(join(source, "mcp.json"), JSON.stringify({ mcpServers: { docs: { command: "npx", args: ["-y", "docs-server"], env: { DOCS_TOKEN: "${DOCS_TOKEN}" } } } }));
     const config = join(root, "agent-mcp.json"); const original = JSON.stringify({ theme: "dark", mcpServers: { existing: { command: "keep" } } }); await writeFile(config, original);
     const manifestPath = join(root, "loadout.json"); const lockPath = join(root, "loadout.lock");
     await writeFile(manifestPath, JSON.stringify({ schemaVersion: 1, name: "mcp", scope: "global", agents: ["codex"], packages: [{ id: "docs", source: { type: "local", path: source }, mcp: { config, servers: ["docs"] } }] }));
-    process.env.PATH = `${bin}:${originalPath ?? ""}`; process.env.LOADOUT_HOME = join(root, ".loadout"); process.env.LOADOUT_USER_HOME = home;
+    process.env.LOADOUT_HOME = join(root, ".loadout"); process.env.LOADOUT_USER_HOME = home;
     const plan = await buildSyncPlan(manifestPath);
     expect(plan.mcpPlans).toHaveLength(1);
     expect(plan.packages[0].safety.approvalRequired).toBe(true);

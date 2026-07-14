@@ -1,22 +1,27 @@
 import { describe, expect, it, afterEach } from "vitest";
 import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, win32 } from "node:path";
 import { detectAgents, loadoutHome, userHome } from "../src/core/paths.js";
 
 describe("platform paths", () => {
   const originalHome = process.env.LOADOUT_USER_HOME;
+  const originalState = process.env.LOADOUT_HOME;
   afterEach(() => {
     if (originalHome === undefined) delete process.env.LOADOUT_USER_HOME;
     else process.env.LOADOUT_USER_HOME = originalHome;
+    if (originalState === undefined) delete process.env.LOADOUT_HOME;
+    else process.env.LOADOUT_HOME = originalState;
   });
 
   it("uses an injectable home for isolated tests", async () => {
-    process.env.LOADOUT_USER_HOME = "/tmp/loadout-test-home";
-    expect(userHome()).toBe("/tmp/loadout-test-home");
+    const home = join(tmpdir(), "loadout-test-home");
+    process.env.LOADOUT_USER_HOME = home;
+    process.env.LOADOUT_HOME = join(home, ".loadout");
+    expect(userHome()).toBe(home);
     expect(loadoutHome()).toContain(".loadout");
     const agents = await detectAgents();
-    expect(agents.find((agent) => agent.id === "codex")?.skillsDirectory).toBe("/tmp/loadout-test-home/.agents/skills");
+    expect(agents.find((agent) => agent.id === "codex")?.skillsDirectory).toBe(join(home, ".agents", "skills"));
   });
 
   it("prefers USERPROFILE for native Windows home resolution", () => {
@@ -26,9 +31,9 @@ describe("platform paths", () => {
 
   it("uses APPDATA for Windows state and has a profile fallback", () => {
     expect(loadoutHome({ USERPROFILE: "C:\\Users\\viraj", APPDATA: "C:\\Users\\viraj\\AppData\\Roaming" }, "win32"))
-      .toBe("C:\\Users\\viraj\\AppData\\Roaming/loadout");
+      .toBe(win32.join("C:\\Users\\viraj\\AppData\\Roaming", "loadout"));
     expect(loadoutHome({ USERPROFILE: "C:\\Users\\viraj" }, "win32"))
-      .toBe("C:\\Users\\viraj/AppData/Roaming/loadout");
+      .toBe(win32.join("C:\\Users\\viraj", "AppData", "Roaming", "loadout"));
   });
 
   it("honors explicit state-directory overrides on every platform", () => {

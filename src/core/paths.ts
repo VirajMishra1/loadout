@@ -1,5 +1,5 @@
 import { access, mkdir, readdir } from "node:fs/promises";
-import { join } from "node:path";
+import { join, win32 } from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import type { AgentId, DetectedAgent } from "../shared/types.js";
@@ -31,8 +31,8 @@ export function loadoutHome(env: PathEnvironment = process.env, platform: NodeJS
     // Application state belongs in roaming app data on Windows rather than a
     // dot-directory in the profile. APPDATA may be absent in stripped-down
     // shells, so fall back to a conventional profile path.
-    const appData = env.APPDATA ?? join(userHome(env, platform), "AppData", "Roaming");
-    return join(appData, "loadout");
+    const appData = env.APPDATA ?? win32.join(userHome(env, platform), "AppData", "Roaming");
+    return win32.join(appData, "loadout");
   }
   return join(userHome(env, platform), ".loadout");
 }

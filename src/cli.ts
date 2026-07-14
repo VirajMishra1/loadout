@@ -25,6 +25,7 @@ import { startRegistryServer } from "./core/registry-api.js";
 import { auditLoadout, formatAuditReport } from "./core/audit.js";
 import { ADAPTER_CAPABILITIES, formatCapabilityMatrix } from "./core/adapters.js";
 import { generateSigningKeys, signJsonFile, verifyJsonFile } from "./core/signing.js";
+import { applyPortableImport, exportPortableLoadout, planPortableImport } from "./core/portable.js";
 
 const program = new Command();
 program.name("loadout").description("Universal upgrade manager for AI coding agents").version("0.1.0");
@@ -47,6 +48,31 @@ program.command("lock")
   .action(async (options: { manifest: string; output: string }) => {
     const lockfile = await writeLockfile(await readManifest(options.manifest), options.output);
     console.log(`Wrote ${options.output} with ${lockfile.packages.length} resolved package(s).`);
+  });
+
+program.command("export")
+  .description("Export a portable Loadout manifest and optional lockfile")
+  .argument("<output>", "new portable JSON file")
+  .option("--manifest <path>", "manifest path", "loadout.json")
+  .option("--lock <path>", "include this exact lockfile")
+  .action(async (output: string, options: { manifest: string; lock?: string }) => {
+    const bundle = await exportPortableLoadout(options.manifest, output, options.lock);
+    console.log(`Exported ${bundle.manifest.packages.length} package(s) to ${output}.${bundle.lockfile ? " Exact lockfile included." : ""}`);
+  });
+
+program.command("import")
+  .description("Preview or apply a portable Loadout manifest and lockfile")
+  .argument("<source>", "portable JSON file")
+  .option("--manifest <path>", "manifest destination", "loadout.json")
+  .option("--lock <path>", "lockfile destination", "loadout.lock")
+  .option("--yes", "apply the import; otherwise remain read-only")
+  .option("--overwrite", "replace existing destination files after snapshotting them")
+  .action(async (source: string, options: { manifest: string; lock: string; yes?: boolean; overwrite?: boolean }) => {
+    const preview = await planPortableImport(source, options.manifest, options.lock);
+    console.log(JSON.stringify(preview.plan, null, 2));
+    if (!options.yes) return console.log("Dry run only. Re-run with --yes to import this Loadout.");
+    const result = await applyPortableImport(source, options.manifest, options.lock, { overwrite: options.overwrite });
+    console.log(`Imported successfully. Recovery snapshot: ${result.snapshotId}.`);
   });
 
 program.command("audit")

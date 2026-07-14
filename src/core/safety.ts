@@ -32,7 +32,7 @@ const SECRET_PATTERNS: Array<{ name: string; pattern: RegExp }> = [
   { name: "private key", pattern: /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/ },
   { name: "GitHub token", pattern: /\bgh[oprsu]_[A-Za-z0-9_]{30,}\b/ },
   { name: "AWS access key", pattern: /\bAKIA[0-9A-Z]{16}\b/ },
-  { name: "generic API key assignment", pattern: /\b(?:api[_-]?key|secret|token)\s*[:=]\s*["'][A-Za-z0-9_./+=-]{20,}["']/i },
+  { name: "generic API key assignment", pattern: /\b(?:api[_-]?key|secret|token)["']?\s*[:=]\s*["'][A-Za-z0-9_./+=-]{20,}["']/i },
 ];
 const SUSPICIOUS_INSTRUCTIONS: Array<{ name: string; pattern: RegExp }> = [
   { name: "instruction override", pattern: /\bignore (?:all |any )?(?:previous|prior|system|developer) instructions?\b/i },

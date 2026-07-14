@@ -42,6 +42,10 @@ node dist/src/cli.js audit --manifest loadout.json --lock loadout.lock
 node dist/src/cli.js keygen --private-key ~/.loadout/signing-private.pem --public-key ./loadout-public.pem
 node dist/src/cli.js catalog-sign --catalog catalog/packages.json --private-key ~/.loadout/signing-private.pem --output catalog.signed.json
 node dist/src/cli.js catalog-verify --snapshot catalog.signed.json --public-key ./loadout-public.pem
+node dist/src/cli.js export team.loadout.json --manifest loadout.json --lock loadout.lock
+node dist/src/cli.js import team.loadout.json                         # dry run
+node dist/src/cli.js import team.loadout.json --yes                  # refuses existing files
+node dist/src/cli.js import team.loadout.json --yes --overwrite      # snapshots first
 
 # Create and publish an immutable package to the local registry.
 node dist/src/cli.js create ./my-package --name my-package
@@ -224,6 +228,11 @@ catalog, updates, recommendations, and authenticated safe sync/rollback actions.
   are verified, publishing uses `LOADOUT_REGISTRY_TOKEN`, and non-loopback clients require
   HTTPS. The included server is suitable for local development or self-hosting; no public
   Loadout hosting service is claimed or deployed yet.
+
+Portable exports contain the validated manifest and, when requested, its exact lockfile.
+Absolute local package paths are refused because another machine cannot reproduce them.
+Import is a dry run by default, will not silently replace files, snapshots destinations
+before writing, and can be undone with the reported snapshot id.
 
 ## Core promise
 

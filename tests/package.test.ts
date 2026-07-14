@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { tmpdir } from "node:os";
 import { inspectPackage, formatPackageInspection } from "../src/core/package.js";
 
 describe("package inspection", () => {
   it("returns normalized skills and MCP servers without secret values", async () => {
-    const root = await mkdtemp(join(process.env.TMPDIR ?? "/tmp", "loadout-package-"));
+    const root = await mkdtemp(join(tmpdir(), "loadout-package-"));
     await mkdir(join(root, "skills", "docs"), { recursive: true });
     await writeFile(join(root, "skills", "docs", "SKILL.md"), "---\nname: docs\ndescription: Documentation helper\n---\n");
     await mkdir(join(root, "plugin", ".claude-plugin"), { recursive: true });

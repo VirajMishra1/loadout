@@ -15,8 +15,11 @@ export function parsePackageDescriptor(value: unknown): PackageDescriptor {
   if (typeof item.name !== "string" || !NAME.test(item.name)) throw new Error("Package name must use lowercase letters, numbers, dots, underscores, or dashes");
   if (typeof item.version !== "string" || !VERSION.test(item.version)) throw new Error("Package version must be semantic version such as 1.0.0");
   if (typeof item.description !== "string" || !item.description.trim()) throw new Error("Package description is required");
-  if (item.dependencies !== undefined && (!item.dependencies || typeof item.dependencies !== "object" || Array.isArray(item.dependencies) || Object.entries(item.dependencies).some(([name, version]) => !NAME.test(name) || typeof version !== "string" || !version))) throw new Error("Package dependencies must map names to version constraints");
-  return { schemaVersion: 1, name: item.name, version: item.version, description: item.description.trim(), ...(typeof item.license === "string" ? { license: item.license } : {}), ...(item.dependencies ? { dependencies: item.dependencies as Record<string, string> } : {}) };
+  for (const field of ["dependencies", "devDependencies"] as const) {
+    const dependencies = item[field];
+    if (dependencies !== undefined && (!dependencies || typeof dependencies !== "object" || Array.isArray(dependencies) || Object.entries(dependencies).some(([name, version]) => !NAME.test(name) || typeof version !== "string" || !VERSION.test(version)))) throw new Error(`Package ${field} must map names to exact semantic versions`);
+  }
+  return { schemaVersion: 1, name: item.name, version: item.version, description: item.description.trim(), ...(typeof item.license === "string" ? { license: item.license } : {}), ...(item.dependencies ? { dependencies: item.dependencies as Record<string, string> } : {}), ...(item.devDependencies ? { devDependencies: item.devDependencies as Record<string, string> } : {}) };
 }
 
 export async function createPackage(root: string, options: { name: string; description?: string; version?: string }): Promise<PackageDescriptor> {

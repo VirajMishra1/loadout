@@ -218,12 +218,15 @@ catalog, updates, recommendations, and authenticated safe sync/rollback actions.
 - Updates are reported and installs are transactional; autonomous background updates
   and signed catalog releases are not yet enabled.
 - The manifest currently resolves catalog, public GitHub refs/subpaths, generic HTTPS
-  or SSH Git sources, and local sources. Package dependencies are ordered and missing,
-  disabled, or cyclic dependencies are rejected. Skills, conventional rule directories,
+  or SSH Git sources, and local sources. Manifest dependencies are ordered and missing,
+  disabled, or cyclic dependencies are rejected. Registry package descriptors resolve
+  exact transitive production dependencies; development dependencies require explicit
+  `includeDevDependencies: true`. Cycles and incompatible versions are blocked, and the
+  expanded dependency graph is recorded in the lockfile. Skills, conventional rule directories,
   command directories, and agent directories are normalized; unsupported targets are
   skipped rather than falsely converted. Plugin/root-file application, automated MCP
-  targeting for non-JSON agent formats, native plugin-only behavior, and transitive
-  package-owned manifests remain planned. Loadout now includes a small authenticated
+  targeting for non-JSON agent formats and native plugin-only behavior remain planned.
+  Loadout now includes a small authenticated
   registry protocol: exact versions are immutable, downloaded files and package digests
   are verified, publishing uses `LOADOUT_REGISTRY_TOKEN`, and non-loopback clients require
   HTTPS. The included server is suitable for local development or self-hosting; no public

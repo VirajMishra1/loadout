@@ -7,7 +7,7 @@ import { detectAgents, userHome } from "./paths.js";
 import { fetchGitSnapshot, fetchRepositorySnapshot } from "./source.js";
 import { addRootFileExports, buildUniversalPackagePlan } from "./components.js";
 import { analyzeInstallPlanSafety, type UpdateSafetyAnalysis } from "./safety.js";
-import { fetchRemoteRegistryPackage, resolveRegistryPackage } from "./registry.js";
+import { fetchRemoteRegistryPackage, packPackage, resolveRegistryPackage } from "./registry.js";
 import { createSnapshot, restoreSnapshot } from "./snapshot.js";
 import { discoverMcpManifests, planMcpConfigBatch, writeMcpConfigPlan } from "./mcp.js";
 import { applySkillPlan, detectInstallConflicts } from "./skills.js";
@@ -15,10 +15,69 @@ import { installStatePath, recordInstallTransaction } from "./state.js";
 
 export interface SyncPlan {
   manifest: string;
+  resolvedManifest?: LoadoutManifest;
   packages: Array<InstallBatchEntry & { safety: UpdateSafetyAnalysis }>;
   mcpPlans: Array<{ packageId: string; plan: McpConfigPlan }>;
   skipped: Array<{ packageId: string; reason: string }>;
   policyViolations: string[];
+}
+
+function registrySourceKey(source: ManifestPackage["source"]): string | undefined {
+  if (source.type === "registry") return `local:${source.name}@${source.version}`;
+  if (source.type === "remote-registry") return `${source.registry}:${source.name}@${source.version}`;
+  return undefined;
+}
+
+function dependencySource(parent: ManifestPackage["source"], name: string, version: string): ManifestPackage["source"] {
+  if (parent.type === "registry") return { type: "registry", name, version };
+  if (parent.type === "remote-registry") return { type: "remote-registry", registry: parent.registry, name, version };
+  throw new Error("Only registry packages can resolve package-owned dependencies");
+}
+
+async function expandRegistryDependencies(manifest: LoadoutManifest): Promise<LoadoutManifest> {
+  const explicit = new Map(manifest.packages.map((pkg) => [pkg.id, pkg]));
+  const expanded = new Map<string, ManifestPackage>();
+  const visiting = new Set<string>();
+  const packageCache = new Map<string, Awaited<ReturnType<typeof packPackage>>>();
+  const requestedVersions = new Map<string, string>();
+
+  async function visit(input: ManifestPackage, chain: string[]): Promise<void> {
+    const key = registrySourceKey(input.source);
+    if (!key) { if (!expanded.has(input.id)) expanded.set(input.id, input); return; }
+    if (visiting.has(key)) throw new Error(`Registry dependency cycle: ${[...chain, input.id].join(" -> ")}`);
+    const existing = expanded.get(input.id);
+    if (existing) {
+      if (JSON.stringify(existing.source) !== JSON.stringify(input.source)) throw new Error(`Registry dependency id '${input.id}' resolves to conflicting sources`);
+      const agents = existing.agents === undefined || input.agents === undefined ? undefined : [...new Set([...existing.agents, ...input.agents])];
+      expanded.set(input.id, { ...existing, ...(agents ? { agents } : { agents: undefined }) });
+      return;
+    }
+    visiting.add(key);
+    let packed = packageCache.get(key);
+    if (!packed) {
+      const source = await resolvePackage(input);
+      packed = await packPackage(source.path);
+      packageCache.set(key, packed);
+    }
+    const dependencies = Object.entries({ ...(packed.descriptor.dependencies ?? {}), ...(input.includeDevDependencies ? packed.descriptor.devDependencies ?? {} : {}) }).sort(([left], [right]) => left.localeCompare(right));
+    const dependencyIds: string[] = [];
+    for (const [name, version] of dependencies) {
+      const previous = requestedVersions.get(name);
+      if (previous && previous !== version) throw new Error(`Registry dependency version conflict for '${name}': ${previous} versus ${version}`);
+      requestedVersions.set(name, version);
+      const source = dependencySource(input.source, name, version);
+      const configured = explicit.get(name);
+      if (configured && JSON.stringify(configured.source) !== JSON.stringify(source)) throw new Error(`Registry dependency '${name}@${version}' conflicts with explicitly configured package '${name}'`);
+      await visit(configured ?? { id: name, source, ...(input.agents ? { agents: input.agents } : {}) }, [...chain, input.id]);
+      dependencyIds.push(name);
+    }
+    visiting.delete(key);
+    const dependsOn = [...new Set([...(input.dependsOn ?? []), ...dependencyIds])];
+    expanded.set(input.id, { ...input, ...(dependsOn.length ? { dependsOn } : {}) });
+  }
+
+  for (const pkg of manifest.packages) await visit(pkg, []);
+  return { ...manifest, packages: [...expanded.values()] };
 }
 
 function policyViolations(manifest: LoadoutManifest, packages: SyncPlan["packages"]): string[] {
@@ -68,7 +127,7 @@ async function resolvePackage(pkg: ManifestPackage): Promise<{ path: string; rep
 }
 
 export async function buildSyncPlan(manifestPath = "loadout.json"): Promise<SyncPlan> {
-  const manifest = await readManifest(manifestPath);
+  const manifest = await expandRegistryDependencies(await readManifest(manifestPath));
   const disabled = new Set(manifest.packages.filter((pkg) => pkg.enabled === false).map((pkg) => pkg.id));
   for (const pkg of manifest.packages.filter((item) => item.enabled !== false)) {
     const unavailable = (pkg.dependsOn ?? []).filter((id) => disabled.has(id));
@@ -110,7 +169,7 @@ export async function buildSyncPlan(manifestPath = "loadout.json"): Promise<Sync
     }
     packages.push({ plan, metadata: { repository: source.repository, resolvedCommit: source.commit }, safety });
   }
-  return { manifest: manifestPath, packages, mcpPlans, skipped, policyViolations: policyViolations(manifest, packages) };
+  return { manifest: manifestPath, resolvedManifest: manifest, packages, mcpPlans, skipped, policyViolations: policyViolations(manifest, packages) };
 }
 
 export async function applySyncPlan(plan: SyncPlan, lockPath = "loadout.lock", options: { approveRisk?: boolean } = {}): Promise<{ snapshotId?: string; lockfile: string }> {
@@ -121,17 +180,15 @@ export async function applySyncPlan(plan: SyncPlan, lockPath = "loadout.lock", o
   const blockingConflicts = conflicts.filter((conflict) => conflict.severity === "blocking");
   if (blockingConflicts.length) throw new Error(`Synchronization has blocking target conflicts: ${blockingConflicts.map((conflict) => conflict.message).join("; ")}`);
   if (!plan.packages.length && !plan.mcpPlans.length) {
-    const manifest: LoadoutManifest = await readManifest(plan.manifest);
-    await writeLockfile(manifest, lockPath);
+    await writeLockfile(plan.resolvedManifest ?? await readManifest(plan.manifest), lockPath);
     return { lockfile: lockPath };
   }
   const snapshot = await createSnapshot([...plan.packages.flatMap((entry) => entry.plan.files.map((file) => file.target)), ...plan.mcpPlans.map((entry) => entry.plan.path), installStatePath(), resolve(lockPath)]);
-  const manifest: LoadoutManifest = await readManifest(plan.manifest);
   try {
     for (const entry of plan.packages) if (entry.plan.files.length) await applySkillPlan(entry.plan);
     for (const entry of plan.mcpPlans) await writeMcpConfigPlan(entry.plan);
     await recordInstallTransaction(plan.packages, plan.mcpPlans, snapshot.id);
-    await writeLockfile(manifest, lockPath);
+    await writeLockfile(plan.resolvedManifest ?? await readManifest(plan.manifest), lockPath);
   }
   catch (error) {
     await restoreSnapshot(snapshot);

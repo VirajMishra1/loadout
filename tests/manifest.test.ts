@@ -62,4 +62,9 @@ describe("manifest and lockfile", () => {
     expect(manifest.packages[0].rootFiles).toEqual([{ source: "AGENTS.md", target: "AGENTS.md" }]);
     expect(() => parseManifest({ schemaVersion: 1, name: "root", scope: "project", agents: ["codex"], packages: [{ id: "rules", source: { type: "local", path: "." }, rootFiles: [{ source: 1, target: "x" }] }] })).toThrow(/rootFiles/);
   });
+
+  it("keeps development dependencies opt-in", () => {
+    const manifest = parseManifest({ schemaVersion: 1, name: "dev", scope: "project", agents: ["codex"], packages: [{ id: "app", source: { type: "registry", name: "app", version: "1.0.0" }, includeDevDependencies: true }] });
+    expect(manifest.packages[0].includeDevDependencies).toBe(true);
+  });
 });

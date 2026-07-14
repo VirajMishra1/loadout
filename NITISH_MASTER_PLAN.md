@@ -7,6 +7,8 @@ Product position: OpenPackage-compatible package management plus safer installs,
 Current evidence: manifest/lock portability includes validated `export` and dry-run-first
 `import`, with secret screening, atomic writes, overwrite protection, and recovery snapshots.
 The native CI matrix covers Windows, macOS, and Linux on Node 20 and 22.
+Registry packages now resolve exact transitive production dependencies, opt-in development
+dependencies, cycles, and version conflicts, and record the expanded graph in `loadout.lock`.
 
 ## 1. Product promise
 

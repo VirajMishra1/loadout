@@ -113,6 +113,7 @@ export interface PackageDescriptor {
   description: string;
   license?: string;
   dependencies?: Record<string, string>;
+  devDependencies?: Record<string, string>;
 }
 
 export interface PackedPackage {
@@ -127,6 +128,7 @@ export interface ManifestPackage {
   source: PackageSource;
   agents?: AgentId[];
   dependsOn?: string[];
+  includeDevDependencies?: boolean;
   mcp?: { config: string; servers?: string[] };
   rootFiles?: Array<{ source: string; target: string }>;
   enabled?: boolean;
@@ -154,6 +156,7 @@ export interface LockedPackage {
   targetAgents: AgentId[];
   files: Array<{ path: string; sha256: string }>;
   installedAt: string;
+  dependencies?: string[];
 }
 
 export interface LoadoutLockfile {

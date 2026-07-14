@@ -58,7 +58,7 @@ export function parseManifest(value: unknown): LoadoutManifest {
       if (!Array.isArray(pkg.rootFiles) || pkg.rootFiles.some((entry) => !entry || typeof entry !== "object" || typeof (entry as Record<string, unknown>).source !== "string" || typeof (entry as Record<string, unknown>).target !== "string")) throw new Error(`packages[${index}].rootFiles must contain source and target paths`);
       return pkg.rootFiles as Array<{ source: string; target: string }>;
     })();
-    return { id: pkg.id, source: source(pkg.source, `packages[${index}]`), ...(pkg.agents === undefined ? {} : { agents: agents(pkg.agents, `packages[${index}].agents`) }), ...(dependsOn ? { dependsOn } : {}), ...(mcp ? { mcp } : {}), ...(rootFiles ? { rootFiles } : {}), ...(typeof pkg.enabled === "boolean" ? { enabled: pkg.enabled } : {}) };
+    return { id: pkg.id, source: source(pkg.source, `packages[${index}]`), ...(pkg.agents === undefined ? {} : { agents: agents(pkg.agents, `packages[${index}].agents`) }), ...(dependsOn ? { dependsOn } : {}), ...(typeof pkg.includeDevDependencies === "boolean" ? { includeDevDependencies: pkg.includeDevDependencies } : {}), ...(mcp ? { mcp } : {}), ...(rootFiles ? { rootFiles } : {}), ...(typeof pkg.enabled === "boolean" ? { enabled: pkg.enabled } : {}) };
   });
   const ids = parsedPackages.map((pkg) => pkg.id);
   if (new Set(ids).size !== ids.length) throw new Error("Manifest package ids must be unique");
@@ -151,6 +151,7 @@ export async function writeLockfile(manifest: LoadoutManifest, path = "loadout.l
       targetAgents: entry.targetAgents,
       files: entry.files,
       installedAt: entry.installedAt,
+      ...(manifest.packages.find((pkg) => pkg.id === entry.packageId)?.dependsOn?.length ? { dependencies: manifest.packages.find((pkg) => pkg.id === entry.packageId)!.dependsOn } : {}),
     })),
     mcpServers: (state.mcpInstalls ?? []).filter((entry) => sourceById.has(entry.packageId)).map(({ packageId, configPath, serverName, fingerprint }) => ({ packageId, configPath, serverName, fingerprint })),
   };

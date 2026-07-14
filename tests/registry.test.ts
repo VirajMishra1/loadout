@@ -27,6 +27,7 @@ describe("local package registry", () => {
 
   it("validates descriptors and risk-gates scripts", async () => {
     expect(() => parsePackageDescriptor({ schemaVersion: 1, name: "Bad Name", version: "latest", description: "x" })).toThrow();
+    expect(() => parsePackageDescriptor({ schemaVersion: 1, name: "demo", version: "1.0.0", description: "x", dependencies: { base: "^1.0.0" } })).toThrow(/exact semantic versions/);
     root = await mkdtemp(join(tmpdir(), "loadout-registry-risk-")); process.env.LOADOUT_HOME = join(root, ".loadout");
     const packageRoot = join(root, "risky");
     await createPackage(packageRoot, { name: "risky" });

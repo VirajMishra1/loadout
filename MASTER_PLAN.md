@@ -668,18 +668,19 @@ modes.
 
 ### Phase 5: Agent adapters
 
-- [ ] `P5-01 [TERRA]` Claude skill install/remove planner.
-- [ ] `P5-02 [TERRA]` Codex skill install/remove planner.
-- [ ] `P5-03 [TERRA]` Cursor skill install/remove planner.
-- [ ] `P5-04 [LUNA]` Gemini skill planner using approved layout.
-- [ ] `P5-05 [LUNA]` OpenCode skill planner using approved layout.
-- [ ] `P5-06 [LUNA]` Hermes skill planner using approved layout.
+- [x] `P5-01 [TERRA]` Claude skill install/remove planner.
+- [x] `P5-02 [TERRA]` Codex skill install/remove planner.
+- [x] `P5-03 [TERRA]` Cursor skill install/remove planner.
+- [x] `P5-04 [LUNA]` Gemini skill planner using approved layout.
+- [x] `P5-05 [LUNA]` OpenCode skill planner using approved layout.
+- [x] `P5-06 [LUNA]` Hermes skill planner using approved layout.
 - [x] `P5-07 [SOL]` Review adapters for lossy or false compatibility claims.
 - [x] `P5-08 [TERRA]` Claude MCP config planner preserving unrelated entries.
 - [x] `P5-09 [TERRA]` Codex MCP config planner preserving unrelated entries/comments.
   - Implementation appends only new official TOML tables; replacement of an existing table remains intentionally unsupported until a comment-preserving TOML editor is added.
 - [x] `P5-10 [TERRA]` Cursor MCP config planner preserving unrelated entries.
-- [ ] `P5-11 [TERRA]` Smoke-test interface and results.
+- [x] `P5-11 [TERRA]` Smoke-test interface and results.
+  - The native-skill adapter smoke suite plans, installs, and removes a real `SKILL.md` fixture for each declared filesystem layout. It does not claim plugin, hook, MCP, or executable runtime support beyond the capability matrix.
 
 ### Phase 6: CLI
 

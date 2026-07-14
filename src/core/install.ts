@@ -2,8 +2,9 @@ import { existsSync } from "node:fs";
 import { lstat } from "node:fs/promises";
 import { join } from "node:path";
 import type { AgentId, DetectedAgent, InstallPlan } from "../shared/types.js";
+import { planAdapterSkillInstall } from "./adapters.js";
 import { createSnapshot, restoreSnapshot } from "./snapshot.js";
-import { applySkillPlan, detectInstallConflicts, planSkillInstall, validateSkillDirectory } from "./skills.js";
+import { applySkillPlan, detectInstallConflicts, validateSkillDirectory } from "./skills.js";
 import { installStatePath, recordInstall, recordInstallBatch } from "./state.js";
 
 export function installedAgents(agents: DetectedAgent[], requested?: AgentId[]): DetectedAgent[] {
@@ -26,9 +27,16 @@ export async function buildSkillPlan(source: string, packageId: string, agents: 
   // A repository may contain one skill at its root or several nested skills.
   // Validate the root when present; planSkillInstall validates every nested skill.
   if (existsSync(join(source, "SKILL.md"))) await validateSkillDirectory(source);
-  const plan = await planSkillInstall(source, agents.map((agent) => agent.skillsDirectory), packageId);
-  plan.targetAgents = agents.map((agent) => agent.id);
-  return plan;
+  const plans = await Promise.all(agents.map((agent) => planAdapterSkillInstall(source, packageId, agent)));
+  const files = plans.flatMap((plan) => plan.files);
+  const conflicts = detectInstallConflicts([{ packageId, files, targetAgents: agents.map((agent) => agent.id), warnings: [] }]);
+  return {
+    packageId,
+    files,
+    targetAgents: agents.map((agent) => agent.id),
+    warnings: conflicts.filter((item) => item.severity === "warning").map((item) => item.message),
+    conflicts
+  };
 }
 
 export async function applySkillInstall(plan: InstallPlan, metadata?: { repository?: string; resolvedCommit?: string }): Promise<string> {

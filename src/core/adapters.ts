@@ -1,5 +1,6 @@
 import { dirname, join } from "node:path";
-import type { AgentId, ComponentCompatibility, ComponentType, DetectedAgent } from "../shared/types.js";
+import type { AgentId, ComponentCompatibility, ComponentType, DetectedAgent, InstallPlan } from "../shared/types.js";
+import { planSkillInstall } from "./skills.js";
 
 export interface AdapterCapabilities {
   agent: AgentId;
@@ -23,6 +24,25 @@ export function adapterCapabilities(agent: AgentId): AdapterCapabilities {
   const found = ADAPTER_CAPABILITIES.find((entry) => entry.agent === agent);
   if (!found) throw new Error(`No adapter capability declaration for '${agent}'`);
   return found;
+}
+
+/**
+ * Produce a read-only native-skill plan for one agent.  This is deliberately
+ * narrower than package normalization: adapters may only target a directory
+ * declared by the capability matrix, and planning never creates that
+ * directory or writes agent configuration.
+ */
+export async function planAdapterSkillInstall(source: string, packageId: string, agent: DetectedAgent): Promise<InstallPlan> {
+  const capability = adapterCapabilities(agent.id).components.skill;
+  if (capability !== "native") {
+    throw new Error(`${agent.displayName} does not declare native skill installation support.`);
+  }
+  const plan = await planSkillInstall(source, [agent.skillsDirectory], packageId);
+  return {
+    ...plan,
+    files: plan.files.map((file) => ({ ...file, componentType: "skill" as const, compatibility: capability })),
+    targetAgents: [agent.id]
+  };
 }
 
 /**

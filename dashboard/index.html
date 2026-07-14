@@ -7,17 +7,67 @@
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
-    <main>
-      <header><p class="eyebrow">LOADOUT</p><h1>Your agent control center.</h1><p class="subhead">Health, safe updates, tested setups, and real packages from this machine.</p></header>
-      <section id="status" class="state" aria-live="polite">Loading agent status…</section>
-      <section><div class="section-title"><h2>Synchronize</h2><span>Explicit approval required</span></div><div class="action-bar"><button id="preview-sync" type="button">Preview manifest</button><button id="apply-sync" type="button" disabled>Apply safe plan</button><button id="rollback-sync" class="secondary" type="button" disabled>Undo last dashboard change</button></div><div id="sync-result" class="state" aria-live="polite">Preview <code>loadout.json</code> before applying anything.</div></section>
-      <section><div class="section-title"><h2>Health</h2><span id="health-label"></span></div><div id="health" class="state" aria-live="polite">Checking setup health…</div></section>
-      <section><div class="section-title"><h2>Updates</h2><span id="updates-count"></span></div><div id="updates" class="state" aria-live="polite">Checking installed packages…</div></section>
-      <section><div class="section-title"><h2>Recommended for this project</h2><span id="project-signals"></span></div><div id="recommendations" class="grid state" aria-live="polite">Reading local project signals…</div></section>
-      <section><div class="section-title"><h2>Tested profiles</h2><span>Preview only</span></div><div id="profiles" class="grid state" aria-live="polite">Loading profiles…</div></section>
-      <section><div class="section-title"><h2>Catalog</h2><span id="catalog-count"></span></div><div id="catalog" class="grid state">Loading catalog…</div></section>
-      <section><div class="section-title"><h2>Local registry</h2><span id="registry-count"></span></div><div id="registry" class="grid state" aria-live="polite">Loading locally published packages…</div></section>
-      <footer>Dashboard mutations require a private session token and an explicit preview. Risky plans remain CLI-only.</footer>
+    <a class="skip-link" href="#dashboard-content">Skip to dashboard content</a>
+    <main id="dashboard-content" tabindex="-1">
+      <header aria-labelledby="page-title">
+        <p class="eyebrow">LOADOUT</p>
+        <h1 id="page-title">Your agent control center.</h1>
+        <p class="subhead">Health, safe updates, tested setups, and real packages from this machine.</p>
+        <div class="refresh-row">
+          <button id="refresh-dashboard" type="button" aria-describedby="refresh-help">Refresh dashboard</button>
+          <span id="refresh-help" class="muted">Reads local Loadout data only. It does not install, update, or send anything.</span>
+        </div>
+        <p id="dashboard-notice" class="sr-only" role="status" aria-live="polite"></p>
+      </header>
+
+      <section aria-labelledby="status-heading">
+        <div class="section-title"><h2 id="status-heading">Agent status</h2></div>
+        <div id="status" class="state" role="status" aria-live="polite" aria-busy="true">Loading agent status…</div>
+      </section>
+
+      <section aria-labelledby="sync-heading">
+        <div class="section-title"><h2 id="sync-heading">Synchronize</h2><span>Explicit approval required</span></div>
+        <div class="action-bar" role="group" aria-label="Synchronize manifest actions">
+          <button id="preview-sync" type="button" aria-describedby="sync-help">Preview manifest</button>
+          <button id="apply-sync" type="button" disabled>Apply safe plan</button>
+          <button id="rollback-sync" class="secondary" type="button" disabled>Undo last dashboard change</button>
+        </div>
+        <p id="sync-help" class="muted">Preview is read-only. Applying remains disabled until a safe plan is reviewed and acknowledged.</p>
+        <label class="approval-control" for="sync-acknowledgement"><input id="sync-acknowledgement" type="checkbox" disabled /> I reviewed this safe plan and want to apply it.</label>
+        <div id="sync-result" class="state" role="status" aria-live="polite">Preview <code>loadout.json</code> before applying anything.</div>
+      </section>
+
+      <section aria-labelledby="health-heading">
+        <div class="section-title"><h2 id="health-heading">Health</h2><span id="health-label"></span></div>
+        <div id="health" class="state" role="status" aria-live="polite" aria-busy="true">Checking setup health…</div>
+      </section>
+
+      <section aria-labelledby="updates-heading">
+        <div class="section-title"><h2 id="updates-heading">Updates</h2><span id="updates-count"></span></div>
+        <div id="updates" class="state" role="status" aria-live="polite" aria-busy="true">Checking installed packages…</div>
+      </section>
+
+      <section aria-labelledby="recommendations-heading">
+        <div class="section-title"><h2 id="recommendations-heading">Recommended for this project</h2><span id="project-signals"></span></div>
+        <div id="recommendations" class="grid state" role="status" aria-live="polite" aria-busy="true">Reading local project signals…</div>
+      </section>
+
+      <section aria-labelledby="profiles-heading">
+        <div class="section-title"><h2 id="profiles-heading">Tested profiles</h2><span>Preview only</span></div>
+        <div id="profiles" class="grid state" role="status" aria-live="polite" aria-busy="true">Loading profiles…</div>
+      </section>
+
+      <section aria-labelledby="catalog-heading">
+        <div class="section-title"><h2 id="catalog-heading">Catalog</h2><span id="catalog-count"></span></div>
+        <div id="catalog" class="grid state" role="status" aria-live="polite" aria-busy="true">Loading catalog…</div>
+      </section>
+
+      <section aria-labelledby="registry-heading">
+        <div class="section-title"><h2 id="registry-heading">Local registry</h2><span id="registry-count"></span></div>
+        <div id="registry" class="grid state" role="status" aria-live="polite" aria-busy="true">Loading locally published packages…</div>
+      </section>
+
+      <footer>Dashboard mutations require a private session token, an explicit preview, and acknowledgement. Risky plans remain CLI-only.</footer>
     </main>
     <script type="module" src="/app.js"></script>
   </body>

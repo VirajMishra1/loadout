@@ -18,7 +18,7 @@ import { buildHealthReport, formatHealthReport } from "./core/health.js";
 import { readInstallState } from "./core/state.js";
 import { applyRemove, planRemove } from "./core/remove.js";
 import { formatRecommendations, profileManifestPackages, recommendPackages, scanProject, TESTED_PROFILES } from "./core/recommend.js";
-import { buildImprovementCycle, formatImprovementCycle } from "./core/improve.js";
+import { buildImprovementCycle, formatImprovementCycle, recordImprovementOutcome, writeImprovementCycle } from "./core/improve.js";
 import { applySyncPlan, buildSyncPlan } from "./core/sync.js";
 import { createPackage, packPackage, publishLocalPackage, searchLocalRegistry } from "./core/registry.js";
 import { auditLoadout, formatAuditReport } from "./core/audit.js";
@@ -195,9 +195,27 @@ program.command("profiles")
 program.command("improve")
   .description("Propose the next evidence-backed improvement without changing anything")
   .option("--json", "emit machine-readable JSON")
-  .action(async (options: { json?: boolean }) => {
+  .option("--write", "persist the cycle record and reusable prompt locally")
+  .option("--output <directory>", "output directory; defaults to private Loadout state")
+  .action(async (options: { json?: boolean; write?: boolean; output?: string }) => {
     const cycle = await buildImprovementCycle();
     console.log(options.json ? JSON.stringify(cycle, null, 2) : formatImprovementCycle(cycle));
+    if (options.write) {
+      const paths = await writeImprovementCycle(cycle, options.output);
+      console.log(`Cycle record: ${paths.json}\nLoop prompt: ${paths.prompt}`);
+    }
+  });
+
+program.command("improve-feedback")
+  .description("Record a human-reviewed outcome for a persisted improvement cycle")
+  .requiredOption("--id <id>", "cycle id")
+  .requiredOption("--outcome <outcome>", "success, failure, or partial")
+  .option("--note <text>", "short non-secret lesson")
+  .option("--directory <path>", "improvement history directory")
+  .action(async (options: { id: string; outcome: string; note?: string; directory?: string }) => {
+    if (!(["success", "failure", "partial"] as string[]).includes(options.outcome)) throw new Error("--outcome must be success, failure, or partial");
+    await recordImprovementOutcome(options.id, options.outcome as "success" | "failure" | "partial", options.note, options.directory);
+    console.log(`Recorded ${options.outcome} outcome for ${options.id}.`);
   });
 
 program.command("sync")

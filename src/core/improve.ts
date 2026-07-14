@@ -1,5 +1,10 @@
 import type { HealthReport } from "../shared/types.js";
 import { buildHealthReport } from "./health.js";
+import { createHash } from "node:crypto";
+import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
+import { join, resolve } from "node:path";
+import { loadoutHome } from "./paths.js";
+import { detectSecretKinds } from "./safety.js";
 
 export interface ImprovementProposal {
   priority: number;
@@ -11,11 +16,14 @@ export interface ImprovementProposal {
 }
 
 export interface ImprovementCycle {
+  id: string;
   generatedAt: string;
   rule: "evidence-first-human-reviewed";
   selected?: ImprovementProposal;
   candidates: ImprovementProposal[];
   guardrails: string[];
+  priorOutcomes: Array<{ id: string; outcome: "success" | "failure" | "partial"; note?: string }>;
+  feedback?: Array<{ outcome: "success" | "failure" | "partial"; note?: string; recordedAt: string }>;
 }
 
 export function proposeImprovements(report: HealthReport): ImprovementProposal[] {
@@ -31,11 +39,54 @@ export function proposeImprovements(report: HealthReport): ImprovementProposal[]
 
 export async function buildImprovementCycle(health: () => Promise<HealthReport> = buildHealthReport): Promise<ImprovementCycle> {
   const candidates = proposeImprovements(await health());
-  return { generatedAt: new Date().toISOString(), rule: "evidence-first-human-reviewed", selected: candidates[0], candidates, guardrails: ["Never execute untrusted package code.", "Never expose secrets.", "Never weaken safety to make a test pass.", "Never apply or publish without the required human approval.", "Always prepare and verify rollback before mutation."] };
+  const generatedAt = new Date().toISOString();
+  const priorOutcomes = await readPriorOutcomes();
+  const id = `${generatedAt.replace(/[:.]/g, "-")}-${createHash("sha256").update(JSON.stringify(candidates[0] ?? generatedAt)).digest("hex").slice(0, 8)}`;
+  return { id, generatedAt, rule: "evidence-first-human-reviewed", selected: candidates[0], candidates, guardrails: ["Never execute untrusted package code.", "Never expose secrets.", "Never weaken safety to make a test pass.", "Never apply or publish without the required human approval.", "Always prepare and verify rollback before mutation."], priorOutcomes };
 }
 
 export function formatImprovementCycle(cycle: ImprovementCycle): string {
   if (!cycle.selected) return "No evidence-backed improvement is currently required.";
   const item = cycle.selected;
   return [`Next improvement: ${item.problem}`, `Evidence: ${item.evidence.join(" ")}`, `Desired outcome: ${item.outcome}`, "Acceptance tests:", ...item.acceptanceTests.map((test) => `  - ${test}`), `Human review: ${item.requiresHumanReview ? "required" : "required before release"}`].join("\n");
+}
+
+const improvementHome = () => join(loadoutHome(), "improvements");
+
+async function readPriorOutcomes(): Promise<ImprovementCycle["priorOutcomes"]> {
+  let names: string[] = []; try { names = (await readdir(improvementHome())).filter((name) => name.endsWith(".json")).sort().slice(-20); } catch { return []; }
+  const outcomes: ImprovementCycle["priorOutcomes"] = [];
+  for (const name of names) {
+    try {
+      const cycle = JSON.parse(await readFile(join(improvementHome(), name), "utf8")) as ImprovementCycle;
+      const latest = cycle.feedback?.at(-1);
+      if (latest) outcomes.push({ id: cycle.id, outcome: latest.outcome, ...(latest.note ? { note: latest.note } : {}) });
+    } catch { /* corrupt historical entries are ignored by proposal generation */ }
+  }
+  return outcomes;
+}
+
+export function improvementPrompt(cycle: ImprovementCycle): string {
+  const selected = cycle.selected;
+  return [`# Loadout improvement cycle ${cycle.id}`, "", "You are improving Loadout using evidence, not guesses. Work only on the authorized developer branch.", "", "## Selected problem", "", selected?.problem ?? "No evidence-backed problem is currently selected.", "", "## Evidence", "", ...(selected?.evidence.map((item) => `- ${item}`) ?? ["- None"]), "", "## Required outcome", "", selected?.outcome ?? "Keep the current system stable.", "", "## Acceptance tests", "", ...(selected?.acceptanceTests.map((item) => `- ${item}`) ?? ["- No change required"]), "", "## Loop rules", "", "1. Inspect current behavior before editing.", "2. Implement the smallest complete solution without weakening safety or scope.", "3. Add regression tests and plain-language documentation.", "4. Run relevant unit, integration, security, build, and demo checks.", "5. Stop for human review when trust, permissions, compatibility claims, publishing, or release behavior changes.", "6. Never expose secrets, execute untrusted package code, rewrite Git history, force-push, merge, or publish automatically.", "7. Record exact evidence, remaining risks, and the next priority.", "", "## Guardrails", "", ...cycle.guardrails.map((item) => `- ${item}`), ""].join("\n");
+}
+
+export async function writeImprovementCycle(cycle: ImprovementCycle, directory = improvementHome()): Promise<{ json: string; prompt: string }> {
+  const root = resolve(directory); await mkdir(root, { recursive: true });
+  const json = join(root, `${cycle.id}.json`); const prompt = join(root, `${cycle.id}.md`);
+  await writeFile(json, `${JSON.stringify(cycle, null, 2)}\n`, { mode: 0o600, flag: "wx" });
+  await writeFile(prompt, improvementPrompt(cycle), { mode: 0o600, flag: "wx" });
+  return { json, prompt };
+}
+
+export async function recordImprovementOutcome(id: string, outcome: "success" | "failure" | "partial", note?: string, directory = improvementHome()): Promise<ImprovementCycle> {
+  if (!/^[A-Za-z0-9-]+$/.test(id)) throw new Error("Invalid improvement cycle id");
+  if (note && note.length > 1_000) throw new Error("Improvement outcome note is too long");
+  if (note && detectSecretKinds(note).length) throw new Error("Improvement outcome note appears to contain secret material");
+  const path = join(resolve(directory), `${id}.json`);
+  const cycle = JSON.parse(await readFile(path, "utf8")) as ImprovementCycle;
+  if (cycle.id !== id) throw new Error("Improvement cycle id does not match its file");
+  cycle.feedback = [...(cycle.feedback ?? []), { outcome, ...(note ? { note } : {}), recordedAt: new Date().toISOString() }];
+  await writeFile(path, `${JSON.stringify(cycle, null, 2)}\n`, { mode: 0o600 });
+  return cycle;
 }

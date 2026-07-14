@@ -40,6 +40,10 @@ const SUSPICIOUS_INSTRUCTIONS: Array<{ name: string; pattern: RegExp }> = [
   { name: "hidden destructive command", pattern: /\b(?:rm\s+-rf|del\s+\/s|format\s+[a-z]:)\b/i },
 ];
 
+export function detectSecretKinds(content: string): string[] {
+  return SECRET_PATTERNS.filter((check) => check.pattern.test(content)).map((check) => check.name);
+}
+
 async function files(root: string): Promise<Map<string, Buffer>> {
   const result = new Map<string, Buffer>();
   const base = resolve(root);
@@ -133,7 +137,7 @@ export async function analyzeUpdateSafety(oldPath: string | undefined, newPath: 
     if (lower.includes("hook") || lower === "package.json" && /"(?:pre|post)?(?:install|publish|pack|prepare)"\s*:/.test(content)) hookPaths.push(path);
     for (const domain of collectDomains(content)) domains.add(domain);
     for (const name of collectEnvironmentNames(content)) envNames.add(name);
-    for (const check of SECRET_PATTERNS) if (check.pattern.test(content)) { secretPaths.push(path); secretKinds.add(check.name); }
+    for (const kind of detectSecretKinds(content)) { secretPaths.push(path); secretKinds.add(kind); }
     for (const check of SUSPICIOUS_INSTRUCTIONS) if (check.pattern.test(content)) { instructionPaths.push(path); instructionKinds.add(check.name); }
   }
   if (binaryPaths.length) findings.push({ severity: "blocking", category: "binary", message: "Update adds or changes executable/binary files.", paths: binaryPaths });

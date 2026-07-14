@@ -35,6 +35,8 @@ node dist/src/cli.js capabilities
 node dist/src/cli.js recommend --project .
 node dist/src/cli.js profiles
 node dist/src/cli.js improve
+node dist/src/cli.js improve --write
+node dist/src/cli.js improve-feedback --id <cycle-id> --outcome partial --note "What remains"
 node dist/src/cli.js search playwright
 node dist/src/cli.js audit --manifest loadout.json --lock loadout.lock
 
@@ -54,7 +56,9 @@ node dist/src/cli.js lock
 
 `improve` is deliberately read-only. It selects the next improvement from health
 evidence and produces acceptance tests; it never edits, installs, publishes, merges,
-or grants permissions autonomously.
+or grants permissions autonomously. `--write` stores an owner-only JSON record and
+reusable Markdown loop prompt. Human-reviewed success, partial, or failure outcomes can
+be recorded locally and are summarized into later cycles; secret-like notes are refused.
 
 MCP packages are configured explicitly in `loadout.json`; Loadout never guesses a
 configuration path. A package can select all discovered servers or a named subset:

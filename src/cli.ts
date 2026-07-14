@@ -50,16 +50,18 @@ program.command("add")
   .option("--manifest <path>", "manifest path", "loadout.json")
   .option("--catalog <id>", "catalog package id")
   .option("--repository <owner/repo>", "public GitHub repository")
+  .option("--git <url>", "generic HTTPS or SSH Git repository")
   .option("--ref <ref>", "Git branch, tag, or ref")
   .option("--path <path>", "GitHub repository subpath or local path")
   .option("--local", "treat --path as a local source")
   .option("--agents <ids>", "comma-separated target agents")
-  .action(async (id: string, options: { manifest: string; catalog?: string; repository?: string; ref?: string; path?: string; local?: boolean; agents?: string }) => {
-    const selected = Number(Boolean(options.catalog)) + Number(Boolean(options.repository)) + Number(Boolean(options.local));
-    if (selected !== 1) throw new Error("Choose exactly one source: --catalog, --repository, or --local with --path");
+  .option("--depends-on <ids>", "comma-separated package dependencies")
+  .action(async (id: string, options: { manifest: string; catalog?: string; repository?: string; git?: string; ref?: string; path?: string; local?: boolean; agents?: string; dependsOn?: string }) => {
+    const selected = Number(Boolean(options.catalog)) + Number(Boolean(options.repository)) + Number(Boolean(options.git)) + Number(Boolean(options.local));
+    if (selected !== 1) throw new Error("Choose exactly one source: --catalog, --repository, --git, or --local with --path");
     if (options.local && !options.path) throw new Error("--local requires --path <directory>");
-    const source = options.catalog ? { type: "catalog" as const, id: options.catalog } : options.repository ? { type: "github" as const, repository: options.repository, ...(options.ref ? { ref: options.ref } : {}), ...(options.path ? { path: options.path } : {}) } : { type: "local" as const, path: options.path! };
-    const manifest = await addManifestPackage(options.manifest, { id, source, ...(options.agents ? { agents: options.agents.split(",") as AgentId[] } : {}) });
+    const source = options.catalog ? { type: "catalog" as const, id: options.catalog } : options.repository ? { type: "github" as const, repository: options.repository, ...(options.ref ? { ref: options.ref } : {}), ...(options.path ? { path: options.path } : {}) } : options.git ? { type: "git" as const, url: options.git, ...(options.ref ? { ref: options.ref } : {}), ...(options.path ? { path: options.path } : {}) } : { type: "local" as const, path: options.path! };
+    const manifest = await addManifestPackage(options.manifest, { id, source, ...(options.agents ? { agents: options.agents.split(",") as AgentId[] } : {}), ...(options.dependsOn ? { dependsOn: options.dependsOn.split(",") } : {}) });
     console.log(`Added ${id} to ${options.manifest}. ${manifest.packages.length} package(s) configured.`);
   });
 

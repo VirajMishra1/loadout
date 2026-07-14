@@ -12,8 +12,11 @@ function source(value: unknown, label: string): PackageSource {
   if (item.type === "github" && typeof item.repository === "string" && item.repository) {
     return { type: "github", repository: item.repository, ...(typeof item.ref === "string" ? { ref: item.ref } : {}), ...(typeof item.path === "string" ? { path: item.path } : {}) };
   }
+  if (item.type === "git" && typeof item.url === "string" && item.url) {
+    return { type: "git", url: item.url, ...(typeof item.ref === "string" ? { ref: item.ref } : {}), ...(typeof item.path === "string" ? { path: item.path } : {}) };
+  }
   if (item.type === "local" && typeof item.path === "string" && item.path) return { type: "local", path: item.path };
-  throw new Error(`${label}.source is not a supported catalog, github, or local source`);
+  throw new Error(`${label}.source is not a supported catalog, github, git, or local source`);
 }
 
 function agents(value: unknown, label: string): AgentId[] {
@@ -37,10 +40,18 @@ export function parseManifest(value: unknown): LoadoutManifest {
     if (!entry || typeof entry !== "object") throw new Error(`packages[${index}] must be an object`);
     const pkg = entry as Record<string, unknown>;
     if (typeof pkg.id !== "string" || !pkg.id.trim()) throw new Error(`packages[${index}].id is required`);
-    return { id: pkg.id, source: source(pkg.source, `packages[${index}]`), ...(pkg.agents === undefined ? {} : { agents: agents(pkg.agents, `packages[${index}].agents`) }), ...(typeof pkg.enabled === "boolean" ? { enabled: pkg.enabled } : {}) };
+    const dependsOn = pkg.dependsOn === undefined ? undefined : (() => {
+      if (!Array.isArray(pkg.dependsOn) || pkg.dependsOn.some((id) => typeof id !== "string" || !id)) throw new Error(`packages[${index}].dependsOn must contain package ids`);
+      if (new Set(pkg.dependsOn).size !== pkg.dependsOn.length) throw new Error(`packages[${index}].dependsOn contains duplicates`);
+      return pkg.dependsOn as string[];
+    })();
+    return { id: pkg.id, source: source(pkg.source, `packages[${index}]`), ...(pkg.agents === undefined ? {} : { agents: agents(pkg.agents, `packages[${index}].agents`) }), ...(dependsOn ? { dependsOn } : {}), ...(typeof pkg.enabled === "boolean" ? { enabled: pkg.enabled } : {}) };
   });
   const ids = parsedPackages.map((pkg) => pkg.id);
   if (new Set(ids).size !== ids.length) throw new Error("Manifest package ids must be unique");
+  const known = new Set(ids);
+  for (const pkg of parsedPackages) for (const dependency of pkg.dependsOn ?? []) if (!known.has(dependency)) throw new Error(`Package '${pkg.id}' depends on missing package '${dependency}'`);
+  orderManifestPackages(parsedPackages);
   return {
     schemaVersion: 1,
     name: item.name.trim(),
@@ -50,6 +61,22 @@ export function parseManifest(value: unknown): LoadoutManifest {
     packages: parsedPackages,
     ...(item.policy && typeof item.policy === "object" ? { policy: item.policy as LoadoutManifest["policy"] } : {}),
   };
+}
+
+export function orderManifestPackages(packages: ManifestPackage[]): ManifestPackage[] {
+  const byId = new Map(packages.map((pkg) => [pkg.id, pkg]));
+  const visiting = new Set<string>(); const visited = new Set<string>(); const result: ManifestPackage[] = [];
+  function visit(id: string, chain: string[]): void {
+    if (visited.has(id)) return;
+    if (visiting.has(id)) throw new Error(`Manifest dependency cycle: ${[...chain, id].join(" -> ")}`);
+    const pkg = byId.get(id);
+    if (!pkg) throw new Error(`Missing manifest dependency '${id}'`);
+    visiting.add(id);
+    for (const dependency of pkg.dependsOn ?? []) visit(dependency, [...chain, id]);
+    visiting.delete(id); visited.add(id); result.push(pkg);
+  }
+  for (const pkg of packages) visit(pkg.id, []);
+  return result;
 }
 
 export async function readManifest(path = "loadout.json"): Promise<LoadoutManifest> {

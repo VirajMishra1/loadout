@@ -2,9 +2,9 @@ import { resolve, sep } from "node:path";
 import type { AgentId, LoadoutManifest, ManifestPackage } from "../shared/types.js";
 import { loadEffectiveCatalog } from "./catalog.js";
 import { applySkillInstallBatch, installedAgents, type InstallBatchEntry } from "./install.js";
-import { readManifest, writeLockfile } from "./manifest.js";
+import { orderManifestPackages, readManifest, writeLockfile } from "./manifest.js";
 import { detectAgents } from "./paths.js";
-import { fetchRepositorySnapshot } from "./source.js";
+import { fetchGitSnapshot, fetchRepositorySnapshot } from "./source.js";
 import { buildUniversalPackagePlan } from "./components.js";
 import { analyzeInstallPlanSafety, type UpdateSafetyAnalysis } from "./safety.js";
 
@@ -22,6 +22,12 @@ async function resolvePackage(pkg: ManifestPackage): Promise<{ path: string; rep
     if (selected !== fetched.path && !selected.startsWith(`${fetched.path}${sep}`)) throw new Error(`Package subpath escapes fetched repository: ${pkg.source.path}`);
     return { path: selected, repository: fetched.repository, commit: fetched.commit };
   }
+  if (pkg.source.type === "git") {
+    const fetched = await fetchGitSnapshot(pkg.source.url, { ref: pkg.source.ref });
+    const selected = pkg.source.path ? resolve(fetched.path, pkg.source.path) : fetched.path;
+    if (selected !== fetched.path && !selected.startsWith(`${fetched.path}${sep}`)) throw new Error(`Package subpath escapes fetched Git repository: ${pkg.source.path}`);
+    return { path: selected, commit: fetched.commit };
+  }
   const catalogId = pkg.source.id;
   const catalog = await loadEffectiveCatalog();
   const found = catalog.find((item) => item.id === catalogId);
@@ -32,10 +38,15 @@ async function resolvePackage(pkg: ManifestPackage): Promise<{ path: string; rep
 
 export async function buildSyncPlan(manifestPath = "loadout.json"): Promise<SyncPlan> {
   const manifest = await readManifest(manifestPath);
+  const disabled = new Set(manifest.packages.filter((pkg) => pkg.enabled === false).map((pkg) => pkg.id));
+  for (const pkg of manifest.packages.filter((item) => item.enabled !== false)) {
+    const unavailable = (pkg.dependsOn ?? []).filter((id) => disabled.has(id));
+    if (unavailable.length) throw new Error(`Enabled package '${pkg.id}' depends on disabled package(s): ${unavailable.join(", ")}`);
+  }
   const detected = await detectAgents();
   const packages: SyncPlan["packages"] = [];
   const skipped: SyncPlan["skipped"] = [];
-  for (const pkg of manifest.packages.filter((item) => item.enabled !== false)) {
+  for (const pkg of orderManifestPackages(manifest.packages).filter((item) => item.enabled !== false)) {
     const requested = pkg.agents ?? manifest.agents;
     const agents = installedAgents(detected, requested as AgentId[]);
     const source = await resolvePackage(pkg);

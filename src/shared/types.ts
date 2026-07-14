@@ -85,12 +85,14 @@ export interface InstallState {
 export type PackageSource =
   | { type: "catalog"; id: string }
   | { type: "github"; repository: string; ref?: string; path?: string }
+  | { type: "git"; url: string; ref?: string; path?: string }
   | { type: "local"; path: string };
 
 export interface ManifestPackage {
   id: string;
   source: PackageSource;
   agents?: AgentId[];
+  dependsOn?: string[];
   enabled?: boolean;
 }
 

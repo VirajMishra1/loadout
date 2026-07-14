@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { addManifestPackage, applyProfileToManifest, initManifest, parseManifest, readManifest, removeManifestPackage, writeLockfile } from "../src/core/manifest.js";
+import { addManifestPackage, applyProfileToManifest, initManifest, orderManifestPackages, parseManifest, readManifest, removeManifestPackage, writeLockfile } from "../src/core/manifest.js";
 
 describe("manifest and lockfile", () => {
   const roots: string[] = [];
@@ -41,5 +41,13 @@ describe("manifest and lockfile", () => {
     expect((await readManifest(path)).packages.map((pkg) => pkg.id)).toEqual(["one", "two"]);
     await removeManifestPackage(path, "one");
     expect((await readManifest(path)).packages.map((pkg) => pkg.id)).toEqual(["two"]);
+  });
+
+  it("orders dependencies and rejects missing or cyclic dependency graphs", () => {
+    const dependency = { id: "base", source: { type: "catalog" as const, id: "base" } };
+    const app = { id: "app", source: { type: "git" as const, url: "https://example.com/app.git" }, dependsOn: ["base"] };
+    expect(orderManifestPackages([app, dependency]).map((pkg) => pkg.id)).toEqual(["base", "app"]);
+    expect(() => parseManifest({ schemaVersion: 1, name: "x", scope: "project", agents: ["codex"], packages: [{ ...app, dependsOn: ["missing"] }] })).toThrow(/missing package/);
+    expect(() => parseManifest({ schemaVersion: 1, name: "x", scope: "project", agents: ["codex"], packages: [{ ...app, dependsOn: ["base"] }, { ...dependency, dependsOn: ["app"] }] })).toThrow(/cycle/);
   });
 });

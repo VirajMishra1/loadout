@@ -153,11 +153,13 @@ catalog, and update views.
 - The catalog is curated rather than an index of every repository on the internet.
 - Updates are reported and installs are transactional; autonomous background updates
   and signed catalog releases are not yet enabled.
-- The manifest currently resolves catalog, public GitHub refs/subpaths, and local
-  sources. Skills, conventional rule directories, command directories, and agent
-  directories are normalized; unsupported targets are skipped rather than falsely
-  converted. Generic git sources, dependency resolution, plugin/root-file application,
-  automated MCP targeting, and a hosted publishing registry remain planned.
+- The manifest currently resolves catalog, public GitHub refs/subpaths, generic HTTPS
+  or SSH Git sources, and local sources. Package dependencies are ordered and missing,
+  disabled, or cyclic dependencies are rejected. Skills, conventional rule directories,
+  command directories, and agent directories are normalized; unsupported targets are
+  skipped rather than falsely converted. Plugin/root-file application, automated MCP
+  targeting, transitive package-owned manifests, and a hosted publishing registry
+  remain planned.
 
 ## Core promise
 

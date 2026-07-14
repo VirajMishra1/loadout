@@ -1,4 +1,5 @@
 import { mkdtemp, rename, rm } from "node:fs/promises";
+import { createHash } from "node:crypto";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { execFile } from "node:child_process";
@@ -57,5 +58,36 @@ export async function fetchRepositorySnapshot(input: string, options: Repository
     await rm(temporary, { recursive: true, force: true });
     const message = error instanceof Error ? error.message : String(error);
     throw new Error(`Could not fetch ${repository}: ${message}`);
+  }
+}
+
+function normalizeGitUrl(input: string): string {
+  const value = input.trim();
+  if (value !== input || /[\0\r\n]/.test(value) || value.startsWith("-")) throw new Error("Invalid Git URL");
+  const httpsOrSsh = /^(?:https|ssh):\/\/[^\s]+$/i.test(value);
+  const scp = /^[A-Za-z0-9._-]+@[A-Za-z0-9.-]+:[A-Za-z0-9._~/-]+(?:\.git)?$/.test(value);
+  if (!httpsOrSsh && !scp) throw new Error("Generic Git sources require an HTTPS or SSH URL");
+  return value;
+}
+
+/** Fetch a generic Git source without running repository hooks or lifecycle scripts. */
+export async function fetchGitSnapshot(input: string, options: RepositoryFetchOptions = {}): Promise<RepositorySnapshot> {
+  const url = normalizeGitUrl(input);
+  const temporary = await mkdtemp(join(tmpdir(), "loadout-git-"));
+  try {
+    const refArgs = options.ref ? ["--branch", normalizeRef(options.ref)] : [];
+    await execFileAsync("git", ["clone", "--depth", "1", ...refArgs, "--", url, temporary], { maxBuffer: 10 * 1024 * 1024, env: { ...process.env, GIT_CONFIG_NOSYSTEM: "1", GIT_TERMINAL_PROMPT: "0" } });
+    const { stdout } = await execFileAsync("git", ["-C", temporary, "rev-parse", "HEAD"]);
+    const commit = stdout.trim();
+    if (!/^[0-9a-f]{40}$/i.test(commit)) throw new Error("Git returned an invalid commit");
+    const key = createHash("sha256").update(url).digest("hex");
+    const cachePath = join(loadoutHome(), "cache", "git", key, commit);
+    await ensureDirectory(join(loadoutHome(), "cache", "git", key));
+    await rm(cachePath, { recursive: true, force: true });
+    await rename(temporary, cachePath);
+    return { repository: url, commit, path: cachePath };
+  } catch (error) {
+    await rm(temporary, { recursive: true, force: true });
+    throw new Error(`Could not fetch Git source: ${error instanceof Error ? error.message : String(error)}`);
   }
 }

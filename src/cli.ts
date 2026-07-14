@@ -23,6 +23,7 @@ import { applySyncPlan, buildSyncPlan } from "./core/sync.js";
 import { createPackage, packPackage, publishLocalPackage, searchLocalRegistry } from "./core/registry.js";
 import { auditLoadout, formatAuditReport } from "./core/audit.js";
 import { ADAPTER_CAPABILITIES, formatCapabilityMatrix } from "./core/adapters.js";
+import { generateSigningKeys, signJsonFile, verifyJsonFile } from "./core/signing.js";
 
 const program = new Command();
 program.name("loadout").description("Universal upgrade manager for AI coding agents").version("0.1.0");
@@ -264,6 +265,35 @@ program.command("catalog").description("List the real package catalog")
   }
   for (const failure of result.failures) console.error(`Warning: could not refresh ${failure.repository}: ${failure.error}`);
 });
+
+program.command("keygen")
+  .description("Generate an Ed25519 signing keypair outside the repository")
+  .requiredOption("--private-key <path>", "new private key path (owner-only)")
+  .requiredOption("--public-key <path>", "new public key path")
+  .action(async (options: { privateKey: string; publicKey: string }) => {
+    const result = await generateSigningKeys(options.privateKey, options.publicKey);
+    console.log(`Generated signing keys. Public fingerprint: ${result.fingerprint}\nPrivate key: ${result.privateKey}\nPublic key: ${result.publicKey}`);
+  });
+
+program.command("catalog-sign")
+  .description("Create a signed immutable catalog envelope")
+  .requiredOption("--catalog <path>", "catalog JSON path")
+  .requiredOption("--private-key <path>", "Ed25519 private key path")
+  .requiredOption("--output <path>", "new signed snapshot path")
+  .action(async (options: { catalog: string; privateKey: string; output: string }) => {
+    const envelope = await signJsonFile(options.catalog, options.privateKey, options.output);
+    console.log(`Signed catalog snapshot with ${envelope.publicKeyFingerprint}.`);
+  });
+
+program.command("catalog-verify")
+  .description("Verify a signed catalog snapshot before trusting it")
+  .requiredOption("--snapshot <path>", "signed snapshot path")
+  .requiredOption("--public-key <path>", "trusted Ed25519 public key path")
+  .action(async (options: { snapshot: string; publicKey: string }) => {
+    const result = await verifyJsonFile(options.snapshot, options.publicKey);
+    console.log(`${result.valid ? "VALID" : "INVALID"} catalog signature (${result.fingerprint})`);
+    if (!result.valid) process.exitCode = 1;
+  });
 
 program.command("mcp")
   .description("Inspect MCP manifests without executing servers or scripts")

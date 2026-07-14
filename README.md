@@ -39,6 +39,9 @@ node dist/src/cli.js improve --write
 node dist/src/cli.js improve-feedback --id <cycle-id> --outcome partial --note "What remains"
 node dist/src/cli.js search playwright
 node dist/src/cli.js audit --manifest loadout.json --lock loadout.lock
+node dist/src/cli.js keygen --private-key ~/.loadout/signing-private.pem --public-key ./loadout-public.pem
+node dist/src/cli.js catalog-sign --catalog catalog/packages.json --private-key ~/.loadout/signing-private.pem --output catalog.signed.json
+node dist/src/cli.js catalog-verify --snapshot catalog.signed.json --public-key ./loadout-public.pem
 
 # Create and publish an immutable package to the local registry.
 node dist/src/cli.js create ./my-package --name my-package

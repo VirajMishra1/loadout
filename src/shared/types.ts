@@ -10,6 +10,12 @@ export interface CatalogPackage {
   category: string;
   tier: PackageTier;
   stars?: number;
+  /** Live GitHub metadata, populated by the discovery refresh command. */
+  lastUpdatedAt?: string;
+  pushedAt?: string;
+  topics?: string[];
+  openIssues?: number;
+  archived?: boolean;
 }
 
 export interface DetectedAgent {

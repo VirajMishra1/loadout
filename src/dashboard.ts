@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { detectAgents } from "./core/paths.js";
 import { loadEffectiveCatalog, rankCatalog } from "./core/catalog.js";
+import { buildUpdatePlan } from "./core/update.js";
 
 const publicDirectory = join(dirname(fileURLToPath(import.meta.url)), "..", "dashboard");
 
@@ -23,6 +24,11 @@ async function route(request: IncomingMessage, response: ServerResponse): Promis
     if (pathname === "/api/catalog") {
       const catalog = rankCatalog(await loadEffectiveCatalog());
       await sendJson(response, 200, { packages: catalog });
+      return;
+    }
+    if (pathname === "/api/update" || pathname === "/api/updates") {
+      const updates = await buildUpdatePlan();
+      await sendJson(response, 200, { updates });
       return;
     }
     const asset = pathname === "/" ? "index.html" : pathname.slice(1);

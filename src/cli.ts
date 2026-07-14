@@ -11,6 +11,7 @@ import { discoverMcpManifests, summarizeMcpManifest, planMcpConfig, summarizeMcp
 import type { McpServer } from "./shared/types.js";
 import { runDoctor, formatDoctorReport } from "./core/doctor.js";
 import { buildUpdatePlan, formatUpdatePlan } from "./core/update.js";
+import { startApiServer } from "./core/api.js";
 
 const program = new Command();
 program.name("loadout").description("Universal upgrade manager for AI coding agents").version("0.1.0");
@@ -143,6 +144,20 @@ program.command("update")
   .action(async (options: { json?: boolean }) => {
     const plans = await buildUpdatePlan();
     console.log(options.json ? JSON.stringify(plans, null, 2) : formatUpdatePlan(plans));
+  });
+
+program.command("serve")
+  .description("Start a loopback-only read-only API for status, catalog, and updates")
+  .option("--host <host>", "bind address (defaults to 127.0.0.1)", "127.0.0.1")
+  .option("--port <port>", "TCP port (0 selects an available port)", "0")
+  .action(async (options: { host: string; port: string }) => {
+    const handle = await startApiServer({ host: options.host, port: Number(options.port) });
+    console.log(`Loadout API listening at http://${handle.host}:${handle.port}`);
+    await new Promise<void>((resolve) => {
+      process.once("SIGINT", resolve);
+      process.once("SIGTERM", resolve);
+    });
+    await handle.close();
   });
 
 program.action(async () => {

@@ -13,6 +13,11 @@ export interface RepositorySnapshot {
   path: string;
 }
 
+/** Stable on-disk location used to retain fetched repository revisions. */
+export function repositoryCachePath(repository: string, commit: string): string {
+  return join(loadoutHome(), "cache", repository.replace("/", "__"), commit);
+}
+
 export function normalizeRepository(input: string): string {
   const value = input
     .replace(/^https?:\/\/github\.com\//, "")
@@ -33,7 +38,7 @@ export async function fetchRepositorySnapshot(input: string): Promise<Repository
     const { stdout } = await execFileAsync("git", ["-C", temporary, "rev-parse", "HEAD"]);
     const commit = stdout.trim();
     if (!/^[0-9a-f]{40}$/i.test(commit)) throw new Error(`Git returned an invalid commit for ${repository}`);
-    const cachePath = join(loadoutHome(), "cache", repository.replace("/", "__"), commit);
+    const cachePath = repositoryCachePath(repository, commit);
     await ensureDirectory(join(loadoutHome(), "cache", repository.replace("/", "__")));
     await rm(cachePath, { recursive: true, force: true });
     await rename(temporary, cachePath);

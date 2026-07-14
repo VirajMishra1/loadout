@@ -39,6 +39,23 @@ describe("update planning", () => {
     expect(formatUpdatePlan(plans)).toContain("offline");
   });
 
+  it("includes a file-level diff when old and new revisions are cached", async () => {
+    const root = await mkdtemp(join(tmpdir(), "loadout-update-")); roots.push(root);
+    process.env.LOADOUT_HOME = join(root, ".loadout");
+    const oldPath = join(process.env.LOADOUT_HOME, "cache", "owner__repo", "aaa");
+    const newPath = join(root, "new");
+    await mkdir(join(oldPath, "skills"), { recursive: true });
+    await mkdir(join(newPath, "skills"), { recursive: true });
+    await writeFile(join(oldPath, "skills", "SKILL.md"), "old");
+    await writeFile(join(newPath, "skills", "SKILL.md"), "new");
+    await mkdir(process.env.LOADOUT_HOME, { recursive: true });
+    await writeFile(join(process.env.LOADOUT_HOME, "state.json"), JSON.stringify({ version: 1, installs: [
+      { packageId: "demo", repository: "owner/repo", resolvedCommit: "aaa", targetAgents: ["codex"], files: [], snapshotId: "s", installedAt: new Date().toISOString() }
+    ] }));
+    const plans = await buildUpdatePlan(async () => ({ commit: "bbb", path: newPath }));
+    expect(plans[0].diff).toEqual([{ path: "skills/SKILL.md", kind: "skill", status: "changed" }]);
+  });
+
   it("rejects malformed persisted state", async () => {
     const root = await mkdtemp(join(tmpdir(), "loadout-update-")); roots.push(root);
     process.env.LOADOUT_HOME = join(root, ".loadout");

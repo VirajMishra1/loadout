@@ -1,5 +1,7 @@
 import type { InstallRecord } from "../shared/types.js";
 import { fetchRepositorySnapshot } from "./source.js";
+import { repositoryCachePath } from "./source.js";
+import { diffRepositorySnapshots, type ChangedFileDiff } from "./diff.js";
 import { readInstallState } from "./state.js";
 
 export type UpdateStatus = "update-available" | "up-to-date" | "untracked" | "error";
@@ -12,10 +14,12 @@ export interface UpdatePlan {
   targetAgents: string[];
   status: UpdateStatus;
   action: string;
+  /** Safe file-level summary when both revisions are cached locally. */
+  diff?: ChangedFileDiff[];
   error?: string;
 }
 
-export type CommitResolver = (repository: string) => Promise<{ commit: string }>;
+export type CommitResolver = (repository: string) => Promise<{ commit: string; path?: string }>;
 
 /** Builds a read-only update plan from persisted installs and live GitHub snapshots. */
 export async function buildUpdatePlan(
@@ -35,11 +39,17 @@ export async function buildUpdatePlan(
     try {
       const current = await resolver(record.repository);
       const same = current.commit.toLowerCase() === record.resolvedCommit.toLowerCase();
+      let diff: ChangedFileDiff[] | undefined;
+      if (!same && current.path) {
+        const oldPath = repositoryCachePath(record.repository, record.resolvedCommit);
+        diff = await diffRepositorySnapshots(oldPath, current.path);
+      }
       return {
         ...base,
         availableCommit: current.commit,
         status: same ? "up-to-date" : "update-available",
-        action: same ? "No action required." : `Run loadout update --package ${record.packageId} after review.`
+        action: same ? "No action required." : `Run loadout update --package ${record.packageId} after review.`,
+        ...(diff ? { diff } : {})
       };
     } catch (error) {
       return {

@@ -35,6 +35,7 @@ node dist/src/cli.js recommend --project .
 node dist/src/cli.js profiles
 node dist/src/cli.js improve
 node dist/src/cli.js search playwright
+node dist/src/cli.js audit --manifest loadout.json --lock loadout.lock
 
 # Create and publish an immutable package to the local registry.
 node dist/src/cli.js create ./my-package --name my-package

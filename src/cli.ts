@@ -21,6 +21,7 @@ import { formatRecommendations, profileManifestPackages, recommendPackages, scan
 import { buildImprovementCycle, formatImprovementCycle } from "./core/improve.js";
 import { applySyncPlan, buildSyncPlan } from "./core/sync.js";
 import { createPackage, packPackage, publishLocalPackage, searchLocalRegistry } from "./core/registry.js";
+import { auditLoadout, formatAuditReport } from "./core/audit.js";
 
 const program = new Command();
 program.name("loadout").description("Universal upgrade manager for AI coding agents").version("0.1.0");
@@ -43,6 +44,17 @@ program.command("lock")
   .action(async (options: { manifest: string; output: string }) => {
     const lockfile = await writeLockfile(await readManifest(options.manifest), options.output);
     console.log(`Wrote ${options.output} with ${lockfile.packages.length} resolved package(s).`);
+  });
+
+program.command("audit")
+  .description("Verify manifest, lockfile, installed state, and managed file hashes for CI")
+  .option("--manifest <path>", "manifest path", "loadout.json")
+  .option("--lock <path>", "lockfile path", "loadout.lock")
+  .option("--json", "emit machine-readable JSON")
+  .action(async (options: { manifest: string; lock: string; json?: boolean }) => {
+    const report = await auditLoadout(options.manifest, options.lock);
+    console.log(options.json ? JSON.stringify(report, null, 2) : formatAuditReport(report));
+    if (!report.valid) process.exitCode = 1;
   });
 
 program.command("create")

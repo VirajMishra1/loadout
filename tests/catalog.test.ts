@@ -120,4 +120,13 @@ describe("catalog refresh", () => {
     expect(result.failures).toHaveLength(1);
     expect(result.catalog[0].stars).toBe(7);
   });
+
+  it("preserves bundled immutable evidence when an older cache only has live metadata", async () => {
+    home = await mkdtemp(`${tmpdir()}/loadout-catalog-`); process.env.LOADOUT_HOME = home;
+    const bundled = await loadCatalog();
+    const superpowers = bundled.find((pkg) => pkg.id === "superpowers")!;
+    await writeFile(join(home, "catalog.json"), JSON.stringify([{ id: superpowers.id, displayName: superpowers.displayName, repository: superpowers.repository, description: "cached description", category: superpowers.category, tier: superpowers.tier, stars: 123, pushedAt: "2026-07-14T00:00:00Z" }]));
+    const effective = await loadEffectiveCatalog();
+    expect(effective[0]).toMatchObject({ id: "superpowers", stars: 123, components: superpowers.components, source: superpowers.source, license: superpowers.license });
+  });
 });

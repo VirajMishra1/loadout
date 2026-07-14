@@ -126,6 +126,10 @@ cell is `native`, `adapted`, or `unsupported`; the planner consults the same mat
 the documentation cannot quietly claim more than the installer enables. Detection uses
 either an executable on `PATH` or an existing agent configuration directory.
 
+The [catalog policy](./docs/CATALOG_POLICY.md) explains ranking, anti-gaming limits,
+and Stable/Maximum/Custom conflict handling. The [compatibility policy](./docs/COMPATIBILITY_POLICY.md)
+defines exactly what native, adapted, and unsupported mean on Windows, macOS, Linux,
+and WSL.
 ## Try the real install path
 
 ```bash

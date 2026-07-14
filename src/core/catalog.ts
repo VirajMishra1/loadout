@@ -3,6 +3,8 @@ import { join } from "node:path";
 import type { CatalogPackage } from "../shared/types.js";
 import { fetchGitHubMetadata, type GitHubMetadataOptions } from "./github.js";
 import { loadoutHome } from "./paths.js";
+import { compareCatalogPackages, explainCatalogScore } from "./ranking.js";
+import { resolveCatalogProfile } from "./profiles.js";
 
 export type InstallSelectionMode = "stable" | "maximum" | "custom";
 
@@ -91,7 +93,24 @@ export async function loadEffectiveCatalog(path = join(process.cwd(), "catalog",
     const raw = await readFile(cachedCatalogPath(), "utf8");
     const value: unknown = JSON.parse(raw);
     validateCatalog(value);
-    return value;
+    const bundled = await loadCatalog(path);
+    const verified = new Map(bundled.map((pkg) => [pkg.id, pkg]));
+    // A refresh cache contains mutable GitHub fields. Never allow an older
+    // cache format to erase immutable provenance or static compatibility facts.
+    return value.map((cached) => {
+      const base = verified.get(cached.id);
+      if (!base) return cached;
+      return {
+        ...base,
+        ...(cached.stars !== undefined ? { stars: cached.stars } : {}),
+        ...(cached.description ? { description: cached.description } : {}),
+        ...(cached.lastUpdatedAt ? { lastUpdatedAt: cached.lastUpdatedAt } : {}),
+        ...(cached.pushedAt ? { pushedAt: cached.pushedAt } : {}),
+        ...(cached.topics ? { topics: cached.topics } : {}),
+        ...(cached.openIssues !== undefined ? { openIssues: cached.openIssues } : {}),
+        ...(cached.archived !== undefined ? { archived: cached.archived } : {})
+      };
+    });
   } catch { /* no refresh has been performed yet */ }
   return loadCatalog(path);
 }
@@ -132,11 +151,11 @@ export async function refreshCatalog(
 }
 
 export function rankCatalog(packages: CatalogPackage[]): CatalogPackage[] {
-  return [...packages].sort((a, b) => {
-    const tierScore = (tier: CatalogPackage["tier"]) => ({ official: 4, stable: 3, trending: 2, community: 1 }[tier]);
-    return tierScore(b.tier) - tierScore(a.tier) || (b.stars ?? 0) - (a.stars ?? 0);
-  });
+  return [...packages].sort(compareCatalogPackages);
 }
+
+/** Return the evidence behind a package's ordering without pretending it is objective quality. */
+export { explainCatalogScore };
 
 /**
  * Select packages for an installation loadout. This is deliberately based on
@@ -144,18 +163,5 @@ export function rankCatalog(packages: CatalogPackage[]): CatalogPackage[] {
  * selected automatically and stable mode only includes reviewed tiers.
  */
 export function selectCatalogPackages(packages: CatalogPackage[], selection: InstallSelection): CatalogPackage[] {
-  if (selection.mode !== "stable" && selection.mode !== "maximum" && selection.mode !== "custom") {
-    throw new Error(`Unknown install mode '${selection.mode}'`);
-  }
-  const ranked = rankCatalog(packages).filter((pkg) => !pkg.archived);
-  if (selection.mode === "stable") {
-    return ranked.filter((pkg) => pkg.tier === "official" || pkg.tier === "stable");
-  }
-  if (selection.mode === "maximum") return ranked;
-  const ids = selection.packageIds ?? [];
-  if (ids.length === 0) throw new Error("Custom mode requires at least one package id");
-  const byId = new Map(packages.map((pkg) => [pkg.id, pkg]));
-  const unknown = ids.filter((id) => !byId.has(id));
-  if (unknown.length > 0) throw new Error(`Unknown catalog package id(s): ${unknown.join(", ")}`);
-  return ids.map((id) => byId.get(id)!);
+  return resolveCatalogProfile(packages, selection).packages;
 }

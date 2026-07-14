@@ -9,6 +9,16 @@ export interface AdapterCapabilities {
   notes: string[];
 }
 
+/**
+ * Rules shared by the CLI, planner, and documentation. A capability only
+ * changes state when it is native or has this explicitly tested adaptation.
+ */
+export const COMPATIBILITY_RULES: Record<ComponentCompatibility, string> = {
+  native: "Loadout writes the component in a documented, agent-owned layout without translating its format.",
+  adapted: "Loadout uses a reviewed agent-specific layout or config writer and reports the adaptation; plugin runtime behavior is never inferred.",
+  unsupported: "Loadout does not guess a path, translate the component, or write files for this agent/component combination."
+};
+
 const unsupported: Record<ComponentType, ComponentCompatibility> = { skill: "unsupported", rule: "unsupported", command: "unsupported", agent: "unsupported", mcp: "unsupported", plugin: "unsupported", root: "native" };
 
 export const ADAPTER_CAPABILITIES: AdapterCapabilities[] = [
@@ -70,4 +80,8 @@ export function agentComponentDirectory(agent: DetectedAgent, type: ComponentTyp
 export function formatCapabilityMatrix(): string {
   const types: ComponentType[] = ["skill", "rule", "command", "agent", "mcp", "plugin", "root"];
   return ["Agent | " + types.join(" | "), "--- | " + types.map(() => "---").join(" | "), ...ADAPTER_CAPABILITIES.map((entry) => `${entry.displayName} | ${types.map((type) => entry.components[type]).join(" | ")}`)].join("\n");
+}
+
+export function compatibilityRule(compatibility: ComponentCompatibility): string {
+  return COMPATIBILITY_RULES[compatibility];
 }

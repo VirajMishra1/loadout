@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ADAPTER_CAPABILITIES, adapterCapabilities, formatCapabilityMatrix } from "../src/core/adapters.js";
+import { ADAPTER_CAPABILITIES, COMPATIBILITY_RULES, adapterCapabilities, compatibilityRule, formatCapabilityMatrix } from "../src/core/adapters.js";
 import type { AgentId, ComponentType } from "../src/shared/types.js";
 
 describe("adapter conformance declarations", () => {
@@ -19,5 +19,12 @@ describe("adapter conformance declarations", () => {
     expect(adapterCapabilities("codex").components.mcp).toBe("adapted");
     expect(adapterCapabilities("codex").notes.join(" ")).toContain("never rewritten");
     expect(adapterCapabilities("claude-code").components.mcp).toBe("adapted");
+  });
+
+  it("defines conservative native, adapted, and unsupported behavior for every platform adapter", () => {
+    expect(COMPATIBILITY_RULES.native).toMatch(/documented, agent-owned/);
+    expect(compatibilityRule("adapted")).toMatch(/reviewed agent-specific/);
+    expect(compatibilityRule("unsupported")).toMatch(/does not guess/);
+    expect(adapterCapabilities("hermes").components.command).toBe("unsupported");
   });
 });

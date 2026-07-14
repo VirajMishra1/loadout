@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { Command } from "commander";
-import { loadEffectiveCatalog, loadCatalog, rankCatalog, refreshCatalog, selectCatalogPackages, type InstallSelectionMode } from "./core/catalog.js";
+import { explainCatalogScore, loadEffectiveCatalog, loadCatalog, rankCatalog, refreshCatalog, type InstallSelectionMode } from "./core/catalog.js";
 import { detectAgents } from "./core/paths.js";
 import { readFile, readdir } from "node:fs/promises";
 import { buildSkillPlan, applySkillInstall, installedAgents } from "./core/install.js";
@@ -29,6 +29,7 @@ import { generateSigningKeys, signJsonFile, verifyJsonFile } from "./core/signin
 import { applyPortableImport, exportPortableLoadout, planPortableImport } from "./core/portable.js";
 import { applyCodexMcpConfigPlan, defaultCodexMcpConfigPath, planCodexMcpConfig } from "./core/codex-mcp.js";
 import { formatDemoResult, runIsolatedDemo } from "./core/demo.js";
+import { resolveCatalogProfile } from "./core/profiles.js";
 
 const program = new Command();
 program.name("loadout").description("Universal upgrade manager for AI coding agents").version("0.1.0");
@@ -335,9 +336,16 @@ program.command("doctor")
 
 program.command("catalog").description("List the real package catalog")
   .option("--refresh", "fetch current GitHub stars and repository metadata")
-  .action(async (options: { refresh?: boolean }) => {
+  .option("--explain <id>", "print the evidence and guardrails behind one package's ranking")
+  .action(async (options: { refresh?: boolean; explain?: string }) => {
   const base = await loadCatalog();
   const result = options.refresh ? await refreshCatalog(base, { forceRefresh: true }) : { catalog: await loadEffectiveCatalog(), failures: [] };
+  if (options.explain) {
+    const pkg = result.catalog.find((item) => item.id === options.explain);
+    if (!pkg) throw new Error(`Unknown catalog package '${options.explain}'`);
+    console.log(JSON.stringify({ package: { id: pkg.id, displayName: pkg.displayName, category: pkg.category, tier: pkg.tier }, ranking: explainCatalogScore(pkg) }, null, 2));
+    return;
+  }
   for (const pkg of rankCatalog(result.catalog)) {
     const topics = pkg.topics?.length ? ` — ${pkg.topics.join(", ")}` : "";
     const updated = pkg.lastUpdatedAt ? ` — updated ${pkg.lastUpdatedAt.slice(0, 10)}` : "";
@@ -473,7 +481,8 @@ program.command("plan")
     if (hasSource && options.mode) throw new Error("--mode cannot be combined with --source or --repository");
     if (hasSource && packageIds.length !== 1) throw new Error("A source or repository requires exactly one --package");
     if (!hasSource && !options.mode) throw new Error("Provide --mode or exactly one of --source/--repository");
-    const selected = hasSource ? [{ id: packageIds[0] }] : selectCatalogPackages(await loadEffectiveCatalog(), { mode: options.mode as InstallSelectionMode, packageIds });
+    const resolution = hasSource ? undefined : resolveCatalogProfile(await loadEffectiveCatalog(), { mode: options.mode as InstallSelectionMode, packageIds });
+    const selected = hasSource ? [{ id: packageIds[0] }] : resolution!.packages;
     const agents = installedAgents(await detectAgents(), options.agents?.split(",") as AgentId[] | undefined);
     const plans = [];
     const skipped: Array<{ packageId: string; reason: string }> = [];
@@ -486,7 +495,7 @@ program.command("plan")
         skipped.push({ packageId: pkg.id, reason: "No SKILL.md found; this package is not skill-installable yet (inspect its MCP manifest instead)." });
       }
     }
-    console.log(JSON.stringify(options.mode ? { mode: options.mode, packages: plans, skipped } : plans[0], null, 2));
+    console.log(JSON.stringify(options.mode ? { mode: options.mode, packages: plans, skipped, profile: resolution && { deferred: resolution.deferred.map((pkg) => pkg.id), conflicts: resolution.conflicts, warnings: resolution.warnings } } : plans[0], null, 2));
   });
 
 program.command("install")
@@ -503,7 +512,8 @@ program.command("install")
     if (hasSource && options.mode) throw new Error("--mode cannot be combined with --source or --repository");
     if (hasSource && packageIds.length !== 1) throw new Error("A source or repository requires exactly one --package");
     if (!hasSource && !options.mode) throw new Error("Provide --mode or exactly one of --source/--repository");
-    const selected = hasSource ? [{ id: packageIds[0] }] : selectCatalogPackages(await loadEffectiveCatalog(), { mode: options.mode as InstallSelectionMode, packageIds });
+    const resolution = hasSource ? undefined : resolveCatalogProfile(await loadEffectiveCatalog(), { mode: options.mode as InstallSelectionMode, packageIds });
+    const selected = hasSource ? [{ id: packageIds[0] }] : resolution!.packages;
     const agents = installedAgents(await detectAgents(), options.agents?.split(",") as AgentId[] | undefined);
     const plans: Array<{ plan: Awaited<ReturnType<typeof buildSkillPlan>>; repository?: string; commit?: string }> = [];
     const skipped: Array<{ packageId: string; reason: string }> = [];
@@ -517,6 +527,7 @@ program.command("install")
       }
     }
     console.log(`Installing ${plans.map(({ plan }) => plan.packageId).join(", ")} for ${agents.map((agent) => agent.id).join(", ")}...`);
+    for (const warning of resolution?.warnings ?? []) console.log(`Profile warning: ${warning}`);
     for (const entry of skipped) console.log(`Skipping ${entry.packageId}: ${entry.reason}`);
     if (!options.yes) console.log("Review the plan with `loadout plan`; use --yes to apply it.");
     if (!options.yes) return;

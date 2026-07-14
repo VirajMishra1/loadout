@@ -620,8 +620,8 @@ modes.
 - [ ] `P1-06 [LUNA]` Add next ten verified catalog records.
 - [x] `P1-07 [TERRA]` Implement GitHub metadata fetch with cache and rate-limit errors.
 - [x] `P1-08 [TERRA]` Implement tier and ranking functions.
-- [ ] `P1-09 [SOL]` Review scoring for obvious gaming and bias failure modes.
-- [ ] `P1-10 [TERRA]` Implement conflict-family resolver.
+- [x] `P1-09 [SOL]` Review scoring for obvious gaming and bias failure modes.
+- [x] `P1-10 [TERRA]` Implement conflict-family resolver.
   - Acceptance: Stable picks one default; hard conflicts block; Custom can override
     soft conflicts.
 
@@ -648,7 +648,7 @@ modes.
 - [x] `P3-05 [TERRA]` Implement MCP JSON parser.
 - [x] `P3-06 [LUNA]` Add parser fixtures from sanitized real layouts.
 - [x] `P3-07 [TERRA]` Map parsed skills to universal component records.
-- [ ] `P3-08 [SOL]` Define native/adapted/unsupported rules for MVP platforms.
+- [x] `P3-08 [SOL]` Define native/adapted/unsupported rules for MVP platforms.
 - [x] `P3-09 [TERRA]` Generate compatibility summary from normalized package.
 
 ### Phase 4: Transaction engine

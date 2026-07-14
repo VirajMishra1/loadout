@@ -8,6 +8,9 @@ import { readInstallState } from "./state.js";
 import { analyzeUpdateSafety, type SafetyFinding } from "./safety.js";
 import { detectAgents } from "./paths.js";
 import { applySkillInstall, buildSkillPlan, installedAgents } from "./install.js";
+import { readSnapshot, restoreSnapshot } from "./snapshot.js";
+import { validateSkillDirectory } from "./skills.js";
+import type { DetectedAgent, InstallPlan } from "../shared/types.js";
 
 export type UpdateStatus = "update-available" | "up-to-date" | "untracked" | "error";
 
@@ -30,6 +33,25 @@ export interface UpdatePlan {
 }
 
 export type CommitResolver = (repository: string) => Promise<{ commit: string; path?: string }>;
+
+export interface UpdateSmokeTestContext {
+  packageId: string;
+  commit: string;
+  plan: InstallPlan;
+  snapshotId: string;
+}
+
+/**
+ * Dependencies are injectable for the fully local safety regression suite.
+ * Production callers use the defaults, which never execute package code.
+ */
+export interface UpdateRuntime {
+  fetchSnapshot?: (repository: string) => Promise<{ repository: string; commit: string; path: string }>;
+  detectAgents?: () => Promise<DetectedAgent[]>;
+  buildPlan?: (source: string, packageId: string, agents: DetectedAgent[]) => Promise<InstallPlan>;
+  applyPlan?: (plan: InstallPlan, metadata: { repository: string; resolvedCommit: string }) => Promise<string>;
+  verify?: (context: UpdateSmokeTestContext) => Promise<void>;
+}
 
 /** Builds a read-only update plan from persisted installs and live GitHub snapshots. */
 export async function buildUpdatePlan(
@@ -111,11 +133,28 @@ export async function quarantineUpdate(packageId: string, repository: string, co
   return directory;
 }
 
-export async function applyPackageUpdate(packageId: string, options: { approveRisk?: boolean; quarantineOnBlock?: boolean } = {}): Promise<{ snapshotId: string; commit: string }> {
+/**
+ * Verify copied skill metadata only. This is deliberately static: Loadout does
+ * not run hooks, lifecycle scripts, MCP servers, or any repository code while
+ * applying an update.
+ */
+async function verifyInstalledSkills(context: UpdateSmokeTestContext): Promise<void> {
+  for (const file of context.plan.files) await validateSkillDirectory(file.target);
+}
+
+/**
+ * Apply an already reviewed package update. A failed post-copy verification
+ * restores the transaction snapshot, including the previous install state.
+ */
+export async function applyPackageUpdate(
+  packageId: string,
+  options: { approveRisk?: boolean; quarantineOnBlock?: boolean } = {},
+  runtime: UpdateRuntime = {}
+): Promise<{ snapshotId: string; commit: string }> {
   const record = (await readInstallState()).installs.find((item) => item.packageId === packageId);
   if (!record) throw new Error(`Package is not managed by Loadout: ${packageId}`);
   if (!record.repository || !record.resolvedCommit) throw new Error(`Package '${packageId}' has no tracked GitHub source`);
-  const current = await fetchRepositorySnapshot(record.repository);
+  const current = await (runtime.fetchSnapshot ?? fetchRepositorySnapshot)(record.repository);
   if (current.commit.toLowerCase() === record.resolvedCommit.toLowerCase()) throw new Error(`Package '${packageId}' is already up to date`);
   const oldPath = repositoryCachePath(record.repository, record.resolvedCommit);
   const safety = await analyzeUpdateSafety(oldPath, current.path);
@@ -123,8 +162,20 @@ export async function applyPackageUpdate(packageId: string, options: { approveRi
     const quarantinePath = options.quarantineOnBlock === false ? undefined : await quarantineUpdate(packageId, current.repository, current.commit, safety.findings);
     throw new Error(`Update is blocked pending explicit risk approval${quarantinePath ? `; quarantined at ${quarantinePath}` : ""}: ${safety.findings.filter((finding) => finding.severity === "blocking").map((finding) => finding.message).join(" ")}`);
   }
-  const agents = installedAgents(await detectAgents(), record.targetAgents);
-  const plan = await buildSkillPlan(current.path, record.packageId, agents);
-  const snapshotId = await applySkillInstall(plan, { repository: current.repository, resolvedCommit: current.commit });
+  const agents = installedAgents(await (runtime.detectAgents ?? detectAgents)(), record.targetAgents);
+  const plan = await (runtime.buildPlan ?? buildSkillPlan)(current.path, record.packageId, agents);
+  const snapshotId = await (runtime.applyPlan ?? applySkillInstall)(plan, { repository: current.repository, resolvedCommit: current.commit });
+  try {
+    await (runtime.verify ?? verifyInstalledSkills)({ packageId, commit: current.commit, plan, snapshotId });
+  } catch (error) {
+    try {
+      await restoreSnapshot(await readSnapshot(snapshotId));
+    } catch (rollbackError) {
+      const detail = rollbackError instanceof Error ? rollbackError.message : String(rollbackError);
+      throw new Error(`Update verification failed and automatic rollback also failed for snapshot ${snapshotId}: ${detail}`, { cause: error });
+    }
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new Error(`Update verification failed; restored snapshot ${snapshotId}: ${detail}`, { cause: error });
+  }
   return { snapshotId, commit: current.commit };
 }

@@ -718,11 +718,11 @@ modes.
 - [x] `P8-02 [TERRA]` Generate changed-file diff.
 - [x] `P8-03 [TERRA]` Generate instruction/script/domain/env summary.
 - [x] `P8-04 [TERRA]` Implement approval policy for sensitive changes.
-- [ ] `P8-05 [LUNA]` Create benign Ponytail-style update fixture.
-- [ ] `P8-06 [LUNA]` Create risky update fixture adding a hook and domain.
-- [ ] `P8-07 [TERRA]` Demonstrate safe update acceptance.
-- [ ] `P8-08 [TERRA]` Demonstrate risky update quarantine.
-- [ ] `P8-09 [TERRA]` Demonstrate rollback after simulated smoke-test failure.
+- [x] `P8-05 [LUNA]` Create benign Ponytail-style update fixture.
+- [x] `P8-06 [LUNA]` Create risky update fixture adding a hook and domain.
+- [x] `P8-07 [TERRA]` Demonstrate safe update acceptance.
+- [x] `P8-08 [TERRA]` Demonstrate risky update quarantine.
+- [x] `P8-09 [TERRA]` Demonstrate rollback after simulated smoke-test failure.
 
 ### Phase 9: Cross-platform verification
 

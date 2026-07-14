@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { applySkillInstall, buildSkillPlan } from "../src/core/install.js";
 import { detectInstallConflicts, planSkillInstall } from "../src/core/skills.js";
 import { restoreSnapshot } from "../src/core/snapshot.js";
+import { readInstallState } from "../src/core/state.js";
 import type { DetectedAgent } from "../src/shared/types.js";
 
 const agent = (skillsDirectory: string): DetectedAgent => ({
@@ -46,6 +47,7 @@ describe("skill installation transaction", () => {
     await restoreSnapshot(snapshot);
     await expect(readFile(join(target, "test-skill", "SKILL.md"))).rejects.toThrow();
     expect(await readFile(join(target, "unrelated.txt"), "utf8")).toBe("keep me");
+    expect((await readInstallState()).installs).toEqual([]);
   });
 
   it("discovers and validates nested skills", async () => {

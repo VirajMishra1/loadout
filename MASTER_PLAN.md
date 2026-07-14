@@ -631,12 +631,12 @@ modes.
 - [x] `P2-02 [TERRA]` Implement shared filesystem/path utilities.
   - Acceptance: tests cover Windows paths, POSIX paths, WSL distinction, home dirs.
 - [x] `P2-03 [LUNA]` Add fake home-directory fixtures for all platforms.
-- [ ] `P2-04 [TERRA]` Implement Claude Code detection and inspection.
-- [ ] `P2-05 [TERRA]` Implement Codex detection and inspection.
-- [ ] `P2-06 [TERRA]` Implement Cursor detection and inspection.
-- [ ] `P2-07 [LUNA]` Implement Gemini CLI detection from approved path table.
-- [ ] `P2-08 [LUNA]` Implement OpenCode detection from approved path table.
-- [ ] `P2-09 [LUNA]` Implement Hermes detection from approved path table.
+- [x] `P2-04 [TERRA]` Implement Claude Code detection and inspection.
+- [x] `P2-05 [TERRA]` Implement Codex detection and inspection.
+- [x] `P2-06 [TERRA]` Implement Cursor detection and inspection.
+- [x] `P2-07 [LUNA]` Implement Gemini CLI detection from approved path table.
+- [x] `P2-08 [LUNA]` Implement OpenCode detection from approved path table.
+- [x] `P2-09 [LUNA]` Implement Hermes detection from approved path table.
 - [x] `P2-10 [TERRA]` Build `loadout doctor` detection report.
 
 ### Phase 3: Package parsing and normalization

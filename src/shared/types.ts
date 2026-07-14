@@ -64,7 +64,7 @@ export interface Snapshot {
   id: string;
   createdAt: string;
   roots: string[];
-  files: Array<{ path: string; existed: boolean; content?: string }>;
+  files: Array<{ path: string; existed: boolean; directory?: boolean; content?: string; encoding?: "base64" }>;
 }
 
 export interface InstallRecord {

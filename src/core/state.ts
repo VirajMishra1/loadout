@@ -5,6 +5,7 @@ import type { InstallPlan, InstallRecord, InstallState } from "../shared/types.j
 import { ensureDirectory, loadoutHome } from "./paths.js";
 
 const stateFile = () => join(loadoutHome(), "state.json");
+export const installStatePath = (): string => stateFile();
 
 async function writeInstallState(state: InstallState): Promise<void> {
   await ensureDirectory(loadoutHome());

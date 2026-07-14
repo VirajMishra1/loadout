@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { readFile, rm } from "node:fs/promises";
 import { createSnapshot, restoreSnapshot } from "./snapshot.js";
-import { forgetInstall, readInstallState } from "./state.js";
+import { forgetInstall, installStatePath, readInstallState } from "./state.js";
 
 export interface RemovePlan {
   packageId: string;
@@ -26,7 +26,7 @@ export async function planRemove(packageId: string): Promise<RemovePlan> {
 export async function applyRemove(plan: RemovePlan, options: { force?: boolean } = {}): Promise<string> {
   if (plan.blocked && !options.force) throw new Error(plan.warnings.join(" "));
   const existing = plan.files.filter((file) => file.status !== "missing").map((file) => file.path);
-  const snapshot = await createSnapshot(existing);
+  const snapshot = await createSnapshot([...existing, installStatePath()]);
   try {
     for (const file of existing) await rm(file, { force: true });
     await forgetInstall(plan.packageId);

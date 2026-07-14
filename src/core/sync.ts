@@ -8,6 +8,7 @@ import { fetchGitSnapshot, fetchRepositorySnapshot } from "./source.js";
 import { buildUniversalPackagePlan } from "./components.js";
 import { analyzeInstallPlanSafety, type UpdateSafetyAnalysis } from "./safety.js";
 import { resolveRegistryPackage } from "./registry.js";
+import { readSnapshot, restoreSnapshot } from "./snapshot.js";
 
 export interface SyncPlan {
   manifest: string;
@@ -87,8 +88,12 @@ export async function applySyncPlan(plan: SyncPlan, lockPath = "loadout.lock", o
   if (plan.policyViolations.length) throw new Error(`Synchronization violates manifest policy: ${plan.policyViolations.join("; ")}`);
   const blocked = plan.packages.filter((entry) => entry.safety.approvalRequired);
   if (blocked.length && !options.approveRisk) throw new Error(`Synchronization requires explicit risk approval for: ${blocked.map((entry) => entry.plan.packageId).join(", ")}`);
-  const snapshotId = plan.packages.length ? await applySkillInstallBatch(plan.packages) : undefined;
+  const snapshotId = plan.packages.length ? await applySkillInstallBatch(plan.packages, [resolve(lockPath)]) : undefined;
   const manifest: LoadoutManifest = await readManifest(plan.manifest);
-  await writeLockfile(manifest, lockPath);
+  try { await writeLockfile(manifest, lockPath); }
+  catch (error) {
+    if (snapshotId) await restoreSnapshot(await readSnapshot(snapshotId));
+    throw error;
+  }
   return { snapshotId, lockfile: lockPath };
 }

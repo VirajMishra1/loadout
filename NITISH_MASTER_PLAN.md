@@ -207,8 +207,10 @@ For each loop:
 - Install, update, remove, sync, and rollback have failure-injection tests.
 - Every adapter has fixtures for each claimed native component.
 - No third-party lifecycle script runs during discovery or installation.
-- No secret value appears in plans, state, logs, API results, or snapshots intended
-  for sharing.
+- No secret value appears in plans, state, logs, API results, or any artifact intended
+  for sharing. Private recovery snapshots may contain exact pre-change bytes required
+  for rollback and must remain local with owner-only file permissions; encrypted
+  snapshots are required before any remote backup feature.
 - No compatibility or safety claim is made without dated evidence.
 - All supported operating systems build and pass their relevant tests.
 - Documentation distinguishes complete, experimental, and planned behavior.
@@ -232,4 +234,3 @@ For each loop:
 6. Source/dependency/registry parity.
 7. Security plugins, policies, and quarantine.
 8. Complete dashboard and cross-platform verification.
-

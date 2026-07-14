@@ -29,8 +29,19 @@ export interface DetectedAgent {
 export interface PlannedFile {
   source: string;
   target: string;
+  componentType?: ComponentType;
+  compatibility?: ComponentCompatibility;
   /** Frontmatter name when available, used for conflict diagnostics. */
   skillName?: string;
+}
+
+export type ComponentType = "skill" | "rule" | "command" | "agent" | "mcp" | "plugin" | "root";
+export type ComponentCompatibility = "native" | "adapted" | "unsupported";
+
+export interface ResourceSummary {
+  type: "rule" | "command" | "agent";
+  name: string;
+  path: string;
 }
 
 export interface ConflictDiagnostic {
@@ -209,7 +220,8 @@ export interface McpServerSummary {
 export interface PackageInspection {
   root: string;
   skills: SkillSummary[];
+  resources: ResourceSummary[];
   mcpServers: McpServerSummary[];
-  counts: { skills: number; mcpServers: number; manifests: number };
+  counts: { skills: number; rules: number; commands: number; agents: number; mcpServers: number; manifests: number };
   warnings: string[];
 }

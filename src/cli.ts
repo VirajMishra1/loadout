@@ -143,11 +143,12 @@ program.command("sync")
   .option("--manifest <path>", "manifest path", "loadout.json")
   .option("--lock <path>", "lockfile output", "loadout.lock")
   .option("--yes", "apply the plan; otherwise remain read-only")
-  .action(async (options: { manifest: string; lock: string; yes?: boolean }) => {
+  .option("--approve-risk", "explicitly approve plans containing scripts, hooks, or binaries")
+  .action(async (options: { manifest: string; lock: string; yes?: boolean; approveRisk?: boolean }) => {
     const plan = await buildSyncPlan(options.manifest);
-    console.log(JSON.stringify({ manifest: plan.manifest, packages: plan.packages.map((entry) => entry.plan), skipped: plan.skipped }, null, 2));
+    console.log(JSON.stringify({ manifest: plan.manifest, packages: plan.packages.map((entry) => ({ ...entry.plan, safety: entry.safety })), skipped: plan.skipped }, null, 2));
     if (!options.yes) return console.log("Dry run only. Re-run with --yes to synchronize this Loadout.");
-    const result = await applySyncPlan(plan, options.lock);
+    const result = await applySyncPlan(plan, options.lock, { approveRisk: options.approveRisk });
     console.log(`Synchronized successfully.${result.snapshotId ? ` Snapshot: ${result.snapshotId}.` : ""} Lockfile: ${result.lockfile}`);
   });
 

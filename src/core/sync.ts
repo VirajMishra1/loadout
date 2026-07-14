@@ -1,14 +1,16 @@
-import { resolve } from "node:path";
+import { resolve, sep } from "node:path";
 import type { AgentId, LoadoutManifest, ManifestPackage } from "../shared/types.js";
 import { loadEffectiveCatalog } from "./catalog.js";
-import { applySkillInstallBatch, buildSkillPlan, installedAgents, type InstallBatchEntry } from "./install.js";
+import { applySkillInstallBatch, installedAgents, type InstallBatchEntry } from "./install.js";
 import { readManifest, writeLockfile } from "./manifest.js";
 import { detectAgents } from "./paths.js";
 import { fetchRepositorySnapshot } from "./source.js";
+import { buildUniversalPackagePlan } from "./components.js";
+import { analyzeInstallPlanSafety, type UpdateSafetyAnalysis } from "./safety.js";
 
 export interface SyncPlan {
   manifest: string;
-  packages: InstallBatchEntry[];
+  packages: Array<InstallBatchEntry & { safety: UpdateSafetyAnalysis }>;
   skipped: Array<{ packageId: string; reason: string }>;
 }
 
@@ -16,7 +18,9 @@ async function resolvePackage(pkg: ManifestPackage): Promise<{ path: string; rep
   if (pkg.source.type === "local") return { path: resolve(pkg.source.path) };
   if (pkg.source.type === "github") {
     const fetched = await fetchRepositorySnapshot(pkg.source.repository, { ref: pkg.source.ref });
-    return { path: pkg.source.path ? resolve(fetched.path, pkg.source.path) : fetched.path, repository: fetched.repository, commit: fetched.commit };
+    const selected = pkg.source.path ? resolve(fetched.path, pkg.source.path) : fetched.path;
+    if (selected !== fetched.path && !selected.startsWith(`${fetched.path}${sep}`)) throw new Error(`Package subpath escapes fetched repository: ${pkg.source.path}`);
+    return { path: selected, repository: fetched.repository, commit: fetched.commit };
   }
   const catalogId = pkg.source.id;
   const catalog = await loadEffectiveCatalog();
@@ -29,23 +33,26 @@ async function resolvePackage(pkg: ManifestPackage): Promise<{ path: string; rep
 export async function buildSyncPlan(manifestPath = "loadout.json"): Promise<SyncPlan> {
   const manifest = await readManifest(manifestPath);
   const detected = await detectAgents();
-  const packages: InstallBatchEntry[] = [];
+  const packages: SyncPlan["packages"] = [];
   const skipped: SyncPlan["skipped"] = [];
   for (const pkg of manifest.packages.filter((item) => item.enabled !== false)) {
     const requested = pkg.agents ?? manifest.agents;
     const agents = installedAgents(detected, requested as AgentId[]);
     const source = await resolvePackage(pkg);
     try {
-      packages.push({ plan: await buildSkillPlan(source.path, pkg.id, agents), metadata: { repository: source.repository, resolvedCommit: source.commit } });
+      const plan = await buildUniversalPackagePlan(source.path, pkg.id, agents);
+      packages.push({ plan, metadata: { repository: source.repository, resolvedCommit: source.commit }, safety: await analyzeInstallPlanSafety(plan) });
     } catch (error) {
-      if (error instanceof Error && error.message.startsWith("No SKILL.md found")) skipped.push({ packageId: pkg.id, reason: "No installable skill component was found; inspect MCP components separately." });
+      if (error instanceof Error && error.message.startsWith("No supported")) skipped.push({ packageId: pkg.id, reason: "No supported skill, rule, command, or agent component was found; inspect MCP components separately." });
       else throw error;
     }
   }
   return { manifest: manifestPath, packages, skipped };
 }
 
-export async function applySyncPlan(plan: SyncPlan, lockPath = "loadout.lock"): Promise<{ snapshotId?: string; lockfile: string }> {
+export async function applySyncPlan(plan: SyncPlan, lockPath = "loadout.lock", options: { approveRisk?: boolean } = {}): Promise<{ snapshotId?: string; lockfile: string }> {
+  const blocked = plan.packages.filter((entry) => entry.safety.approvalRequired);
+  if (blocked.length && !options.approveRisk) throw new Error(`Synchronization requires explicit risk approval for: ${blocked.map((entry) => entry.plan.packageId).join(", ")}`);
   const snapshotId = plan.packages.length ? await applySkillInstallBatch(plan.packages) : undefined;
   const manifest: LoadoutManifest = await readManifest(plan.manifest);
   await writeLockfile(manifest, lockPath);

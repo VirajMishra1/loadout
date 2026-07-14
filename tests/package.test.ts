@@ -10,7 +10,7 @@ describe("package inspection", () => {
     await writeFile(join(root, "skills", "docs", "SKILL.md"), "---\nname: docs\ndescription: Documentation helper\n---\n");
     await writeFile(join(root, "mcp.json"), JSON.stringify({ mcpServers: { context: { url: "https://example.test/mcp", env: { TOKEN: "secret" } } } }));
     const result = await inspectPackage(root);
-    expect(result.counts).toEqual({ skills: 1, mcpServers: 1, manifests: 1 });
+    expect(result.counts).toEqual({ skills: 1, rules: 0, commands: 0, agents: 0, mcpServers: 1, manifests: 1 });
     expect(result.skills[0]).toMatchObject({ type: "skill", name: "docs", path: "skills/docs" });
     expect(result.mcpServers[0]).toMatchObject({ type: "mcp", name: "context", transport: "url", environmentVariableCount: 1 });
     expect(JSON.stringify(result)).not.toContain("secret");

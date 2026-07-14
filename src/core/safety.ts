@@ -1,5 +1,6 @@
 import { readFile, readdir, stat } from "node:fs/promises";
-import { relative, resolve } from "node:path";
+import { basename, relative, resolve } from "node:path";
+import type { InstallPlan } from "../shared/types.js";
 
 export type SafetySeverity = "blocking" | "warning";
 export type SafetyCategory = "hook" | "script" | "binary" | "domain" | "environment";
@@ -31,6 +32,13 @@ const ENV_PATTERNS = [
 async function files(root: string): Promise<Map<string, Buffer>> {
   const result = new Map<string, Buffer>();
   const base = resolve(root);
+  try {
+    const rootInfo = await stat(base);
+    if (rootInfo.isFile() && rootInfo.size <= 2_000_000) {
+      result.set(basename(base), await readFile(base));
+      return result;
+    }
+  } catch { return result; }
   async function visit(directory: string, depth: number): Promise<void> {
     if (depth > 10) return;
     let entries;
@@ -50,6 +58,20 @@ async function files(root: string): Promise<Map<string, Buffer>> {
   }
   await visit(base, 0);
   return result;
+}
+
+/** Scan only the component sources selected by a plan, never unrelated repository files. */
+export async function analyzeInstallPlanSafety(plan: InstallPlan): Promise<UpdateSafetyAnalysis> {
+  const roots = [...new Set(plan.files.map((file) => file.source))];
+  const analyses = await Promise.all(roots.map((root) => analyzeUpdateSafety(undefined, root)));
+  const findings = analyses.flatMap((analysis) => analysis.findings);
+  const unique = new Map<string, SafetyFinding>();
+  for (const finding of findings) {
+    const key = `${finding.severity}:${finding.category}:${finding.message}:${finding.paths.join(",")}:${finding.names?.join(",") ?? ""}`;
+    unique.set(key, finding);
+  }
+  const result = [...unique.values()];
+  return { approvalRequired: result.some((finding) => finding.severity === "blocking"), findings: result };
 }
 
 function changedPaths(oldFiles: Map<string, Buffer>, newFiles: Map<string, Buffer>): string[] {

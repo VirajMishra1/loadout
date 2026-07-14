@@ -596,7 +596,7 @@ modes.
 
 ### Phase 0: Repository and team setup
 
-- [ ] `P0-01 [LUNA]` Add pnpm workspace skeleton matching section 9.1.
+- [x] `P0-01 [LUNA]` Add pnpm workspace skeleton matching section 9.1.
   - Acceptance: `pnpm install` succeeds and every workspace has a placeholder test.
 - [ ] `P0-02 [LUNA]` Add `.gitignore`, `.editorconfig`, Prettier, and ESLint defaults.
   - Acceptance: formatting and lint commands run at repository root.
@@ -613,7 +613,7 @@ modes.
   - Acceptance: valid fixtures parse; invalid fixtures fail with actionable errors.
 - [ ] `P1-03 [LUNA]` Create valid/invalid catalog fixtures.
   - Acceptance: at least five valid and ten invalid cases.
-- [ ] `P1-04 [TERRA]` Implement seed catalog loader.
+- [x] `P1-04 [TERRA]` Implement seed catalog loader.
   - Acceptance: loads bundled catalog offline and returns categories/packages.
 - [ ] `P1-05 [LUNA]` Add first ten verified catalog records.
   - Acceptance: source, category, tier, license, commit/ref, components, platforms.
@@ -628,7 +628,7 @@ modes.
 ### Phase 2: Agent detection
 
 - [ ] `P2-01 [SOL]` Finalize adapter contract and platform capability matrix.
-- [ ] `P2-02 [TERRA]` Implement shared filesystem/path utilities.
+- [x] `P2-02 [TERRA]` Implement shared filesystem/path utilities.
   - Acceptance: tests cover Windows paths, POSIX paths, WSL distinction, home dirs.
 - [ ] `P2-03 [LUNA]` Add fake home-directory fixtures for all platforms.
 - [ ] `P2-04 [TERRA]` Implement Claude Code detection and inspection.
@@ -656,13 +656,13 @@ modes.
 - [ ] `P4-01 [SOL]` Threat-model the mutation transaction.
 - [ ] `P4-02 [TERRA]` Implement immutable package cache by commit.
 - [ ] `P4-03 [TERRA]` Implement per-file SHA-256 calculation.
-- [ ] `P4-04 [TERRA]` Implement snapshot creator and manifest.
+- [x] `P4-04 [TERRA]` Implement snapshot creator and manifest.
 - [ ] `P4-05 [TERRA]` Implement staging directory and planned writes.
 - [ ] `P4-06 [TERRA]` Implement path traversal and escaping-symlink rejection.
 - [ ] `P4-07 [TERRA]` Implement plan collision detection.
 - [ ] `P4-08 [SOL]` Review atomic commit behavior across all three operating systems.
-- [ ] `P4-09 [TERRA]` Implement commit with automatic restore on failure.
-- [ ] `P4-10 [TERRA]` Implement `loadout rollback`.
+- [x] `P4-09 [TERRA]` Implement commit with automatic restore on failure.
+- [x] `P4-10 [TERRA]` Implement `loadout rollback`.
 - [ ] `P4-11 [LUNA]` Add interrupted-write and corrupted-stage fixtures.
 - [ ] `P4-12 [TERRA]` Verify rollback restores byte-identical files.
 
@@ -683,13 +683,13 @@ modes.
 ### Phase 6: CLI
 
 - [ ] `P6-01 [TERRA]` CLI bootstrap, version, help, structured error handling.
-- [ ] `P6-02 [TERRA]` `loadout status`.
+- [x] `P6-02 [TERRA]` `loadout status`.
 - [ ] `P6-03 [TERRA]` `loadout doctor`.
 - [ ] `P6-04 [TERRA]` `loadout plan --mode stable|maximum|custom`.
 - [ ] `P6-05 [TERRA]` `loadout apply` with confirmation.
 - [ ] `P6-06 [TERRA]` `loadout add` and `loadout remove`.
 - [ ] `P6-07 [TERRA]` `loadout update --plan`.
-- [ ] `P6-08 [TERRA]` `loadout rollback`.
+- [x] `P6-08 [TERRA]` `loadout rollback`.
 - [ ] `P6-09 [LUNA]` CLI snapshot tests for help and error messages.
 - [ ] `P6-10 [SOL]` Review destructive command confirmation and recovery behavior.
 

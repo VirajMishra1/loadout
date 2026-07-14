@@ -7,6 +7,7 @@ import { buildSkillPlan, applySkillInstall, installedAgents } from "./core/insta
 import { restoreSnapshot } from "./core/snapshot.js";
 import type { AgentId } from "./shared/types.js";
 import { fetchRepositorySnapshot } from "./core/source.js";
+import { discoverMcpManifests, summarizeMcpManifest } from "./core/mcp.js";
 import { runDoctor, formatDoctorReport } from "./core/doctor.js";
 
 const program = new Command();
@@ -31,6 +32,22 @@ program.command("catalog").description("List the bundled real package catalog").
   const packages = rankCatalog(await loadCatalog());
   for (const pkg of packages) console.log(`${pkg.displayName} [${pkg.tier}] — ${pkg.repository}`);
 });
+
+program.command("mcp")
+  .description("Inspect MCP manifests without executing servers or scripts")
+  .option("--source <directory>", "local repository directory")
+  .option("--repository <owner/repo>", "public GitHub repository")
+  .option("--json", "emit normalized JSON")
+  .action(async (options: { source?: string; repository?: string; json?: boolean }) => {
+    if ((options.source ? 1 : 0) + (options.repository ? 1 : 0) !== 1) {
+      throw new Error("Provide exactly one of --source or --repository");
+    }
+    const source = options.repository ? (await fetchRepositorySnapshot(options.repository)).path : options.source!;
+    const manifests = await discoverMcpManifests(source);
+    if (options.json) console.log(JSON.stringify(manifests, null, 2));
+    else if (manifests.length === 0) console.log("No supported MCP manifests found.");
+    else for (const manifest of manifests) console.log(summarizeMcpManifest(manifest));
+  });
 
 program.command("plan")
   .description("Plan installing a package from a local directory or public GitHub repository")

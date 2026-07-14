@@ -1,6 +1,8 @@
-import { readFile, readdir } from "node:fs/promises";
-import { join, resolve } from "node:path";
-import type { McpManifest, McpServer } from "../shared/types.js";
+import { readFile, readdir, mkdir, rename, writeFile, rm } from "node:fs/promises";
+import { join, resolve, dirname, basename } from "node:path";
+import { randomUUID } from "node:crypto";
+import type { McpConfigPlan, McpConfigSnapshot, McpManifest, McpServer } from "../shared/types.js";
+import { loadoutHome } from "./paths.js";
 
 const MANIFEST_NAMES = new Set(["mcp.json", ".mcp.json", "claude_desktop_config.json"]);
 
@@ -82,4 +84,56 @@ export function summarizeMcpManifest(manifest: McpManifest): string {
   }
   for (const warning of manifest.warnings) lines.push(`  warning: ${warning}`);
   return lines.join("\n");
+}
+
+function safeName(name: string): void {
+  if (!/^[A-Za-z0-9._-]{1,128}$/.test(name)) throw new Error("MCP server name may contain only letters, numbers, ., _, and -");
+}
+
+/** Build a mutation without touching disk. Existing top-level config keys are preserved. */
+export async function planMcpConfig(path: string, server: McpServer, name = server.name): Promise<McpConfigPlan> {
+  safeName(name);
+  const target = resolve(path);
+  let current: Record<string, unknown> = {};
+  try {
+    const parsed: unknown = JSON.parse(await readFile(target, "utf8"));
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("config root must be an object");
+    current = parsed as Record<string, unknown>;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw new Error(`Cannot read MCP config ${target}: ${error instanceof Error ? error.message : String(error)}`);
+  }
+  const existing = current.mcpServers;
+  if (existing !== undefined && (!existing || typeof existing !== "object" || Array.isArray(existing))) throw new Error("mcpServers must be an object");
+  const servers = { ...((existing ?? {}) as Record<string, unknown>) };
+  const had = Object.prototype.hasOwnProperty.call(servers, name);
+  const entry: Record<string, unknown> = server.url
+    ? { url: server.url, ...(server.args.length ? { args: server.args } : {}), ...(Object.keys(server.env).length ? { env: server.env } : {}) }
+    : { command: server.command, ...(server.args.length ? { args: server.args } : {}), ...(Object.keys(server.env).length ? { env: server.env } : {}) };
+  servers[name] = entry;
+  const proposed = { ...current, mcpServers: servers };
+  return { path: target, serverName: name, changes: [{ serverName: name, action: had ? "replace" : "add", summary: `${had ? "Replace" : "Add"} MCP server '${name}' (${server.url ? "URL" : "command"}; ${Object.keys(server.env).length} environment variable(s))` }], warnings: server.warnings, proposed };
+}
+
+export function summarizeMcpConfigPlan(plan: McpConfigPlan): string {
+  return [`MCP config: ${plan.path}`, ...plan.changes.map((change) => `  - ${change.summary}`), ...plan.warnings.map((warning) => `  warning: ${warning}`)].join("\n");
+}
+
+async function snapshotPath(id: string): Promise<string> { return join(loadoutHome(), "mcp-snapshots", `${id}.json`); }
+
+export async function applyMcpConfigPlan(plan: McpConfigPlan): Promise<McpConfigSnapshot> {
+  await mkdir(dirname(plan.path), { recursive: true });
+  try { const s = await readFile(plan.path, "utf8"); if (s.length > 10_000_000) throw new Error("MCP config is unexpectedly large"); } catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
+  let existed = true; let content: string | undefined;
+  try { content = await readFile(plan.path, "utf8"); } catch (error) { if ((error as NodeJS.ErrnoException).code === "ENOENT") { existed = false; } else throw error; }
+  const snapshot: McpConfigSnapshot = { id: randomUUID(), path: plan.path, existed, content, createdAt: new Date().toISOString() };
+  const snap = await snapshotPath(snapshot.id); await mkdir(dirname(snap), { recursive: true }); await writeFile(snap, JSON.stringify(snapshot), { mode: 0o600 });
+  const temporary = join(dirname(plan.path), `.${basename(plan.path)}.loadout-${randomUUID()}.tmp`);
+  await writeFile(temporary, `${JSON.stringify(plan.proposed, null, 2)}\n`, { mode: 0o600 });
+  await rename(temporary, plan.path);
+  return snapshot;
+}
+
+export async function restoreMcpConfig(snapshot: McpConfigSnapshot): Promise<void> {
+  if (snapshot.existed) { await mkdir(dirname(snapshot.path), { recursive: true }); await writeFile(snapshot.path, snapshot.content ?? "", { mode: 0o600 }); }
+  else await rm(snapshot.path, { force: true });
 }

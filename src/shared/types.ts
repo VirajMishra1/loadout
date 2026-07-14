@@ -76,3 +76,27 @@ export interface McpManifest {
   servers: McpServer[];
   warnings: string[];
 }
+
+export interface McpConfigChange {
+  serverName: string;
+  action: "add" | "replace";
+  /** Safe human-readable description; never contains environment values. */
+  summary: string;
+}
+
+export interface McpConfigPlan {
+  path: string;
+  serverName: string;
+  changes: McpConfigChange[];
+  warnings: string[];
+  /** Internal proposed JSON. Do not print this directly: it may contain secrets. */
+  proposed: Record<string, unknown>;
+}
+
+export interface McpConfigSnapshot {
+  id: string;
+  path: string;
+  existed: boolean;
+  content?: string;
+  createdAt: string;
+}

@@ -34,6 +34,13 @@ node dist/src/cli.js health
 node dist/src/cli.js recommend --project .
 node dist/src/cli.js profiles
 node dist/src/cli.js improve
+node dist/src/cli.js search playwright
+
+# Create and publish an immutable package to the local registry.
+node dist/src/cli.js create ./my-package --name my-package
+node dist/src/cli.js pack ./my-package
+node dist/src/cli.js publish ./my-package --local
+node dist/src/cli.js add my-package --registry my-package@0.1.0
 
 # Safe package lifecycle.
 node dist/src/cli.js remove <package-id>                # dry run
@@ -158,8 +165,9 @@ catalog, and update views.
   disabled, or cyclic dependencies are rejected. Skills, conventional rule directories,
   command directories, and agent directories are normalized; unsupported targets are
   skipped rather than falsely converted. Plugin/root-file application, automated MCP
-  targeting, transitive package-owned manifests, and a hosted publishing registry
-  remain planned.
+  targeting, transitive package-owned manifests, remote authentication, and a hosted
+  publishing registry remain planned. The implemented local registry is immutable,
+  digest-verified, searchable, and risk-gated, but it is not presented as hosted.
 
 ## Core promise
 

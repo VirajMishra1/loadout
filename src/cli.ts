@@ -20,6 +20,7 @@ import { applyRemove, planRemove } from "./core/remove.js";
 import { formatRecommendations, profileManifestPackages, recommendPackages, scanProject, TESTED_PROFILES } from "./core/recommend.js";
 import { buildImprovementCycle, formatImprovementCycle } from "./core/improve.js";
 import { applySyncPlan, buildSyncPlan } from "./core/sync.js";
+import { createPackage, packPackage, publishLocalPackage, searchLocalRegistry } from "./core/registry.js";
 
 const program = new Command();
 program.name("loadout").description("Universal upgrade manager for AI coding agents").version("0.1.0");
@@ -44,6 +45,49 @@ program.command("lock")
     console.log(`Wrote ${options.output} with ${lockfile.packages.length} resolved package(s).`);
   });
 
+program.command("create")
+  .description("Create a new Loadout package directory")
+  .argument("<directory>", "new package directory")
+  .requiredOption("--name <name>", "lowercase package name")
+  .option("--description <text>", "package description")
+  .option("--version <version>", "semantic version", "0.1.0")
+  .action(async (directory: string, options: { name: string; description?: string; version: string }) => {
+    const descriptor = await createPackage(directory, options);
+    console.log(`Created ${descriptor.name}@${descriptor.version} in ${directory}.`);
+  });
+
+program.command("pack")
+  .description("Validate a package and print its deterministic inventory digest")
+  .argument("[directory]", "package directory", ".")
+  .option("--json", "emit machine-readable JSON")
+  .action(async (directory: string, options: { json?: boolean }) => {
+    const packed = await packPackage(directory);
+    console.log(options.json ? JSON.stringify(packed, null, 2) : `${packed.descriptor.name}@${packed.descriptor.version} — ${packed.files.length} file(s) — sha256:${packed.digest}`);
+  });
+
+program.command("publish")
+  .description("Publish an immutable package version to the local Loadout registry")
+  .argument("[directory]", "package directory", ".")
+  .option("--local", "publish locally; hosted publishing is not enabled yet")
+  .option("--approve-risk", "explicitly approve publishing scripts, hooks, or binaries")
+  .action(async (directory: string, options: { local?: boolean; approveRisk?: boolean }) => {
+    if (!options.local) throw new Error("Only --local publishing is currently enabled");
+    const packed = await publishLocalPackage(directory, { approveRisk: options.approveRisk });
+    console.log(`Published ${packed.descriptor.name}@${packed.descriptor.version} with digest ${packed.digest}.`);
+  });
+
+program.command("search")
+  .description("Search the bundled catalog and local registry")
+  .argument("[query]", "search text", "")
+  .option("--json", "emit machine-readable JSON")
+  .action(async (query: string, options: { json?: boolean }) => {
+    const catalog = (await loadEffectiveCatalog()).filter((pkg) => !query || `${pkg.id} ${pkg.displayName} ${pkg.description}`.toLowerCase().includes(query.toLowerCase())).map((pkg) => ({ source: "catalog", name: pkg.id, description: pkg.description, repository: pkg.repository }));
+    const local = (await searchLocalRegistry(query)).map((pkg) => ({ source: "registry", ...pkg }));
+    if (options.json) return console.log(JSON.stringify([...catalog, ...local], null, 2));
+    for (const item of [...catalog, ...local]) console.log(`${item.name}${"version" in item ? `@${item.version}` : ""} [${item.source}] — ${item.description}`);
+    if (!catalog.length && !local.length) console.log("No matching packages found.");
+  });
+
 program.command("add")
   .description("Add a catalog, GitHub, or local package to loadout.json")
   .argument("<id>", "package id")
@@ -51,16 +95,19 @@ program.command("add")
   .option("--catalog <id>", "catalog package id")
   .option("--repository <owner/repo>", "public GitHub repository")
   .option("--git <url>", "generic HTTPS or SSH Git repository")
+  .option("--registry <name@version>", "exact local registry package version")
   .option("--ref <ref>", "Git branch, tag, or ref")
   .option("--path <path>", "GitHub repository subpath or local path")
   .option("--local", "treat --path as a local source")
   .option("--agents <ids>", "comma-separated target agents")
   .option("--depends-on <ids>", "comma-separated package dependencies")
-  .action(async (id: string, options: { manifest: string; catalog?: string; repository?: string; git?: string; ref?: string; path?: string; local?: boolean; agents?: string; dependsOn?: string }) => {
-    const selected = Number(Boolean(options.catalog)) + Number(Boolean(options.repository)) + Number(Boolean(options.git)) + Number(Boolean(options.local));
-    if (selected !== 1) throw new Error("Choose exactly one source: --catalog, --repository, --git, or --local with --path");
+  .action(async (id: string, options: { manifest: string; catalog?: string; repository?: string; git?: string; registry?: string; ref?: string; path?: string; local?: boolean; agents?: string; dependsOn?: string }) => {
+    const selected = Number(Boolean(options.catalog)) + Number(Boolean(options.repository)) + Number(Boolean(options.git)) + Number(Boolean(options.registry)) + Number(Boolean(options.local));
+    if (selected !== 1) throw new Error("Choose exactly one source: --catalog, --repository, --git, --registry, or --local with --path");
     if (options.local && !options.path) throw new Error("--local requires --path <directory>");
-    const source = options.catalog ? { type: "catalog" as const, id: options.catalog } : options.repository ? { type: "github" as const, repository: options.repository, ...(options.ref ? { ref: options.ref } : {}), ...(options.path ? { path: options.path } : {}) } : options.git ? { type: "git" as const, url: options.git, ...(options.ref ? { ref: options.ref } : {}), ...(options.path ? { path: options.path } : {}) } : { type: "local" as const, path: options.path! };
+    const registry = options.registry?.match(/^([a-z0-9][a-z0-9._-]*)@(.+)$/);
+    if (options.registry && !registry) throw new Error("--registry expects name@version");
+    const source = options.catalog ? { type: "catalog" as const, id: options.catalog } : options.repository ? { type: "github" as const, repository: options.repository, ...(options.ref ? { ref: options.ref } : {}), ...(options.path ? { path: options.path } : {}) } : options.git ? { type: "git" as const, url: options.git, ...(options.ref ? { ref: options.ref } : {}), ...(options.path ? { path: options.path } : {}) } : registry ? { type: "registry" as const, name: registry[1], version: registry[2] } : { type: "local" as const, path: options.path! };
     const manifest = await addManifestPackage(options.manifest, { id, source, ...(options.agents ? { agents: options.agents.split(",") as AgentId[] } : {}), ...(options.dependsOn ? { dependsOn: options.dependsOn.split(",") } : {}) });
     console.log(`Added ${id} to ${options.manifest}. ${manifest.packages.length} package(s) configured.`);
   });

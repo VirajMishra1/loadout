@@ -7,6 +7,7 @@ import { detectAgents } from "./paths.js";
 import { fetchGitSnapshot, fetchRepositorySnapshot } from "./source.js";
 import { buildUniversalPackagePlan } from "./components.js";
 import { analyzeInstallPlanSafety, type UpdateSafetyAnalysis } from "./safety.js";
+import { resolveRegistryPackage } from "./registry.js";
 
 export interface SyncPlan {
   manifest: string;
@@ -27,6 +28,10 @@ async function resolvePackage(pkg: ManifestPackage): Promise<{ path: string; rep
     const selected = pkg.source.path ? resolve(fetched.path, pkg.source.path) : fetched.path;
     if (selected !== fetched.path && !selected.startsWith(`${fetched.path}${sep}`)) throw new Error(`Package subpath escapes fetched Git repository: ${pkg.source.path}`);
     return { path: selected, commit: fetched.commit };
+  }
+  if (pkg.source.type === "registry") {
+    const resolved = await resolveRegistryPackage(pkg.source.name, pkg.source.version);
+    return { path: resolved.path, commit: resolved.digest };
   }
   const catalogId = pkg.source.id;
   const catalog = await loadEffectiveCatalog();

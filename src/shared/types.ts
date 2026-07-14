@@ -86,7 +86,24 @@ export type PackageSource =
   | { type: "catalog"; id: string }
   | { type: "github"; repository: string; ref?: string; path?: string }
   | { type: "git"; url: string; ref?: string; path?: string }
+  | { type: "registry"; name: string; version: string }
   | { type: "local"; path: string };
+
+export interface PackageDescriptor {
+  schemaVersion: 1;
+  name: string;
+  version: string;
+  description: string;
+  license?: string;
+  dependencies?: Record<string, string>;
+}
+
+export interface PackedPackage {
+  descriptor: PackageDescriptor;
+  root: string;
+  digest: string;
+  files: Array<{ path: string; sha256: string; size: number }>;
+}
 
 export interface ManifestPackage {
   id: string;

@@ -15,8 +15,9 @@ function source(value: unknown, label: string): PackageSource {
   if (item.type === "git" && typeof item.url === "string" && item.url) {
     return { type: "git", url: item.url, ...(typeof item.ref === "string" ? { ref: item.ref } : {}), ...(typeof item.path === "string" ? { path: item.path } : {}) };
   }
+  if (item.type === "registry" && typeof item.name === "string" && item.name && typeof item.version === "string" && item.version) return { type: "registry", name: item.name, version: item.version };
   if (item.type === "local" && typeof item.path === "string" && item.path) return { type: "local", path: item.path };
-  throw new Error(`${label}.source is not a supported catalog, github, git, or local source`);
+  throw new Error(`${label}.source is not a supported catalog, github, git, registry, or local source`);
 }
 
 function agents(value: unknown, label: string): AgentId[] {

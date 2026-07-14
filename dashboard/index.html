@@ -8,10 +8,15 @@
   </head>
   <body>
     <main>
-      <header><p class="eyebrow">LOADOUT</p><h1>Your agent upgrade surface.</h1><p class="subhead">Live state from this machine and the real catalog.</p></header>
+      <header><p class="eyebrow">LOADOUT</p><h1>Your agent control center.</h1><p class="subhead">Health, safe updates, tested setups, and real packages from this machine.</p></header>
       <section id="status" class="state" aria-live="polite">Loading agent status…</section>
+      <section><div class="section-title"><h2>Health</h2><span id="health-label"></span></div><div id="health" class="state" aria-live="polite">Checking setup health…</div></section>
       <section><div class="section-title"><h2>Updates</h2><span id="updates-count"></span></div><div id="updates" class="state" aria-live="polite">Checking installed packages…</div></section>
+      <section><div class="section-title"><h2>Recommended for this project</h2><span id="project-signals"></span></div><div id="recommendations" class="grid state" aria-live="polite">Reading local project signals…</div></section>
+      <section><div class="section-title"><h2>Tested profiles</h2><span>Preview only</span></div><div id="profiles" class="grid state" aria-live="polite">Loading profiles…</div></section>
       <section><div class="section-title"><h2>Catalog</h2><span id="catalog-count"></span></div><div id="catalog" class="grid state">Loading catalog…</div></section>
+      <section><div class="section-title"><h2>Local registry</h2><span id="registry-count"></span></div><div id="registry" class="grid state" aria-live="polite">Loading locally published packages…</div></section>
+      <footer>This dashboard is read-only. Use the CLI to preview and approve changes.</footer>
     </main>
     <script type="module" src="/app.js"></script>
   </body>

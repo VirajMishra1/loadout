@@ -88,7 +88,10 @@ npm run dashboard
 ```
 
 Open <http://127.0.0.1:4173>. The page reads the detected agents and the real catalog
-from this checkout; keep it open while running the CLI in terminal 2.
+from this checkout. It also shows health, updates, local project recommendations,
+tested profiles, and locally published registry packages. Dashboard actions remain
+read-only; approvals and mutations stay in the CLI until the authenticated local
+mutation API is finished.
 
 In terminal 2, run the story in this order:
 

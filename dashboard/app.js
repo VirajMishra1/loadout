@@ -3,6 +3,13 @@ const catalog = document.querySelector("#catalog");
 const count = document.querySelector("#catalog-count");
 const updates = document.querySelector("#updates");
 const updatesCount = document.querySelector("#updates-count");
+const health = document.querySelector("#health");
+const healthLabel = document.querySelector("#health-label");
+const recommendations = document.querySelector("#recommendations");
+const projectSignals = document.querySelector("#project-signals");
+const profiles = document.querySelector("#profiles");
+const registry = document.querySelector("#registry");
+const registryCount = document.querySelector("#registry-count");
 
 async function load(path) {
   const response = await fetch(path);
@@ -29,6 +36,13 @@ async function render() {
     status.innerHTML = detected.length ? `<strong>${detected.length} agent${detected.length === 1 ? "" : "s"} detected</strong><span>${detected.map((agent) => escapeHtml(agent.displayName)).join(" · ")}</span>` : "No supported agent detected on PATH. Install one, then refresh.";
   } catch (error) { status.className = "state error"; status.textContent = `Could not load status: ${error.message}`; }
   try {
+    const data = await load("/api/health");
+    const report = data.health;
+    healthLabel.textContent = report.status;
+    health.className = `health-list ${report.status === "healthy" ? "success" : report.status === "unhealthy" ? "error" : "attention"}`;
+    health.innerHTML = `<div class="metric-row"><strong>${report.installedPackages}</strong><span>packages</span><strong>${report.updatesAvailable}</strong><span>updates</span><strong>${report.driftedFiles}</strong><span>drifted files</span></div>${report.findings.map((finding) => `<p><span class="finding-level">${escapeHtml(finding.level)}</span>${escapeHtml(finding.message)}</p>`).join("")}`;
+  } catch (error) { health.className = "state error"; health.textContent = `Could not load health: ${error.message}`; }
+  try {
     const data = await load("/api/update");
     const plans = Array.isArray(data) ? data : (data.updates || data.data || []);
     const available = plans.filter((plan) => plan.status === "update-available").length;
@@ -37,11 +51,28 @@ async function render() {
     else { updates.className = "updates-grid"; updates.innerHTML = plans.map(renderUpdate).join(""); }
   } catch (error) { updates.className = "state error"; updates.textContent = `Could not check updates: ${error.message}`; }
   try {
+    const data = await load("/api/recommendations");
+    projectSignals.textContent = [...data.signals.languages, ...data.signals.frameworks].join(" · ") || "No known signals";
+    if (!data.recommendations.length) { recommendations.className = "state"; recommendations.textContent = "No matching recommendations yet."; }
+    else { recommendations.className = "grid"; recommendations.innerHTML = data.recommendations.map((item) => `<article><div class="card-heading"><h3>${escapeHtml(item.packageId)}</h3><span class="badge">${escapeHtml(item.confidence)}</span></div><p>${escapeHtml(item.reason)}</p></article>`).join(""); }
+  } catch (error) { recommendations.className = "grid state error"; recommendations.textContent = `Could not build recommendations: ${error.message}`; }
+  try {
+    const data = await load("/api/profiles");
+    profiles.className = "grid";
+    profiles.innerHTML = Object.entries(data.profiles).map(([name, profile]) => `<article><h3>${escapeHtml(name)}</h3><p>${escapeHtml(profile.description)}</p><small>${profile.packages.map(escapeHtml).join(" · ")}</small></article>`).join("");
+  } catch (error) { profiles.className = "grid state error"; profiles.textContent = `Could not load profiles: ${error.message}`; }
+  try {
     const data = await load("/api/catalog");
     count.textContent = `${data.packages.length} packages`;
     if (!data.packages.length) { catalog.textContent = "The catalog is empty. Refresh it with loadout catalog --refresh."; return; }
     catalog.className = "grid";
     catalog.innerHTML = data.packages.map((pkg) => `<article><h3>${escapeHtml(pkg.displayName)}</h3><p>${escapeHtml(pkg.description || "No description available.")}</p><small>${escapeHtml(pkg.repository)} · ${escapeHtml(pkg.tier)}${pkg.stars == null ? "" : ` · ★${pkg.stars.toLocaleString()}`}</small></article>`).join("");
   } catch (error) { catalog.className = "grid state error"; catalog.textContent = `Could not load catalog: ${error.message}`; }
+  try {
+    const data = await load("/api/registry");
+    registryCount.textContent = `${data.packages.length} local`;
+    if (!data.packages.length) { registry.className = "state"; registry.textContent = "No local packages published yet."; }
+    else { registry.className = "grid"; registry.innerHTML = data.packages.map((pkg) => `<article><h3>${escapeHtml(pkg.name)}@${escapeHtml(pkg.version)}</h3><p>${escapeHtml(pkg.description)}</p></article>`).join(""); }
+  } catch (error) { registry.className = "grid state error"; registry.textContent = `Could not load local registry: ${error.message}`; }
 }
 render();

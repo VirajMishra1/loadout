@@ -54,9 +54,9 @@ Loadout wins through:
 6. Snapshots and rollback.
 7. Optional project-aware recommendations without requiring GitHub access.
 
-## 3. MVP scope
+## 3. Product and delivery scope
 
-### 3.1 Required
+### 3.1 Submission-critical vertical slice
 
 - TypeScript CLI installable through `npx loadout`.
 - Local React dashboard opened by the CLI.
@@ -82,26 +82,51 @@ Loadout wins through:
 - Optional local-folder scan for project-aware recommendations.
 - Clear display of `native`, `adapted`, and `unsupported` components.
 
-### 3.2 Stretch
+### 3.2 Committed full-product scope
 
-- GitHub OAuth for private repositories and personalized discovery.
-- Community Loadout sharing.
-- Star-velocity charts.
-- Model/provider configuration, including OpenRouter.
-- Automated category-specific evaluation.
-- Background update notifications.
-- Signed catalog releases.
+These are committed capabilities, not disposable ideas. The team attempts them after
+the submission-critical vertical slice is integrated and passing. Any capability that
+is incomplete at submission must remain behind an experimental flag rather than being
+presented as production-ready.
 
-### 3.3 Explicitly out of scope for the hackathon
+- GitHub OAuth for private repositories and personalized discovery, using minimal
+  read-only scopes by default.
+- Community Loadout publishing, sharing, importing, versioning, and reporting.
+- Historical star, fork, contributor, release, and download velocity charts.
+- Model/provider configuration and comparison, including OpenRouter.
+- Automated category-specific evaluations with repeatable fixtures and confidence
+  information.
+- Background catalog and update notifications.
+- Signed catalog snapshots and signature verification in the client.
+- Best-effort compilation of hooks, commands, agents, and subagents between platforms,
+  with explicit loss reports instead of false compatibility claims.
+- Sandboxed execution for third-party installers that genuinely require execution,
+  with no host credentials and no automatic promotion from the sandbox.
+- A user-controlled encrypted credential vault backed by the operating-system keychain;
+  the service must not store plaintext user secrets.
+- Policy-gated autonomous updates for MCP servers, hooks, and executables after
+  sandbox tests, permission comparison, and rollback preparation.
+- An adapter SDK and community adapter registry for broad agent support.
+- Category-specific capability scoring and comparison; never one misleading universal
+  number claiming scientific certainty across unrelated tasks.
+- Discovery connectors for major social and community sources where their APIs and
+  terms permit access.
+- Team and enterprise policy administration, including allowlists, denylists, required
+  versions, audit history, and shared Loadouts.
 
-- Perfect conversion of arbitrary hooks and subagents.
-- Executing untrusted third-party installation scripts.
-- Hosting user secrets.
-- Fully autonomous updates of MCP servers, hooks, or executables.
-- Supporting every AI agent before submission.
-- A scientifically universal score proving that one configuration is always better.
-- Scraping every social network.
-- Enterprise policy administration.
+### 3.3 Non-negotiable safety boundaries
+
+The ambitious scope does not authorize unsafe shortcuts:
+
+- Never execute untrusted installation scripts directly on the host during discovery.
+- Never store plaintext secrets in the repository, catalog, logs, analytics, or hosted
+  database.
+- Never claim perfect conversion when platform semantics differ; show a loss report.
+- Never silently grant new filesystem, network, account, hook, or executable powers.
+- Never market a category score as universal scientific truth.
+- Never scrape a source in violation of its API rules, robots policy, or terms.
+- Never claim support for an agent until its adapter passes the published conformance
+  suite.
 
 ## 4. Primary users
 
@@ -188,9 +213,10 @@ is an official vendor or standards organization.
 
 #### Stable
 
-Default minimum:
+Default discovery has no star floor. Stable normally requires:
 
-- At least 5,000 GitHub stars.
+- At least 1,000 GitHub stars, or a documented exception based on verified publisher,
+  package adoption, maintainer reputation, or independent evaluation.
 - Clear installable component.
 - Non-archived repository.
 - Recent meaningful maintenance.
@@ -198,9 +224,13 @@ Default minimum:
 - Supported source can be pinned to an immutable commit.
 - Basic security and compatibility checks pass.
 
+Packages above 5,000 stars receive a `Popular` signal, not automatic trust or an
+exclusive right to enter the catalog.
+
 #### Trending
 
-- At least 500 stars, or an explicitly approved exception.
+- Normally at least 100 stars, or an explicitly approved exception for an official or
+  independently verified release.
 - Strong recent star velocity or adoption signal.
 - Active maintenance.
 - Basic safety and compatibility checks pass.
@@ -208,7 +238,7 @@ Default minimum:
 
 #### Community
 
-- Any star count.
+- Any star count, including zero-star newly published packages.
 - Searchable or manually installable.
 - Requires explicit user selection.
 
@@ -223,7 +253,7 @@ MVP:
 - Official MCP Registry.
 - skills.sh metadata where permitted.
 
-Post-MVP:
+Full-product ingestion:
 
 - GitHub star snapshots and acceleration.
 - GitHub release feeds.
@@ -716,6 +746,34 @@ modes.
 - [ ] `P10-09 [HUMAN]` Complete Devpost description, category, repository, and video.
 - [ ] `P10-10 [HUMAN]` Submit before deadline with buffer.
 
+### Phase 11: Advanced committed capabilities
+
+- [ ] `P11-01 [SOL]` Design GitHub OAuth and minimal-scope authorization model.
+- [ ] `P11-02 [TERRA]` Implement optional private-repository discovery.
+- [ ] `P11-03 [TERRA]` Implement Community Loadout export/import with versioning.
+- [ ] `P11-04 [TERRA]` Implement star/release/download snapshot storage and charts.
+- [ ] `P11-05 [SOL]` Define provider-neutral model configuration schema.
+- [ ] `P11-06 [TERRA]` Implement OpenRouter provider adapter without storing keys in
+  application state.
+- [ ] `P11-07 [SOL]` Define category-specific evaluation protocol and uncertainty.
+- [ ] `P11-08 [TERRA]` Implement first two automated evaluation categories.
+- [ ] `P11-09 [TERRA]` Implement background update service and notifications.
+- [ ] `P11-10 [SOL]` Define catalog signing, rotation, and compromise recovery.
+- [ ] `P11-11 [TERRA]` Implement catalog signing in CI and verification in client.
+- [ ] `P11-12 [SOL]` Design cross-platform hook/subagent compiler with loss reports.
+- [ ] `P11-13 [TERRA]` Implement first two hook/subagent conversion targets.
+- [ ] `P11-14 [SOL]` Design sandbox threat model for third-party installers.
+- [ ] `P11-15 [TERRA]` Implement disposable sandbox runner with no host secrets.
+- [ ] `P11-16 [SOL]` Design OS-keychain-backed credential interface.
+- [ ] `P11-17 [TERRA]` Implement macOS, Windows, and Linux credential backends.
+- [ ] `P11-18 [SOL]` Define autonomous-update permission policies and recovery rules.
+- [ ] `P11-19 [TERRA]` Implement policy-gated canary update pipeline.
+- [ ] `P11-20 [SOL]` Publish adapter SDK and conformance contract.
+- [ ] `P11-21 [TERRA]` Add the next six agent adapters through the SDK.
+- [ ] `P11-22 [TERRA]` Add compliant Hacker News and community-source connectors.
+- [ ] `P11-23 [SOL]` Design team/enterprise policy and audit schemas.
+- [ ] `P11-24 [TERRA]` Implement shared Loadouts, allowlists, denylists, and audit view.
+
 ## 19. Seven-day schedule
 
 ### Day 1: Foundation
@@ -749,7 +807,8 @@ modes.
 
 - Windows/macOS/Linux tests.
 - Demo mode, risky update fixture, polish.
-- Cut features that are not stable by end of day.
+- Put incomplete advanced capabilities behind explicit experimental flags; preserve
+  their backlog and code without exposing broken paths in the judge experience.
 
 ### Day 7: Submission
 
@@ -865,4 +924,3 @@ small PRs, no long-lived branches.
 5. Give Terra the first implementations after interfaces are approved.
 6. Integrate one thin vertical slice before expanding platform breadth:
    detect -> plan -> install one skill -> snapshot -> rollback -> display in UI.
-

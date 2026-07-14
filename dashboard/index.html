@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Loadout dashboard</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main>
+      <header><p class="eyebrow">LOADOUT</p><h1>Your agent upgrade surface.</h1><p class="subhead">Live state from this machine and the real catalog.</p></header>
+      <section id="status" class="state" aria-live="polite">Loading agent status…</section>
+      <section><div class="section-title"><h2>Catalog</h2><span id="catalog-count"></span></div><div id="catalog" class="grid state">Loading catalog…</div></section>
+    </main>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

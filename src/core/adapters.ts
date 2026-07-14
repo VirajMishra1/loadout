@@ -11,7 +11,7 @@ const unsupported: Record<ComponentType, ComponentCompatibility> = { skill: "uns
 
 export const ADAPTER_CAPABILITIES: AdapterCapabilities[] = [
   { agent: "claude-code", displayName: "Claude Code", components: { ...unsupported, skill: "native", command: "native", agent: "native", plugin: "adapted", mcp: "adapted" }, notes: ["Plugin contents are normalized; plugin-only runtime behavior is not converted.", "MCP requires an explicit JSON config path."] },
-  { agent: "codex", displayName: "Codex", components: { ...unsupported, skill: "native", command: "adapted", agent: "native", plugin: "adapted" }, notes: ["Commands use the Codex prompts layout.", "Codex TOML MCP mutation is not yet claimed."] },
+  { agent: "codex", displayName: "Codex", components: { ...unsupported, skill: "native", command: "adapted", agent: "native", plugin: "adapted", mcp: "adapted" }, notes: ["Commands use the Codex prompts layout.", "Codex MCP support only appends new TOML tables; existing tables are never rewritten."] },
   { agent: "cursor", displayName: "Cursor", components: { ...unsupported, skill: "native", rule: "native", command: "native", agent: "native", plugin: "adapted", mcp: "adapted" }, notes: ["MCP requires an explicit JSON config path."] },
   { agent: "gemini-cli", displayName: "Gemini CLI", components: { ...unsupported, skill: "native", command: "native", plugin: "adapted" }, notes: ["Only tested filesystem-native components are enabled."] },
   { agent: "opencode", displayName: "OpenCode", components: { ...unsupported, skill: "native", command: "native", agent: "native", plugin: "adapted" }, notes: ["Plugin contents are normalized into supported components."] },

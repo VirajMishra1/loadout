@@ -677,6 +677,7 @@ modes.
 - [x] `P5-07 [SOL]` Review adapters for lossy or false compatibility claims.
 - [x] `P5-08 [TERRA]` Claude MCP config planner preserving unrelated entries.
 - [x] `P5-09 [TERRA]` Codex MCP config planner preserving unrelated entries/comments.
+  - Implementation appends only new official TOML tables; replacement of an existing table remains intentionally unsupported until a comment-preserving TOML editor is added.
 - [x] `P5-10 [TERRA]` Cursor MCP config planner preserving unrelated entries.
 - [ ] `P5-11 [TERRA]` Smoke-test interface and results.
 

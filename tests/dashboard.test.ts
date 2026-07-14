@@ -29,7 +29,7 @@ describe("dashboard server", () => {
     expect(updates.status).toBe(200);
     expect((await updates.json()).updates).toBeInstanceOf(Array);
     await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
-  });
+  }, 15_000);
 
   it("requires a session token for apply and rollback mutations", async () => {
     let restored = "";

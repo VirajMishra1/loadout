@@ -15,8 +15,9 @@ describe("adapter conformance declarations", () => {
     expect(formatCapabilityMatrix()).toContain("Codex | native | unsupported | adapted");
   });
 
-  it("does not claim unsupported Codex TOML MCP mutation", () => {
-    expect(adapterCapabilities("codex").components.mcp).toBe("unsupported");
+  it("claims only the bounded Codex TOML MCP mutation it supports", () => {
+    expect(adapterCapabilities("codex").components.mcp).toBe("adapted");
+    expect(adapterCapabilities("codex").notes.join(" ")).toContain("never rewritten");
     expect(adapterCapabilities("claude-code").components.mcp).toBe("adapted");
   });
 });

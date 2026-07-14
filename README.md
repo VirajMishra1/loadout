@@ -20,6 +20,19 @@ See [NITISH_MASTER_PLAN.md](./NITISH_MASTER_PLAN.md) for the expanded implementa
 plan and [SIMPLE_PLAN.md](./SIMPLE_PLAN.md) for the short plain-language version. The
 original hackathon baseline remains in [MASTER_PLAN.md](./MASTER_PLAN.md).
 
+## Supported platforms
+
+| Platform | Detection | Skill target roots | Verification |
+| --- | --- | --- | --- |
+| macOS | `PATH` executable or existing agent directory | Claude Code, Codex, Cursor, Gemini CLI, OpenCode, Hermes | CI matrix + local smoke tests |
+| Linux | `PATH` executable or existing agent directory | Claude Code, Codex, Cursor, Gemini CLI, OpenCode, Hermes | CI matrix + local smoke tests |
+| Windows | `PATH` executable/`.cmd` resolution or existing agent directory | Claude Code, Codex, Cursor, Gemini CLI, OpenCode, Hermes | CI matrix; native install coverage remains in progress |
+
+Loadout writes to the detected agent's documented user directory and supports
+`LOADOUT_USER_HOME` for an isolated test or demo profile. It does not claim that every
+agent supports every component: `loadout capabilities` reports each adapter as native,
+adapted, or unsupported before installation.
+
 ## Nitish branch commands
 
 ```bash

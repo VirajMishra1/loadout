@@ -49,6 +49,11 @@ node dist/src/cli.js pack ./my-package
 node dist/src/cli.js publish ./my-package --local
 node dist/src/cli.js add my-package --registry my-package@0.1.0
 
+# Run the same immutable protocol locally, then publish/fetch remotely.
+LOADOUT_REGISTRY_TOKEN='<secret>' node dist/src/cli.js registry-serve --port 7331
+LOADOUT_REGISTRY_TOKEN='<secret>' node dist/src/cli.js publish ./my-package --registry-url http://127.0.0.1:7331
+node dist/src/cli.js add my-package --registry my-package@0.1.0 --remote-registry http://127.0.0.1:7331
+
 # Safe package lifecycle.
 node dist/src/cli.js remove <package-id>                # dry run
 node dist/src/cli.js remove <package-id> --yes
@@ -213,9 +218,12 @@ catalog, updates, recommendations, and authenticated safe sync/rollback actions.
   disabled, or cyclic dependencies are rejected. Skills, conventional rule directories,
   command directories, and agent directories are normalized; unsupported targets are
   skipped rather than falsely converted. Plugin/root-file application, automated MCP
-  targeting for non-JSON agent formats, native plugin-only behavior, transitive package-owned manifests, remote authentication, and a hosted
-  publishing registry remain planned. The implemented local registry is immutable,
-  digest-verified, searchable, and risk-gated, but it is not presented as hosted.
+  targeting for non-JSON agent formats, native plugin-only behavior, and transitive
+  package-owned manifests remain planned. Loadout now includes a small authenticated
+  registry protocol: exact versions are immutable, downloaded files and package digests
+  are verified, publishing uses `LOADOUT_REGISTRY_TOKEN`, and non-loopback clients require
+  HTTPS. The included server is suitable for local development or self-hosting; no public
+  Loadout hosting service is claimed or deployed yet.
 
 ## Core promise
 

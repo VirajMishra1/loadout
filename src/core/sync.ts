@@ -7,7 +7,7 @@ import { detectAgents, userHome } from "./paths.js";
 import { fetchGitSnapshot, fetchRepositorySnapshot } from "./source.js";
 import { addRootFileExports, buildUniversalPackagePlan } from "./components.js";
 import { analyzeInstallPlanSafety, type UpdateSafetyAnalysis } from "./safety.js";
-import { resolveRegistryPackage } from "./registry.js";
+import { fetchRemoteRegistryPackage, resolveRegistryPackage } from "./registry.js";
 import { createSnapshot, restoreSnapshot } from "./snapshot.js";
 import { discoverMcpManifests, planMcpConfigBatch, writeMcpConfigPlan } from "./mcp.js";
 import { applySkillPlan, detectInstallConflicts } from "./skills.js";
@@ -53,6 +53,10 @@ async function resolvePackage(pkg: ManifestPackage): Promise<{ path: string; rep
   }
   if (pkg.source.type === "registry") {
     const resolved = await resolveRegistryPackage(pkg.source.name, pkg.source.version);
+    return { path: resolved.path, commit: resolved.digest };
+  }
+  if (pkg.source.type === "remote-registry") {
+    const resolved = await fetchRemoteRegistryPackage(pkg.source.registry, pkg.source.name, pkg.source.version);
     return { path: resolved.path, commit: resolved.digest };
   }
   const catalogId = pkg.source.id;

@@ -20,7 +20,8 @@ import { applyRemove, planRemove } from "./core/remove.js";
 import { formatRecommendations, profileManifestPackages, recommendPackages, scanProject, TESTED_PROFILES } from "./core/recommend.js";
 import { buildImprovementCycle, formatImprovementCycle, recordImprovementOutcome, writeImprovementCycle } from "./core/improve.js";
 import { applySyncPlan, buildSyncPlan } from "./core/sync.js";
-import { createPackage, packPackage, publishLocalPackage, searchLocalRegistry } from "./core/registry.js";
+import { createPackage, packPackage, publishLocalPackage, publishRemotePackage, searchLocalRegistry } from "./core/registry.js";
+import { startRegistryServer } from "./core/registry-api.js";
 import { auditLoadout, formatAuditReport } from "./core/audit.js";
 import { ADAPTER_CAPABILITIES, formatCapabilityMatrix } from "./core/adapters.js";
 import { generateSigningKeys, signJsonFile, verifyJsonFile } from "./core/signing.js";
@@ -80,14 +81,35 @@ program.command("pack")
   });
 
 program.command("publish")
-  .description("Publish an immutable package version to the local Loadout registry")
+  .description("Publish an immutable package version to a local or remote Loadout registry")
   .argument("[directory]", "package directory", ".")
-  .option("--local", "publish locally; hosted publishing is not enabled yet")
+  .option("--local", "publish to the local registry")
+  .option("--registry-url <url>", "remote registry base URL")
   .option("--approve-risk", "explicitly approve publishing scripts, hooks, or binaries")
-  .action(async (directory: string, options: { local?: boolean; approveRisk?: boolean }) => {
-    if (!options.local) throw new Error("Only --local publishing is currently enabled");
-    const packed = await publishLocalPackage(directory, { approveRisk: options.approveRisk });
-    console.log(`Published ${packed.descriptor.name}@${packed.descriptor.version} with digest ${packed.digest}.`);
+  .action(async (directory: string, options: { local?: boolean; registryUrl?: string; approveRisk?: boolean }) => {
+    if (Number(Boolean(options.local)) + Number(Boolean(options.registryUrl)) !== 1) throw new Error("Choose exactly one destination: --local or --registry-url");
+    if (options.local) {
+      const packed = await publishLocalPackage(directory, { approveRisk: options.approveRisk });
+      console.log(`Published ${packed.descriptor.name}@${packed.descriptor.version} with digest ${packed.digest}.`);
+      return;
+    }
+    const published = await publishRemotePackage(directory, options.registryUrl!, process.env.LOADOUT_REGISTRY_TOKEN ?? "", { approveRisk: options.approveRisk });
+    console.log(`Published ${published.name}@${published.version} with digest ${published.digest}.`);
+  });
+
+program.command("registry-serve")
+  .description("Run the Loadout registry protocol server")
+  .option("--host <host>", "listen host", "127.0.0.1")
+  .option("--port <port>", "listen port", "7331")
+  .action(async (options: { host: string; port: string }) => {
+    const token = process.env.LOADOUT_REGISTRY_TOKEN;
+    if (!token) throw new Error("Set LOADOUT_REGISTRY_TOKEN before starting a registry server");
+    const handle = await startRegistryServer({ host: options.host, port: Number(options.port), token });
+    console.log(`Loadout registry listening at http://${handle.host}:${handle.port}.`);
+    await new Promise<void>((resolve) => {
+      const stop = () => { process.off("SIGINT", stop); process.off("SIGTERM", stop); void handle.close().then(resolve); };
+      process.on("SIGINT", stop); process.on("SIGTERM", stop);
+    });
   });
 
 program.command("search")
@@ -110,18 +132,20 @@ program.command("add")
   .option("--repository <owner/repo>", "public GitHub repository")
   .option("--git <url>", "generic HTTPS or SSH Git repository")
   .option("--registry <name@version>", "exact local registry package version")
+  .option("--remote-registry <url>", "fetch --registry name@version from this remote registry")
   .option("--ref <ref>", "Git branch, tag, or ref")
   .option("--path <path>", "GitHub repository subpath or local path")
   .option("--local", "treat --path as a local source")
   .option("--agents <ids>", "comma-separated target agents")
   .option("--depends-on <ids>", "comma-separated package dependencies")
-  .action(async (id: string, options: { manifest: string; catalog?: string; repository?: string; git?: string; registry?: string; ref?: string; path?: string; local?: boolean; agents?: string; dependsOn?: string }) => {
+  .action(async (id: string, options: { manifest: string; catalog?: string; repository?: string; git?: string; registry?: string; remoteRegistry?: string; ref?: string; path?: string; local?: boolean; agents?: string; dependsOn?: string }) => {
     const selected = Number(Boolean(options.catalog)) + Number(Boolean(options.repository)) + Number(Boolean(options.git)) + Number(Boolean(options.registry)) + Number(Boolean(options.local));
     if (selected !== 1) throw new Error("Choose exactly one source: --catalog, --repository, --git, --registry, or --local with --path");
     if (options.local && !options.path) throw new Error("--local requires --path <directory>");
     const registry = options.registry?.match(/^([a-z0-9][a-z0-9._-]*)@(.+)$/);
     if (options.registry && !registry) throw new Error("--registry expects name@version");
-    const source = options.catalog ? { type: "catalog" as const, id: options.catalog } : options.repository ? { type: "github" as const, repository: options.repository, ...(options.ref ? { ref: options.ref } : {}), ...(options.path ? { path: options.path } : {}) } : options.git ? { type: "git" as const, url: options.git, ...(options.ref ? { ref: options.ref } : {}), ...(options.path ? { path: options.path } : {}) } : registry ? { type: "registry" as const, name: registry[1], version: registry[2] } : { type: "local" as const, path: options.path! };
+    if (options.remoteRegistry && !registry) throw new Error("--remote-registry requires --registry name@version");
+    const source = options.catalog ? { type: "catalog" as const, id: options.catalog } : options.repository ? { type: "github" as const, repository: options.repository, ...(options.ref ? { ref: options.ref } : {}), ...(options.path ? { path: options.path } : {}) } : options.git ? { type: "git" as const, url: options.git, ...(options.ref ? { ref: options.ref } : {}), ...(options.path ? { path: options.path } : {}) } : registry && options.remoteRegistry ? { type: "remote-registry" as const, registry: options.remoteRegistry, name: registry[1], version: registry[2] } : registry ? { type: "registry" as const, name: registry[1], version: registry[2] } : { type: "local" as const, path: options.path! };
     const manifest = await addManifestPackage(options.manifest, { id, source, ...(options.agents ? { agents: options.agents.split(",") as AgentId[] } : {}), ...(options.dependsOn ? { dependsOn: options.dependsOn.split(",") } : {}) });
     console.log(`Added ${id} to ${options.manifest}. ${manifest.packages.length} package(s) configured.`);
   });

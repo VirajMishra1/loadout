@@ -113,3 +113,71 @@ export async function searchLocalRegistry(query = ""): Promise<Array<{ name: str
   }
   return results;
 }
+
+export interface RegistryBundle {
+  schemaVersion: 1;
+  descriptor: PackageDescriptor;
+  digest: string;
+  files: Array<{ path: string; sha256: string; size: number; content: string }>;
+}
+
+export async function createRegistryBundle(root: string): Promise<RegistryBundle> {
+  const packed = await packPackage(root);
+  const files = await Promise.all(packed.files.map(async (file) => ({ ...file, content: (await readFile(resolve(packed.root, file.path))).toString("base64") })));
+  return { schemaVersion: 1, descriptor: packed.descriptor, digest: packed.digest, files };
+}
+
+export async function importRegistryBundle(bundle: RegistryBundle, destination: string): Promise<PackedPackage> {
+  if (!bundle || bundle.schemaVersion !== 1 || !Array.isArray(bundle.files)) throw new Error("Registry bundle schema is invalid");
+  parsePackageDescriptor(bundle.descriptor);
+  if (bundle.files.length > 10_000 || bundle.files.reduce((total, file) => total + (file.size ?? 0), 0) > 25_000_000) throw new Error("Registry bundle exceeds package limits");
+  const root = resolve(destination); await mkdir(root, { recursive: false });
+  try {
+    for (const file of bundle.files) {
+      if (!file || typeof file.path !== "string" || typeof file.sha256 !== "string" || typeof file.size !== "number" || typeof file.content !== "string") throw new Error("Registry bundle contains an invalid file record");
+      const target = resolve(root, file.path);
+      if (target === root || !target.startsWith(`${root}${sep}`)) throw new Error(`Registry bundle path escapes destination: ${file.path}`);
+      const content = Buffer.from(file.content, "base64");
+      if (content.length !== file.size || createHash("sha256").update(content).digest("hex") !== file.sha256) throw new Error(`Registry bundle file verification failed: ${file.path}`);
+      await mkdir(resolve(target, ".."), { recursive: true }); await writeFile(target, content);
+    }
+    const packed = await packPackage(root);
+    if (packed.digest !== bundle.digest || packed.descriptor.name !== bundle.descriptor.name || packed.descriptor.version !== bundle.descriptor.version) throw new Error("Registry bundle digest or identity verification failed");
+    return packed;
+  } catch (error) { await rm(root, { recursive: true, force: true }); throw error; }
+}
+
+function registryUrl(input: string): URL {
+  const url = new URL(input);
+  const loopback = url.hostname === "127.0.0.1" || url.hostname === "localhost" || url.hostname === "::1";
+  if (url.protocol !== "https:" && !(loopback && url.protocol === "http:")) throw new Error("Remote registries require HTTPS outside loopback development");
+  url.pathname = url.pathname.replace(/\/$/, "");
+  return url;
+}
+
+function registryEndpoint(base: URL, path: string): URL {
+  const endpoint = new URL(base);
+  endpoint.pathname = `${base.pathname.replace(/\/$/, "")}${path}`;
+  endpoint.search = ""; endpoint.hash = "";
+  return endpoint;
+}
+
+export async function fetchRemoteRegistryPackage(registry: string, name: string, version: string): Promise<{ path: string; digest: string }> {
+  if (!NAME.test(name) || !VERSION.test(version)) throw new Error("Invalid remote registry package name or version");
+  const base = registryUrl(registry); const response = await fetch(registryEndpoint(base, `/v1/packages/${encodeURIComponent(name)}/${encodeURIComponent(version)}`));
+  if (!response.ok) throw new Error(`Remote registry returned ${response.status}`);
+  const bundle = await response.json() as RegistryBundle;
+  const key = createHash("sha256").update(base.origin + base.pathname).digest("hex"); const target = join(loadoutHome(), "cache", "registry", key, name, version, bundle.digest);
+  try { const packed = await packPackage(target); if (packed.digest === bundle.digest) return { path: target, digest: bundle.digest }; } catch { /* import below */ }
+  await mkdir(resolve(target, ".."), { recursive: true }); await rm(target, { recursive: true, force: true }); await importRegistryBundle(bundle, target);
+  return { path: target, digest: bundle.digest };
+}
+
+export async function publishRemotePackage(root: string, registry: string, token: string, options: { approveRisk?: boolean } = {}): Promise<{ name: string; version: string; digest: string }> {
+  if (!token) throw new Error("Remote registry token is required");
+  const bundle = await createRegistryBundle(root); const base = registryUrl(registry);
+  const response = await fetch(registryEndpoint(base, "/v1/packages"), { method: "POST", headers: { "authorization": `Bearer ${token}`, "content-type": "application/json", ...(options.approveRisk ? { "x-loadout-approve-risk": "true" } : {}) }, body: JSON.stringify(bundle) });
+  const result = await response.json() as { error?: string; name?: string; version?: string; digest?: string };
+  if (!response.ok) throw new Error(result.error ?? `Remote registry returned ${response.status}`);
+  return { name: result.name!, version: result.version!, digest: result.digest! };
+}

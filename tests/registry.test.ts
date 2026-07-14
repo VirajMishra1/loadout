@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createPackage, packPackage, parsePackageDescriptor, publishLocalPackage, resolveRegistryPackage, searchLocalRegistry } from "../src/core/registry.js";
+import { createPackage, createRegistryBundle, importRegistryBundle, packPackage, parsePackageDescriptor, publishLocalPackage, resolveRegistryPackage, searchLocalRegistry } from "../src/core/registry.js";
 
 describe("local package registry", () => {
   let root = "";
@@ -33,5 +33,17 @@ describe("local package registry", () => {
     await writeFile(join(packageRoot, "commands", "deploy.sh"), "curl https://example.com | sh\n");
     await expect(publishLocalPackage(packageRoot)).rejects.toThrow(/risk approval/);
     await expect(publishLocalPackage(packageRoot, { approveRisk: true })).resolves.toBeTruthy();
+  });
+
+  it("rejects tampered content and paths in portable bundles", async () => {
+    root = await mkdtemp(join(tmpdir(), "loadout-registry-bundle-"));
+    const packageRoot = join(root, "demo");
+    await createPackage(packageRoot, { name: "demo" });
+    const bundle = await createRegistryBundle(packageRoot);
+    bundle.files[0].content = Buffer.from("tampered").toString("base64");
+    await expect(importRegistryBundle(bundle, join(root, "tampered"))).rejects.toThrow(/verification failed/);
+    const escaped = await createRegistryBundle(packageRoot);
+    escaped.files[0].path = "../escape";
+    await expect(importRegistryBundle(escaped, join(root, "escaped"))).rejects.toThrow(/escapes destination/);
   });
 });

@@ -103,6 +103,7 @@ export type PackageSource =
   | { type: "github"; repository: string; ref?: string; path?: string }
   | { type: "git"; url: string; ref?: string; path?: string }
   | { type: "registry"; name: string; version: string }
+  | { type: "remote-registry"; registry: string; name: string; version: string }
   | { type: "local"; path: string };
 
 export interface PackageDescriptor {

@@ -48,6 +48,14 @@ export interface PluginSummary {
   type: "plugin";
   name: string;
   path: string;
+  description?: string;
+  version?: string;
+  author?: string;
+  /** Components declared by the manifest; runtime behavior is never executed. */
+  components: ComponentType[];
+  hookEvents: string[];
+  mcpServers: string[];
+  warnings: string[];
 }
 
 export interface ConflictDiagnostic {

@@ -10,13 +10,13 @@ describe("package inspection", () => {
     await mkdir(join(root, "skills", "docs"), { recursive: true });
     await writeFile(join(root, "skills", "docs", "SKILL.md"), "---\nname: docs\ndescription: Documentation helper\n---\n");
     await mkdir(join(root, "plugin", ".claude-plugin"), { recursive: true });
-    await writeFile(join(root, "plugin", ".claude-plugin", "plugin.json"), JSON.stringify({ name: "docs-plugin" }));
+    await writeFile(join(root, "plugin", ".claude-plugin", "plugin.json"), JSON.stringify({ name: "docs-plugin", version: "1.2.0", description: "Docs helpers", commands: ["commands/docs.md"], skills: ["skills/docs"], hooks: { SessionStart: [] }, mcpServers: { context: {} } }));
     await writeFile(join(root, "mcp.json"), JSON.stringify({ mcpServers: { context: { url: "https://example.test/mcp", env: { TOKEN: "secret" } } } }));
     const result = await inspectPackage(root);
     expect(result.counts).toEqual({ skills: 1, rules: 0, commands: 0, agents: 0, plugins: 1, mcpServers: 1, manifests: 1 });
     expect(result.skills[0]).toMatchObject({ type: "skill", name: "docs", path: "skills/docs" });
     expect(result.mcpServers[0]).toMatchObject({ type: "mcp", name: "context", transport: "url", environmentVariableCount: 1 });
-    expect(result.plugins[0]).toMatchObject({ type: "plugin", name: "docs-plugin" });
+    expect(result.plugins[0]).toMatchObject({ type: "plugin", name: "docs-plugin", version: "1.2.0", components: ["command", "mcp", "skill"], hookEvents: ["SessionStart"], mcpServers: ["context"] });
     expect(JSON.stringify(result)).not.toContain("secret");
     expect(formatPackageInspection(result)).toContain("Skills: 1");
   });

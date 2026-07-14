@@ -643,8 +643,8 @@ modes.
 
 - [x] `P3-01 [SOL]` Define normalized package/component representation.
 - [x] `P3-02 [TERRA]` Implement `SKILL.md` parser and validation.
-- [ ] `P3-03 [TERRA]` Implement Claude plugin manifest parser.
-- [ ] `P3-04 [TERRA]` Implement Codex plugin manifest parser.
+- [x] `P3-03 [TERRA]` Implement Claude plugin manifest parser.
+- [x] `P3-04 [TERRA]` Implement Codex plugin manifest parser.
 - [x] `P3-05 [TERRA]` Implement MCP JSON parser.
 - [x] `P3-06 [LUNA]` Add parser fixtures from sanitized real layouts.
 - [x] `P3-07 [TERRA]` Map parsed skills to universal component records.
@@ -653,7 +653,7 @@ modes.
 
 ### Phase 4: Transaction engine
 
-- [ ] `P4-01 [SOL]` Threat-model the mutation transaction.
+- [x] `P4-01 [SOL]` Threat-model the mutation transaction.
 - [x] `P4-02 [TERRA]` Implement immutable package cache by commit.
 - [x] `P4-03 [TERRA]` Implement per-file SHA-256 calculation.
 - [x] `P4-04 [TERRA]` Implement snapshot creator and manifest.
@@ -691,11 +691,11 @@ modes.
 - [x] `P6-07 [TERRA]` `loadout update --plan`.
 - [x] `P6-08 [TERRA]` `loadout rollback`.
 - [x] `P6-09 [LUNA]` CLI snapshot tests for help and error messages.
-- [ ] `P6-10 [SOL]` Review destructive command confirmation and recovery behavior.
+- [x] `P6-10 [SOL]` Review destructive command confirmation and recovery behavior.
 
 ### Phase 7: Local API and dashboard
 
-- [ ] `P7-01 [SOL]` Define local API contract and threat boundary.
+- [x] `P7-01 [SOL]` Define local API contract and threat boundary.
 - [ ] `P7-02 [TERRA]` Start local server on random loopback port with session token.
 - [x] `P7-03 [TERRA]` Agents/status endpoint.
 - [x] `P7-04 [TERRA]` Catalog/list/detail endpoints.
@@ -716,7 +716,7 @@ modes.
 - [x] `P8-01 [TERRA]` Detect candidate commit for installed package.
 - [x] `P8-02 [TERRA]` Generate changed-file diff.
 - [x] `P8-03 [TERRA]` Generate instruction/script/domain/env summary.
-- [ ] `P8-04 [TERRA]` Implement approval policy for sensitive changes.
+- [x] `P8-04 [TERRA]` Implement approval policy for sensitive changes.
 - [ ] `P8-05 [LUNA]` Create benign Ponytail-style update fixture.
 - [ ] `P8-06 [LUNA]` Create risky update fixture adding a hook and domain.
 - [ ] `P8-07 [TERRA]` Demonstrate safe update acceptance.
@@ -738,7 +738,7 @@ modes.
 - [x] `P10-01 [LUNA]` Expand README with install and supported-platform table.
 - [x] `P10-02 [LUNA]` Add sample catalog data and judge test instructions.
 - [ ] `P10-03 [TERRA]` Add one-command demo mode using isolated fake home dirs.
-- [ ] `P10-04 [SOL]` Final architecture and threat-model review.
+- [x] `P10-04 [SOL]` Final architecture and threat-model review.
 - [ ] `P10-05 [HUMAN]` Verify licenses and attribution for included sources.
 - [ ] `P10-06 [HUMAN]` Record under-three-minute demo.
 - [ ] `P10-07 [HUMAN]` Explain where Codex and GPT-5.6 were used.

@@ -7,7 +7,8 @@ import { buildSkillPlan, applySkillInstall, installedAgents } from "./core/insta
 import { restoreSnapshot } from "./core/snapshot.js";
 import type { AgentId } from "./shared/types.js";
 import { fetchRepositorySnapshot } from "./core/source.js";
-import { discoverMcpManifests, summarizeMcpManifest } from "./core/mcp.js";
+import { discoverMcpManifests, summarizeMcpManifest, planMcpConfig, summarizeMcpConfigPlan, applyMcpConfigPlan } from "./core/mcp.js";
+import type { McpServer } from "./shared/types.js";
 import { runDoctor, formatDoctorReport } from "./core/doctor.js";
 import { buildUpdatePlan, formatUpdatePlan } from "./core/update.js";
 
@@ -56,6 +57,36 @@ program.command("mcp")
     if (options.json) console.log(JSON.stringify(manifests, null, 2));
     else if (manifests.length === 0) console.log("No supported MCP manifests found.");
     else for (const manifest of manifests) console.log(summarizeMcpManifest(manifest));
+  });
+
+program.command("mcp-config")
+  .description("Plan or apply a safe MCP server configuration change (dry-run by default)")
+  .requiredOption("--config <path>", "MCP JSON configuration path")
+  .requiredOption("--name <name>", "server name")
+  .option("--command <command>", "local server command")
+  .option("--url <url>", "remote MCP server URL")
+  .option("--arg <value>", "server argument (repeatable)", (value: string, previous: string[] = []) => [...previous, value], [])
+  .option("--env <NAME=VALUE>", "environment variable (repeatable; values are never printed)", (value: string, previous: string[] = []) => [...previous, value], [])
+  .option("--yes", "apply the change; without this flag only a plan is shown")
+  .action(async (options: { config: string; name: string; command?: string; url?: string; arg: string[]; env: string[]; yes?: boolean }) => {
+    if ((options.command ? 1 : 0) + (options.url ? 1 : 0) !== 1) throw new Error("Provide exactly one of --command or --url");
+    const env: Record<string, string> = {};
+    for (const item of options.env) {
+      const separator = item.indexOf("=");
+      if (separator <= 0) throw new Error(`Invalid --env '${item}'; expected NAME=VALUE`);
+      const key = item.slice(0, separator);
+      if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(key)) throw new Error(`Invalid environment variable name '${key}'`);
+      env[key] = item.slice(separator + 1);
+    }
+    const server: McpServer = { name: options.name, command: options.command, url: options.url, args: options.arg, env, sourcePath: options.config, warnings: [] };
+    const plan = await planMcpConfig(options.config, server);
+    console.log(summarizeMcpConfigPlan(plan));
+    if (!options.yes) {
+      console.log("Dry run only. Re-run with --yes to apply this change.");
+      return;
+    }
+    const snapshot = await applyMcpConfigPlan(plan);
+    console.log(`Applied successfully. Snapshot: ${snapshot.id}`);
   });
 
 program.command("plan")

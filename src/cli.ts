@@ -119,11 +119,17 @@ program.command("plan")
     const selected = hasSource ? [{ id: packageIds[0] }] : selectCatalogPackages(await loadEffectiveCatalog(), { mode: options.mode as InstallSelectionMode, packageIds });
     const agents = installedAgents(await detectAgents(), options.agents?.split(",") as AgentId[] | undefined);
     const plans = [];
+    const skipped: Array<{ packageId: string; reason: string }> = [];
     for (const pkg of selected) {
       const fetched = options.repository ? await fetchRepositorySnapshot(options.repository) : (!options.source ? await fetchRepositorySnapshot((pkg as { repository: string }).repository) : undefined);
-      plans.push(await buildSkillPlan(fetched?.path ?? options.source!, pkg.id, agents));
+      try {
+        plans.push(await buildSkillPlan(fetched?.path ?? options.source!, pkg.id, agents));
+      } catch (error) {
+        if (!options.mode || !(error instanceof Error) || !error.message.startsWith("No SKILL.md found")) throw error;
+        skipped.push({ packageId: pkg.id, reason: "No SKILL.md found; this package is not skill-installable yet (inspect its MCP manifest instead)." });
+      }
     }
-    console.log(JSON.stringify(options.mode ? { mode: options.mode, packages: plans } : plans[0], null, 2));
+    console.log(JSON.stringify(options.mode ? { mode: options.mode, packages: plans, skipped } : plans[0], null, 2));
   });
 
 program.command("install")
@@ -143,11 +149,18 @@ program.command("install")
     const selected = hasSource ? [{ id: packageIds[0] }] : selectCatalogPackages(await loadEffectiveCatalog(), { mode: options.mode as InstallSelectionMode, packageIds });
     const agents = installedAgents(await detectAgents(), options.agents?.split(",") as AgentId[] | undefined);
     const plans: Array<{ plan: Awaited<ReturnType<typeof buildSkillPlan>>; repository?: string; commit?: string }> = [];
+    const skipped: Array<{ packageId: string; reason: string }> = [];
     for (const pkg of selected) {
       const fetched = options.repository ? await fetchRepositorySnapshot(options.repository) : (!options.source ? await fetchRepositorySnapshot((pkg as { repository: string }).repository) : undefined);
-      plans.push({ plan: await buildSkillPlan(fetched?.path ?? options.source!, pkg.id, agents), repository: fetched?.repository, commit: fetched?.commit });
+      try {
+        plans.push({ plan: await buildSkillPlan(fetched?.path ?? options.source!, pkg.id, agents), repository: fetched?.repository, commit: fetched?.commit });
+      } catch (error) {
+        if (!options.mode || !(error instanceof Error) || !error.message.startsWith("No SKILL.md found")) throw error;
+        skipped.push({ packageId: pkg.id, reason: "No SKILL.md found; this package is not skill-installable yet (inspect its MCP manifest instead)." });
+      }
     }
     console.log(`Installing ${plans.map(({ plan }) => plan.packageId).join(", ")} for ${agents.map((agent) => agent.id).join(", ")}...`);
+    for (const entry of skipped) console.log(`Skipping ${entry.packageId}: ${entry.reason}`);
     if (!options.yes) console.log("Review the plan with `loadout plan`; use --yes to apply it.");
     if (!options.yes) return;
     for (const entry of plans) {

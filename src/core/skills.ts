@@ -27,7 +27,13 @@ export async function discoverSkillDirectories(root: string): Promise<string[]> 
       if (entry === ".git" || entry === "node_modules") continue;
       const child = join(directory, entry);
       const childStat = await lstat(child);
-      if (childStat.isSymbolicLink()) throw new Error(`Refusing symlink in package source: ${child}`);
+      // Repositories may contain unrelated symlinked documentation or metadata.
+      // Ignore those while walking, but validate and reject symlinks inside an
+      // actual skill directory before it is copied.
+      if (childStat.isSymbolicLink()) {
+        if (entries.includes("SKILL.md")) throw new Error(`Refusing symlink in skill package: ${child}`);
+        continue;
+      }
       // Files such as a root-level SKILL.md are not directories to recurse into.
       if (childStat.isDirectory()) await visit(child, depth + 1);
     }

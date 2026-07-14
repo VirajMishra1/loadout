@@ -40,7 +40,8 @@ program.command("plan")
   .option("--agents <ids>", "comma-separated agent ids; defaults to all detected agents")
   .action(async (options: { source?: string; repository?: string; package: string; agents?: string }) => {
     if ((options.source ? 1 : 0) + (options.repository ? 1 : 0) !== 1) throw new Error("Provide exactly one of --source or --repository");
-    const source = options.repository ? (await fetchRepositorySnapshot(options.repository)).path : options.source!;
+    const fetched = options.repository ? await fetchRepositorySnapshot(options.repository) : undefined;
+    const source = fetched?.path ?? options.source!;
     const agents = installedAgents(await detectAgents(), options.agents?.split(",") as AgentId[] | undefined);
     const plan = await buildSkillPlan(source, options.package, agents);
     console.log(JSON.stringify(plan, null, 2));
@@ -55,13 +56,14 @@ program.command("install")
   .option("--yes", "apply without interactive confirmation")
   .action(async (options: { source?: string; repository?: string; package: string; agents?: string; yes?: boolean }) => {
     if ((options.source ? 1 : 0) + (options.repository ? 1 : 0) !== 1) throw new Error("Provide exactly one of --source or --repository");
-    const source = options.repository ? (await fetchRepositorySnapshot(options.repository)).path : options.source!;
+    const fetched = options.repository ? await fetchRepositorySnapshot(options.repository) : undefined;
+    const source = fetched?.path ?? options.source!;
     const agents = installedAgents(await detectAgents(), options.agents?.split(",") as AgentId[] | undefined);
     const plan = await buildSkillPlan(source, options.package, agents);
     console.log(`Installing ${plan.packageId} for ${plan.targetAgents.join(", ")}...`);
     if (!options.yes) console.log("Review the plan with `loadout plan`; use --yes to apply it.");
     if (!options.yes) return;
-    const snapshotId = await applySkillInstall(plan);
+    const snapshotId = await applySkillInstall(plan, fetched ? { repository: fetched.repository, resolvedCommit: fetched.commit } : undefined);
     console.log(`Installed successfully. Snapshot: ${snapshotId}`);
   });
 

@@ -44,3 +44,35 @@ export interface Snapshot {
   roots: string[];
   files: Array<{ path: string; existed: boolean; content?: string }>;
 }
+
+export interface InstallRecord {
+  packageId: string;
+  repository?: string;
+  resolvedCommit?: string;
+  targetAgents: AgentId[];
+  files: Array<{ path: string; sha256: string }>;
+  snapshotId: string;
+  installedAt: string;
+}
+
+export interface InstallState {
+  version: 1;
+  installs: InstallRecord[];
+}
+
+/** A read-only, normalized MCP server definition. Secrets are retained only in memory. */
+export interface McpServer {
+  name: string;
+  command?: string;
+  args: string[];
+  url?: string;
+  env: Record<string, string>;
+  sourcePath: string;
+  warnings: string[];
+}
+
+export interface McpManifest {
+  path: string;
+  servers: McpServer[];
+  warnings: string[];
+}

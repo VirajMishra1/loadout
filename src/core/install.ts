@@ -4,6 +4,7 @@ import { join } from "node:path";
 import type { AgentId, DetectedAgent, InstallPlan } from "../shared/types.js";
 import { createSnapshot, restoreSnapshot } from "./snapshot.js";
 import { applySkillPlan, planSkillInstall, validateSkillDirectory } from "./skills.js";
+import { recordInstall } from "./state.js";
 
 export function installedAgents(agents: DetectedAgent[], requested?: AgentId[]): DetectedAgent[] {
   const available = agents.filter((agent) => agent.installed);
@@ -30,7 +31,7 @@ export async function buildSkillPlan(source: string, packageId: string, agents: 
   return plan;
 }
 
-export async function applySkillInstall(plan: InstallPlan): Promise<string> {
+export async function applySkillInstall(plan: InstallPlan, metadata?: { repository?: string; resolvedCommit?: string }): Promise<string> {
   const snapshot = await createSnapshot(plan.files.map((file) => file.target));
   try {
     await applySkillPlan(plan);
@@ -38,6 +39,7 @@ export async function applySkillInstall(plan: InstallPlan): Promise<string> {
     await restoreSnapshot(snapshot);
     throw error;
   }
+  await recordInstall(plan, snapshot.id, metadata);
   return snapshot.id;
 }
 

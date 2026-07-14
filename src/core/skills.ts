@@ -1,5 +1,5 @@
 import { cp, lstat, mkdir, readdir, readFile, rm } from "node:fs/promises";
-import { join, relative, resolve, sep } from "node:path";
+import { dirname, join, relative, resolve, sep } from "node:path";
 import type { ConflictDiagnostic, InstallPlan, PlannedFile } from "../shared/types.js";
 import { ensureDirectory } from "./paths.js";
 
@@ -109,8 +109,11 @@ export function detectInstallConflicts(plans: InstallPlan[]): ConflictDiagnostic
 
 export async function applySkillPlan(plan: InstallPlan): Promise<void> {
   for (const file of plan.files) {
-    await ensureDirectory(file.target);
-    await cp(file.source, file.target, { recursive: true, errorOnExist: false, force: true });
+    const info = await lstat(file.source);
+    if (info.isSymbolicLink()) throw new Error(`Refusing symlinked planned source: ${file.source}`);
+    if (info.isDirectory()) await ensureDirectory(file.target);
+    else await ensureDirectory(dirname(file.target));
+    await cp(file.source, file.target, { recursive: info.isDirectory(), errorOnExist: false, force: true });
   }
 }
 

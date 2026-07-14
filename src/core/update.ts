@@ -4,6 +4,8 @@ import { repositoryCachePath } from "./source.js";
 import { diffRepositorySnapshots, type ChangedFileDiff } from "./diff.js";
 import { readInstallState } from "./state.js";
 import { analyzeUpdateSafety, type SafetyFinding } from "./safety.js";
+import { detectAgents } from "./paths.js";
+import { applySkillInstall, buildSkillPlan, installedAgents } from "./install.js";
 
 export type UpdateStatus = "update-available" | "up-to-date" | "untracked" | "error";
 
@@ -83,4 +85,21 @@ export function formatUpdatePlan(plans: UpdatePlan[]): string {
     const safety = plan.safetyFindings?.map((finding) => ` [${finding.severity}] ${finding.message}${finding.names?.length ? ` (${finding.names.join(", ")})` : ""}`).join("") ?? "";
     return `${plan.status.toUpperCase()} ${plan.packageId}${repo}: ${plan.action}${safety}${suffix}`;
   }).join("\n");
+}
+
+export async function applyPackageUpdate(packageId: string, options: { approveRisk?: boolean } = {}): Promise<{ snapshotId: string; commit: string }> {
+  const record = (await readInstallState()).installs.find((item) => item.packageId === packageId);
+  if (!record) throw new Error(`Package is not managed by Loadout: ${packageId}`);
+  if (!record.repository || !record.resolvedCommit) throw new Error(`Package '${packageId}' has no tracked GitHub source`);
+  const current = await fetchRepositorySnapshot(record.repository);
+  if (current.commit.toLowerCase() === record.resolvedCommit.toLowerCase()) throw new Error(`Package '${packageId}' is already up to date`);
+  const oldPath = repositoryCachePath(record.repository, record.resolvedCommit);
+  const safety = await analyzeUpdateSafety(oldPath, current.path);
+  if (safety.approvalRequired && !options.approveRisk) {
+    throw new Error(`Update is blocked pending explicit risk approval: ${safety.findings.filter((finding) => finding.severity === "blocking").map((finding) => finding.message).join(" ")}`);
+  }
+  const agents = installedAgents(await detectAgents(), record.targetAgents);
+  const plan = await buildSkillPlan(current.path, record.packageId, agents);
+  const snapshotId = await applySkillInstall(plan, { repository: current.repository, resolvedCommit: current.commit });
+  return { snapshotId, commit: current.commit };
 }

@@ -2,6 +2,7 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import { loadEffectiveCatalog, rankCatalog } from "./catalog.js";
 import { detectAgents } from "./paths.js";
 import { buildUpdatePlan } from "./update.js";
+import { buildHealthReport } from "./health.js";
 
 export interface ApiOptions {
   /** Defaults to loopback only. Port 0 asks the OS for an ephemeral port. */
@@ -11,6 +12,7 @@ export interface ApiOptions {
   status?: () => Promise<unknown>;
   catalog?: () => Promise<unknown>;
   updates?: () => Promise<unknown>;
+  health?: () => Promise<unknown>;
 }
 
 export interface ApiHandle {
@@ -49,6 +51,7 @@ export async function startApiServer(options: ApiOptions = {}): Promise<ApiHandl
   const status = options.status ?? (async () => detectAgents());
   const catalog = options.catalog ?? (async () => rankCatalog(await loadEffectiveCatalog()));
   const updates = options.updates ?? (async () => buildUpdatePlan());
+  const health = options.health ?? (async () => buildHealthReport());
 
   const server = createServer(async (request, response) => {
     if (request.method !== "GET") {
@@ -56,7 +59,7 @@ export async function startApiServer(options: ApiOptions = {}): Promise<ApiHandl
       return;
     }
     const path = pathOf(request);
-    const handler = path === "/status" ? status : path === "/catalog" ? catalog : path === "/update" || path === "/updates" ? updates : undefined;
+    const handler = path === "/status" ? status : path === "/catalog" ? catalog : path === "/health" ? health : path === "/update" || path === "/updates" ? updates : undefined;
     if (!handler) {
       json(response, 404, errorBody("NOT_FOUND", "Endpoint not found."));
       return;

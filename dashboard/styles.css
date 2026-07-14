@@ -16,6 +16,7 @@ h2 { font-size: 24px; }
 .state { border: 1px solid #27272a; border-radius: 14px; padding: 18px; color: #a1a1aa; display: flex; gap: 12px; flex-wrap: wrap; }
 .success { border-color: #14532d; color: #bbf7d0; }
 .error { border-color: #7f1d1d; color: #fecaca; }
+.attention { border-color: #854d0e; color: #fef3c7; }
 .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 14px; }
 article { border: 1px solid #27272a; border-radius: 14px; padding: 18px; background: #18181b; }
 article h3 { margin: 0 0 8px; }
@@ -23,6 +24,7 @@ article p { min-height: 42px; color: #d4d4d8; line-height: 1.4; }
 small { font-size: 12px; }
 .updates-grid { display: grid; gap: 12px; }
 .update-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.card-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .update-heading h3 { margin: 0; }
 .badge { border-radius: 999px; padding: 4px 9px; font-size: 11px; color: #d4d4d8; background: #27272a; }
 .update-available { border-color: #854d0e; }
@@ -32,3 +34,17 @@ small { font-size: 12px; }
 details { margin-top: 10px; color: #d4d4d8; }
 summary { cursor: pointer; }
 li { margin: 5px 0; }
+.health-list { border: 1px solid #27272a; border-radius: 14px; padding: 18px; }
+.health-list p { margin: 10px 0 0; color: #d4d4d8; }
+.metric-row { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.metric-row strong { font-size: 24px; }
+.metric-row span { color: #a1a1aa; margin-right: 14px; }
+.finding-level { display: inline-block; min-width: 58px; color: #a1a1aa; text-transform: uppercase; font-size: 10px; letter-spacing: .08em; }
+section { margin-top: 36px; }
+footer { margin-top: 52px; padding-top: 18px; border-top: 1px solid #27272a; color: #71717a; font-size: 13px; }
+.action-bar { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; }
+button { appearance: none; border: 1px solid #7c3aed; border-radius: 10px; background: #7c3aed; color: white; padding: 10px 14px; font: inherit; font-weight: 650; cursor: pointer; }
+button.secondary { background: transparent; color: #d4d4d8; border-color: #3f3f46; }
+button:disabled { cursor: not-allowed; opacity: .45; }
+button:focus-visible { outline: 3px solid #c4b5fd; outline-offset: 2px; }
+code { color: #c4b5fd; }

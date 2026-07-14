@@ -27,11 +27,16 @@ original hackathon baseline remains in [MASTER_PLAN.md](./MASTER_PLAN.md).
 | macOS | `PATH` executable or existing agent directory | Claude Code, Codex, Cursor, Gemini CLI, OpenCode, Hermes | CI matrix + local smoke tests |
 | Linux | `PATH` executable or existing agent directory | Claude Code, Codex, Cursor, Gemini CLI, OpenCode, Hermes | CI matrix + local smoke tests |
 | Windows | `PATH` executable/`.cmd` resolution or existing agent directory | Claude Code, Codex, Cursor, Gemini CLI, OpenCode, Hermes | CI matrix; native install coverage remains in progress |
+| WSL | Linux executable and POSIX `$HOME` only | Linux-side agent directories only | Deterministic boundary tests + Linux CI |
 
 Loadout writes to the detected agent's documented user directory and supports
 `LOADOUT_USER_HOME` for an isolated test or demo profile. It does not claim that every
 agent supports every component: `loadout capabilities` reports each adapter as native,
 adapted, or unsupported before installation.
+
+WSL is deliberately treated as Linux: when a Linux-side CLI runs under WSL, Loadout
+uses its POSIX `$HOME` and never translates `USERPROFILE` into `/mnt/c`. Run Loadout
+from native Windows if you want to manage the Windows-side agent profile.
 
 ## Nitish branch commands
 

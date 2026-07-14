@@ -630,7 +630,7 @@ modes.
 - [x] `P2-01 [SOL]` Finalize adapter contract and platform capability matrix.
 - [x] `P2-02 [TERRA]` Implement shared filesystem/path utilities.
   - Acceptance: tests cover Windows paths, POSIX paths, WSL distinction, home dirs.
-- [ ] `P2-03 [LUNA]` Add fake home-directory fixtures for all platforms.
+- [x] `P2-03 [LUNA]` Add fake home-directory fixtures for all platforms.
 - [ ] `P2-04 [TERRA]` Implement Claude Code detection and inspection.
 - [ ] `P2-05 [TERRA]` Implement Codex detection and inspection.
 - [ ] `P2-06 [TERRA]` Implement Cursor detection and inspection.
@@ -726,11 +726,11 @@ modes.
 ### Phase 9: Cross-platform verification
 
 - [ ] `P9-01 [TERRA]` Windows native install test.
-- [ ] `P9-02 [TERRA]` WSL behavior test or documented compatibility boundary.
+- [x] `P9-02 [TERRA]` WSL behavior test or documented compatibility boundary.
 - [ ] `P9-03 [TERRA]` macOS install test.
 - [ ] `P9-04 [TERRA]` Linux install test.
-- [ ] `P9-05 [LUNA]` CRLF/LF fixture coverage.
-- [ ] `P9-06 [LUNA]` `.cmd` executable-resolution fixture coverage.
+- [x] `P9-05 [LUNA]` CRLF/LF fixture coverage.
+- [x] `P9-06 [LUNA]` `.cmd` executable-resolution fixture coverage.
 - [ ] `P9-07 [SOL]` Cross-platform go/no-go review.
 
 ### Phase 10: Submission

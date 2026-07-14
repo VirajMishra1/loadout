@@ -132,7 +132,9 @@ export async function validateSkillDirectory(path: string): Promise<void> {
     throw new Error(`SKILL.md must be a regular file: ${skillPath}`);
   }
   const content = await readFile(skillPath, "utf8");
-  if (!/^---\s*\n/.test(content) || !/^name:\s*\S+/m.test(content) || !/^description:\s*\S+/m.test(content)) {
+  // Repositories authored on Windows commonly use CRLF. The parser is
+  // deliberately line-ending agnostic and copying preserves the original bytes.
+  if (!/^---\s*\r?\n/.test(content) || !/^name:\s*\S+/m.test(content) || !/^description:\s*\S+/m.test(content)) {
     throw new Error(`SKILL.md is missing required name/description frontmatter: ${relative(process.cwd(), path)}`);
   }
 }

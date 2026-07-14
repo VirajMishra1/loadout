@@ -3,7 +3,7 @@ import { mkdtemp, mkdir, readFile, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { applySkillInstall, buildSkillPlan } from "../src/core/install.js";
-import { detectInstallConflicts, planSkillInstall } from "../src/core/skills.js";
+import { detectInstallConflicts, planSkillInstall, validateSkillDirectory } from "../src/core/skills.js";
 import { restoreSnapshot } from "../src/core/snapshot.js";
 import { readInstallState } from "../src/core/state.js";
 import type { DetectedAgent } from "../src/shared/types.js";
@@ -66,6 +66,21 @@ describe("skill installation transaction", () => {
       join(target, "one"),
       join(target, "two")
     ].sort());
+  });
+
+  it("accepts LF and CRLF SKILL.md frontmatter and preserves CRLF on install", async () => {
+    const root = await mkdtemp(join(tmpdir(), "loadout-line-endings-"));
+    directories.push(root);
+    const lf = join(root, "lf"); const crlf = join(root, "crlf"); const target = join(root, "target");
+    const lfContent = "---\nname: lf\ndescription: A line ending fixture\n---\n";
+    const crlfContent = "---\r\nname: crlf\r\ndescription: A line ending fixture\r\n---\r\n";
+    await mkdir(lf, { recursive: true }); await mkdir(crlf, { recursive: true });
+    await writeFile(join(lf, "SKILL.md"), lfContent); await writeFile(join(crlf, "SKILL.md"), crlfContent);
+    await expect(validateSkillDirectory(lf)).resolves.toBeUndefined();
+    await expect(validateSkillDirectory(crlf)).resolves.toBeUndefined();
+    const plan = await planSkillInstall(crlf, [target], "crlf");
+    await applySkillInstall(plan);
+    expect(await readFile(join(target, "crlf", "SKILL.md"), "utf8")).toBe(crlfContent);
   });
 
   it("restores all changes when a later copy fails", async () => {

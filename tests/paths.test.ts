@@ -2,7 +2,7 @@ import { describe, expect, it, afterEach } from "vitest";
 import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, win32 } from "node:path";
-import { detectAgents, loadoutHome, userHome } from "../src/core/paths.js";
+import { AGENT_DEFINITIONS, agentSkillsDirectory, detectAgents, executableCandidates, executableLookup, loadoutHome, runtimeBoundary, userHome } from "../src/core/paths.js";
 
 describe("platform paths", () => {
   const originalHome = process.env.LOADOUT_USER_HOME;
@@ -34,6 +34,30 @@ describe("platform paths", () => {
       .toBe(win32.join("C:\\Users\\viraj\\AppData\\Roaming", "loadout"));
     expect(loadoutHome({ USERPROFILE: "C:\\Users\\viraj" }, "win32"))
       .toBe(win32.join("C:\\Users\\viraj", "AppData", "Roaming", "loadout"));
+  });
+
+  it("uses native separators for every adapter filesystem layout", () => {
+    const windowsHome = "C:\\Users\\viraj";
+    const posixHome = "/home/viraj";
+    for (const definition of AGENT_DEFINITIONS) {
+      expect(agentSkillsDirectory(definition.id, windowsHome, "win32")).toBe(win32.join(windowsHome, ...definition.directory));
+      expect(agentSkillsDirectory(definition.id, posixHome, "linux")).toBe(join(posixHome, ...definition.directory));
+    }
+  });
+
+  it("keeps WSL inside the Linux home boundary", () => {
+    const env = { HOME: "/home/viraj", USERPROFILE: "C:\\Users\\viraj", WSL_DISTRO_NAME: "Ubuntu" };
+    expect(runtimeBoundary(env, "linux")).toBe("wsl");
+    expect(userHome(env, "linux")).toBe("/home/viraj");
+    expect(agentSkillsDirectory("codex", userHome(env, "linux"), "linux")).toBe("/home/viraj/.agents/skills");
+    expect(runtimeBoundary({ USERPROFILE: "C:\\Users\\viraj" }, "win32")).toBe("windows");
+    expect(runtimeBoundary({ HOME: "/home/viraj" }, "linux")).toBe("posix");
+  });
+
+  it("looks up npm .cmd shims on Windows without changing POSIX lookup", () => {
+    expect(executableCandidates("codex", "win32")).toEqual(["codex", "codex.cmd", "codex.exe", "codex.bat"]);
+    expect(executableLookup("codex", "win32")).toEqual({ command: "where", candidates: ["codex", "codex.cmd", "codex.exe", "codex.bat"] });
+    expect(executableLookup("codex", "linux")).toEqual({ command: "which", candidates: ["codex"] });
   });
 
   it("honors explicit state-directory overrides on every platform", () => {

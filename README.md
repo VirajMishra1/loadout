@@ -32,6 +32,95 @@ Repository installs are currently public GitHub repositories only. Loadout clone
 shallow snapshot, records the resolved commit, never runs repository lifecycle scripts,
 and copies only discovered `SKILL.md` directories into the selected agent roots.
 
+## Two-minute hackathon demo
+
+This is a live-data demo: the package is fetched from GitHub at the time you run it,
+and the catalog can be refreshed from the GitHub API. It does not rely on seeded
+install results. The install below uses a disposable profile so a demo cannot alter a
+developer's existing agent configuration.
+
+In terminal 1, build and open the local dashboard:
+
+```bash
+npm install
+npm run build
+npm run dashboard
+```
+
+Open <http://127.0.0.1:4173>. The page reads the detected agents and the real catalog
+from this checkout; keep it open while running the CLI in terminal 2.
+
+In terminal 2, run the story in this order:
+
+```bash
+# Keep all demo writes in a temporary home and Loadout state directory.
+DEMO_HOME="$(mktemp -d)"
+export LOADOUT_USER_HOME="$DEMO_HOME"
+export LOADOUT_HOME="$DEMO_HOME/.loadout"
+
+# 1. Detect the agents available on this machine and check prerequisites.
+node dist/src/cli.js status
+node dist/src/cli.js doctor
+
+# 2. Show the curated, real-repository catalog (refresh is optional but compelling).
+node dist/src/cli.js catalog --refresh
+
+# 3. Inspect a real MCP repository without starting its server or running scripts.
+node dist/src/cli.js mcp --repository upstash/context7
+
+# 4. Preview, then apply, a real skill package from GitHub.
+node dist/src/cli.js plan --repository obra/superpowers --package obra-superpowers --agents codex
+node dist/src/cli.js install --repository obra/superpowers --package obra-superpowers --agents codex --yes
+
+# 5. Show commit-aware update status, then demonstrate one-command recovery.
+node dist/src/cli.js update
+node dist/src/cli.js rollback
+```
+
+The narrative is: one catalog replaces repository-hopping; the plan makes every file
+change visible; the installer records the exact Git commit; and rollback restores the
+previous state. For a presentation, leave the dashboard visible between steps 1 and 2
+and show the generated snapshot identifier after step 4.
+
+On Windows PowerShell, use these equivalent setup commands before running the same
+`node dist/src/cli.js` commands:
+
+```powershell
+$env:LOADOUT_USER_HOME = Join-Path $env:TEMP ("loadout-demo-" + [guid]::NewGuid())
+$env:LOADOUT_HOME = Join-Path $env:LOADOUT_USER_HOME ".loadout"
+New-Item -ItemType Directory -Force $env:LOADOUT_USER_HOME | Out-Null
+```
+
+## How it works
+
+```mermaid
+flowchart LR
+  A[CLI or dashboard] --> B[Detect installed agents]
+  B --> C[Curated catalog]
+  C --> D[GitHub shallow snapshot]
+  D --> E[Resolve SKILL.md and MCP manifests]
+  E --> F[Plan files and configuration]
+  F --> G{User confirmation}
+  G -->|yes| H[Transactional install + hash state]
+  H --> I[Update check and rollback snapshot]
+  G -->|no| J[Dry-run output]
+```
+
+Discovery and planning are read-only. Installation writes only the selected package's
+managed directories, and the current implementation never executes third-party
+repository lifecycle scripts. The loopback API and dashboard expose read-only status,
+catalog, and update views.
+
+## Current demo boundaries
+
+- Public GitHub repositories are supported; private-repository OAuth is planned.
+- The install path currently handles skill directories containing `SKILL.md`.
+- MCP manifests can be inspected and MCP JSON configuration changes can be planned or
+  applied, but MCP processes are not launched by Loadout.
+- The catalog is curated rather than an index of every repository on the internet.
+- Updates are reported and installs are transactional; autonomous background updates
+  and signed catalog releases are not yet enabled.
+
 ## Core promise
 
 Run one command, let Loadout detect the agents on your computer, and choose either a

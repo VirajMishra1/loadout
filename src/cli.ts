@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { Command } from "commander";
-import { loadCatalog, rankCatalog } from "./core/catalog.js";
+import { loadEffectiveCatalog, loadCatalog, rankCatalog, refreshCatalog } from "./core/catalog.js";
 import { detectAgents } from "./core/paths.js";
 import { readFile, readdir } from "node:fs/promises";
 import { buildSkillPlan, applySkillInstall, installedAgents } from "./core/install.js";
@@ -9,6 +9,7 @@ import type { AgentId } from "./shared/types.js";
 import { fetchRepositorySnapshot } from "./core/source.js";
 import { discoverMcpManifests, summarizeMcpManifest } from "./core/mcp.js";
 import { runDoctor, formatDoctorReport } from "./core/doctor.js";
+import { buildUpdatePlan, formatUpdatePlan } from "./core/update.js";
 
 const program = new Command();
 program.name("loadout").description("Universal upgrade manager for AI coding agents").version("0.1.0");
@@ -28,9 +29,17 @@ program.command("doctor")
     console.log(options.json ? JSON.stringify(report, null, 2) : formatDoctorReport(report));
   });
 
-program.command("catalog").description("List the bundled real package catalog").action(async () => {
-  const packages = rankCatalog(await loadCatalog());
-  for (const pkg of packages) console.log(`${pkg.displayName} [${pkg.tier}] — ${pkg.repository}`);
+program.command("catalog").description("List the real package catalog")
+  .option("--refresh", "fetch current GitHub stars and repository metadata")
+  .action(async (options: { refresh?: boolean }) => {
+  const base = await loadCatalog();
+  const result = options.refresh ? await refreshCatalog(base, { forceRefresh: true }) : { catalog: await loadEffectiveCatalog(), failures: [] };
+  for (const pkg of rankCatalog(result.catalog)) {
+    const topics = pkg.topics?.length ? ` — ${pkg.topics.join(", ")}` : "";
+    const updated = pkg.lastUpdatedAt ? ` — updated ${pkg.lastUpdatedAt.slice(0, 10)}` : "";
+    console.log(`${pkg.displayName} [${pkg.tier}] ★${pkg.stars ?? "?"} — ${pkg.repository}${topics}${updated}`);
+  }
+  for (const failure of result.failures) console.error(`Warning: could not refresh ${failure.repository}: ${failure.error}`);
 });
 
 program.command("mcp")
@@ -97,9 +106,17 @@ program.command("rollback")
     console.log(`Restored snapshot ${selected.replace(/\.json$/, "")}`);
   });
 
+program.command("update")
+  .description("Plan updates for installed packages without changing files")
+  .option("--json", "emit machine-readable JSON")
+  .action(async (options: { json?: boolean }) => {
+    const plans = await buildUpdatePlan();
+    console.log(options.json ? JSON.stringify(plans, null, 2) : formatUpdatePlan(plans));
+  });
+
 program.action(async () => {
   const agents = await detectAgents();
-  const packages = rankCatalog(await loadCatalog());
+  const packages = rankCatalog(await loadEffectiveCatalog());
   console.log("Loadout detected:");
   for (const agent of agents) console.log(`  ${agent.installed ? "✓" : "○"} ${agent.displayName}`);
   console.log(`\n${packages.length} real catalog packages are available.`);

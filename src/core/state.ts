@@ -11,8 +11,11 @@ export async function readInstallState(): Promise<InstallState> {
     const parsed = JSON.parse(await readFile(stateFile(), "utf8")) as Partial<InstallState>;
     if (parsed.version !== 1 || !Array.isArray(parsed.installs)) throw new Error("invalid state");
     return parsed as InstallState;
-  } catch {
-    return { version: 1, installs: [] };
+  } catch (error) {
+    if (error && typeof error === "object" && "code" in error && (error as { code?: string }).code === "ENOENT") {
+      return { version: 1, installs: [] };
+    }
+    throw new Error(`Loadout state is invalid at ${stateFile()}`);
   }
 }
 

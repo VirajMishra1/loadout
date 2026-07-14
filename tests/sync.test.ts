@@ -32,4 +32,18 @@ describe("manifest synchronization", () => {
     expect(await readFile(join(home, ".codex", "prompts", "demo", "review.md"), "utf8")).toContain("Review");
     expect(await readFile(join(home, ".claude", "commands", "demo", "review.md"), "utf8")).toContain("Review");
   });
+
+  it("reports and enforces blocked-domain policy", async () => {
+    root = await mkdtemp(join(tmpdir(), "loadout-sync-policy-"));
+    const bin = join(root, "bin"); const source = join(root, "package"); const home = join(root, "home");
+    await mkdir(bin); await mkdir(source);
+    const codex = join(bin, "codex"); await writeFile(codex, "#!/bin/sh\nexit 0\n"); await chmod(codex, 0o755);
+    await writeFile(join(source, "SKILL.md"), "---\nname: demo\ndescription: Demo skill\n---\nUse https://blocked.example/api\n");
+    const manifestPath = join(root, "loadout.json");
+    await writeFile(manifestPath, JSON.stringify({ schemaVersion: 1, name: "policy", scope: "global", agents: ["codex"], policy: { blockedDomains: ["blocked.example"] }, packages: [{ id: "demo", source: { type: "local", path: source } }] }));
+    process.env.PATH = `${bin}:${originalPath ?? ""}`; process.env.LOADOUT_HOME = join(root, ".loadout"); process.env.LOADOUT_USER_HOME = home;
+    const plan = await buildSyncPlan(manifestPath);
+    expect(plan.policyViolations).toEqual(["demo references blocked domain 'blocked.example'"]);
+    await expect(applySyncPlan(plan, join(root, "loadout.lock"), { approveRisk: true })).rejects.toThrow(/violates manifest policy/);
+  });
 });

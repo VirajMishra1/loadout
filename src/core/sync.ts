@@ -13,6 +13,23 @@ export interface SyncPlan {
   manifest: string;
   packages: Array<InstallBatchEntry & { safety: UpdateSafetyAnalysis }>;
   skipped: Array<{ packageId: string; reason: string }>;
+  policyViolations: string[];
+}
+
+function policyViolations(manifest: LoadoutManifest, packages: SyncPlan["packages"]): string[] {
+  const violations: string[] = [];
+  const blockedDomains = new Set((manifest.policy?.blockedDomains ?? []).map((domain) => domain.toLowerCase()));
+  const blockedCommands = new Set((manifest.policy?.blockedCommands ?? []).map((command) => command.toLowerCase()));
+  for (const entry of packages) {
+    for (const finding of entry.safety.findings) {
+      if (finding.category === "domain") for (const domain of finding.names ?? []) if (blockedDomains.has(domain.toLowerCase())) violations.push(`${entry.plan.packageId} references blocked domain '${domain}'`);
+    }
+    for (const file of entry.plan.files) {
+      const name = file.source.split(/[\\/]/).at(-1)?.replace(/\.[^.]+$/, "").toLowerCase();
+      if (name && blockedCommands.has(name)) violations.push(`${entry.plan.packageId} contains blocked command '${name}'`);
+    }
+  }
+  return [...new Set(violations)];
 }
 
 async function resolvePackage(pkg: ManifestPackage): Promise<{ path: string; repository?: string; commit?: string }> {
@@ -63,10 +80,11 @@ export async function buildSyncPlan(manifestPath = "loadout.json"): Promise<Sync
       else throw error;
     }
   }
-  return { manifest: manifestPath, packages, skipped };
+  return { manifest: manifestPath, packages, skipped, policyViolations: policyViolations(manifest, packages) };
 }
 
 export async function applySyncPlan(plan: SyncPlan, lockPath = "loadout.lock", options: { approveRisk?: boolean } = {}): Promise<{ snapshotId?: string; lockfile: string }> {
+  if (plan.policyViolations.length) throw new Error(`Synchronization violates manifest policy: ${plan.policyViolations.join("; ")}`);
   const blocked = plan.packages.filter((entry) => entry.safety.approvalRequired);
   if (blocked.length && !options.approveRisk) throw new Error(`Synchronization requires explicit risk approval for: ${blocked.map((entry) => entry.plan.packageId).join(", ")}`);
   const snapshotId = plan.packages.length ? await applySkillInstallBatch(plan.packages) : undefined;

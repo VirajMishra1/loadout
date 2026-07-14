@@ -4,6 +4,14 @@ import type { CatalogPackage } from "../shared/types.js";
 import { fetchGitHubMetadata, type GitHubMetadataOptions } from "./github.js";
 import { loadoutHome } from "./paths.js";
 
+export type InstallSelectionMode = "stable" | "maximum" | "custom";
+
+export interface InstallSelection {
+  mode: InstallSelectionMode;
+  /** Explicit catalog ids used by custom mode. */
+  packageIds?: string[];
+}
+
 const cachedCatalogPath = () => join(loadoutHome(), "catalog.json");
 
 export async function loadCatalog(path = join(process.cwd(), "catalog", "packages.json")): Promise<CatalogPackage[]> {
@@ -68,4 +76,26 @@ export function rankCatalog(packages: CatalogPackage[]): CatalogPackage[] {
     const tierScore = (tier: CatalogPackage["tier"]) => ({ official: 4, stable: 3, trending: 2, community: 1 }[tier]);
     return tierScore(b.tier) - tierScore(a.tier) || (b.stars ?? 0) - (a.stars ?? 0);
   });
+}
+
+/**
+ * Select packages for an installation loadout. This is deliberately based on
+ * catalog metadata, not star count alone: archived repositories are never
+ * selected automatically and stable mode only includes reviewed tiers.
+ */
+export function selectCatalogPackages(packages: CatalogPackage[], selection: InstallSelection): CatalogPackage[] {
+  if (selection.mode !== "stable" && selection.mode !== "maximum" && selection.mode !== "custom") {
+    throw new Error(`Unknown install mode '${selection.mode}'`);
+  }
+  const ranked = rankCatalog(packages).filter((pkg) => !pkg.archived);
+  if (selection.mode === "stable") {
+    return ranked.filter((pkg) => pkg.tier === "official" || pkg.tier === "stable");
+  }
+  if (selection.mode === "maximum") return ranked;
+  const ids = selection.packageIds ?? [];
+  if (ids.length === 0) throw new Error("Custom mode requires at least one package id");
+  const byId = new Map(packages.map((pkg) => [pkg.id, pkg]));
+  const unknown = ids.filter((id) => !byId.has(id));
+  if (unknown.length > 0) throw new Error(`Unknown catalog package id(s): ${unknown.join(", ")}`);
+  return ids.map((id) => byId.get(id)!);
 }

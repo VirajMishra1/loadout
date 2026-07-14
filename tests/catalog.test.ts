@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { loadEffectiveCatalog, rankCatalog, refreshCatalog } from "../src/core/catalog.js";
+import { loadEffectiveCatalog, rankCatalog, refreshCatalog, selectCatalogPackages } from "../src/core/catalog.js";
 import type { CatalogPackage } from "../src/shared/types.js";
 
 const packageRecord = (id: string, tier: CatalogPackage["tier"], stars: number): CatalogPackage => ({
@@ -17,6 +17,23 @@ describe("catalog ranking", () => {
       packageRecord("trending", "trending", 1000)
     ]);
     expect(ranked.map((item) => item.id)).toEqual(["official", "stable", "trending", "community-popular"]);
+  });
+
+  it("selects reviewed, non-archived packages for stable and maximum modes", () => {
+    const packages = [
+      packageRecord("official", "official", 1),
+      packageRecord("stable", "stable", 2),
+      packageRecord("trending", "trending", 99),
+      { ...packageRecord("archived", "stable", 1000), archived: true }
+    ];
+    expect(selectCatalogPackages(packages, { mode: "stable" }).map((pkg) => pkg.id)).toEqual(["official", "stable"]);
+    expect(selectCatalogPackages(packages, { mode: "maximum" }).map((pkg) => pkg.id)).toEqual(["official", "stable", "trending"]);
+  });
+
+  it("validates custom package ids", () => {
+    const packages = [packageRecord("one", "community", 1)];
+    expect(selectCatalogPackages(packages, { mode: "custom", packageIds: ["one"] })[0].id).toBe("one");
+    expect(() => selectCatalogPackages(packages, { mode: "custom", packageIds: ["missing"] })).toThrow(/Unknown catalog/);
   });
 });
 

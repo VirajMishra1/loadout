@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { Command } from "commander";
-import { loadEffectiveCatalog, loadCatalog, rankCatalog, refreshCatalog } from "./core/catalog.js";
+import { loadEffectiveCatalog, loadCatalog, rankCatalog, refreshCatalog, selectCatalogPackages, type InstallSelectionMode } from "./core/catalog.js";
 import { detectAgents } from "./core/paths.js";
 import { readFile, readdir } from "node:fs/promises";
 import { buildSkillPlan, applySkillInstall, installedAgents } from "./core/install.js";
@@ -104,38 +104,56 @@ program.command("mcp-config")
   });
 
 program.command("plan")
-  .description("Plan installing a package from a local directory or public GitHub repository")
+  .description("Plan installing packages from a local directory, catalog, or public GitHub repository")
   .option("--source <directory>", "local package directory containing SKILL.md")
   .option("--repository <owner/repo>", "public GitHub repository containing SKILL.md")
-  .requiredOption("--package <id>", "stable package identifier")
+  .option("--package <id>", "package identifier (repeat for custom mode)", (value: string, previous: string[] = []) => [...previous, value], [])
+  .option("--mode <mode>", "catalog selection mode: stable, maximum, or custom")
   .option("--agents <ids>", "comma-separated agent ids; defaults to all detected agents")
-  .action(async (options: { source?: string; repository?: string; package: string; agents?: string }) => {
-    if ((options.source ? 1 : 0) + (options.repository ? 1 : 0) !== 1) throw new Error("Provide exactly one of --source or --repository");
-    const fetched = options.repository ? await fetchRepositorySnapshot(options.repository) : undefined;
-    const source = fetched?.path ?? options.source!;
+  .action(async (options: { source?: string; repository?: string; package: string[]; mode?: string; agents?: string }) => {
+    const packageIds = options.package ?? [];
+    const hasSource = Boolean(options.source || options.repository);
+    if (hasSource && options.mode) throw new Error("--mode cannot be combined with --source or --repository");
+    if (hasSource && packageIds.length !== 1) throw new Error("A source or repository requires exactly one --package");
+    if (!hasSource && !options.mode) throw new Error("Provide --mode or exactly one of --source/--repository");
+    const selected = hasSource ? [{ id: packageIds[0] }] : selectCatalogPackages(await loadEffectiveCatalog(), { mode: options.mode as InstallSelectionMode, packageIds });
     const agents = installedAgents(await detectAgents(), options.agents?.split(",") as AgentId[] | undefined);
-    const plan = await buildSkillPlan(source, options.package, agents);
-    console.log(JSON.stringify(plan, null, 2));
+    const plans = [];
+    for (const pkg of selected) {
+      const fetched = options.repository ? await fetchRepositorySnapshot(options.repository) : (!options.source ? await fetchRepositorySnapshot((pkg as { repository: string }).repository) : undefined);
+      plans.push(await buildSkillPlan(fetched?.path ?? options.source!, pkg.id, agents));
+    }
+    console.log(JSON.stringify(options.mode ? { mode: options.mode, packages: plans } : plans[0], null, 2));
   });
 
 program.command("install")
-  .description("Install a package from a local directory or public GitHub repository")
+  .description("Install packages from a local directory, catalog, or public GitHub repository")
   .option("--source <directory>", "local package directory containing SKILL.md")
   .option("--repository <owner/repo>", "public GitHub repository containing SKILL.md")
-  .requiredOption("--package <id>", "stable package identifier")
+  .option("--package <id>", "package identifier (repeat for custom mode)", (value: string, previous: string[] = []) => [...previous, value], [])
+  .option("--mode <mode>", "catalog selection mode: stable, maximum, or custom")
   .option("--agents <ids>", "comma-separated agent ids; defaults to all detected agents")
   .option("--yes", "apply without interactive confirmation")
-  .action(async (options: { source?: string; repository?: string; package: string; agents?: string; yes?: boolean }) => {
-    if ((options.source ? 1 : 0) + (options.repository ? 1 : 0) !== 1) throw new Error("Provide exactly one of --source or --repository");
-    const fetched = options.repository ? await fetchRepositorySnapshot(options.repository) : undefined;
-    const source = fetched?.path ?? options.source!;
+  .action(async (options: { source?: string; repository?: string; package: string[]; mode?: string; agents?: string; yes?: boolean }) => {
+    const packageIds = options.package ?? [];
+    const hasSource = Boolean(options.source || options.repository);
+    if (hasSource && options.mode) throw new Error("--mode cannot be combined with --source or --repository");
+    if (hasSource && packageIds.length !== 1) throw new Error("A source or repository requires exactly one --package");
+    if (!hasSource && !options.mode) throw new Error("Provide --mode or exactly one of --source/--repository");
+    const selected = hasSource ? [{ id: packageIds[0] }] : selectCatalogPackages(await loadEffectiveCatalog(), { mode: options.mode as InstallSelectionMode, packageIds });
     const agents = installedAgents(await detectAgents(), options.agents?.split(",") as AgentId[] | undefined);
-    const plan = await buildSkillPlan(source, options.package, agents);
-    console.log(`Installing ${plan.packageId} for ${plan.targetAgents.join(", ")}...`);
+    const plans: Array<{ plan: Awaited<ReturnType<typeof buildSkillPlan>>; repository?: string; commit?: string }> = [];
+    for (const pkg of selected) {
+      const fetched = options.repository ? await fetchRepositorySnapshot(options.repository) : (!options.source ? await fetchRepositorySnapshot((pkg as { repository: string }).repository) : undefined);
+      plans.push({ plan: await buildSkillPlan(fetched?.path ?? options.source!, pkg.id, agents), repository: fetched?.repository, commit: fetched?.commit });
+    }
+    console.log(`Installing ${plans.map(({ plan }) => plan.packageId).join(", ")} for ${agents.map((agent) => agent.id).join(", ")}...`);
     if (!options.yes) console.log("Review the plan with `loadout plan`; use --yes to apply it.");
     if (!options.yes) return;
-    const snapshotId = await applySkillInstall(plan, fetched ? { repository: fetched.repository, resolvedCommit: fetched.commit } : undefined);
-    console.log(`Installed successfully. Snapshot: ${snapshotId}`);
+    for (const entry of plans) {
+      const snapshotId = await applySkillInstall(entry.plan, entry.repository ? { repository: entry.repository, resolvedCommit: entry.commit } : undefined);
+      console.log(`Installed ${entry.plan.packageId} successfully. Snapshot: ${snapshotId}`);
+    }
   });
 
 program.command("rollback")

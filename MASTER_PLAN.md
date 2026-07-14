@@ -690,7 +690,7 @@ modes.
 - [x] `P6-06 [TERRA]` `loadout add` and `loadout remove`.
 - [x] `P6-07 [TERRA]` `loadout update --plan`.
 - [x] `P6-08 [TERRA]` `loadout rollback`.
-- [ ] `P6-09 [LUNA]` CLI snapshot tests for help and error messages.
+- [x] `P6-09 [LUNA]` CLI snapshot tests for help and error messages.
 - [ ] `P6-10 [SOL]` Review destructive command confirmation and recovery behavior.
 
 ### Phase 7: Local API and dashboard

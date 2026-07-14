@@ -600,7 +600,7 @@ modes.
   - Acceptance: `pnpm install` succeeds and every workspace has a placeholder test.
 - [ ] `P0-02 [LUNA]` Add `.gitignore`, `.editorconfig`, Prettier, and ESLint defaults.
   - Acceptance: formatting and lint commands run at repository root.
-- [ ] `P0-03 [TERRA]` Add GitHub Actions matrix for Node on Windows, macOS, Linux.
+- [x] `P0-03 [TERRA]` Add GitHub Actions matrix for Node on Windows, macOS, Linux.
   - Acceptance: install, lint, typecheck, and tests run on all three.
 - [ ] `P0-04 [HUMAN]` Add all three teammates to the private repository.
 - [ ] `P0-05 [HUMAN]` Protect `main` after the first working CI run.
@@ -618,8 +618,8 @@ modes.
 - [ ] `P1-05 [LUNA]` Add first ten verified catalog records.
   - Acceptance: source, category, tier, license, commit/ref, components, platforms.
 - [ ] `P1-06 [LUNA]` Add next ten verified catalog records.
-- [ ] `P1-07 [TERRA]` Implement GitHub metadata fetch with cache and rate-limit errors.
-- [ ] `P1-08 [TERRA]` Implement tier and ranking functions.
+- [x] `P1-07 [TERRA]` Implement GitHub metadata fetch with cache and rate-limit errors.
+- [x] `P1-08 [TERRA]` Implement tier and ranking functions.
 - [ ] `P1-09 [SOL]` Review scoring for obvious gaming and bias failure modes.
 - [ ] `P1-10 [TERRA]` Implement conflict-family resolver.
   - Acceptance: Stable picks one default; hard conflicts block; Custom can override
@@ -637,7 +637,7 @@ modes.
 - [ ] `P2-07 [LUNA]` Implement Gemini CLI detection from approved path table.
 - [ ] `P2-08 [LUNA]` Implement OpenCode detection from approved path table.
 - [ ] `P2-09 [LUNA]` Implement Hermes detection from approved path table.
-- [ ] `P2-10 [TERRA]` Build `loadout doctor` detection report.
+- [x] `P2-10 [TERRA]` Build `loadout doctor` detection report.
 
 ### Phase 3: Package parsing and normalization
 
@@ -645,7 +645,7 @@ modes.
 - [ ] `P3-02 [TERRA]` Implement `SKILL.md` parser and validation.
 - [ ] `P3-03 [TERRA]` Implement Claude plugin manifest parser.
 - [ ] `P3-04 [TERRA]` Implement Codex plugin manifest parser.
-- [ ] `P3-05 [TERRA]` Implement MCP JSON parser.
+- [x] `P3-05 [TERRA]` Implement MCP JSON parser.
 - [ ] `P3-06 [LUNA]` Add parser fixtures from sanitized real layouts.
 - [ ] `P3-07 [TERRA]` Map parsed skills to universal component records.
 - [ ] `P3-08 [SOL]` Define native/adapted/unsupported rules for MVP platforms.
@@ -655,16 +655,16 @@ modes.
 
 - [ ] `P4-01 [SOL]` Threat-model the mutation transaction.
 - [ ] `P4-02 [TERRA]` Implement immutable package cache by commit.
-- [ ] `P4-03 [TERRA]` Implement per-file SHA-256 calculation.
+- [x] `P4-03 [TERRA]` Implement per-file SHA-256 calculation.
 - [x] `P4-04 [TERRA]` Implement snapshot creator and manifest.
 - [ ] `P4-05 [TERRA]` Implement staging directory and planned writes.
-- [ ] `P4-06 [TERRA]` Implement path traversal and escaping-symlink rejection.
+- [x] `P4-06 [TERRA]` Implement path traversal and escaping-symlink rejection.
 - [ ] `P4-07 [TERRA]` Implement plan collision detection.
 - [ ] `P4-08 [SOL]` Review atomic commit behavior across all three operating systems.
 - [x] `P4-09 [TERRA]` Implement commit with automatic restore on failure.
 - [x] `P4-10 [TERRA]` Implement `loadout rollback`.
 - [ ] `P4-11 [LUNA]` Add interrupted-write and corrupted-stage fixtures.
-- [ ] `P4-12 [TERRA]` Verify rollback restores byte-identical files.
+- [x] `P4-12 [TERRA]` Verify rollback restores byte-identical files.
 
 ### Phase 5: Agent adapters
 
@@ -675,8 +675,8 @@ modes.
 - [ ] `P5-05 [LUNA]` OpenCode skill planner using approved layout.
 - [ ] `P5-06 [LUNA]` Hermes skill planner using approved layout.
 - [ ] `P5-07 [SOL]` Review adapters for lossy or false compatibility claims.
-- [ ] `P5-08 [TERRA]` Claude MCP config planner preserving unrelated entries.
-- [ ] `P5-09 [TERRA]` Codex MCP config planner preserving unrelated entries/comments.
+- [x] `P5-08 [TERRA]` Claude MCP config planner preserving unrelated entries.
+- [x] `P5-09 [TERRA]` Codex MCP config planner preserving unrelated entries/comments.
 - [ ] `P5-10 [TERRA]` Cursor MCP config planner preserving unrelated entries.
 - [ ] `P5-11 [TERRA]` Smoke-test interface and results.
 
@@ -684,11 +684,11 @@ modes.
 
 - [ ] `P6-01 [TERRA]` CLI bootstrap, version, help, structured error handling.
 - [x] `P6-02 [TERRA]` `loadout status`.
-- [ ] `P6-03 [TERRA]` `loadout doctor`.
+- [x] `P6-03 [TERRA]` `loadout doctor`.
 - [ ] `P6-04 [TERRA]` `loadout plan --mode stable|maximum|custom`.
 - [ ] `P6-05 [TERRA]` `loadout apply` with confirmation.
 - [ ] `P6-06 [TERRA]` `loadout add` and `loadout remove`.
-- [ ] `P6-07 [TERRA]` `loadout update --plan`.
+- [x] `P6-07 [TERRA]` `loadout update --plan`.
 - [x] `P6-08 [TERRA]` `loadout rollback`.
 - [ ] `P6-09 [LUNA]` CLI snapshot tests for help and error messages.
 - [ ] `P6-10 [SOL]` Review destructive command confirmation and recovery behavior.

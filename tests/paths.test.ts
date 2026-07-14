@@ -1,7 +1,7 @@
 import { describe, expect, it, afterEach } from "vitest";
 import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join, win32 } from "node:path";
+import { join, posix, win32 } from "node:path";
 import { AGENT_DEFINITIONS, agentSkillsDirectory, detectAgents, executableCandidates, executableLookup, loadoutHome, runtimeBoundary, userHome } from "../src/core/paths.js";
 
 describe("platform paths", () => {
@@ -41,7 +41,7 @@ describe("platform paths", () => {
     const posixHome = "/home/viraj";
     for (const definition of AGENT_DEFINITIONS) {
       expect(agentSkillsDirectory(definition.id, windowsHome, "win32")).toBe(win32.join(windowsHome, ...definition.directory));
-      expect(agentSkillsDirectory(definition.id, posixHome, "linux")).toBe(join(posixHome, ...definition.directory));
+      expect(agentSkillsDirectory(definition.id, posixHome, "linux")).toBe(posix.join(posixHome, ...definition.directory));
     }
   });
 

@@ -44,6 +44,12 @@ export interface ResourceSummary {
   path: string;
 }
 
+export interface PluginSummary {
+  type: "plugin";
+  name: string;
+  path: string;
+}
+
 export interface ConflictDiagnostic {
   severity: "blocking" | "warning";
   code: "target-collision" | "duplicate-skill-name";
@@ -121,6 +127,7 @@ export interface ManifestPackage {
   agents?: AgentId[];
   dependsOn?: string[];
   mcp?: { config: string; servers?: string[] };
+  rootFiles?: Array<{ source: string; target: string }>;
   enabled?: boolean;
 }
 
@@ -253,7 +260,8 @@ export interface PackageInspection {
   root: string;
   skills: SkillSummary[];
   resources: ResourceSummary[];
+  plugins: PluginSummary[];
   mcpServers: McpServerSummary[];
-  counts: { skills: number; rules: number; commands: number; agents: number; mcpServers: number; manifests: number };
+  counts: { skills: number; rules: number; commands: number; agents: number; plugins: number; mcpServers: number; manifests: number };
   warnings: string[];
 }

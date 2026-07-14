@@ -1,16 +1,16 @@
-import { resolve, sep } from "node:path";
+import { dirname, resolve, sep } from "node:path";
 import type { AgentId, LoadoutManifest, ManifestPackage, McpConfigPlan } from "../shared/types.js";
 import { loadEffectiveCatalog } from "./catalog.js";
 import { installedAgents, type InstallBatchEntry } from "./install.js";
 import { orderManifestPackages, readManifest, writeLockfile } from "./manifest.js";
-import { detectAgents } from "./paths.js";
+import { detectAgents, userHome } from "./paths.js";
 import { fetchGitSnapshot, fetchRepositorySnapshot } from "./source.js";
-import { buildUniversalPackagePlan } from "./components.js";
+import { addRootFileExports, buildUniversalPackagePlan } from "./components.js";
 import { analyzeInstallPlanSafety, type UpdateSafetyAnalysis } from "./safety.js";
 import { resolveRegistryPackage } from "./registry.js";
 import { createSnapshot, restoreSnapshot } from "./snapshot.js";
 import { discoverMcpManifests, planMcpConfigBatch, writeMcpConfigPlan } from "./mcp.js";
-import { applySkillPlan } from "./skills.js";
+import { applySkillPlan, detectInstallConflicts } from "./skills.js";
 import { installStatePath, recordInstallTransaction } from "./state.js";
 
 export interface SyncPlan {
@@ -71,6 +71,7 @@ export async function buildSyncPlan(manifestPath = "loadout.json"): Promise<Sync
     if (unavailable.length) throw new Error(`Enabled package '${pkg.id}' depends on disabled package(s): ${unavailable.join(", ")}`);
   }
   const detected = await detectAgents();
+  const rootFileTarget = manifest.scope === "project" ? dirname(resolve(manifestPath)) : userHome();
   const packages: SyncPlan["packages"] = [];
   const mcpPlans: SyncPlan["mcpPlans"] = [];
   const skipped: SyncPlan["skipped"] = [];
@@ -84,6 +85,7 @@ export async function buildSyncPlan(manifestPath = "loadout.json"): Promise<Sync
       if (error instanceof Error && error.message.startsWith("No supported")) plan = { packageId: pkg.id, files: [], targetAgents: agents.map((agent) => agent.id), warnings: [] };
       else throw error;
     }
+    if (pkg.rootFiles?.length) await addRootFileExports(plan, source.path, rootFileTarget, pkg.rootFiles);
     const manifests = pkg.mcp ? await discoverMcpManifests(source.path) : [];
     const allServers = manifests.flatMap((manifest) => manifest.servers);
     const requestedServers = pkg.mcp?.servers ?? allServers.map((server) => server.name);
@@ -111,6 +113,9 @@ export async function applySyncPlan(plan: SyncPlan, lockPath = "loadout.lock", o
   if (plan.policyViolations.length) throw new Error(`Synchronization violates manifest policy: ${plan.policyViolations.join("; ")}`);
   const blocked = plan.packages.filter((entry) => entry.safety.approvalRequired);
   if (blocked.length && !options.approveRisk) throw new Error(`Synchronization requires explicit risk approval for: ${blocked.map((entry) => entry.plan.packageId).join(", ")}`);
+  const conflicts = detectInstallConflicts(plan.packages.map((entry) => entry.plan));
+  const blockingConflicts = conflicts.filter((conflict) => conflict.severity === "blocking");
+  if (blockingConflicts.length) throw new Error(`Synchronization has blocking target conflicts: ${blockingConflicts.map((conflict) => conflict.message).join("; ")}`);
   if (!plan.packages.length && !plan.mcpPlans.length) {
     const manifest: LoadoutManifest = await readManifest(plan.manifest);
     await writeLockfile(manifest, lockPath);

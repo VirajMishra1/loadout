@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { buildUniversalPackagePlan, discoverResources } from "../src/core/components.js";
+import { addRootFileExports, buildUniversalPackagePlan, discoverResources } from "../src/core/components.js";
 import type { DetectedAgent } from "../src/shared/types.js";
 
 describe("universal package components", () => {
@@ -37,5 +37,14 @@ describe("universal package components", () => {
     expect(plan.files).toEqual(expect.arrayContaining([expect.objectContaining({ target: join(home, ".codex", "prompts", "demo", "review.md"), compatibility: "adapted" })]));
     expect(plan.files.filter((file) => file.componentType === "rule")).toHaveLength(1);
     expect(plan.warnings.join(" ")).toContain("unsupported");
+  });
+
+  it("allows explicit scoped root exports and rejects escaping targets", async () => {
+    root = await mkdtemp(join(tmpdir(), "loadout-root-files-"));
+    await writeFile(join(root, "AGENTS.md"), "Project instructions");
+    const plan = { packageId: "root", targetAgents: [], warnings: [], files: [] };
+    await addRootFileExports(plan, root, join(root, "project"), [{ source: "AGENTS.md", target: "AGENTS.md" }]);
+    expect(plan.files).toEqual([expect.objectContaining({ source: join(root, "AGENTS.md"), target: join(root, "project", "AGENTS.md"), componentType: "root" })]);
+    await expect(addRootFileExports(plan, root, join(root, "project"), [{ source: "AGENTS.md", target: "../escape.md" }])).rejects.toThrow(/escapes allowed scope/);
   });
 });

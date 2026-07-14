@@ -73,6 +73,19 @@ configuration path. A package can select all discovered servers or a named subse
 ownership is recorded by fingerprint, health/audit detect drift, removal preserves
 unrelated keys and servers, and rollback restores both configuration and Loadout state.
 
+Project or global root files also require explicit scoped exports. Relative source and
+target paths cannot escape the package or allowed project/home scope:
+
+```json
+"rootFiles": [
+  { "source": "AGENTS.md", "target": "AGENTS.md" }
+]
+```
+
+Claude plugin manifests are detected during inspection. Their skills, rules, commands,
+and agents are normalized through the ordinary compatibility planner; Loadout does not
+claim that copying a native plugin manifest itself converts plugin-only behavior.
+
 ## Try the real install path
 
 ```bash
@@ -187,7 +200,7 @@ catalog, and update views.
   disabled, or cyclic dependencies are rejected. Skills, conventional rule directories,
   command directories, and agent directories are normalized; unsupported targets are
   skipped rather than falsely converted. Plugin/root-file application, automated MCP
-  targeting for non-JSON agent formats, transitive package-owned manifests, remote authentication, and a hosted
+  targeting for non-JSON agent formats, native plugin-only behavior, transitive package-owned manifests, remote authentication, and a hosted
   publishing registry remain planned. The implemented local registry is immutable,
   digest-verified, searchable, and risk-gated, but it is not presented as hosted.
 

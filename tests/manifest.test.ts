@@ -56,4 +56,10 @@ describe("manifest and lockfile", () => {
     expect(manifest.packages[0].mcp).toEqual({ config: ".config/mcp.json", servers: ["docs"] });
     expect(() => parseManifest({ schemaVersion: 1, name: "mcp", scope: "project", agents: ["codex"], packages: [{ id: "docs", source: { type: "catalog", id: "context7" }, mcp: {} }] })).toThrow(/mcp.config/);
   });
+
+  it("validates explicit root-file exports", () => {
+    const manifest = parseManifest({ schemaVersion: 1, name: "root", scope: "project", agents: ["codex"], packages: [{ id: "rules", source: { type: "local", path: "." }, rootFiles: [{ source: "AGENTS.md", target: "AGENTS.md" }] }] });
+    expect(manifest.packages[0].rootFiles).toEqual([{ source: "AGENTS.md", target: "AGENTS.md" }]);
+    expect(() => parseManifest({ schemaVersion: 1, name: "root", scope: "project", agents: ["codex"], packages: [{ id: "rules", source: { type: "local", path: "." }, rootFiles: [{ source: 1, target: "x" }] }] })).toThrow(/rootFiles/);
+  });
 });

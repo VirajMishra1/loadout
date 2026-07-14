@@ -1,5 +1,5 @@
 import { lstat, readdir } from "node:fs/promises";
-import { dirname, join, relative, resolve, sep } from "node:path";
+import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import type { AgentId, ComponentCompatibility, DetectedAgent, InstallPlan, PlannedFile, ResourceSummary } from "../shared/types.js";
 import { buildSkillPlan } from "./install.js";
 
@@ -85,4 +85,17 @@ export async function buildUniversalPackagePlan(root: string, packageId: string,
   }
   if (!files.length) throw new Error(`No supported skills, rules, commands, or agents found under ${root}`);
   return { packageId, files, targetAgents: agents.map((agent) => agent.id), warnings: [...new Set(warnings)] };
+}
+
+export async function addRootFileExports(plan: InstallPlan, packageRoot: string, targetRoot: string, exports: Array<{ source: string; target: string }>): Promise<void> {
+  const sourceRoot = resolve(packageRoot); const destinationRoot = resolve(targetRoot);
+  for (const item of exports) {
+    if (!item.source || !item.target || isAbsolute(item.source) || isAbsolute(item.target)) throw new Error(`Root-file exports must use non-empty relative paths: ${item.source} -> ${item.target}`);
+    const source = resolve(sourceRoot, item.source); const target = resolve(destinationRoot, item.target);
+    if (source !== sourceRoot && !source.startsWith(`${sourceRoot}${sep}`)) throw new Error(`Root-file source escapes package: ${item.source}`);
+    if (target !== destinationRoot && !target.startsWith(`${destinationRoot}${sep}`)) throw new Error(`Root-file target escapes allowed scope: ${item.target}`);
+    const info = await lstat(source);
+    if (info.isSymbolicLink() || (!info.isFile() && !info.isDirectory())) throw new Error(`Root-file source must be a real file or directory: ${item.source}`);
+    plan.files.push({ source, target, componentType: "root", compatibility: "native" });
+  }
 }

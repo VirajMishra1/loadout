@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { loadEffectiveCatalog, rankCatalog, refreshCatalog, selectCatalogPackages } from "../src/core/catalog.js";
+import { loadCatalog, loadEffectiveCatalog, rankCatalog, refreshCatalog, selectCatalogPackages, validateCatalog } from "../src/core/catalog.js";
 import type { CatalogPackage } from "../src/shared/types.js";
 
 const packageRecord = (id: string, tier: CatalogPackage["tier"], stars: number): CatalogPackage => ({
@@ -34,6 +35,68 @@ describe("catalog ranking", () => {
     const packages = [packageRecord("one", "community", 1)];
     expect(selectCatalogPackages(packages, { mode: "custom", packageIds: ["one"] })[0].id).toBe("one");
     expect(() => selectCatalogPackages(packages, { mode: "custom", packageIds: ["missing"] })).toThrow(/Unknown catalog/);
+  });
+});
+
+describe("catalog evidence validation", () => {
+  const verified = {
+    ...packageRecord("verified-package", "stable", 1),
+    license: "MIT",
+    components: ["skill"] as const,
+    operatingSystems: ["windows", "macos", "linux"] as const,
+    source: {
+      type: "github" as const,
+      url: "https://github.com/example/verified-package",
+      defaultBranch: "main",
+      commit: "a".repeat(40),
+      evidencePaths: ["skills/example/SKILL.md"],
+      verifiedAt: "2026-07-14T18:17:03Z"
+    }
+  };
+
+  it("loads the bundled catalog with pinned source, component, platform, and license evidence", async () => {
+    const catalog = await loadCatalog();
+    expect(catalog.length).toBeGreaterThanOrEqual(18);
+    for (const item of catalog) {
+      expect(item.source?.commit).toMatch(/^[a-f0-9]{40}$/);
+      expect(item.source?.url).toBe(`https://github.com/${item.repository}`);
+      expect(item.components?.length).toBeGreaterThan(0);
+      expect(item.operatingSystems).toEqual(["windows", "macos", "linux"]);
+      expect(item.license).toBeTruthy();
+    }
+  });
+
+  it("rejects invalid catalog records with actionable errors", () => {
+    const invalid: Array<{ value: unknown; message: RegExp }> = [
+      { value: {}, message: /Catalog must be an array/ },
+      { value: [{ ...verified, id: "Not Kebab" }], message: /kebab-case/ },
+      { value: [{ ...verified, repository: "invalid" }], message: /owner\/repository/ },
+      { value: [{ ...verified, tier: "untrusted" }], message: /tier/ },
+      { value: [{ ...verified, stars: -1 }], message: /stars/ },
+      { value: [{ ...verified, components: ["skill", "skill"] }], message: /duplicates/ },
+      { value: [{ ...verified, operatingSystems: ["macos", "beos"] }], message: /operatingSystems/ },
+      { value: [{ ...verified, source: { ...verified.source, url: "https://github.com/example/other" } }], message: /source.url/ },
+      { value: [{ ...verified, source: { ...verified.source, commit: "short" } }], message: /full Git SHA/ },
+      { value: [{ ...verified, source: { ...verified.source, evidencePaths: ["../escape"] } }], message: /evidencePaths/ },
+      { value: [{ ...verified, source: undefined }], message: /immutable source evidence/ }
+    ];
+    for (const item of invalid) expect(() => validateCatalog(item.value, { requireEvidence: true })).toThrow(item.message);
+  });
+
+  it("rejects duplicate package ids and repositories", () => {
+    expect(() => validateCatalog([verified, { ...verified, displayName: "Duplicate" }], { requireEvidence: true })).toThrow(/duplicates id/);
+    expect(() => validateCatalog([verified, { ...verified, id: "another-package" }], { requireEvidence: true })).toThrow(/duplicates repository/);
+  });
+
+  it("reports malformed bundled-style JSON before selection", async () => {
+    const directory = await mkdtemp(`${tmpdir()}/loadout-catalog-json-`);
+    const path = join(directory, "packages.json");
+    try {
+      await writeFile(path, JSON.stringify([{ ...verified, source: { ...verified.source, verifiedAt: "not-a-date" } }]));
+      await expect(loadCatalog(path)).rejects.toThrow(/verifiedAt/);
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
   });
 });
 

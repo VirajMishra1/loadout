@@ -2,6 +2,22 @@ export type AgentId = "claude-code" | "codex" | "cursor" | "gemini-cli" | "openc
 
 export type PackageTier = "official" | "stable" | "trending" | "community";
 
+/** Operating systems on which Loadout can fetch and inspect a public Git source. */
+export type OperatingSystem = "windows" | "macos" | "linux";
+
+/**
+ * Immutable, reviewable provenance for a catalog record. `evidencePaths` are
+ * repository-relative paths observed at `commit`; they are not executable.
+ */
+export interface CatalogSourceEvidence {
+  type: "github";
+  url: string;
+  defaultBranch: string;
+  commit: string;
+  evidencePaths: string[];
+  verifiedAt: string;
+}
+
 export interface CatalogPackage {
   id: string;
   displayName: string;
@@ -9,6 +25,14 @@ export interface CatalogPackage {
   description: string;
   category: string;
   tier: PackageTier;
+  /** SPDX identifier returned by GitHub, or NOASSERTION when GitHub reports none. */
+  license?: string;
+  /** Component kinds evidenced by the pinned repository snapshot. */
+  components?: ComponentType[];
+  /** Platforms on which Loadout's Git source inspection is supported. */
+  operatingSystems?: OperatingSystem[];
+  /** Pinned GitHub source and the paths used to classify its components. */
+  source?: CatalogSourceEvidence;
   stars?: number;
   /** Live GitHub metadata, populated by the discovery refresh command. */
   lastUpdatedAt?: string;

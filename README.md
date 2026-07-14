@@ -144,6 +144,20 @@ Repository installs are currently public GitHub repositories only. Loadout clone
 shallow snapshot, records the resolved commit, never runs repository lifecycle scripts,
 and copies only discovered `SKILL.md` directories into the selected agent roots.
 
+## Catalog provenance and attribution
+
+The bundled catalog contains 18 public repositories selected for inspectable skills,
+plugins, or MCP tooling. Every record pins the GitHub HEAD commit observed on
+2026-07-14 and records the exact repository-relative paths used as component evidence.
+It also records the SPDX identifier GitHub returned; `NOASSERTION` means GitHub did
+not report an SPDX license, not that Loadout inferred one. The catalog is a discovery
+index, not a redistribution of any upstream package: the source, license, and current
+upstream terms always remain authoritative.
+
+`loadout catalog --refresh` refreshes mutable metadata such as stars and topics, but
+does not rewrite the reviewed commit evidence. A future catalog-review update must
+verify a new commit and its paths before changing those fields.
+
 ## Two-minute hackathon demo
 
 This is a live-data demo: the package is fetched from GitHub at the time you run it,

@@ -24,7 +24,11 @@ async function discoverPlugins(root: string): Promise<PluginSummary[]> {
       if (entry.name === ".git" || entry.name === "node_modules") continue;
       const path = join(directory, entry.name);
       if (entry.isDirectory()) { await visit(path, depth + 1); continue; }
-      if (!entry.isFile() || entry.name !== "plugin.json" || !directory.split(/[\\/]/).includes(".claude-plugin")) continue;
+      // Claude and Codex use the same plugin.json convention but different
+      // manifest directories. We parse declarations only; lifecycle code and
+      // hooks are deliberately never loaded or executed.
+      const pathParts = directory.split(/[\\/]/);
+      if (!entry.isFile() || entry.name !== "plugin.json" || (!pathParts.includes(".claude-plugin") && !pathParts.includes(".codex-plugin"))) continue;
       try {
         const value = JSON.parse(await readFile(path, "utf8")) as Record<string, unknown>;
         const name = typeof value.name === "string" && value.name ? value.name : relative(root, dirname(path)).split(/[\\/]/).at(-2) ?? "unnamed";
@@ -79,6 +83,7 @@ export async function inspectPackage(root: string): Promise<PackageInspection> {
   const manifests = await discoverMcpManifests(resolvedRoot);
   const resources = await discoverResources(resolvedRoot);
   const plugins = await discoverPlugins(resolvedRoot);
+  plugins.sort((a, b) => a.path.localeCompare(b.path));
   const mcpServers = manifests.flatMap((manifest) => manifest.servers.map((server) => ({
     type: "mcp" as const,
     name: server.name,

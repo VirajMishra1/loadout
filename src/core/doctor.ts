@@ -2,9 +2,12 @@ import { access, constants } from "node:fs/promises";
 import { dirname } from "node:path";
 import { detectAgents, directoryExists, loadoutHome, userHome } from "./paths.js";
 import type { DetectedAgent } from "../shared/types.js";
+import type { AgentInventory } from "../shared/types.js";
+import { inspectAgents } from "./agent-inspection.js";
 
 export interface DoctorAgent {
   agent: DetectedAgent;
+  inventory: AgentInventory;
   skillsRootExists: boolean;
   writable: boolean;
   issues: string[];
@@ -42,14 +45,15 @@ export async function runDoctor(): Promise<DoctorReport> {
   const loadoutHomeExists = await directoryExists(stateHome);
   const loadoutHomeWritable = await writable(stateHome);
   const agents = await detectAgents();
-  const diagnosedAgents = await Promise.all(agents.map(async (agent) => {
+  const inventories = await inspectAgents(agents);
+  const diagnosedAgents = await Promise.all(agents.map(async (agent, index) => {
     const exists = await directoryExists(agent.skillsDirectory);
     const canWrite = await writable(agent.skillsDirectory);
     const issues: string[] = [];
     if (!agent.installed) issues.push(`Install or configure ${agent.displayName} to enable it.`);
     if (!exists) issues.push("Skills directory does not exist yet; Loadout will create it during install.");
     if (!canWrite) issues.push("Skills directory is not writable; check permissions or choose another home.");
-    return { agent, skillsRootExists: exists, writable: canWrite, issues };
+    return { agent, inventory: inventories[index], skillsRootExists: exists, writable: canWrite, issues };
   }));
   const issues: string[] = [];
   if (!loadoutHomeExists) issues.push("Loadout state directory does not exist yet; it will be created on first install.");
@@ -74,6 +78,13 @@ export function formatDoctorReport(report: DoctorReport): string {
   for (const entry of report.agents) {
     const status = entry.agent.installed ? "detected" : "not found";
     lines.push(`  ${entry.agent.installed ? "✓" : "○"} ${entry.agent.displayName}: ${status}`, `    skills: ${entry.agent.skillsDirectory} (${entry.skillsRootExists ? "present" : "will be created"}, ${entry.writable ? "writable" : "not writable"})`);
+    for (const component of entry.inventory.components) {
+      const detail = component.scanned
+        ? `${component.directoryExists ? `${component.entries.length} item(s)` : "not created"}${component.directory ? ` at ${component.directory}` : ""}`
+        : component.note ?? "not inspected";
+      lines.push(`    ${component.type}: ${component.compatibility}; ${detail}`);
+    }
+    for (const warning of entry.inventory.warnings) lines.push(`    ! ${warning}`);
     for (const issue of entry.issues) lines.push(`    ! ${issue}`);
   }
   if (report.issues.length) {

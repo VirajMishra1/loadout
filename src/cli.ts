@@ -24,9 +24,11 @@ import { createPackage, packPackage, publishLocalPackage, publishRemotePackage, 
 import { startRegistryServer } from "./core/registry-api.js";
 import { auditLoadout, formatAuditReport } from "./core/audit.js";
 import { ADAPTER_CAPABILITIES, formatCapabilityMatrix } from "./core/adapters.js";
+import { formatAgentInventory, inspectAgents } from "./core/agent-inspection.js";
 import { generateSigningKeys, signJsonFile, verifyJsonFile } from "./core/signing.js";
 import { applyPortableImport, exportPortableLoadout, planPortableImport } from "./core/portable.js";
 import { applyCodexMcpConfigPlan, defaultCodexMcpConfigPath, planCodexMcpConfig } from "./core/codex-mcp.js";
+import { formatDemoResult, runIsolatedDemo } from "./core/demo.js";
 
 const program = new Command();
 program.name("loadout").description("Universal upgrade manager for AI coding agents").version("0.1.0");
@@ -284,17 +286,44 @@ program.command("sync")
     console.log(`Synchronized successfully.${result.snapshotId ? ` Snapshot: ${result.snapshotId}.` : ""} Lockfile: ${result.lockfile}`);
   });
 
-program.command("status").description("Show detected coding agents").action(async () => {
+program.command("status")
+  .description("Show detected coding agents and their managed component inventory")
+  .option("--json", "emit machine-readable inventory")
+  .action(async (options: { json?: boolean }) => {
   const agents = await detectAgents();
-  for (const agent of agents) {
-    console.log(`${agent.installed ? "✓" : "○"} ${agent.displayName} — ${agent.skillsDirectory}`);
-  }
+  const inventory = await inspectAgents(agents);
+  if (options.json) return console.log(JSON.stringify(inventory, null, 2));
+  for (const item of inventory) console.log(formatAgentInventory(item));
 });
+
+program.command("demo")
+  .description("Run a real install + rollback in a disposable profile; never touches local agent config")
+  .option("--repository <owner/repo>", "public GitHub skill repository", "obra/superpowers")
+  .option("--package <id>", "package identifier", "obra-superpowers")
+  .option("--agents <ids>", "comma-separated virtual demo targets", "codex")
+  .option("--keep", "retain the isolated profile after install for inspection")
+  .option("--json", "emit the demo result as JSON")
+  .action(async (options: { repository: string; package: string; agents: string; keep?: boolean; json?: boolean }) => {
+    const result = await runIsolatedDemo({
+      repository: options.repository,
+      packageId: options.package,
+      agents: options.agents.split(",").filter(Boolean) as AgentId[],
+      keep: options.keep
+    });
+    console.log(options.json ? JSON.stringify(result, null, 2) : formatDemoResult(result));
+  });
 
 program.command("capabilities")
   .description("Show honest native, adapted, and unsupported adapter capabilities")
   .option("--json", "emit machine-readable JSON")
-  .action((options: { json?: boolean }) => console.log(options.json ? JSON.stringify(ADAPTER_CAPABILITIES, null, 2) : formatCapabilityMatrix()));
+  .option("--inspect", "also inspect managed component directories on this machine")
+  .action(async (options: { json?: boolean; inspect?: boolean }) => {
+    if (!options.inspect) return console.log(options.json ? JSON.stringify(ADAPTER_CAPABILITIES, null, 2) : formatCapabilityMatrix());
+    const inventory = await inspectAgents(await detectAgents());
+    if (options.json) return console.log(JSON.stringify({ capabilities: ADAPTER_CAPABILITIES, inventory }, null, 2));
+    console.log(`${formatCapabilityMatrix()}\n\nLocal managed-component inventory:`);
+    for (const item of inventory) console.log(formatAgentInventory(item));
+  });
 
 program.command("doctor")
   .description("Check agents, skill directories, permissions, and Loadout setup")

@@ -25,6 +25,7 @@ describe("CLI contract", () => {
     expect(result.stdout).toContain("Universal upgrade manager for AI coding agents");
     expect(result.stdout).toContain("status");
     expect(result.stdout).toContain("doctor");
+    expect(result.stdout).toContain("demo");
     expect(result.stdout).toContain("plan");
     expect(result.stdout).toContain("rollback");
   });

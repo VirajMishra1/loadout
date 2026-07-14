@@ -16,6 +16,9 @@ describe("doctor", () => {
     expect(report.platform).toBe(process.platform);
     expect(report.userHome).toBe("/tmp/loadout-doctor-home");
     expect(report.agents).toHaveLength(6);
+    expect(report.agents[0].inventory.components).toHaveLength(7);
+    expect(report.agents[0].inventory.components.find((component) => component.type === "mcp")).toMatchObject({ scanned: false });
     expect(formatDoctorReport(report)).toContain("Loadout doctor");
+    expect(formatDoctorReport(report)).toContain("Unsupported by this adapter");
   });
 });

@@ -1,8 +1,8 @@
 import { lstat, readdir } from "node:fs/promises";
-import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
+import { isAbsolute, join, relative, resolve, sep } from "node:path";
 import type { AgentId, ComponentCompatibility, DetectedAgent, InstallPlan, PlannedFile, ResourceSummary } from "../shared/types.js";
 import { buildSkillPlan } from "./install.js";
-import { adapterCapabilities } from "./adapters.js";
+import { adapterCapabilities, agentComponentDirectory } from "./adapters.js";
 
 const RESOURCE_DIRECTORIES = new Map<string, ResourceSummary["type"]>([["rules", "rule"], ["commands", "command"], ["agents", "agent"]]);
 
@@ -38,25 +38,6 @@ export async function discoverResources(root: string): Promise<ResourceSummary[]
   return resources.sort((a, b) => a.type.localeCompare(b.type) || a.path.localeCompare(b.path));
 }
 
-interface TargetRule { compatibility: ComponentCompatibility; directory?: string }
-
-function targetRule(agent: DetectedAgent, type: ResourceSummary["type"]): TargetRule {
-  const declared = adapterCapabilities(agent.id).components[type];
-  if (declared === "unsupported") return { compatibility: "unsupported" };
-  const skillBase = dirname(agent.skillsDirectory);
-  if (agent.id === "claude-code") return { compatibility: declared, directory: join(skillBase, `${type}s`) };
-  if (agent.id === "codex") {
-    const home = dirname(dirname(agent.skillsDirectory));
-    if (type === "command") return { compatibility: declared, directory: join(home, ".codex", "prompts") };
-    if (type === "agent") return { compatibility: declared, directory: join(home, ".codex", "agents") };
-    return { compatibility: "unsupported" };
-  }
-  if (agent.id === "cursor") return { compatibility: declared, directory: join(skillBase, `${type}s`) };
-  if (agent.id === "gemini-cli" && type === "command") return { compatibility: declared, directory: join(skillBase, "commands") };
-  if (agent.id === "opencode" && (type === "command" || type === "agent")) return { compatibility: declared, directory: join(skillBase, `${type}s`) };
-  return { compatibility: "unsupported" };
-}
-
 function safeSource(root: string, path: string): string {
   const base = resolve(root);
   const source = resolve(base, path);
@@ -77,13 +58,14 @@ export async function buildUniversalPackagePlan(root: string, packageId: string,
   const resources = await discoverResources(root);
   for (const resource of resources) {
     for (const agent of agents) {
-      const rule = targetRule(agent, resource.type);
-      if (!rule.directory) {
+      const directory = agentComponentDirectory(agent, resource.type);
+      const compatibility = adapterCapabilities(agent.id).components[resource.type];
+      if (!directory) {
         warnings.push(`${agent.displayName}: ${resource.type} '${resource.name}' is unsupported and will not be installed.`);
         continue;
       }
-      files.push({ source: safeSource(root, resource.path), target: join(rule.directory, packageId, resource.path.split("/").at(-1)!), componentType: resource.type, compatibility: rule.compatibility });
-      if (rule.compatibility === "adapted") warnings.push(`${agent.displayName}: ${resource.type} '${resource.name}' will be installed using an adapted layout.`);
+      files.push({ source: safeSource(root, resource.path), target: join(directory, packageId, resource.path.split("/").at(-1)!), componentType: resource.type, compatibility });
+      if (compatibility === "adapted") warnings.push(`${agent.displayName}: ${resource.type} '${resource.name}' will be installed using an adapted layout.`);
     }
   }
   if (!files.length) throw new Error(`No supported skills, rules, commands, or agents found under ${root}`);

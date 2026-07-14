@@ -211,6 +211,26 @@ change visible; the installer records the exact Git commit; and rollback restore
 previous state. For a presentation, leave the dashboard visible between steps 1 and 2
 and show the generated snapshot identifier after step 4.
 
+### One-command safe demo
+
+For a presentation or first look, the same real install path is available as one
+command. It fetches the verified public `obra/superpowers` repository, installs it into
+an isolated temporary **virtual Codex profile**, records a snapshot, verifies the
+managed files, rolls everything back, and deletes that temporary profile. It never
+reads from or writes to your actual agent configuration, even if Codex is installed.
+
+```bash
+node dist/src/cli.js demo
+```
+
+Use `--keep` only when you want to inspect the isolated result; the command prints its
+temporary path. Delete that directory afterwards. You can choose a different public
+repository or virtual targets, but the same safety boundary applies:
+
+```bash
+node dist/src/cli.js demo --repository obra/superpowers --package obra-superpowers --agents codex,claude-code --keep
+```
+
 On Windows PowerShell, use these equivalent setup commands before running the same
 `node dist/src/cli.js` commands:
 

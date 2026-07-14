@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { join } from "node:path";
 import { detectAgents } from "./core/paths.js";
+import { inspectAgents } from "./core/agent-inspection.js";
 import { loadEffectiveCatalog, rankCatalog } from "./core/catalog.js";
 import { buildUpdatePlan } from "./core/update.js";
 import { buildHealthReport } from "./core/health.js";
@@ -77,7 +78,7 @@ async function route(request: IncomingMessage, response: ServerResponse, context
     if (pathname.startsWith("/api/") && request.method !== "GET") { await sendJson(response, 405, { error: "Method not allowed" }); return; }
     if (pathname === "/api/status") {
       const agents = await detectAgents();
-      await sendJson(response, 200, { agents, platform: process.platform });
+      await sendJson(response, 200, { agents, inventory: await inspectAgents(agents), platform: process.platform });
       return;
     }
     if (pathname === "/api/catalog") {

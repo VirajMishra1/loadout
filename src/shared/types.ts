@@ -62,6 +62,35 @@ export interface PlannedFile {
 export type ComponentType = "skill" | "rule" | "command" | "agent" | "mcp" | "plugin" | "root";
 export type ComponentCompatibility = "native" | "adapted" | "unsupported";
 
+/** A non-executable entry observed below an agent-owned Loadout directory. */
+export interface ManagedComponentEntry {
+  /** Path relative to the inspected component directory. */
+  path: string;
+  kind: "file" | "directory" | "symlink";
+}
+
+/**
+ * A truthful local inventory for one component type.  `scanned` is false for
+ * components that do not have a safe, agent-owned filesystem location to
+ * inspect; in particular it never implies that Loadout can install an
+ * unsupported component.
+ */
+export interface AgentComponentInventory {
+  type: ComponentType;
+  compatibility: ComponentCompatibility;
+  scanned: boolean;
+  directory?: string;
+  directoryExists?: boolean;
+  entries: ManagedComponentEntry[];
+  note?: string;
+}
+
+export interface AgentInventory {
+  agent: DetectedAgent;
+  components: AgentComponentInventory[];
+  warnings: string[];
+}
+
 export interface ResourceSummary {
   type: "rule" | "command" | "agent";
   name: string;

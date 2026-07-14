@@ -1,4 +1,5 @@
 import { existsSync } from "node:fs";
+import { lstat } from "node:fs/promises";
 import { join } from "node:path";
 import type { AgentId, DetectedAgent, InstallPlan } from "../shared/types.js";
 import { createSnapshot, restoreSnapshot } from "./snapshot.js";
@@ -17,7 +18,13 @@ export function installedAgents(agents: DetectedAgent[], requested?: AgentId[]):
 
 export async function buildSkillPlan(source: string, packageId: string, agents: DetectedAgent[]): Promise<InstallPlan> {
   if (!existsSync(source)) throw new Error(`Package source does not exist: ${source}`);
-  await validateSkillDirectory(source).catch(() => undefined);
+  const sourceStat = await lstat(source);
+  if (!sourceStat.isDirectory() || sourceStat.isSymbolicLink()) {
+    throw new Error(`Package source must be a real directory: ${source}`);
+  }
+  // A repository may contain one skill at its root or several nested skills.
+  // Validate the root when present; planSkillInstall validates every nested skill.
+  if (existsSync(join(source, "SKILL.md"))) await validateSkillDirectory(source);
   const plan = await planSkillInstall(source, agents.map((agent) => agent.skillsDirectory), packageId);
   plan.targetAgents = agents.map((agent) => agent.id);
   return plan;

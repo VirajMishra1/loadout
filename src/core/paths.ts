@@ -15,12 +15,26 @@ const definitions: Array<{ id: AgentId; displayName: string; binary: string; dir
   { id: "hermes", displayName: "Hermes", binary: "hermes", directory: ".hermes/skills" }
 ];
 
-export function loadoutHome(): string {
-  return process.env.LOADOUT_HOME ?? join(process.env.HOME ?? process.cwd(), ".loadout");
+type PathEnvironment = NodeJS.ProcessEnv;
+
+export function userHome(env: PathEnvironment = process.env, platform: NodeJS.Platform = process.platform): string {
+  if (env.LOADOUT_USER_HOME) return env.LOADOUT_USER_HOME;
+  // USERPROFILE is the canonical home variable on native Windows. HOME is
+  // still accepted as a fallback for Git Bash/WSL and test environments.
+  if (platform === "win32") return env.USERPROFILE ?? env.HOME ?? process.cwd();
+  return env.HOME ?? env.USERPROFILE ?? process.cwd();
 }
 
-export function userHome(): string {
-  return process.env.LOADOUT_USER_HOME ?? process.env.HOME ?? process.env.USERPROFILE ?? process.cwd();
+export function loadoutHome(env: PathEnvironment = process.env, platform: NodeJS.Platform = process.platform): string {
+  if (env.LOADOUT_HOME) return env.LOADOUT_HOME;
+  if (platform === "win32") {
+    // Application state belongs in roaming app data on Windows rather than a
+    // dot-directory in the profile. APPDATA may be absent in stripped-down
+    // shells, so fall back to a conventional profile path.
+    const appData = env.APPDATA ?? join(userHome(env, platform), "AppData", "Roaming");
+    return join(appData, "loadout");
+  }
+  return join(userHome(env, platform), ".loadout");
 }
 
 async function hasBinary(binary: string): Promise<boolean> {

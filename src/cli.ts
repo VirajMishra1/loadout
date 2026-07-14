@@ -522,4 +522,10 @@ program.action(async () => {
   console.log("Run `loadout status` or `loadout catalog` for details.");
 });
 
-await program.parseAsync();
+try {
+  await program.parseAsync();
+} catch (error) {
+  const message = error instanceof Error ? error.message : String(error);
+  console.error(`Error: ${message}`);
+  process.exitCode = 1;
+}

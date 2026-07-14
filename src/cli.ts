@@ -6,6 +6,7 @@ import { readFile, readdir } from "node:fs/promises";
 import { buildSkillPlan, applySkillInstall, installedAgents } from "./core/install.js";
 import { restoreSnapshot } from "./core/snapshot.js";
 import type { AgentId } from "./shared/types.js";
+import { fetchRepositorySnapshot } from "./core/source.js";
 
 const program = new Command();
 program.name("loadout").description("Universal upgrade manager for AI coding agents").version("0.1.0");
@@ -23,25 +24,31 @@ program.command("catalog").description("List the bundled real package catalog").
 });
 
 program.command("plan")
-  .description("Plan installing a local skill package into detected agents")
-  .requiredOption("--source <directory>", "local package directory containing SKILL.md")
+  .description("Plan installing a package from a local directory or public GitHub repository")
+  .option("--source <directory>", "local package directory containing SKILL.md")
+  .option("--repository <owner/repo>", "public GitHub repository containing SKILL.md")
   .requiredOption("--package <id>", "stable package identifier")
   .option("--agents <ids>", "comma-separated agent ids; defaults to all detected agents")
-  .action(async (options: { source: string; package: string; agents?: string }) => {
+  .action(async (options: { source?: string; repository?: string; package: string; agents?: string }) => {
+    if ((options.source ? 1 : 0) + (options.repository ? 1 : 0) !== 1) throw new Error("Provide exactly one of --source or --repository");
+    const source = options.repository ? (await fetchRepositorySnapshot(options.repository)).path : options.source!;
     const agents = installedAgents(await detectAgents(), options.agents?.split(",") as AgentId[] | undefined);
-    const plan = await buildSkillPlan(options.source, options.package, agents);
+    const plan = await buildSkillPlan(source, options.package, agents);
     console.log(JSON.stringify(plan, null, 2));
   });
 
 program.command("install")
-  .description("Install a local skill package into detected agents")
-  .requiredOption("--source <directory>", "local package directory containing SKILL.md")
+  .description("Install a package from a local directory or public GitHub repository")
+  .option("--source <directory>", "local package directory containing SKILL.md")
+  .option("--repository <owner/repo>", "public GitHub repository containing SKILL.md")
   .requiredOption("--package <id>", "stable package identifier")
   .option("--agents <ids>", "comma-separated agent ids; defaults to all detected agents")
   .option("--yes", "apply without interactive confirmation")
-  .action(async (options: { source: string; package: string; agents?: string; yes?: boolean }) => {
+  .action(async (options: { source?: string; repository?: string; package: string; agents?: string; yes?: boolean }) => {
+    if ((options.source ? 1 : 0) + (options.repository ? 1 : 0) !== 1) throw new Error("Provide exactly one of --source or --repository");
+    const source = options.repository ? (await fetchRepositorySnapshot(options.repository)).path : options.source!;
     const agents = installedAgents(await detectAgents(), options.agents?.split(",") as AgentId[] | undefined);
-    const plan = await buildSkillPlan(options.source, options.package, agents);
+    const plan = await buildSkillPlan(source, options.package, agents);
     console.log(`Installing ${plan.packageId} for ${plan.targetAgents.join(", ")}...`);
     if (!options.yes) console.log("Review the plan with `loadout plan`; use --yes to apply it.");
     if (!options.yes) return;

@@ -3,7 +3,7 @@ import { mkdtemp, mkdir, readFile, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { applySkillInstall, buildSkillPlan } from "../src/core/install.js";
-import { planSkillInstall } from "../src/core/skills.js";
+import { detectInstallConflicts, planSkillInstall } from "../src/core/skills.js";
 import { restoreSnapshot } from "../src/core/snapshot.js";
 import type { DetectedAgent } from "../src/shared/types.js";
 
@@ -94,5 +94,13 @@ describe("skill installation transaction", () => {
     await writeFile(join(outside, "SKILL.md"), "---\nname: outside\ndescription: Outside\n---\n");
     await import("node:fs/promises").then(({ symlink }) => symlink(outside, join(source, "linked"), "dir"));
     await expect(planSkillInstall(source, [target], "unsafe")).rejects.toThrow(/symlink/);
+  });
+
+  it("reports blocking target collisions and non-blocking duplicate names", () => {
+    const first = { packageId: "first", targetAgents: [], warnings: [], files: [{ source: "/a", target: "/skills/shared", skillName: "shared" }] };
+    const second = { packageId: "second", targetAgents: [], warnings: [], files: [{ source: "/b", target: "/skills/shared", skillName: "shared" }] };
+    const third = { packageId: "third", targetAgents: [], warnings: [], files: [{ source: "/c", target: "/skills/other", skillName: "shared" }] };
+    expect(detectInstallConflicts([first, second])).toEqual(expect.arrayContaining([expect.objectContaining({ code: "target-collision", severity: "blocking" })]));
+    expect(detectInstallConflicts([first, third])).toEqual(expect.arrayContaining([expect.objectContaining({ code: "duplicate-skill-name", severity: "warning" })]));
   });
 });

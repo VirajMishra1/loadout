@@ -1,9 +1,9 @@
 import { cp, lstat, mkdir, readdir, readFile, rm } from "node:fs/promises";
 import { join, relative, resolve, sep } from "node:path";
-import type { InstallPlan, PlannedFile } from "../shared/types.js";
+import type { ConflictDiagnostic, InstallPlan, PlannedFile } from "../shared/types.js";
 import { ensureDirectory } from "./paths.js";
 
-async function findSkillDirectories(root: string): Promise<string[]> {
+export async function discoverSkillDirectories(root: string): Promise<string[]> {
   const result: string[] = [];
   async function visit(directory: string, depth: number): Promise<void> {
     if (depth > 4) return;
@@ -46,7 +46,7 @@ function safeTarget(root: string, target: string): string {
 }
 
 export async function planSkillInstall(sourceRoot: string, targetDirectories: string[], packageId: string): Promise<InstallPlan> {
-  const skills = await findSkillDirectories(sourceRoot);
+  const skills = await discoverSkillDirectories(sourceRoot);
   if (skills.length === 0) throw new Error(`No SKILL.md found under ${sourceRoot}`);
   const files: PlannedFile[] = [];
   for (const targetRoot of targetDirectories) {
@@ -62,10 +62,43 @@ export async function planSkillInstall(sourceRoot: string, targetDirectories: st
     for (const skill of skills) {
       const name = skill === sourceRoot ? packageId : skill.split(sep).at(-1) ?? packageId;
       const target = safeTarget(targetRoot, join(targetRoot, name));
-      files.push({ source: skill, target });
+      const frontmatter = await readFile(join(skill, "SKILL.md"), "utf8");
+      const skillName = frontmatter.match(/^name:\s*(\S+)/m)?.[1];
+      files.push({ source: skill, target, skillName });
     }
   }
-  return { packageId, files, targetAgents: [], warnings: [] };
+  const conflicts = detectInstallConflicts([{ packageId, files, targetAgents: [], warnings: [] }]);
+  return { packageId, files, targetAgents: [], warnings: conflicts.filter((item) => item.severity === "warning").map((item) => item.message), conflicts };
+}
+
+/** Compare one or more plans before any filesystem mutation occurs. */
+export function detectInstallConflicts(plans: InstallPlan[]): ConflictDiagnostic[] {
+  const diagnostics: ConflictDiagnostic[] = [];
+  const byTarget = new Map<string, Array<{ packageId: string; target: string }>>();
+  const byName = new Map<string, Array<{ packageId: string; target: string }>>();
+  for (const plan of plans) {
+    for (const file of plan.files) {
+      const target = resolve(file.target);
+      const targetItems = byTarget.get(target) ?? [];
+      targetItems.push({ packageId: plan.packageId, target });
+      byTarget.set(target, targetItems);
+      if (file.skillName) {
+        const nameItems = byName.get(file.skillName.toLowerCase()) ?? [];
+        nameItems.push({ packageId: plan.packageId, target });
+        byName.set(file.skillName.toLowerCase(), nameItems);
+      }
+    }
+  }
+  for (const [target, items] of byTarget) {
+    const packages = [...new Set(items.map((item) => item.packageId))];
+    if (items.length > 1) diagnostics.push({ severity: "blocking", code: "target-collision", message: `Multiple packages target the same skill directory: ${target}`, packageIds: packages, targets: [target] });
+  }
+  for (const [name, items] of byName) {
+    const packages = [...new Set(items.map((item) => item.packageId))];
+    const targets = [...new Set(items.map((item) => item.target))];
+    if (packages.length > 1 && targets.length > 1) diagnostics.push({ severity: "warning", code: "duplicate-skill-name", message: `Skill name '${name}' appears in multiple packages with different targets`, packageIds: packages, targets });
+  }
+  return diagnostics;
 }
 
 export async function applySkillPlan(plan: InstallPlan): Promise<void> {

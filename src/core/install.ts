@@ -32,6 +32,8 @@ export async function buildSkillPlan(source: string, packageId: string, agents: 
 }
 
 export async function applySkillInstall(plan: InstallPlan, metadata?: { repository?: string; resolvedCommit?: string }): Promise<string> {
+  const blocking = (plan.conflicts ?? []).filter((conflict) => conflict.severity === "blocking");
+  if (blocking.length > 0) throw new Error(`Installation blocked by conflicts: ${blocking.map((conflict) => conflict.message).join("; ")}`);
   const snapshot = await createSnapshot(plan.files.map((file) => file.target));
   try {
     await applySkillPlan(plan);

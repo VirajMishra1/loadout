@@ -29,6 +29,16 @@ export interface DetectedAgent {
 export interface PlannedFile {
   source: string;
   target: string;
+  /** Frontmatter name when available, used for conflict diagnostics. */
+  skillName?: string;
+}
+
+export interface ConflictDiagnostic {
+  severity: "blocking" | "warning";
+  code: "target-collision" | "duplicate-skill-name";
+  message: string;
+  packageIds: string[];
+  targets: string[];
 }
 
 export interface InstallPlan {
@@ -36,6 +46,7 @@ export interface InstallPlan {
   files: PlannedFile[];
   targetAgents: AgentId[];
   warnings: string[];
+  conflicts?: ConflictDiagnostic[];
 }
 
 export interface Snapshot {
@@ -99,4 +110,31 @@ export interface McpConfigSnapshot {
   existed: boolean;
   content?: string;
   createdAt: string;
+}
+
+export interface SkillSummary {
+  type: "skill";
+  name: string;
+  description?: string;
+  path: string;
+}
+
+export interface McpServerSummary {
+  type: "mcp";
+  name: string;
+  transport: "command" | "url" | "unknown";
+  command?: string;
+  url?: string;
+  argumentCount: number;
+  environmentVariableCount: number;
+  path: string;
+  warnings: string[];
+}
+
+export interface PackageInspection {
+  root: string;
+  skills: SkillSummary[];
+  mcpServers: McpServerSummary[];
+  counts: { skills: number; mcpServers: number; manifests: number };
+  warnings: string[];
 }

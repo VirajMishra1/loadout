@@ -627,7 +627,7 @@ modes.
 
 ### Phase 2: Agent detection
 
-- [ ] `P2-01 [SOL]` Finalize adapter contract and platform capability matrix.
+- [x] `P2-01 [SOL]` Finalize adapter contract and platform capability matrix.
 - [x] `P2-02 [TERRA]` Implement shared filesystem/path utilities.
   - Acceptance: tests cover Windows paths, POSIX paths, WSL distinction, home dirs.
 - [ ] `P2-03 [LUNA]` Add fake home-directory fixtures for all platforms.
@@ -641,25 +641,25 @@ modes.
 
 ### Phase 3: Package parsing and normalization
 
-- [ ] `P3-01 [SOL]` Define normalized package/component representation.
-- [ ] `P3-02 [TERRA]` Implement `SKILL.md` parser and validation.
+- [x] `P3-01 [SOL]` Define normalized package/component representation.
+- [x] `P3-02 [TERRA]` Implement `SKILL.md` parser and validation.
 - [ ] `P3-03 [TERRA]` Implement Claude plugin manifest parser.
 - [ ] `P3-04 [TERRA]` Implement Codex plugin manifest parser.
 - [x] `P3-05 [TERRA]` Implement MCP JSON parser.
-- [ ] `P3-06 [LUNA]` Add parser fixtures from sanitized real layouts.
-- [ ] `P3-07 [TERRA]` Map parsed skills to universal component records.
+- [x] `P3-06 [LUNA]` Add parser fixtures from sanitized real layouts.
+- [x] `P3-07 [TERRA]` Map parsed skills to universal component records.
 - [ ] `P3-08 [SOL]` Define native/adapted/unsupported rules for MVP platforms.
-- [ ] `P3-09 [TERRA]` Generate compatibility summary from normalized package.
+- [x] `P3-09 [TERRA]` Generate compatibility summary from normalized package.
 
 ### Phase 4: Transaction engine
 
 - [ ] `P4-01 [SOL]` Threat-model the mutation transaction.
-- [ ] `P4-02 [TERRA]` Implement immutable package cache by commit.
+- [x] `P4-02 [TERRA]` Implement immutable package cache by commit.
 - [x] `P4-03 [TERRA]` Implement per-file SHA-256 calculation.
 - [x] `P4-04 [TERRA]` Implement snapshot creator and manifest.
-- [ ] `P4-05 [TERRA]` Implement staging directory and planned writes.
+- [x] `P4-05 [TERRA]` Implement staging directory and planned writes.
 - [x] `P4-06 [TERRA]` Implement path traversal and escaping-symlink rejection.
-- [ ] `P4-07 [TERRA]` Implement plan collision detection.
+- [x] `P4-07 [TERRA]` Implement plan collision detection.
 - [ ] `P4-08 [SOL]` Review atomic commit behavior across all three operating systems.
 - [x] `P4-09 [TERRA]` Implement commit with automatic restore on failure.
 - [x] `P4-10 [TERRA]` Implement `loadout rollback`.
@@ -674,20 +674,20 @@ modes.
 - [ ] `P5-04 [LUNA]` Gemini skill planner using approved layout.
 - [ ] `P5-05 [LUNA]` OpenCode skill planner using approved layout.
 - [ ] `P5-06 [LUNA]` Hermes skill planner using approved layout.
-- [ ] `P5-07 [SOL]` Review adapters for lossy or false compatibility claims.
+- [x] `P5-07 [SOL]` Review adapters for lossy or false compatibility claims.
 - [x] `P5-08 [TERRA]` Claude MCP config planner preserving unrelated entries.
 - [x] `P5-09 [TERRA]` Codex MCP config planner preserving unrelated entries/comments.
-- [ ] `P5-10 [TERRA]` Cursor MCP config planner preserving unrelated entries.
+- [x] `P5-10 [TERRA]` Cursor MCP config planner preserving unrelated entries.
 - [ ] `P5-11 [TERRA]` Smoke-test interface and results.
 
 ### Phase 6: CLI
 
-- [ ] `P6-01 [TERRA]` CLI bootstrap, version, help, structured error handling.
+- [x] `P6-01 [TERRA]` CLI bootstrap, version, help, structured error handling.
 - [x] `P6-02 [TERRA]` `loadout status`.
 - [x] `P6-03 [TERRA]` `loadout doctor`.
-- [ ] `P6-04 [TERRA]` `loadout plan --mode stable|maximum|custom`.
-- [ ] `P6-05 [TERRA]` `loadout apply` with confirmation.
-- [ ] `P6-06 [TERRA]` `loadout add` and `loadout remove`.
+- [x] `P6-04 [TERRA]` `loadout plan --mode stable|maximum|custom`.
+- [x] `P6-05 [TERRA]` `loadout apply` with confirmation.
+- [x] `P6-06 [TERRA]` `loadout add` and `loadout remove`.
 - [x] `P6-07 [TERRA]` `loadout update --plan`.
 - [x] `P6-08 [TERRA]` `loadout rollback`.
 - [ ] `P6-09 [LUNA]` CLI snapshot tests for help and error messages.
@@ -697,25 +697,25 @@ modes.
 
 - [ ] `P7-01 [SOL]` Define local API contract and threat boundary.
 - [ ] `P7-02 [TERRA]` Start local server on random loopback port with session token.
-- [ ] `P7-03 [TERRA]` Agents/status endpoint.
-- [ ] `P7-04 [TERRA]` Catalog/list/detail endpoints.
+- [x] `P7-03 [TERRA]` Agents/status endpoint.
+- [x] `P7-04 [TERRA]` Catalog/list/detail endpoints.
 - [ ] `P7-05 [TERRA]` Plan/apply/progress endpoints.
-- [ ] `P7-06 [TERRA]` Updates/diff/rollback endpoints.
-- [ ] `P7-07 [LUNA]` Dashboard shell, routing, typography, color tokens.
-- [ ] `P7-08 [TERRA]` Home screen.
+- [x] `P7-06 [TERRA]` Updates/diff/rollback endpoints.
+- [x] `P7-07 [LUNA]` Dashboard shell, routing, typography, color tokens.
+- [x] `P7-08 [TERRA]` Home screen.
 - [ ] `P7-09 [TERRA]` Discover screen.
 - [ ] `P7-10 [TERRA]` Installed screen.
 - [ ] `P7-11 [TERRA]` Updates and diff screen.
-- [ ] `P7-12 [LUNA]` Empty, loading, and error states.
+- [x] `P7-12 [LUNA]` Empty, loading, and error states.
 - [ ] `P7-13 [LUNA]` Keyboard and accessible-label pass.
 - [ ] `P7-14 [TERRA]` Playwright first-run happy-path test.
 - [ ] `P7-15 [SOL]` Product and security review of complete flow.
 
 ### Phase 8: Updates and safety demo
 
-- [ ] `P8-01 [TERRA]` Detect candidate commit for installed package.
-- [ ] `P8-02 [TERRA]` Generate changed-file diff.
-- [ ] `P8-03 [TERRA]` Generate instruction/script/domain/env summary.
+- [x] `P8-01 [TERRA]` Detect candidate commit for installed package.
+- [x] `P8-02 [TERRA]` Generate changed-file diff.
+- [x] `P8-03 [TERRA]` Generate instruction/script/domain/env summary.
 - [ ] `P8-04 [TERRA]` Implement approval policy for sensitive changes.
 - [ ] `P8-05 [LUNA]` Create benign Ponytail-style update fixture.
 - [ ] `P8-06 [LUNA]` Create risky update fixture adding a hook and domain.
@@ -735,8 +735,8 @@ modes.
 
 ### Phase 10: Submission
 
-- [ ] `P10-01 [LUNA]` Expand README with install and supported-platform table.
-- [ ] `P10-02 [LUNA]` Add sample catalog data and judge test instructions.
+- [x] `P10-01 [LUNA]` Expand README with install and supported-platform table.
+- [x] `P10-02 [LUNA]` Add sample catalog data and judge test instructions.
 - [ ] `P10-03 [TERRA]` Add one-command demo mode using isolated fake home dirs.
 - [ ] `P10-04 [SOL]` Final architecture and threat-model review.
 - [ ] `P10-05 [HUMAN]` Verify licenses and attribution for included sources.
@@ -750,7 +750,7 @@ modes.
 
 - [ ] `P11-01 [SOL]` Design GitHub OAuth and minimal-scope authorization model.
 - [ ] `P11-02 [TERRA]` Implement optional private-repository discovery.
-- [ ] `P11-03 [TERRA]` Implement Community Loadout export/import with versioning.
+- [x] `P11-03 [TERRA]` Implement Community Loadout export/import with versioning.
 - [ ] `P11-04 [TERRA]` Implement star/release/download snapshot storage and charts.
 - [ ] `P11-05 [SOL]` Define provider-neutral model configuration schema.
 - [ ] `P11-06 [TERRA]` Implement OpenRouter provider adapter without storing keys in
@@ -758,8 +758,8 @@ modes.
 - [ ] `P11-07 [SOL]` Define category-specific evaluation protocol and uncertainty.
 - [ ] `P11-08 [TERRA]` Implement first two automated evaluation categories.
 - [ ] `P11-09 [TERRA]` Implement background update service and notifications.
-- [ ] `P11-10 [SOL]` Define catalog signing, rotation, and compromise recovery.
-- [ ] `P11-11 [TERRA]` Implement catalog signing in CI and verification in client.
+- [x] `P11-10 [SOL]` Define catalog signing, rotation, and compromise recovery.
+- [x] `P11-11 [TERRA]` Implement catalog signing in CI and verification in client.
 - [ ] `P11-12 [SOL]` Design cross-platform hook/subagent compiler with loss reports.
 - [ ] `P11-13 [TERRA]` Implement first two hook/subagent conversion targets.
 - [ ] `P11-14 [SOL]` Design sandbox threat model for third-party installers.
@@ -768,7 +768,7 @@ modes.
 - [ ] `P11-17 [TERRA]` Implement macOS, Windows, and Linux credential backends.
 - [ ] `P11-18 [SOL]` Define autonomous-update permission policies and recovery rules.
 - [ ] `P11-19 [TERRA]` Implement policy-gated canary update pipeline.
-- [ ] `P11-20 [SOL]` Publish adapter SDK and conformance contract.
+- [x] `P11-20 [SOL]` Publish adapter SDK and conformance contract.
 - [ ] `P11-21 [TERRA]` Add the next six agent adapters through the SDK.
 - [ ] `P11-22 [TERRA]` Add compliant Hacker News and community-source connectors.
 - [ ] `P11-23 [SOL]` Design team/enterprise policy and audit schemas.

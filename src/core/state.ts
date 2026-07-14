@@ -6,6 +6,11 @@ import { ensureDirectory, loadoutHome } from "./paths.js";
 
 const stateFile = () => join(loadoutHome(), "state.json");
 
+async function writeInstallState(state: InstallState): Promise<void> {
+  await ensureDirectory(loadoutHome());
+  await writeFile(stateFile(), `${JSON.stringify(state, null, 2)}\n`, { mode: 0o600 });
+}
+
 export async function readInstallState(): Promise<InstallState> {
   try {
     const parsed = JSON.parse(await readFile(stateFile(), "utf8")) as Partial<InstallState>;
@@ -41,8 +46,20 @@ export async function recordInstall(
   snapshotId: string,
   metadata: { repository?: string; resolvedCommit?: string } = {}
 ): Promise<InstallRecord> {
+  const record = await createInstallRecord(plan, snapshotId, metadata);
+  const state = await readInstallState();
+  state.installs = [...state.installs.filter((entry) => entry.packageId !== record.packageId), record];
+  await writeInstallState(state);
+  return record;
+}
+
+async function createInstallRecord(
+  plan: InstallPlan,
+  snapshotId: string,
+  metadata: { repository?: string; resolvedCommit?: string } = {}
+): Promise<InstallRecord> {
   const files = (await Promise.all([...new Set(plan.files.map((file) => file.target))].map(hashDirectory))).flat();
-  const record: InstallRecord = {
+  return {
     packageId: plan.packageId,
     ...metadata,
     targetAgents: [...plan.targetAgents],
@@ -50,9 +67,20 @@ export async function recordInstall(
     snapshotId,
     installedAt: new Date().toISOString()
   };
+}
+
+export async function recordInstallBatch(entries: Array<{ plan: InstallPlan; metadata?: { repository?: string; resolvedCommit?: string } }>, snapshotId: string): Promise<InstallRecord[]> {
+  const records = await Promise.all(entries.map((entry) => createInstallRecord(entry.plan, snapshotId, entry.metadata)));
   const state = await readInstallState();
-  state.installs = [...state.installs.filter((entry) => entry.packageId !== record.packageId), record];
-  await ensureDirectory(loadoutHome());
-  await writeFile(stateFile(), `${JSON.stringify(state, null, 2)}\n`, { mode: 0o600 });
-  return record;
+  const ids = new Set(records.map((record) => record.packageId));
+  state.installs = [...state.installs.filter((entry) => !ids.has(entry.packageId)), ...records];
+  await writeInstallState(state);
+  return records;
+}
+
+export async function forgetInstall(packageId: string): Promise<void> {
+  const state = await readInstallState();
+  const installs = state.installs.filter((entry) => entry.packageId !== packageId);
+  if (installs.length === state.installs.length) throw new Error(`Package is not managed by Loadout: ${packageId}`);
+  await writeInstallState({ version: 1, installs });
 }

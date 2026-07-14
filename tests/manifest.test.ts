@@ -1,0 +1,33 @@
+import { afterEach, describe, expect, it } from "vitest";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { initManifest, parseManifest, readManifest, writeLockfile } from "../src/core/manifest.js";
+
+describe("manifest and lockfile", () => {
+  const roots: string[] = [];
+  afterEach(async () => { await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true }))); delete process.env.LOADOUT_HOME; });
+
+  it("creates and validates a shareable manifest", async () => {
+    const root = await mkdtemp(join(tmpdir(), "loadout-manifest-")); roots.push(root);
+    const path = join(root, "loadout.json");
+    await initManifest(path, { name: "team", agents: ["codex"] });
+    expect(await readManifest(path)).toMatchObject({ schemaVersion: 1, name: "team", agents: ["codex"], packages: [] });
+    await expect(initManifest(path)).rejects.toThrow();
+  });
+
+  it("rejects duplicate packages and unsupported agents", () => {
+    expect(() => parseManifest({ schemaVersion: 1, name: "x", scope: "project", agents: ["unknown"], packages: [] })).toThrow(/unsupported agent/);
+    expect(() => parseManifest({ schemaVersion: 1, name: "x", scope: "project", agents: ["codex"], packages: [{ id: "a", source: { type: "catalog", id: "a" } }, { id: "a", source: { type: "catalog", id: "a" } }] })).toThrow(/unique/);
+  });
+
+  it("writes a lockfile from managed state without secrets", async () => {
+    const root = await mkdtemp(join(tmpdir(), "loadout-lock-")); roots.push(root);
+    process.env.LOADOUT_HOME = join(root, ".loadout");
+    const manifest = parseManifest({ schemaVersion: 1, name: "team", scope: "project", agents: ["codex"], packages: [{ id: "demo", source: { type: "github", repository: "owner/repo" } }] });
+    const output = join(root, "loadout.lock");
+    const lock = await writeLockfile(manifest, output);
+    expect(lock.packages).toEqual([]);
+    expect(JSON.parse(await readFile(output, "utf8"))).toMatchObject({ schemaVersion: 1, manifestName: "team" });
+  });
+});

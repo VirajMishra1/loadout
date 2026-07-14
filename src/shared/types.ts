@@ -71,6 +71,81 @@ export interface InstallState {
   installs: InstallRecord[];
 }
 
+export type PackageSource =
+  | { type: "catalog"; id: string }
+  | { type: "github"; repository: string; ref?: string; path?: string }
+  | { type: "local"; path: string };
+
+export interface ManifestPackage {
+  id: string;
+  source: PackageSource;
+  agents?: AgentId[];
+  enabled?: boolean;
+}
+
+export interface LoadoutManifest {
+  schemaVersion: 1;
+  name: string;
+  scope: "project" | "global";
+  agents: AgentId[];
+  profile?: string;
+  packages: ManifestPackage[];
+  policy?: {
+    allowRisk?: SafetyRiskLevel[];
+    blockedDomains?: string[];
+    blockedCommands?: string[];
+  };
+}
+
+export interface LockedPackage {
+  id: string;
+  source: PackageSource;
+  repository?: string;
+  resolvedCommit?: string;
+  targetAgents: AgentId[];
+  files: Array<{ path: string; sha256: string }>;
+  installedAt: string;
+}
+
+export interface LoadoutLockfile {
+  schemaVersion: 1;
+  manifestName: string;
+  generatedAt: string;
+  packages: LockedPackage[];
+}
+
+export type SafetyRiskLevel = "safe" | "review" | "blocked";
+
+export interface HealthFinding {
+  level: "ok" | "info" | "warning" | "error";
+  code: string;
+  message: string;
+  fix?: string;
+}
+
+export interface HealthReport {
+  status: "healthy" | "attention" | "unhealthy";
+  generatedAt: string;
+  agents: DetectedAgent[];
+  installedPackages: number;
+  updatesAvailable: number;
+  driftedFiles: number;
+  findings: HealthFinding[];
+}
+
+export interface ProjectSignals {
+  root: string;
+  languages: string[];
+  frameworks: string[];
+  files: string[];
+}
+
+export interface PackageRecommendation {
+  packageId: string;
+  reason: string;
+  confidence: "high" | "medium" | "low";
+}
+
 /** A read-only, normalized MCP server definition. Secrets are retained only in memory. */
 export interface McpServer {
   name: string;

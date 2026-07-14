@@ -3,8 +3,8 @@ import { lstat } from "node:fs/promises";
 import { join } from "node:path";
 import type { AgentId, DetectedAgent, InstallPlan } from "../shared/types.js";
 import { createSnapshot, restoreSnapshot } from "./snapshot.js";
-import { applySkillPlan, planSkillInstall, validateSkillDirectory } from "./skills.js";
-import { recordInstall } from "./state.js";
+import { applySkillPlan, detectInstallConflicts, planSkillInstall, validateSkillDirectory } from "./skills.js";
+import { recordInstall, recordInstallBatch } from "./state.js";
 
 export function installedAgents(agents: DetectedAgent[], requested?: AgentId[]): DetectedAgent[] {
   const available = agents.filter((agent) => agent.installed);
@@ -42,6 +42,32 @@ export async function applySkillInstall(plan: InstallPlan, metadata?: { reposito
     throw error;
   }
   await recordInstall(plan, snapshot.id, metadata);
+  return snapshot.id;
+}
+
+export interface InstallBatchEntry {
+  plan: InstallPlan;
+  metadata?: { repository?: string; resolvedCommit?: string };
+}
+
+/** Apply all selected packages as one filesystem transaction and one state update. */
+export async function applySkillInstallBatch(entries: InstallBatchEntry[]): Promise<string> {
+  if (!entries.length) throw new Error("Installation batch is empty");
+  const conflicts = detectInstallConflicts(entries.map((entry) => entry.plan));
+  const blocking = conflicts.filter((conflict) => conflict.severity === "blocking");
+  if (blocking.length) throw new Error(`Installation blocked by conflicts: ${blocking.map((item) => item.message).join("; ")}`);
+  for (const entry of entries) {
+    entry.plan.conflicts = [...(entry.plan.conflicts ?? []), ...conflicts.filter((conflict) => conflict.packageIds.includes(entry.plan.packageId))];
+    entry.plan.warnings = [...new Set([...entry.plan.warnings, ...conflicts.filter((conflict) => conflict.severity === "warning" && conflict.packageIds.includes(entry.plan.packageId)).map((conflict) => conflict.message)])];
+  }
+  const snapshot = await createSnapshot(entries.flatMap((entry) => entry.plan.files.map((file) => file.target)));
+  try {
+    for (const entry of entries) await applySkillPlan(entry.plan);
+    await recordInstallBatch(entries, snapshot.id);
+  } catch (error) {
+    await restoreSnapshot(snapshot);
+    throw error;
+  }
   return snapshot.id;
 }
 

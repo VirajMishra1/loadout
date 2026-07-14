@@ -11,8 +11,41 @@ The project is being built for the OpenAI Build Week **Developer Tools** categor
 The first working vertical slice is now implemented: Loadout detects installed agents,
 fetches a real public GitHub repository at its current commit, finds its `SKILL.md`
 packages, creates a preview plan, installs into agent-specific directories, and records
-a rollback snapshot. See [MASTER_PLAN.md](./MASTER_PLAN.md) for the full product
-specification, architecture, work breakdown, ownership tracks, and delivery checklist.
+a rollback snapshot. Nitish's branch also includes a validated shareable manifest,
+lockfile generation, safe managed-file removal, drift-aware health reports, tested
+profiles, local project recommendations, transactional multi-package sync, applied
+updates with risk approval, and an evidence-first improvement proposal command.
+
+See [NITISH_MASTER_PLAN.md](./NITISH_MASTER_PLAN.md) for the expanded implementation
+plan and [SIMPLE_PLAN.md](./SIMPLE_PLAN.md) for the short plain-language version. The
+original hackathon baseline remains in [MASTER_PLAN.md](./MASTER_PLAN.md).
+
+## Nitish branch commands
+
+```bash
+# Create and validate a shareable desired-state file.
+node dist/src/cli.js init --name my-team
+node dist/src/cli.js sync --manifest loadout.json       # dry run
+node dist/src/cli.js sync --manifest loadout.json --yes # apply as one transaction
+
+# Understand and maintain the current setup.
+node dist/src/cli.js list
+node dist/src/cli.js health
+node dist/src/cli.js recommend --project .
+node dist/src/cli.js profiles
+node dist/src/cli.js improve
+
+# Safe package lifecycle.
+node dist/src/cli.js remove <package-id>                # dry run
+node dist/src/cli.js remove <package-id> --yes
+node dist/src/cli.js update
+node dist/src/cli.js update --package <package-id> --apply
+node dist/src/cli.js lock
+```
+
+`improve` is deliberately read-only. It selects the next improvement from health
+evidence and produces acceptance tests; it never edits, installs, publishes, merges,
+or grants permissions autonomously.
 
 ## Try the real install path
 
@@ -120,6 +153,9 @@ catalog, and update views.
 - The catalog is curated rather than an index of every repository on the internet.
 - Updates are reported and installs are transactional; autonomous background updates
   and signed catalog releases are not yet enabled.
+- The manifest currently resolves catalog, public GitHub, and local skill sources.
+  Generic git sources, dependency resolution, non-skill component installation, and a
+  hosted publishing registry remain planned and are not claimed as complete.
 
 ## Core promise
 

@@ -10,12 +10,112 @@ import { fetchRepositorySnapshot } from "./core/source.js";
 import { discoverMcpManifests, summarizeMcpManifest, planMcpConfig, summarizeMcpConfigPlan, applyMcpConfigPlan } from "./core/mcp.js";
 import type { McpServer } from "./shared/types.js";
 import { runDoctor, formatDoctorReport } from "./core/doctor.js";
-import { buildUpdatePlan, formatUpdatePlan } from "./core/update.js";
+import { applyPackageUpdate, buildUpdatePlan, formatUpdatePlan } from "./core/update.js";
 import { startApiServer } from "./core/api.js";
 import { inspectPackage, formatPackageInspection } from "./core/package.js";
+import { initManifest, readManifest, writeLockfile } from "./core/manifest.js";
+import { buildHealthReport, formatHealthReport } from "./core/health.js";
+import { readInstallState } from "./core/state.js";
+import { applyRemove, planRemove } from "./core/remove.js";
+import { formatRecommendations, profileManifestPackages, recommendPackages, scanProject, TESTED_PROFILES } from "./core/recommend.js";
+import { buildImprovementCycle, formatImprovementCycle } from "./core/improve.js";
+import { applySyncPlan, buildSyncPlan } from "./core/sync.js";
 
 const program = new Command();
 program.name("loadout").description("Universal upgrade manager for AI coding agents").version("0.1.0");
+
+program.command("init")
+  .description("Create a shareable loadout.json manifest")
+  .option("--path <path>", "manifest path", "loadout.json")
+  .option("--name <name>", "Loadout name")
+  .option("--agents <ids>", "comma-separated agent ids", "codex,claude-code")
+  .option("--scope <scope>", "project or global", "project")
+  .action(async (options: { path: string; name?: string; agents: string; scope: string }) => {
+    const manifest = await initManifest(options.path, { name: options.name, agents: options.agents.split(",") as AgentId[], scope: options.scope as "project" | "global" });
+    console.log(`Created ${options.path} for ${manifest.agents.join(", ")}.`);
+  });
+
+program.command("lock")
+  .description("Write exact installed state to loadout.lock")
+  .option("--manifest <path>", "manifest path", "loadout.json")
+  .option("--output <path>", "lockfile path", "loadout.lock")
+  .action(async (options: { manifest: string; output: string }) => {
+    const lockfile = await writeLockfile(await readManifest(options.manifest), options.output);
+    console.log(`Wrote ${options.output} with ${lockfile.packages.length} resolved package(s).`);
+  });
+
+program.command("list")
+  .alias("ls")
+  .description("List packages managed by Loadout")
+  .option("--json", "emit machine-readable JSON")
+  .action(async (options: { json?: boolean }) => {
+    const state = await readInstallState();
+    if (options.json) return console.log(JSON.stringify(state.installs, null, 2));
+    if (!state.installs.length) return console.log("No Loadout-managed packages are installed.");
+    for (const item of state.installs) console.log(`${item.packageId} — ${item.targetAgents.join(", ")} — ${item.resolvedCommit?.slice(0, 12) ?? "local"} — ${item.files.length} file(s)`);
+  });
+
+program.command("health")
+  .description("Check agents, installed packages, updates, and file drift")
+  .option("--json", "emit machine-readable JSON")
+  .action(async (options: { json?: boolean }) => {
+    const report = await buildHealthReport();
+    console.log(options.json ? JSON.stringify(report, null, 2) : formatHealthReport(report));
+  });
+
+program.command("remove")
+  .description("Safely remove only files managed for one package")
+  .argument("<package>", "managed package id")
+  .option("--yes", "apply removal; otherwise show a plan")
+  .option("--force", "also remove managed files changed outside Loadout")
+  .action(async (packageId: string, options: { yes?: boolean; force?: boolean }) => {
+    const plan = await planRemove(packageId);
+    console.log(JSON.stringify(plan, null, 2));
+    if (!options.yes) return console.log("Dry run only. Re-run with --yes to remove these files.");
+    const snapshot = await applyRemove(plan, { force: options.force });
+    console.log(`Removed ${packageId}. Snapshot: ${snapshot}`);
+  });
+
+program.command("recommend")
+  .description("Recommend catalog packages from local project signals")
+  .option("--project <path>", "project directory", process.cwd())
+  .option("--json", "emit machine-readable JSON")
+  .action(async (options: { project: string; json?: boolean }) => {
+    const signals = await scanProject(options.project);
+    const recommendations = recommendPackages(signals, await loadEffectiveCatalog());
+    console.log(options.json ? JSON.stringify({ signals, recommendations }, null, 2) : formatRecommendations(signals, recommendations));
+  });
+
+program.command("profiles")
+  .description("List tested Loadout profiles or inspect one profile")
+  .argument("[name]", "profile name")
+  .option("--json", "emit machine-readable JSON")
+  .action(async (name: string | undefined, options: { json?: boolean }) => {
+    if (!name) return console.log(options.json ? JSON.stringify(TESTED_PROFILES, null, 2) : Object.entries(TESTED_PROFILES).map(([id, profile]) => `${id} — ${profile.description}`).join("\n"));
+    const packages = profileManifestPackages(name, await loadEffectiveCatalog());
+    console.log(options.json ? JSON.stringify({ name, ...TESTED_PROFILES[name], packages }, null, 2) : `${name}: ${TESTED_PROFILES[name].description}\n${packages.map((pkg) => `  ${pkg.id} — ${pkg.repository}`).join("\n")}`);
+  });
+
+program.command("improve")
+  .description("Propose the next evidence-backed improvement without changing anything")
+  .option("--json", "emit machine-readable JSON")
+  .action(async (options: { json?: boolean }) => {
+    const cycle = await buildImprovementCycle();
+    console.log(options.json ? JSON.stringify(cycle, null, 2) : formatImprovementCycle(cycle));
+  });
+
+program.command("sync")
+  .description("Reproduce a loadout.json manifest as one safe transaction")
+  .option("--manifest <path>", "manifest path", "loadout.json")
+  .option("--lock <path>", "lockfile output", "loadout.lock")
+  .option("--yes", "apply the plan; otherwise remain read-only")
+  .action(async (options: { manifest: string; lock: string; yes?: boolean }) => {
+    const plan = await buildSyncPlan(options.manifest);
+    console.log(JSON.stringify({ manifest: plan.manifest, packages: plan.packages.map((entry) => entry.plan), skipped: plan.skipped }, null, 2));
+    if (!options.yes) return console.log("Dry run only. Re-run with --yes to synchronize this Loadout.");
+    const result = await applySyncPlan(plan, options.lock);
+    console.log(`Synchronized successfully.${result.snapshotId ? ` Snapshot: ${result.snapshotId}.` : ""} Lockfile: ${result.lockfile}`);
+  });
 
 program.command("status").description("Show detected coding agents").action(async () => {
   const agents = await detectAgents();
@@ -183,15 +283,24 @@ program.command("rollback")
   });
 
 program.command("update")
-  .description("Plan updates for installed packages without changing files")
+  .description("Plan updates, or apply one explicitly selected package update")
   .option("--json", "emit machine-readable JSON")
-  .action(async (options: { json?: boolean }) => {
+  .option("--apply", "apply the selected update")
+  .option("--package <id>", "managed package id to update")
+  .option("--approve-risk", "explicitly approve an update containing blocked safety findings")
+  .action(async (options: { json?: boolean; apply?: boolean; package?: string; approveRisk?: boolean }) => {
+    if (options.apply) {
+      if (!options.package) throw new Error("--apply requires --package <id>");
+      const result = await applyPackageUpdate(options.package, { approveRisk: options.approveRisk });
+      console.log(`Updated ${options.package} to ${result.commit}. Snapshot: ${result.snapshotId}`);
+      return;
+    }
     const plans = await buildUpdatePlan();
     console.log(options.json ? JSON.stringify(plans, null, 2) : formatUpdatePlan(plans));
   });
 
 program.command("serve")
-  .description("Start a loopback-only read-only API for status, catalog, and updates")
+  .description("Start a loopback-only read-only API for status, health, catalog, and updates")
   .option("--host <host>", "bind address (defaults to 127.0.0.1)", "127.0.0.1")
   .option("--port <port>", "TCP port (0 selects an available port)", "0")
   .action(async (options: { host: string; port: string }) => {

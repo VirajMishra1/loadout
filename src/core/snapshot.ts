@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { readFile, writeFile, mkdir, readdir, rm } from "node:fs/promises";
+import { readFile, writeFile, mkdir, readdir, rm, lstat } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import type { Snapshot } from "../shared/types.js";
 import { loadoutHome, ensureDirectory } from "./paths.js";
@@ -13,6 +13,12 @@ export async function createSnapshot(paths: string[]): Promise<Snapshot> {
   };
   async function capture(path: string): Promise<void> {
     try {
+      const info = await lstat(path);
+      if (info.isSymbolicLink()) throw new Error(`Refusing to snapshot symlink: ${path}`);
+      if (info.isFile()) {
+        snapshot.files.push({ path, existed: true, content: await readFile(path, "utf8") });
+        return;
+      }
       const entries = await readdir(path, { withFileTypes: true });
       for (const entry of entries) {
         const child = join(path, entry.name);

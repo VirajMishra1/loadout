@@ -22,6 +22,7 @@ import { buildImprovementCycle, formatImprovementCycle } from "./core/improve.js
 import { applySyncPlan, buildSyncPlan } from "./core/sync.js";
 import { createPackage, packPackage, publishLocalPackage, searchLocalRegistry } from "./core/registry.js";
 import { auditLoadout, formatAuditReport } from "./core/audit.js";
+import { ADAPTER_CAPABILITIES, formatCapabilityMatrix } from "./core/adapters.js";
 
 const program = new Command();
 program.name("loadout").description("Universal upgrade manager for AI coding agents").version("0.1.0");
@@ -219,6 +220,11 @@ program.command("status").description("Show detected coding agents").action(asyn
     console.log(`${agent.installed ? "✓" : "○"} ${agent.displayName} — ${agent.skillsDirectory}`);
   }
 });
+
+program.command("capabilities")
+  .description("Show honest native, adapted, and unsupported adapter capabilities")
+  .option("--json", "emit machine-readable JSON")
+  .action((options: { json?: boolean }) => console.log(options.json ? JSON.stringify(ADAPTER_CAPABILITIES, null, 2) : formatCapabilityMatrix()));
 
 program.command("doctor")
   .description("Check agents, skill directories, permissions, and Loadout setup")

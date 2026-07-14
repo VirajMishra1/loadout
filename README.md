@@ -31,6 +31,7 @@ node dist/src/cli.js sync --manifest loadout.json --yes # apply as one transacti
 # Understand and maintain the current setup.
 node dist/src/cli.js list
 node dist/src/cli.js health
+node dist/src/cli.js capabilities
 node dist/src/cli.js recommend --project .
 node dist/src/cli.js profiles
 node dist/src/cli.js improve
@@ -85,6 +86,11 @@ target paths cannot escape the package or allowed project/home scope:
 Claude plugin manifests are detected during inspection. Their skills, rules, commands,
 and agents are normalized through the ordinary compatibility planner; Loadout does not
 claim that copying a native plugin manifest itself converts plugin-only behavior.
+
+`loadout capabilities` is the source of truth for every agent/component claim. Each
+cell is `native`, `adapted`, or `unsupported`; the planner consults the same matrix, so
+the documentation cannot quietly claim more than the installer enables. Detection uses
+either an executable on `PATH` or an existing agent configuration directory.
 
 ## Try the real install path
 

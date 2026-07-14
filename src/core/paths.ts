@@ -48,13 +48,14 @@ async function hasBinary(binary: string): Promise<boolean> {
 
 export async function detectAgents(): Promise<DetectedAgent[]> {
   const home = userHome();
-  return Promise.all(definitions.map(async (definition) => ({
-    id: definition.id,
-    displayName: definition.displayName,
-    binary: definition.binary,
-    installed: await hasBinary(definition.binary),
-    skillsDirectory: join(home, definition.directory)
-  })));
+  return Promise.all(definitions.map(async (definition) => {
+    const skillsDirectory = join(home, definition.directory);
+    return { id: definition.id, displayName: definition.displayName, binary: definition.binary, installed: await hasBinary(definition.binary) || await directoryExists(dirnameForDetection(skillsDirectory)), skillsDirectory };
+  }));
+}
+
+function dirnameForDetection(skillsDirectory: string): string {
+  return skillsDirectory.replace(/[\\/]skills$/, "");
 }
 
 export async function ensureDirectory(path: string): Promise<void> {

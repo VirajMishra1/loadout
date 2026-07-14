@@ -2,6 +2,7 @@ import { lstat, readdir } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import type { AgentId, ComponentCompatibility, DetectedAgent, InstallPlan, PlannedFile, ResourceSummary } from "../shared/types.js";
 import { buildSkillPlan } from "./install.js";
+import { adapterCapabilities } from "./adapters.js";
 
 const RESOURCE_DIRECTORIES = new Map<string, ResourceSummary["type"]>([["rules", "rule"], ["commands", "command"], ["agents", "agent"]]);
 
@@ -40,17 +41,19 @@ export async function discoverResources(root: string): Promise<ResourceSummary[]
 interface TargetRule { compatibility: ComponentCompatibility; directory?: string }
 
 function targetRule(agent: DetectedAgent, type: ResourceSummary["type"]): TargetRule {
+  const declared = adapterCapabilities(agent.id).components[type];
+  if (declared === "unsupported") return { compatibility: "unsupported" };
   const skillBase = dirname(agent.skillsDirectory);
-  if (agent.id === "claude-code") return type === "rule" ? { compatibility: "unsupported" } : { compatibility: "native", directory: join(skillBase, `${type}s`) };
+  if (agent.id === "claude-code") return { compatibility: declared, directory: join(skillBase, `${type}s`) };
   if (agent.id === "codex") {
     const home = dirname(dirname(agent.skillsDirectory));
-    if (type === "command") return { compatibility: "adapted", directory: join(home, ".codex", "prompts") };
-    if (type === "agent") return { compatibility: "native", directory: join(home, ".codex", "agents") };
+    if (type === "command") return { compatibility: declared, directory: join(home, ".codex", "prompts") };
+    if (type === "agent") return { compatibility: declared, directory: join(home, ".codex", "agents") };
     return { compatibility: "unsupported" };
   }
-  if (agent.id === "cursor") return { compatibility: "native", directory: join(skillBase, `${type}s`) };
-  if (agent.id === "gemini-cli" && type === "command") return { compatibility: "native", directory: join(skillBase, "commands") };
-  if (agent.id === "opencode" && (type === "command" || type === "agent")) return { compatibility: "native", directory: join(skillBase, `${type}s`) };
+  if (agent.id === "cursor") return { compatibility: declared, directory: join(skillBase, `${type}s`) };
+  if (agent.id === "gemini-cli" && type === "command") return { compatibility: declared, directory: join(skillBase, "commands") };
+  if (agent.id === "opencode" && (type === "command" || type === "agent")) return { compatibility: declared, directory: join(skillBase, `${type}s`) };
   return { compatibility: "unsupported" };
 }
 

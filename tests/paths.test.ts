@@ -1,4 +1,7 @@
 import { describe, expect, it, afterEach } from "vitest";
+import { mkdir, mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { detectAgents, loadoutHome, userHome } from "../src/core/paths.js";
 
 describe("platform paths", () => {
@@ -37,5 +40,13 @@ describe("platform paths", () => {
     expect(agents.map((agent) => agent.id)).toEqual([
       "claude-code", "codex", "cursor", "gemini-cli", "opencode", "hermes"
     ]);
+  });
+
+  it("detects an existing agent configuration even when its binary is not on PATH", async () => {
+    const root = await mkdtemp(join(tmpdir(), "loadout-agent-detect-"));
+    try {
+      process.env.LOADOUT_USER_HOME = root; await mkdir(join(root, ".hermes"));
+      expect((await detectAgents()).find((agent) => agent.id === "hermes")?.installed).toBe(true);
+    } finally { await rm(root, { recursive: true, force: true }); }
   });
 });

@@ -66,6 +66,36 @@ export async function initManifest(path = "loadout.json", options: { name?: stri
   return manifest;
 }
 
+async function writeManifest(manifest: LoadoutManifest, path: string): Promise<void> {
+  await writeFile(resolve(path), `${JSON.stringify(manifest, null, 2)}\n`);
+}
+
+export async function addManifestPackage(path: string, pkg: ManifestPackage): Promise<LoadoutManifest> {
+  const manifest = await readManifest(path);
+  if (manifest.packages.some((item) => item.id === pkg.id)) throw new Error(`Manifest already contains package '${pkg.id}'`);
+  const updated = parseManifest({ ...manifest, packages: [...manifest.packages, pkg] });
+  await writeManifest(updated, path);
+  return updated;
+}
+
+export async function removeManifestPackage(path: string, packageId: string): Promise<LoadoutManifest> {
+  const manifest = await readManifest(path);
+  const packages = manifest.packages.filter((item) => item.id !== packageId);
+  if (packages.length === manifest.packages.length) throw new Error(`Manifest does not contain package '${packageId}'`);
+  const updated = parseManifest({ ...manifest, packages });
+  await writeManifest(updated, path);
+  return updated;
+}
+
+export async function applyProfileToManifest(path: string, profile: string, packages: Array<{ id: string; repository: string }>): Promise<LoadoutManifest> {
+  const manifest = await readManifest(path);
+  const existing = new Set(manifest.packages.map((pkg) => pkg.id));
+  const additions: ManifestPackage[] = packages.filter((pkg) => !existing.has(pkg.id)).map((pkg) => ({ id: pkg.id, source: { type: "github", repository: pkg.repository } }));
+  const updated = parseManifest({ ...manifest, profile, packages: [...manifest.packages, ...additions] });
+  await writeManifest(updated, path);
+  return updated;
+}
+
 export async function writeLockfile(manifest: LoadoutManifest, path = "loadout.lock"): Promise<LoadoutLockfile> {
   const state = await readInstallState();
   const sourceById = new Map(manifest.packages.map((pkg) => [pkg.id, pkg.source]));

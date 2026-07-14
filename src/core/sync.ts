@@ -15,8 +15,7 @@ export interface SyncPlan {
 async function resolvePackage(pkg: ManifestPackage): Promise<{ path: string; repository?: string; commit?: string }> {
   if (pkg.source.type === "local") return { path: resolve(pkg.source.path) };
   if (pkg.source.type === "github") {
-    if (pkg.source.ref) throw new Error(`GitHub refs are not implemented yet for '${pkg.id}'; pinning always uses the fetched default-branch commit.`);
-    const fetched = await fetchRepositorySnapshot(pkg.source.repository);
+    const fetched = await fetchRepositorySnapshot(pkg.source.repository, { ref: pkg.source.ref });
     return { path: pkg.source.path ? resolve(fetched.path, pkg.source.path) : fetched.path, repository: fetched.repository, commit: fetched.commit };
   }
   const catalogId = pkg.source.id;

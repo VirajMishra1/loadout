@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { initManifest, parseManifest, readManifest, writeLockfile } from "../src/core/manifest.js";
+import { addManifestPackage, applyProfileToManifest, initManifest, parseManifest, readManifest, removeManifestPackage, writeLockfile } from "../src/core/manifest.js";
 
 describe("manifest and lockfile", () => {
   const roots: string[] = [];
@@ -29,5 +29,17 @@ describe("manifest and lockfile", () => {
     const lock = await writeLockfile(manifest, output);
     expect(lock.packages).toEqual([]);
     expect(JSON.parse(await readFile(output, "utf8"))).toMatchObject({ schemaVersion: 1, manifestName: "team" });
+  });
+
+  it("adds, removes, and applies profiles without duplicating packages", async () => {
+    const root = await mkdtemp(join(tmpdir(), "loadout-manifest-edit-")); roots.push(root);
+    const path = join(root, "loadout.json");
+    await initManifest(path, { name: "team", agents: ["codex"] });
+    await addManifestPackage(path, { id: "one", source: { type: "github", repository: "owner/one", ref: "v1.0.0" } });
+    await expect(addManifestPackage(path, { id: "one", source: { type: "catalog", id: "one" } })).rejects.toThrow(/already contains/);
+    await applyProfileToManifest(path, "stable", [{ id: "one", repository: "owner/one" }, { id: "two", repository: "owner/two" }]);
+    expect((await readManifest(path)).packages.map((pkg) => pkg.id)).toEqual(["one", "two"]);
+    await removeManifestPackage(path, "one");
+    expect((await readManifest(path)).packages.map((pkg) => pkg.id)).toEqual(["two"]);
   });
 });

@@ -13,7 +13,7 @@ import { runDoctor, formatDoctorReport } from "./core/doctor.js";
 import { applyPackageUpdate, buildUpdatePlan, formatUpdatePlan } from "./core/update.js";
 import { startApiServer } from "./core/api.js";
 import { inspectPackage, formatPackageInspection } from "./core/package.js";
-import { initManifest, readManifest, writeLockfile } from "./core/manifest.js";
+import { addManifestPackage, applyProfileToManifest, initManifest, readManifest, removeManifestPackage, writeLockfile } from "./core/manifest.js";
 import { buildHealthReport, formatHealthReport } from "./core/health.js";
 import { readInstallState } from "./core/state.js";
 import { applyRemove, planRemove } from "./core/remove.js";
@@ -42,6 +42,34 @@ program.command("lock")
   .action(async (options: { manifest: string; output: string }) => {
     const lockfile = await writeLockfile(await readManifest(options.manifest), options.output);
     console.log(`Wrote ${options.output} with ${lockfile.packages.length} resolved package(s).`);
+  });
+
+program.command("add")
+  .description("Add a catalog, GitHub, or local package to loadout.json")
+  .argument("<id>", "package id")
+  .option("--manifest <path>", "manifest path", "loadout.json")
+  .option("--catalog <id>", "catalog package id")
+  .option("--repository <owner/repo>", "public GitHub repository")
+  .option("--ref <ref>", "Git branch, tag, or ref")
+  .option("--path <path>", "GitHub repository subpath or local path")
+  .option("--local", "treat --path as a local source")
+  .option("--agents <ids>", "comma-separated target agents")
+  .action(async (id: string, options: { manifest: string; catalog?: string; repository?: string; ref?: string; path?: string; local?: boolean; agents?: string }) => {
+    const selected = Number(Boolean(options.catalog)) + Number(Boolean(options.repository)) + Number(Boolean(options.local));
+    if (selected !== 1) throw new Error("Choose exactly one source: --catalog, --repository, or --local with --path");
+    if (options.local && !options.path) throw new Error("--local requires --path <directory>");
+    const source = options.catalog ? { type: "catalog" as const, id: options.catalog } : options.repository ? { type: "github" as const, repository: options.repository, ...(options.ref ? { ref: options.ref } : {}), ...(options.path ? { path: options.path } : {}) } : { type: "local" as const, path: options.path! };
+    const manifest = await addManifestPackage(options.manifest, { id, source, ...(options.agents ? { agents: options.agents.split(",") as AgentId[] } : {}) });
+    console.log(`Added ${id} to ${options.manifest}. ${manifest.packages.length} package(s) configured.`);
+  });
+
+program.command("unadd")
+  .description("Remove a desired package from loadout.json without touching installed files")
+  .argument("<id>", "package id")
+  .option("--manifest <path>", "manifest path", "loadout.json")
+  .action(async (id: string, options: { manifest: string }) => {
+    const manifest = await removeManifestPackage(options.manifest, id);
+    console.log(`Removed ${id} from ${options.manifest}. ${manifest.packages.length} package(s) configured.`);
   });
 
 program.command("list")
@@ -90,9 +118,15 @@ program.command("profiles")
   .description("List tested Loadout profiles or inspect one profile")
   .argument("[name]", "profile name")
   .option("--json", "emit machine-readable JSON")
-  .action(async (name: string | undefined, options: { json?: boolean }) => {
+  .option("--apply-to <path>", "add the selected profile packages to a manifest")
+  .action(async (name: string | undefined, options: { json?: boolean; applyTo?: string }) => {
     if (!name) return console.log(options.json ? JSON.stringify(TESTED_PROFILES, null, 2) : Object.entries(TESTED_PROFILES).map(([id, profile]) => `${id} — ${profile.description}`).join("\n"));
     const packages = profileManifestPackages(name, await loadEffectiveCatalog());
+    if (options.applyTo) {
+      const manifest = await applyProfileToManifest(options.applyTo, name, packages);
+      console.log(`Applied profile ${name} to ${options.applyTo}. ${manifest.packages.length} package(s) configured.`);
+      return;
+    }
     console.log(options.json ? JSON.stringify({ name, ...TESTED_PROFILES[name], packages }, null, 2) : `${name}: ${TESTED_PROFILES[name].description}\n${packages.map((pkg) => `  ${pkg.id} — ${pkg.repository}`).join("\n")}`);
   });
 

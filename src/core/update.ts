@@ -1,3 +1,5 @@
+import { mkdir, writeFile } from "node:fs/promises";
+import { join } from "node:path";
 import type { InstallRecord } from "../shared/types.js";
 import { fetchRepositorySnapshot } from "./source.js";
 import { repositoryCachePath } from "./source.js";
@@ -22,6 +24,8 @@ export interface UpdatePlan {
   /** Updates containing executable or lifecycle changes require explicit approval. */
   approvalRequired?: boolean;
   safetyFindings?: SafetyFinding[];
+  /** Set only when a blocked update was explicitly quarantined for later review. */
+  quarantinePath?: string;
   error?: string;
 }
 
@@ -87,7 +91,27 @@ export function formatUpdatePlan(plans: UpdatePlan[]): string {
   }).join("\n");
 }
 
-export async function applyPackageUpdate(packageId: string, options: { approveRisk?: boolean } = {}): Promise<{ snapshotId: string; commit: string }> {
+function quarantineRoot(): string {
+  return join(process.env.LOADOUT_HOME ?? join(process.env.HOME ?? process.cwd(), ".loadout"), "quarantine");
+}
+
+function safeName(value: string): string {
+  return value.replace(/[^a-zA-Z0-9._-]+/g, "_").slice(0, 160) || "update";
+}
+
+/**
+ * Record a blocked update in an isolated review directory. This writes metadata
+ * only; it never installs files, imports configuration, or executes repository code.
+ */
+export async function quarantineUpdate(packageId: string, repository: string, commit: string, findings: SafetyFinding[]): Promise<string> {
+  const directory = join(quarantineRoot(), `${safeName(packageId)}-${safeName(commit)}`);
+  await mkdir(directory, { recursive: true });
+  const metadata = join(directory, "metadata.json");
+  await writeFile(metadata, JSON.stringify({ packageId, repository, commit, quarantinedAt: new Date().toISOString(), findings: findings.map(({ severity, category, message, paths, names }) => ({ severity, category, message, paths, ...(names?.length ? { names } : {}) })) }, null, 2) + "\n", { mode: 0o600 });
+  return directory;
+}
+
+export async function applyPackageUpdate(packageId: string, options: { approveRisk?: boolean; quarantineOnBlock?: boolean } = {}): Promise<{ snapshotId: string; commit: string }> {
   const record = (await readInstallState()).installs.find((item) => item.packageId === packageId);
   if (!record) throw new Error(`Package is not managed by Loadout: ${packageId}`);
   if (!record.repository || !record.resolvedCommit) throw new Error(`Package '${packageId}' has no tracked GitHub source`);
@@ -96,7 +120,8 @@ export async function applyPackageUpdate(packageId: string, options: { approveRi
   const oldPath = repositoryCachePath(record.repository, record.resolvedCommit);
   const safety = await analyzeUpdateSafety(oldPath, current.path);
   if (safety.approvalRequired && !options.approveRisk) {
-    throw new Error(`Update is blocked pending explicit risk approval: ${safety.findings.filter((finding) => finding.severity === "blocking").map((finding) => finding.message).join(" ")}`);
+    const quarantinePath = options.quarantineOnBlock === false ? undefined : await quarantineUpdate(packageId, current.repository, current.commit, safety.findings);
+    throw new Error(`Update is blocked pending explicit risk approval${quarantinePath ? `; quarantined at ${quarantinePath}` : ""}: ${safety.findings.filter((finding) => finding.severity === "blocking").map((finding) => finding.message).join(" ")}`);
   }
   const agents = installedAgents(await detectAgents(), record.targetAgents);
   const plan = await buildSkillPlan(current.path, record.packageId, agents);

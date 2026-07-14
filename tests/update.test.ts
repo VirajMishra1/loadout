@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { mkdtemp, rm, writeFile, mkdir } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile, mkdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { buildUpdatePlan, formatUpdatePlan } from "../src/core/update.js";
+import { buildUpdatePlan, formatUpdatePlan, quarantineUpdate } from "../src/core/update.js";
 
 describe("update planning", () => {
   const roots: string[] = [];
@@ -83,5 +83,28 @@ describe("update planning", () => {
     expect(plans[0].safetyFindings?.map((finding) => finding.category)).toEqual(expect.arrayContaining(["script", "domain", "environment"]));
     expect(formatUpdatePlan(plans)).toContain("Approval required");
     expect(JSON.stringify(plans)).not.toContain("API_TOKEN_VALUE");
+  });
+
+  it("quarantines a blocked update without installing or executing it", async () => {
+    const root = await mkdtemp(join(tmpdir(), "loadout-quarantine-")); roots.push(root);
+    process.env.LOADOUT_HOME = join(root, ".loadout");
+    const oldPath = join(process.env.LOADOUT_HOME, "cache", "owner__repo", "aaa");
+    const newPath = join(root, "new");
+    await mkdir(join(oldPath, "skills"), { recursive: true });
+    await mkdir(join(newPath, "skills"), { recursive: true });
+    await writeFile(join(oldPath, "skills", "SKILL.md"), "old");
+    await writeFile(join(newPath, "skills", "SKILL.md"), "new");
+    await writeFile(join(newPath, "install.sh"), "echo should never execute\n");
+    await mkdir(process.env.LOADOUT_HOME, { recursive: true });
+    await writeFile(join(process.env.LOADOUT_HOME, "state.json"), JSON.stringify({ version: 1, installs: [
+      { packageId: "demo", repository: "owner/repo", resolvedCommit: "aaa", targetAgents: ["codex"], files: [], snapshotId: "s", installedAt: new Date().toISOString() }
+    ] }));
+    const quarantinePath = await quarantineUpdate("demo", "owner/repo", "bbb", [{ severity: "blocking", category: "script", message: "Update adds scripts.", paths: [join(newPath, "install.sh")] }]);
+    expect(quarantinePath).toContain("demo-bbb");
+    const quarantine = join(process.env.LOADOUT_HOME, "quarantine", "demo-bbb", "metadata.json");
+    const metadata = JSON.parse(await readFile(quarantine, "utf8"));
+    expect(metadata.repository).toBe("owner/repo");
+    expect(metadata.findings).toEqual(expect.arrayContaining([expect.objectContaining({ category: "script" })]));
+    expect(await readFile(join(oldPath, "skills", "SKILL.md"), "utf8")).toBe("old");
   });
 });

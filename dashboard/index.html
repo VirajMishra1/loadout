@@ -13,6 +13,12 @@
         <p class="eyebrow">LOADOUT</p>
         <h1 id="page-title">Your agent control center.</h1>
         <p class="subhead">Health, safe updates, tested setups, and real packages from this machine.</p>
+        <nav class="dashboard-nav" aria-label="Dashboard views">
+          <a href="#home" data-route="home">Home</a>
+          <a href="#discover" data-route="discover">Discover</a>
+          <a href="#installed" data-route="installed">Installed</a>
+          <a href="#updates" data-route="updates">Updates</a>
+        </nav>
         <div class="refresh-row">
           <button id="refresh-dashboard" type="button" aria-describedby="refresh-help">Refresh dashboard</button>
           <span id="refresh-help" class="muted">Reads local Loadout data only. It does not install, update, or send anything.</span>
@@ -20,12 +26,12 @@
         <p id="dashboard-notice" class="sr-only" role="status" aria-live="polite"></p>
       </header>
 
-      <section aria-labelledby="status-heading">
+      <section id="home" data-screen aria-labelledby="status-heading">
         <div class="section-title"><h2 id="status-heading">Agent status</h2></div>
         <div id="status" class="state" role="status" aria-live="polite" aria-busy="true">Loading agent status…</div>
       </section>
 
-      <section aria-labelledby="sync-heading">
+      <section data-screen="home" aria-labelledby="sync-heading">
         <div class="section-title"><h2 id="sync-heading">Synchronize</h2><span>Explicit approval required</span></div>
         <div class="action-bar" role="group" aria-label="Synchronize manifest actions">
           <button id="preview-sync" type="button" aria-describedby="sync-help">Preview manifest</button>
@@ -37,34 +43,46 @@
         <div id="sync-result" class="state" role="status" aria-live="polite">Preview <code>loadout.json</code> before applying anything.</div>
       </section>
 
-      <section aria-labelledby="health-heading">
+      <section data-screen="home" aria-labelledby="health-heading">
         <div class="section-title"><h2 id="health-heading">Health</h2><span id="health-label"></span></div>
         <div id="health" class="state" role="status" aria-live="polite" aria-busy="true">Checking setup health…</div>
       </section>
 
-      <section aria-labelledby="updates-heading">
+      <section id="updates" data-screen aria-labelledby="updates-heading">
         <div class="section-title"><h2 id="updates-heading">Updates</h2><span id="updates-count"></span></div>
         <div id="updates" class="state" role="status" aria-live="polite" aria-busy="true">Checking installed packages…</div>
       </section>
 
-      <section aria-labelledby="recommendations-heading">
+      <section data-screen="home" aria-labelledby="recommendations-heading">
         <div class="section-title"><h2 id="recommendations-heading">Recommended for this project</h2><span id="project-signals"></span></div>
         <div id="recommendations" class="grid state" role="status" aria-live="polite" aria-busy="true">Reading local project signals…</div>
       </section>
 
-      <section aria-labelledby="profiles-heading">
+      <section data-screen="home" aria-labelledby="profiles-heading">
         <div class="section-title"><h2 id="profiles-heading">Tested profiles</h2><span>Preview only</span></div>
         <div id="profiles" class="grid state" role="status" aria-live="polite" aria-busy="true">Loading profiles…</div>
       </section>
 
-      <section aria-labelledby="catalog-heading">
-        <div class="section-title"><h2 id="catalog-heading">Catalog</h2><span id="catalog-count"></span></div>
+      <section id="discover" data-screen aria-labelledby="catalog-heading">
+        <div class="section-title"><h2 id="catalog-heading">Discover packages</h2><span id="catalog-count"></span></div>
+        <p class="muted">Browse verified catalog records already available in this local checkout. Package details are read-only; add a package to <code>loadout.json</code>, then preview it before any write.</p>
+        <div class="catalog-filters" role="search" aria-label="Filter catalog packages">
+          <label for="catalog-search">Search <input id="catalog-search" type="search" autocomplete="off" placeholder="Name, category, or repository" /></label>
+          <label for="catalog-tier">Trust tier <select id="catalog-tier"><option value="">All tiers</option><option value="official">Official</option><option value="stable">Stable</option><option value="trending">Trending</option><option value="community">Community</option></select></label>
+          <label for="catalog-category">Outcome <select id="catalog-category"><option value="">All outcomes</option></select></label>
+        </div>
         <div id="catalog" class="grid state" role="status" aria-live="polite" aria-busy="true">Loading catalog…</div>
       </section>
 
-      <section aria-labelledby="registry-heading">
+      <section data-screen="discover" aria-labelledby="registry-heading">
         <div class="section-title"><h2 id="registry-heading">Local registry</h2><span id="registry-count"></span></div>
         <div id="registry" class="grid state" role="status" aria-live="polite" aria-busy="true">Loading locally published packages…</div>
+      </section>
+
+      <section id="installed" data-screen aria-labelledby="installed-heading">
+        <div class="section-title"><h2 id="installed-heading">Installed packages</h2><span id="installed-count"></span></div>
+        <p id="last-snapshot" class="muted"></p>
+        <div id="installed" class="grid state" role="status" aria-live="polite" aria-busy="true">Reading managed package state…</div>
       </section>
 
       <footer>Dashboard mutations require a private session token, an explicit preview, and acknowledgement. Risky plans remain CLI-only.</footer>

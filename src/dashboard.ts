@@ -1,4 +1,4 @@
-import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { join } from "node:path";
@@ -12,6 +12,8 @@ import { searchLocalRegistry } from "./core/registry.js";
 import { randomBytes, timingSafeEqual } from "node:crypto";
 import { applySyncPlan, buildSyncPlan, type SyncPlan } from "./core/sync.js";
 import { readSnapshot, restoreSnapshot } from "./core/snapshot.js";
+import { readInstallState } from "./core/state.js";
+import { adapterCapabilities } from "./core/adapters.js";
 
 const publicDirectory = process.env.LOADOUT_DASHBOARD_DIR ?? join(process.cwd(), "dashboard");
 
@@ -27,6 +29,27 @@ export interface DashboardOptions {
   applySync?: typeof applySyncPlan;
   rollback?: (snapshotId: string) => Promise<void>;
 }
+
+export interface DashboardHandle {
+  server: Server;
+  host: "127.0.0.1";
+  port: number;
+  close: () => Promise<void>;
+}
+
+interface DashboardOperation {
+  kind: "sync" | "rollback";
+  status: "running" | "completed" | "failed";
+  startedAt: string;
+  finishedAt?: string;
+  snapshotId?: string;
+  error?: string;
+}
+
+type DashboardContext = Required<DashboardOptions> & {
+  token: string;
+  operation?: DashboardOperation;
+};
 
 function safeSyncPlan(plan: SyncPlan): unknown {
   return { manifest: plan.manifest, packages: plan.packages.map((entry) => ({ packageId: entry.plan.packageId, targetAgents: entry.plan.targetAgents, files: entry.plan.files.map((file) => ({ target: file.target, componentType: file.componentType, compatibility: file.compatibility })), warnings: entry.plan.warnings, safety: entry.safety })), mcpChanges: plan.mcpPlans.map((entry) => ({ packageId: entry.packageId, path: entry.plan.path, changes: entry.plan.changes, warnings: entry.plan.warnings })), skipped: plan.skipped, policyViolations: plan.policyViolations };
@@ -52,7 +75,54 @@ async function body(request: IncomingMessage): Promise<Record<string, unknown>> 
   return parsed as Record<string, unknown>;
 }
 
-async function route(request: IncomingMessage, response: ServerResponse, context: Required<DashboardOptions> & { token: string }): Promise<void> {
+async function installedPayload(): Promise<unknown> {
+  const [state, agents, catalog] = await Promise.all([readInstallState(), detectAgents(), loadEffectiveCatalog()]);
+  const catalogById = new Map(catalog.map((entry) => [entry.id, entry]));
+  const agentById = new Map(agents.map((agent) => [agent.id, agent]));
+  const packages = state.installs
+    .map((entry) => {
+      const catalogEntry = catalogById.get(entry.packageId);
+      return {
+        packageId: entry.packageId,
+        displayName: catalogEntry?.displayName ?? entry.packageId,
+        repository: entry.repository ?? catalogEntry?.repository,
+        resolvedCommit: entry.resolvedCommit,
+        installedAt: entry.installedAt,
+        snapshotId: entry.snapshotId,
+        fileCount: entry.files.length,
+        targetAgents: entry.targetAgents.map((agentId) => {
+          const agent = agentById.get(agentId);
+          return {
+            id: agentId,
+            displayName: agent?.displayName ?? agentId,
+            detected: agent?.installed ?? false,
+            skillCompatibility: adapterCapabilities(agentId).components.skill,
+          };
+        }),
+      };
+    })
+    .sort((a, b) => b.installedAt.localeCompare(a.installedAt));
+  const lastKnownGoodSnapshot = packages[0]?.snapshotId;
+  return {
+    generatedAt: new Date().toISOString(),
+    platform: process.platform,
+    packages,
+    mcpServers: (state.mcpInstalls ?? []).map((entry) => ({
+      packageId: entry.packageId,
+      serverName: entry.serverName,
+      configPath: entry.configPath,
+      snapshotId: entry.snapshotId,
+      installedAt: entry.installedAt,
+    })),
+    lastKnownGoodSnapshot,
+  };
+}
+
+function operationPayload(operation: DashboardOperation | undefined): unknown {
+  return operation ?? { status: "idle" };
+}
+
+async function route(request: IncomingMessage, response: ServerResponse, context: DashboardContext): Promise<void> {
   const pathname = new URL(request.url ?? "/", "http://localhost").pathname;
   try {
     const host = request.headers.host?.split(":")[0];
@@ -62,18 +132,40 @@ async function route(request: IncomingMessage, response: ServerResponse, context
       if (!sameOrigin) { await sendJson(response, 403, { error: "Cross-origin dashboard mutation denied" }); return; }
     }
     if (pathname === "/api/session" && request.method === "GET") { await sendJson(response, 200, { token: context.token }); return; }
-    if (pathname === "/api/sync-plan" && request.method === "GET") { await sendJson(response, 200, { plan: safeSyncPlan(await context.buildSync(context.manifestPath)) }); return; }
-    if (pathname === "/api/sync" && request.method === "POST") {
+    if ((pathname === "/api/sync-plan" || pathname === "/api/plan") && request.method === "GET") {
+      await sendJson(response, 200, { plan: safeSyncPlan(await context.buildSync(context.manifestPath)) });
+      return;
+    }
+    if ((pathname === "/api/sync" || pathname === "/api/apply") && request.method === "POST") {
       if (!authorized(request, context.token)) { await sendJson(response, 403, { error: "Invalid dashboard session" }); return; }
-      const input = await body(request); const plan = await context.buildSync(context.manifestPath);
-      const result = await context.applySync(plan, context.lockPath, { approveRisk: input.approveRisk === true });
-      await sendJson(response, 200, { result }); return;
+      context.operation = { kind: "sync", status: "running", startedAt: new Date().toISOString() };
+      try {
+        const input = await body(request); const plan = await context.buildSync(context.manifestPath);
+        const result = await context.applySync(plan, context.lockPath, { approveRisk: input.approveRisk === true });
+        context.operation = { ...context.operation, status: "completed", finishedAt: new Date().toISOString(), snapshotId: result.snapshotId };
+        await sendJson(response, 200, { result });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        context.operation = { ...context.operation, status: "failed", finishedAt: new Date().toISOString(), error: message };
+        throw error;
+      }
+      return;
     }
     if (pathname === "/api/rollback" && request.method === "POST") {
       if (!authorized(request, context.token)) { await sendJson(response, 403, { error: "Invalid dashboard session" }); return; }
-      const input = await body(request);
-      if (typeof input.snapshotId !== "string" || !/^[A-Za-z0-9-]+$/.test(input.snapshotId)) throw new Error("A valid snapshotId is required");
-      await context.rollback(input.snapshotId); await sendJson(response, 200, { restored: input.snapshotId }); return;
+      context.operation = { kind: "rollback", status: "running", startedAt: new Date().toISOString() };
+      try {
+        const input = await body(request);
+        if (typeof input.snapshotId !== "string" || !/^[A-Za-z0-9-]+$/.test(input.snapshotId)) throw new Error("A valid snapshotId is required");
+        await context.rollback(input.snapshotId);
+        context.operation = { ...context.operation, status: "completed", finishedAt: new Date().toISOString(), snapshotId: input.snapshotId };
+        await sendJson(response, 200, { restored: input.snapshotId });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        context.operation = { ...context.operation, status: "failed", finishedAt: new Date().toISOString(), error: message };
+        throw error;
+      }
+      return;
     }
     if (pathname.startsWith("/api/") && request.method !== "GET") { await sendJson(response, 405, { error: "Method not allowed" }); return; }
     if (pathname === "/api/status") {
@@ -84,6 +176,23 @@ async function route(request: IncomingMessage, response: ServerResponse, context
     if (pathname === "/api/catalog") {
       const catalog = rankCatalog(await loadEffectiveCatalog());
       await sendJson(response, 200, { packages: catalog });
+      return;
+    }
+    if (pathname.startsWith("/api/catalog/")) {
+      const id = decodeURIComponent(pathname.slice("/api/catalog/".length));
+      if (!/^[a-z0-9][a-z0-9._-]*$/i.test(id)) { await sendJson(response, 404, { error: "Package not found" }); return; }
+      const catalog = await loadEffectiveCatalog();
+      const entry = catalog.find((item) => item.id === id);
+      if (!entry) { await sendJson(response, 404, { error: "Package not found" }); return; }
+      await sendJson(response, 200, { package: entry });
+      return;
+    }
+    if (pathname === "/api/installed") {
+      await sendJson(response, 200, await installedPayload());
+      return;
+    }
+    if (pathname === "/api/progress") {
+      await sendJson(response, 200, { operation: operationPayload(context.operation) });
       return;
     }
     if (pathname === "/api/health") {
@@ -124,7 +233,7 @@ async function route(request: IncomingMessage, response: ServerResponse, context
 }
 
 export function createDashboardServer(options: DashboardOptions = {}) {
-  const context: Required<DashboardOptions> & { token: string } = {
+  const context: DashboardContext = {
     manifestPath: options.manifestPath ?? join(process.cwd(), "loadout.json"),
     lockPath: options.lockPath ?? join(process.cwd(), "loadout.lock"),
     buildSync: options.buildSync ?? buildSyncPlan,
@@ -135,8 +244,34 @@ export function createDashboardServer(options: DashboardOptions = {}) {
   return createServer((request, response) => { void route(request, response, context); });
 }
 
+/** Start the dashboard only on loopback. Port zero requests an OS-assigned ephemeral port. */
+export async function startDashboardServer(options: DashboardOptions = {}, port = 0): Promise<DashboardHandle> {
+  if (!Number.isInteger(port) || port < 0 || port > 65_535) throw new Error("Dashboard port must be an integer between 0 and 65535");
+  const server = createDashboardServer(options);
+  await new Promise<void>((resolve, reject) => {
+    const onError = (error: Error) => { server.off("listening", onListening); reject(error); };
+    const onListening = () => { server.off("error", onError); resolve(); };
+    server.once("error", onError);
+    server.once("listening", onListening);
+    server.listen(port, "127.0.0.1");
+  });
+  const address = server.address();
+  if (!address || typeof address === "string") {
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+    throw new Error("Could not determine dashboard address");
+  }
+  return {
+    server,
+    host: "127.0.0.1",
+    port: address.port,
+    close: () => new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve())),
+  };
+}
+
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
-  const port = Number(process.env.LOADOUT_PORT ?? 4173);
-  const server = createDashboardServer();
-  server.listen(port, "127.0.0.1", () => console.log(`Loadout dashboard: http://127.0.0.1:${port}`));
+  const port = process.env.LOADOUT_PORT === undefined ? 0 : Number(process.env.LOADOUT_PORT);
+  void startDashboardServer({}, port).then((handle) => console.log(`Loadout dashboard: http://127.0.0.1:${handle.port}`)).catch((error: unknown) => {
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exitCode = 1;
+  });
 }

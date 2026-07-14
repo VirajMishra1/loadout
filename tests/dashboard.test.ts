@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { readFile } from "node:fs/promises";
 import { request as httpRequest } from "node:http";
 import { join } from "node:path";
-import { createDashboardServer } from "../src/dashboard.js";
+import { createDashboardServer, startDashboardServer } from "../src/dashboard.js";
 
 describe("dashboard server", () => {
   it("serves real status/catalog endpoints and the shell", async () => {
@@ -11,7 +11,7 @@ describe("dashboard server", () => {
     const address = server.address();
     if (!address || typeof address === "string") throw new Error("server did not bind");
     const base = `http://127.0.0.1:${address.port}`;
-    const [html, status, health, profiles, recommendations, registry, catalog, updates] = await Promise.all([fetch(`${base}/`), fetch(`${base}/api/status`), fetch(`${base}/api/health`), fetch(`${base}/api/profiles`), fetch(`${base}/api/recommendations`), fetch(`${base}/api/registry`), fetch(`${base}/api/catalog`), fetch(`${base}/api/update`)]);
+    const [html, status, health, profiles, recommendations, registry, catalog, catalogDetail, installed, progress, updates] = await Promise.all([fetch(`${base}/`), fetch(`${base}/api/status`), fetch(`${base}/api/health`), fetch(`${base}/api/profiles`), fetch(`${base}/api/recommendations`), fetch(`${base}/api/registry`), fetch(`${base}/api/catalog`), fetch(`${base}/api/catalog/superpowers`), fetch(`${base}/api/installed`), fetch(`${base}/api/progress`), fetch(`${base}/api/update`)]);
     expect(html.status).toBe(200);
     expect(await html.text()).toContain("Health");
     expect(status.status).toBe(200);
@@ -26,6 +26,12 @@ describe("dashboard server", () => {
     expect((await registry.json()).packages).toBeInstanceOf(Array);
     expect(catalog.status).toBe(200);
     expect((await catalog.json()).packages).toBeInstanceOf(Array);
+    expect(catalogDetail.status).toBe(200);
+    expect((await catalogDetail.json()).package.id).toBe("superpowers");
+    expect(installed.status).toBe(200);
+    expect((await installed.json()).packages).toBeInstanceOf(Array);
+    expect(progress.status).toBe(200);
+    expect((await progress.json()).operation.status).toBe("idle");
     expect(updates.status).toBe(200);
     expect((await updates.json()).updates).toBeInstanceOf(Array);
     await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
@@ -38,10 +44,11 @@ describe("dashboard server", () => {
     await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
     const address = server.address(); if (!address || typeof address === "string") throw new Error("server did not bind");
     const base = `http://127.0.0.1:${address.port}`;
-    const preview = await fetch(`${base}/api/sync-plan`); expect(preview.status).toBe(200); expect((await preview.json()).plan.policyViolations).toEqual([]);
+    const preview = await fetch(`${base}/api/plan`); expect(preview.status).toBe(200); expect((await preview.json()).plan.policyViolations).toEqual([]);
     const denied = await fetch(`${base}/api/sync`, { method: "POST", headers: { "content-type": "application/json" }, body: "{}" }); expect(denied.status).toBe(403);
     const token = (await (await fetch(`${base}/api/session`)).json()).token;
-    const applied = await fetch(`${base}/api/sync`, { method: "POST", headers: { "content-type": "application/json", "x-loadout-token": token }, body: "{}" }); expect(applied.status).toBe(200); expect((await applied.json()).result.snapshotId).toBe("snap-123");
+    const applied = await fetch(`${base}/api/apply`, { method: "POST", headers: { "content-type": "application/json", "x-loadout-token": token }, body: "{}" }); expect(applied.status).toBe(200); expect((await applied.json()).result.snapshotId).toBe("snap-123");
+    const progress = await fetch(`${base}/api/progress`); expect((await progress.json()).operation).toMatchObject({ kind: "sync", status: "completed", snapshotId: "snap-123" });
     const rolledBack = await fetch(`${base}/api/rollback`, { method: "POST", headers: { "content-type": "application/json", "x-loadout-token": token }, body: JSON.stringify({ snapshotId: "snap-123" }) }); expect(rolledBack.status).toBe(200); expect(restored).toBe("snap-123");
     await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
   });
@@ -64,6 +71,16 @@ describe("dashboard server", () => {
     await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
   });
 
+  it("starts on an OS-assigned loopback port by default", async () => {
+    const dashboard = await startDashboardServer();
+    expect(dashboard.host).toBe("127.0.0.1");
+    expect(dashboard.port).toBeGreaterThan(0);
+    const response = await fetch(`http://${dashboard.host}:${dashboard.port}/api/session`);
+    expect(response.status).toBe(200);
+    expect((await response.json()).token).toMatch(/^[a-f0-9]{64}$/);
+    await dashboard.close();
+  });
+
   it("ships keyboard-accessible dashboard controls and defensive UI states", async () => {
     const dashboardDirectory = join(process.cwd(), "dashboard");
     const [html, script, styles] = await Promise.all([
@@ -72,15 +89,21 @@ describe("dashboard server", () => {
       readFile(join(dashboardDirectory, "styles.css"), "utf8"),
     ]);
     expect(html).toContain('href="#dashboard-content"');
+    expect(html).toContain('data-route="discover"');
+    expect(html).toContain('id="catalog-search"');
+    expect(html).toContain('id="installed"');
     expect(html).toContain('id="sync-acknowledgement"');
     expect(html).toContain('aria-labelledby="sync-heading"');
     expect(html).toContain('role="status"');
     expect(html).toContain('id="refresh-dashboard"');
     expect(script).toContain("Promise.allSettled");
+    expect(script).toContain('load("/api/installed")');
+    expect(script).toContain("window.addEventListener(\"hashchange\", setRoute)");
     expect(script).toContain("syncAcknowledgement.checked");
     expect(script).toContain("Expected a local JSON response");
     expect(script).toContain("escapeHtml");
     expect(styles).toContain(".skip-link:focus");
     expect(styles).toContain("button:focus-visible");
+    expect(styles).toContain(".dashboard-nav");
   });
 });

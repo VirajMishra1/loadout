@@ -177,8 +177,10 @@ npm run build
 npm run dashboard
 ```
 
-Open <http://127.0.0.1:4173>. The page reads the detected agents and the real catalog
-from this checkout. It also shows health, updates, local project recommendations,
+Open the loopback URL printed by the command. Loadout requests an OS-assigned random
+port by default; set `LOADOUT_PORT=4173` only when you specifically need a fixed local
+address. The page reads the detected agents and the real catalog from this checkout.
+It also shows installed package state, health, updates, local project recommendations,
 tested profiles, and locally published registry packages. The dashboard can preview
 and apply plans that require no risk override, then undo that exact dashboard change.
 Mutations require a private same-origin session token; risky plans remain CLI-only.

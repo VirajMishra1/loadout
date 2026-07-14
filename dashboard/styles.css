@@ -11,6 +11,10 @@ header { margin-bottom: 44px; }
 h1 { font-size: clamp(2.3rem, 7vw, 5rem); line-height: .98; max-width: 720px; margin: 12px 0; }
 .subhead { color: #a1a1aa; font-size: 18px; }
 h2 { font-size: 24px; }
+.dashboard-nav { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 24px; }
+.dashboard-nav a { border: 1px solid #3f3f46; border-radius: 999px; color: #d4d4d8; padding: 7px 12px; text-decoration: none; }
+.dashboard-nav a[aria-current="page"] { border-color: #8b5cf6; background: #2e1065; color: #ede9fe; }
+.dashboard-nav a:focus-visible { outline: 3px solid #c4b5fd; outline-offset: 2px; }
 .skip-link { position: fixed; z-index: 10; top: 12px; left: 12px; transform: translateY(-160%); border-radius: 8px; background: #f4f4f5; color: #18181b; padding: 8px 12px; font-weight: 700; text-decoration: none; }
 .skip-link:focus { transform: translateY(0); outline: 3px solid #c4b5fd; outline-offset: 2px; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
@@ -21,6 +25,7 @@ h2 { font-size: 24px; }
 .error { border-color: #7f1d1d; color: #fecaca; }
 .attention { border-color: #854d0e; color: #fef3c7; }
 .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 14px; }
+section[hidden] { display: none; }
 article { border: 1px solid #27272a; border-radius: 14px; padding: 18px; background: #18181b; }
 article h3 { margin: 0 0 8px; }
 article p { min-height: 42px; color: #d4d4d8; line-height: 1.4; }
@@ -30,6 +35,10 @@ small { font-size: 12px; }
 .card-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .update-heading h3 { margin: 0; }
 .badge { border-radius: 999px; padding: 4px 9px; font-size: 11px; color: #d4d4d8; background: #27272a; }
+.badge.official { background: #164e63; color: #cffafe; }
+.badge.stable, .badge.native { background: #14532d; color: #bbf7d0; }
+.badge.trending, .badge.adapted { background: #713f12; color: #fef3c7; }
+.badge.community, .badge.unsupported { background: #3f3f46; color: #e4e4e7; }
 .update-available { border-color: #854d0e; }
 .update-available .badge { color: #fef3c7; background: #713f12; }
 .up-to-date .badge { color: #bbf7d0; background: #14532d; }
@@ -38,6 +47,10 @@ details { margin-top: 10px; color: #d4d4d8; }
 summary { cursor: pointer; }
 summary:focus-visible { outline: 3px solid #c4b5fd; outline-offset: 3px; border-radius: 4px; }
 li { margin: 5px 0; }
+dl { display: grid; grid-template-columns: max-content 1fr; gap: 6px 12px; margin: 12px 0; }
+dt { color: #a1a1aa; }
+dd { margin: 0; overflow-wrap: anywhere; }
+.safety { border-left: 3px solid #f59e0b; padding-left: 10px; }
 .health-list { border: 1px solid #27272a; border-radius: 14px; padding: 18px; }
 .health-list p { margin: 10px 0 0; color: #d4d4d8; }
 .metric-row { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
@@ -49,6 +62,10 @@ footer { margin-top: 52px; padding-top: 18px; border-top: 1px solid #27272a; col
 .action-bar { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; }
 .refresh-row { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 20px; }
 .refresh-row .muted { max-width: 560px; font-size: 13px; }
+.catalog-filters { display: flex; flex-wrap: wrap; gap: 12px; margin: 12px 0 16px; }
+.catalog-filters label { display: grid; gap: 5px; color: #d4d4d8; font-size: 13px; }
+input[type="search"], select { border: 1px solid #3f3f46; border-radius: 8px; background: #18181b; color: #f4f4f5; font: inherit; min-height: 38px; padding: 0 10px; }
+input[type="search"] { min-width: min(300px, 75vw); }
 .approval-control { display: flex; align-items: flex-start; gap: 8px; margin: 14px 0; color: #d4d4d8; }
 .approval-control input { width: 18px; height: 18px; margin-top: 2px; accent-color: #8b5cf6; }
 button { appearance: none; border: 1px solid #7c3aed; border-radius: 10px; background: #7c3aed; color: white; padding: 10px 14px; font: inherit; font-weight: 650; cursor: pointer; }
@@ -61,5 +78,6 @@ code { color: #c4b5fd; }
   .section-title { align-items: flex-start; flex-direction: column; gap: 2px; }
   .section-title h2 { margin-bottom: 0; }
   .refresh-row { align-items: flex-start; flex-direction: column; }
+  .catalog-filters label, input[type="search"], select { width: 100%; }
   .action-bar > button { flex: 1 1 180px; }
 }

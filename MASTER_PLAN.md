@@ -698,18 +698,18 @@ modes.
 ### Phase 7: Local API and dashboard
 
 - [x] `P7-01 [SOL]` Define local API contract and threat boundary.
-- [ ] `P7-02 [TERRA]` Start local server on random loopback port with session token.
+- [x] `P7-02 [TERRA]` Start local server on random loopback port with session token.
 - [x] `P7-03 [TERRA]` Agents/status endpoint.
 - [x] `P7-04 [TERRA]` Catalog/list/detail endpoints.
-- [ ] `P7-05 [TERRA]` Plan/apply/progress endpoints.
+- [x] `P7-05 [TERRA]` Plan/apply/progress endpoints.
 - [x] `P7-06 [TERRA]` Updates/diff/rollback endpoints.
 - [x] `P7-07 [LUNA]` Dashboard shell, routing, typography, color tokens.
 - [x] `P7-08 [TERRA]` Home screen.
-- [ ] `P7-09 [TERRA]` Discover screen.
-- [ ] `P7-10 [TERRA]` Installed screen.
-- [ ] `P7-11 [TERRA]` Updates and diff screen.
+- [x] `P7-09 [TERRA]` Discover screen.
+- [x] `P7-10 [TERRA]` Installed screen.
+- [x] `P7-11 [TERRA]` Updates and diff screen.
 - [x] `P7-12 [LUNA]` Empty, loading, and error states.
-- [ ] `P7-13 [LUNA]` Keyboard and accessible-label pass.
+- [x] `P7-13 [LUNA]` Keyboard and accessible-label pass.
 - [ ] `P7-14 [TERRA]` Playwright first-run happy-path test.
 - [ ] `P7-15 [SOL]` Product and security review of complete flow.
 

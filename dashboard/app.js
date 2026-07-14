@@ -10,6 +10,12 @@ const projectSignals = document.querySelector("#project-signals");
 const profiles = document.querySelector("#profiles");
 const registry = document.querySelector("#registry");
 const registryCount = document.querySelector("#registry-count");
+const installed = document.querySelector("#installed");
+const installedCount = document.querySelector("#installed-count");
+const lastSnapshot = document.querySelector("#last-snapshot");
+const catalogSearch = document.querySelector("#catalog-search");
+const catalogTier = document.querySelector("#catalog-tier");
+const catalogCategory = document.querySelector("#catalog-category");
 const refreshDashboard = document.querySelector("#refresh-dashboard");
 const previewSync = document.querySelector("#preview-sync");
 const applySync = document.querySelector("#apply-sync");
@@ -22,6 +28,28 @@ let sessionToken;
 let latestSnapshot;
 let reviewedSafePlan = false;
 let renderRun = 0;
+let latestCatalog = [];
+
+const routeNames = new Set(["home", "discover", "installed", "updates"]);
+const routeLinks = [...document.querySelectorAll("[data-route]")];
+const screens = [...document.querySelectorAll("[data-screen]")];
+
+function selectedRoute() {
+  const route = window.location.hash.slice(1);
+  return routeNames.has(route) ? route : "home";
+}
+
+function setRoute() {
+  const route = selectedRoute();
+  for (const screen of screens) {
+    const screenRoute = screen.id || screen.dataset.screen;
+    screen.hidden = screenRoute !== route;
+  }
+  for (const link of routeLinks) {
+    if (link.dataset.route === route) link.setAttribute("aria-current", "page");
+    else link.removeAttribute("aria-current");
+  }
+}
 
 function errorMessage(error) {
   return error instanceof Error && error.message ? error.message : "An unexpected local error occurred";
@@ -95,8 +123,10 @@ function setMarkupState(element, className, markup) {
 function renderUpdate(plan, index) {
   const label = plan.status === "update-available" ? "Update available" : plan.status === "up-to-date" ? "Up to date" : plan.status === "untracked" ? "Needs tracking" : "Could not check";
   const details = plan.diff?.length ? `<details><summary>${plan.diff.length} changed file${plan.diff.length === 1 ? "" : "s"}</summary><ul>${plan.diff.slice(0, 20).map((change) => `<li><code>${escapeHtml(change.path)}</code> <small>${escapeHtml(change.kind)}</small></li>`).join("")}</ul></details>` : "";
+  const safety = asArray(plan.safetyFindings).length ? `<details class="safety"><summary>${plan.approvalRequired ? "Approval required" : "Safety notes"}</summary><ul>${asArray(plan.safetyFindings).map((finding) => `<li><strong>${escapeHtml(finding.category || "review")}</strong>: ${escapeHtml(finding.message || "Review this change.")}${asArray(finding.names).length ? ` <small>${asArray(finding.names).map(escapeHtml).join(", ")}</small>` : ""}</li>`).join("")}</ul></details>` : "";
   const headingId = `update-${index}`;
-  return `<article class="update ${escapeHtml(plan.status || "unknown")}" aria-labelledby="${headingId}"><div class="update-heading"><h3 id="${headingId}">${escapeHtml(plan.packageId || "Unknown package")}</h3><span class="badge">${label}</span></div><p>${escapeHtml(plan.action || "No update action available.")}</p>${plan.repository ? `<small>${escapeHtml(plan.repository)}${plan.availableCommit ? ` · ${escapeHtml(String(plan.availableCommit).slice(0, 12))}` : ""}</small>` : ""}${plan.error ? `<p class="error-text">${escapeHtml(plan.error)}</p>` : ""}${details}</article>`;
+  const commits = plan.installedCommit || plan.availableCommit ? `<small>Installed ${escapeHtml(String(plan.installedCommit || "unknown").slice(0, 12))} → candidate ${escapeHtml(String(plan.availableCommit || "unknown").slice(0, 12))}</small>` : "";
+  return `<article class="update ${escapeHtml(plan.status || "unknown")}" aria-labelledby="${headingId}"><div class="update-heading"><h3 id="${headingId}">${escapeHtml(plan.packageId || "Unknown package")}</h3><span class="badge">${label}</span></div><p>${escapeHtml(plan.action || "No update action available.")}</p>${plan.repository ? `<small>${escapeHtml(plan.repository)}</small>` : ""}${commits}${plan.error ? `<p class="error-text">${escapeHtml(plan.error)}</p>` : ""}${safety}${details}</article>`;
 }
 
 function describeSync(plan) {
@@ -222,14 +252,49 @@ function renderProfiles(data) {
   }).join(""));
 }
 
-function renderCatalog(data) {
-  const packages = asArray(data.packages);
-  count.textContent = `${packages.length} packages`;
+function renderCatalogOptions(packages) {
+  const previous = catalogCategory.value;
+  const categories = [...new Set(packages.map((pkg) => pkg?.category).filter((category) => typeof category === "string" && category))].sort();
+  catalogCategory.innerHTML = `<option value="">All outcomes</option>${categories.map((category) => `<option value="${escapeHtml(category)}">${escapeHtml(category)}</option>`).join("")}`;
+  if (categories.includes(previous)) catalogCategory.value = previous;
+}
+
+function filteredCatalog() {
+  const query = catalogSearch.value.trim().toLowerCase();
+  return latestCatalog.filter((pkg) => {
+    const searchable = [pkg.displayName, pkg.id, pkg.category, pkg.repository, pkg.description, ...(asArray(pkg.topics))].join(" ").toLowerCase();
+    return (!query || searchable.includes(query)) && (!catalogTier.value || pkg.tier === catalogTier.value) && (!catalogCategory.value || pkg.category === catalogCategory.value);
+  });
+}
+
+function renderCatalogCards(packages) {
+  count.textContent = `${packages.length} package${packages.length === 1 ? "" : "s"}${packages.length !== latestCatalog.length ? ` of ${latestCatalog.length}` : ""}`;
   if (!packages.length) return setTextState(catalog, "The catalog is empty. Refresh it with loadout catalog --refresh.");
   setMarkupState(catalog, "grid", packages.map((pkg, index) => {
     const headingId = `catalog-${index}`;
     const stars = typeof pkg.stars === "number" ? ` · ★${pkg.stars.toLocaleString()}` : "";
-    return `<article aria-labelledby="${headingId}"><h3 id="${headingId}">${escapeHtml(pkg.displayName || pkg.id || "Unknown package")}</h3><p>${escapeHtml(pkg.description || "No description available.")}</p><small>${escapeHtml(pkg.repository || "No repository")}${pkg.tier ? ` · ${escapeHtml(pkg.tier)}` : ""}${stars}</small></article>`;
+    const components = asArray(pkg.components).map(escapeHtml).join(" · ") || "Not classified";
+    const platforms = asArray(pkg.operatingSystems).map(escapeHtml).join(" · ") || "Source inspection supported on this platform";
+    const evidence = asArray(pkg.source?.evidencePaths).map((path) => `<li><code>${escapeHtml(path)}</code></li>`).join("");
+    return `<article aria-labelledby="${headingId}"><div class="card-heading"><h3 id="${headingId}">${escapeHtml(pkg.displayName || pkg.id || "Unknown package")}</h3><span class="badge ${escapeHtml(pkg.tier || "community")}">${escapeHtml(pkg.tier || "community")}</span></div><p>${escapeHtml(pkg.description || "No description available.")}</p><small>${escapeHtml(pkg.repository || "No repository")}${stars}${pkg.category ? ` · ${escapeHtml(pkg.category)}` : ""}</small><details><summary>Technical details</summary><dl><dt>License</dt><dd>${escapeHtml(pkg.license || "Not recorded")}</dd><dt>Components</dt><dd>${components}</dd><dt>Platforms</dt><dd>${platforms}</dd></dl>${evidence ? `<p class="muted">Reviewed evidence paths</p><ul>${evidence}</ul>` : ""}<p class="muted">Add with <code>loadout add ${escapeHtml(pkg.id || "<package>")} --catalog ${escapeHtml(pkg.id || "<package>")}</code>, then preview synchronization before applying.</p></details></article>`;
+  }).join(""));
+}
+
+function renderCatalog(data) {
+  latestCatalog = asArray(data.packages);
+  renderCatalogOptions(latestCatalog);
+  renderCatalogCards(filteredCatalog());
+}
+
+function renderInstalled(data) {
+  const packages = asArray(data.packages);
+  installedCount.textContent = `${packages.length} package${packages.length === 1 ? "" : "s"}`;
+  lastSnapshot.textContent = data.lastKnownGoodSnapshot ? `Last known-good snapshot: ${data.lastKnownGoodSnapshot}` : "No Loadout restore point exists yet.";
+  if (!packages.length) return setTextState(installed, "No Loadout-managed packages are installed. Use Discover to choose a package, add it to loadout.json, then preview synchronization.");
+  setMarkupState(installed, "grid", packages.map((pkg, index) => {
+    const headingId = `installed-${index}`;
+    const agents = asArray(pkg.targetAgents).map((agent) => `<li><span class="badge ${escapeHtml(agent.skillCompatibility || "unsupported")}">${escapeHtml(agent.skillCompatibility || "unsupported")}</span> ${escapeHtml(agent.displayName || agent.id)}${agent.detected ? "" : " <small>not detected on this machine</small>"}</li>`).join("");
+    return `<article aria-labelledby="${headingId}"><div class="card-heading"><h3 id="${headingId}">${escapeHtml(pkg.displayName || pkg.packageId || "Unknown package")}</h3><span class="badge">managed</span></div><p>${Number(pkg.fileCount) || 0} tracked file${Number(pkg.fileCount) === 1 ? "" : "s"} · installed ${escapeHtml(pkg.installedAt || "unknown")}</p><small>${escapeHtml(pkg.repository || "Local source")} · commit ${escapeHtml(String(pkg.resolvedCommit || "local").slice(0, 12))}</small><details><summary>Managed targets and recovery</summary><ul>${agents}</ul><p>Restore point: <code>${escapeHtml(pkg.snapshotId || "not recorded")}</code></p><p class="muted">Removal stays explicit: <code>loadout remove ${escapeHtml(pkg.packageId || "<package>")}</code> previews files before it deletes anything.</p></details></article>`;
   }).join(""));
 }
 
@@ -258,12 +323,13 @@ async function render() {
   setBusy(profiles, "Loading profiles…");
   setBusy(catalog, "Loading catalog…");
   setBusy(registry, "Loading locally published packages…");
+  setBusy(installed, "Reading managed package state…");
 
   const results = await Promise.allSettled([
-    load("/api/status"), load("/api/health"), load("/api/update"), load("/api/recommendations"), load("/api/profiles"), load("/api/catalog"), load("/api/registry"),
+    load("/api/status"), load("/api/health"), load("/api/update"), load("/api/recommendations"), load("/api/profiles"), load("/api/catalog"), load("/api/registry"), load("/api/installed"),
   ]);
   if (run !== renderRun) return;
-  const [statusResult, healthResult, updatesResult, recommendationsResult, profilesResult, catalogResult, registryResult] = results;
+  const [statusResult, healthResult, updatesResult, recommendationsResult, profilesResult, catalogResult, registryResult, installedResult] = results;
   const applyResult = (result, element, prefix, draw) => {
     if (result.status === "rejected") return renderFailure(element, prefix, result.reason);
     try { draw(result.value); } catch (error) { renderFailure(element, prefix, error); }
@@ -275,10 +341,16 @@ async function render() {
   applyResult(profilesResult, profiles, "Could not load profiles", renderProfiles);
   applyResult(catalogResult, catalog, "Could not load catalog", renderCatalog);
   applyResult(registryResult, registry, "Could not load local registry", renderRegistry);
+  applyResult(installedResult, installed, "Could not load installed packages", renderInstalled);
   refreshDashboard.disabled = false;
   refreshDashboard.textContent = "Refresh dashboard";
   announce("Dashboard data refreshed.");
 }
 
 refreshDashboard.addEventListener("click", () => { void render(); });
+catalogSearch.addEventListener("input", () => renderCatalogCards(filteredCatalog()));
+catalogTier.addEventListener("change", () => renderCatalogCards(filteredCatalog()));
+catalogCategory.addEventListener("change", () => renderCatalogCards(filteredCatalog()));
+window.addEventListener("hashchange", setRoute);
+setRoute();
 void render();

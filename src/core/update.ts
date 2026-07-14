@@ -3,6 +3,7 @@ import { fetchRepositorySnapshot } from "./source.js";
 import { repositoryCachePath } from "./source.js";
 import { diffRepositorySnapshots, type ChangedFileDiff } from "./diff.js";
 import { readInstallState } from "./state.js";
+import { analyzeUpdateSafety, type SafetyFinding } from "./safety.js";
 
 export type UpdateStatus = "update-available" | "up-to-date" | "untracked" | "error";
 
@@ -16,6 +17,9 @@ export interface UpdatePlan {
   action: string;
   /** Safe file-level summary when both revisions are cached locally. */
   diff?: ChangedFileDiff[];
+  /** Updates containing executable or lifecycle changes require explicit approval. */
+  approvalRequired?: boolean;
+  safetyFindings?: SafetyFinding[];
   error?: string;
 }
 
@@ -40,15 +44,24 @@ export async function buildUpdatePlan(
       const current = await resolver(record.repository);
       const same = current.commit.toLowerCase() === record.resolvedCommit.toLowerCase();
       let diff: ChangedFileDiff[] | undefined;
+      let safetyFindings: SafetyFinding[] | undefined;
+      let approvalRequired = false;
       if (!same && current.path) {
         const oldPath = repositoryCachePath(record.repository, record.resolvedCommit);
         diff = await diffRepositorySnapshots(oldPath, current.path);
+        const safety = await analyzeUpdateSafety(oldPath, current.path);
+        safetyFindings = safety.findings;
+        approvalRequired = safety.approvalRequired;
       }
       return {
         ...base,
         availableCommit: current.commit,
         status: same ? "up-to-date" : "update-available",
-        action: same ? "No action required." : `Run loadout update --package ${record.packageId} after review.`,
+        action: same ? "No action required." : approvalRequired
+          ? `Approval required: review safety warnings before updating ${record.packageId}.`
+          : `Run loadout update --package ${record.packageId} after review.`,
+        ...(approvalRequired ? { approvalRequired: true } : {}),
+        ...(safetyFindings?.length ? { safetyFindings } : {}),
         ...(diff ? { diff } : {})
       };
     } catch (error) {
@@ -67,6 +80,7 @@ export function formatUpdatePlan(plans: UpdatePlan[]): string {
   return plans.map((plan) => {
     const suffix = plan.error ? ` — ${plan.error}` : "";
     const repo = plan.repository ? ` (${plan.repository})` : "";
-    return `${plan.status.toUpperCase()} ${plan.packageId}${repo}: ${plan.action}${suffix}`;
+    const safety = plan.safetyFindings?.map((finding) => ` [${finding.severity}] ${finding.message}${finding.names?.length ? ` (${finding.names.join(", ")})` : ""}`).join("") ?? "";
+    return `${plan.status.toUpperCase()} ${plan.packageId}${repo}: ${plan.action}${safety}${suffix}`;
   }).join("\n");
 }

@@ -7,6 +7,7 @@ import { buildSkillPlan, applySkillInstall, installedAgents } from "./core/insta
 import { restoreSnapshot } from "./core/snapshot.js";
 import type { AgentId } from "./shared/types.js";
 import { fetchRepositorySnapshot } from "./core/source.js";
+import { runDoctor, formatDoctorReport } from "./core/doctor.js";
 
 const program = new Command();
 program.name("loadout").description("Universal upgrade manager for AI coding agents").version("0.1.0");
@@ -17,6 +18,14 @@ program.command("status").description("Show detected coding agents").action(asyn
     console.log(`${agent.installed ? "✓" : "○"} ${agent.displayName} — ${agent.skillsDirectory}`);
   }
 });
+
+program.command("doctor")
+  .description("Check agents, skill directories, permissions, and Loadout setup")
+  .option("--json", "print a machine-readable report")
+  .action(async (options: { json?: boolean }) => {
+    const report = await runDoctor();
+    console.log(options.json ? JSON.stringify(report, null, 2) : formatDoctorReport(report));
+  });
 
 program.command("catalog").description("List the bundled real package catalog").action(async () => {
   const packages = rankCatalog(await loadCatalog());

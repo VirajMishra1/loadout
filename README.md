@@ -20,6 +20,7 @@ specification, architecture, work breakdown, ownership tracks, and delivery chec
 npm install
 npm run build
 node dist/src/cli.js status
+node dist/src/cli.js doctor
 node dist/src/cli.js catalog
 node dist/src/cli.js plan --repository obra/superpowers --package obra-superpowers --agents codex
 node dist/src/cli.js install --repository obra/superpowers --package obra-superpowers --agents codex --yes

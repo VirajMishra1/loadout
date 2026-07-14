@@ -20,7 +20,7 @@ export function loadoutHome(): string {
 }
 
 export function userHome(): string {
-  return process.env.LOADOUT_USER_HOME ?? process.env.HOME ?? process.cwd();
+  return process.env.LOADOUT_USER_HOME ?? process.env.HOME ?? process.env.USERPROFILE ?? process.cwd();
 }
 
 async function hasBinary(binary: string): Promise<boolean> {

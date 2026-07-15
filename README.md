@@ -163,6 +163,16 @@ upstream terms always remain authoritative.
 does not rewrite the reviewed commit evidence. A future catalog-review update must
 verify a new commit and its paths before changing those fields.
 
+Every refresh also stores one local observation per catalog repository for that UTC
+date: stars, latest release tag/date, and the summed download count of its release
+assets. Re-running a refresh on the same day replaces that day's observation rather
+than manufacturing a velocity signal. Use the terminal chart after at least two days:
+
+```bash
+node dist/src/cli.js catalog --refresh
+node dist/src/cli.js catalog --history superpowers
+```
+
 ## Early discovery without blind installation
 
 ```bash

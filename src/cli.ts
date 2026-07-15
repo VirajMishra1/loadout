@@ -94,6 +94,10 @@ import {
 import { formatDemoResult, runIsolatedDemo } from "./core/demo.js";
 import { resolveCatalogProfile } from "./core/profiles.js";
 import { discoverHackerNewsRepositories } from "./core/community.js";
+import {
+  formatStarHistory,
+  readCatalogObservations,
+} from "./core/observations.js";
 
 const program = new Command();
 program
@@ -810,45 +814,72 @@ program
     "--explain <id>",
     "print the evidence and guardrails behind one package's ranking",
   )
-  .action(async (options: { refresh?: boolean; explain?: string }) => {
-    const base = await loadCatalog();
-    const result = options.refresh
-      ? await refreshCatalog(base, { forceRefresh: true })
-      : { catalog: await loadEffectiveCatalog(), failures: [] };
-    if (options.explain) {
-      const pkg = result.catalog.find((item) => item.id === options.explain);
-      if (!pkg) throw new Error(`Unknown catalog package '${options.explain}'`);
-      console.log(
-        JSON.stringify(
-          {
-            package: {
-              id: pkg.id,
-              displayName: pkg.displayName,
-              category: pkg.category,
-              tier: pkg.tier,
+  .option("--history <id>", "show locally recorded stars and release history")
+  .action(
+    async (options: {
+      refresh?: boolean;
+      explain?: string;
+      history?: string;
+    }) => {
+      if (options.explain && options.history)
+        throw new Error("Choose either --explain or --history");
+      const base = await loadCatalog();
+      const result = options.refresh
+        ? await refreshCatalog(base, { forceRefresh: true })
+        : {
+            catalog: await loadEffectiveCatalog(),
+            failures: [],
+            observationFailures: [],
+          };
+      if (options.history) {
+        const pkg = result.catalog.find((item) => item.id === options.history);
+        if (!pkg)
+          throw new Error(`Unknown catalog package '${options.history}'`);
+        console.log(
+          formatStarHistory(await readCatalogObservations(pkg.repository)),
+        );
+        return;
+      }
+      if (options.explain) {
+        const pkg = result.catalog.find((item) => item.id === options.explain);
+        if (!pkg)
+          throw new Error(`Unknown catalog package '${options.explain}'`);
+        console.log(
+          JSON.stringify(
+            {
+              package: {
+                id: pkg.id,
+                displayName: pkg.displayName,
+                category: pkg.category,
+                tier: pkg.tier,
+              },
+              ranking: explainCatalogScore(pkg),
             },
-            ranking: explainCatalogScore(pkg),
-          },
-          null,
-          2,
-        ),
-      );
-      return;
-    }
-    for (const pkg of rankCatalog(result.catalog)) {
-      const topics = pkg.topics?.length ? ` — ${pkg.topics.join(", ")}` : "";
-      const updated = pkg.lastUpdatedAt
-        ? ` — updated ${pkg.lastUpdatedAt.slice(0, 10)}`
-        : "";
-      console.log(
-        `${pkg.displayName} [${pkg.tier}] ★${pkg.stars ?? "?"} — ${pkg.repository}${topics}${updated}`,
-      );
-    }
-    for (const failure of result.failures)
-      console.error(
-        `Warning: could not refresh ${failure.repository}: ${failure.error}`,
-      );
-  });
+            null,
+            2,
+          ),
+        );
+        return;
+      }
+      for (const pkg of rankCatalog(result.catalog)) {
+        const topics = pkg.topics?.length ? ` — ${pkg.topics.join(", ")}` : "";
+        const updated = pkg.lastUpdatedAt
+          ? ` — updated ${pkg.lastUpdatedAt.slice(0, 10)}`
+          : "";
+        console.log(
+          `${pkg.displayName} [${pkg.tier}] ★${pkg.stars ?? "?"} — ${pkg.repository}${topics}${updated}`,
+        );
+      }
+      for (const failure of result.failures)
+        console.error(
+          `Warning: could not refresh ${failure.repository}: ${failure.error}`,
+        );
+      for (const failure of result.observationFailures)
+        console.error(
+          `Warning: could not record release observation for ${failure.repository}: ${failure.error}`,
+        );
+    },
+  );
 
 program
   .command("discover")

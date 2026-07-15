@@ -6,6 +6,7 @@ import { fetchGitHubMetadata, type GitHubMetadataOptions } from "./github.js";
 import { loadoutHome } from "./paths.js";
 import { compareCatalogPackages, explainCatalogScore } from "./ranking.js";
 import { resolveCatalogProfile } from "./profiles.js";
+import { recordCatalogObservations } from "./observations.js";
 
 export type InstallSelectionMode = "stable" | "maximum" | "custom";
 
@@ -228,6 +229,7 @@ export async function loadEffectiveCatalog(
 export interface CatalogRefreshResult {
   catalog: CatalogPackage[];
   failures: Array<{ repository: string; error: string }>;
+  observationFailures: Array<{ repository: string; error: string }>;
 }
 
 /** Refreshes package metadata from GitHub and persists only data returned by the API. */
@@ -264,7 +266,12 @@ export async function refreshCatalog(
     `${JSON.stringify(refreshed, null, 2)}\n`,
     { mode: 0o600 },
   );
-  return { catalog: refreshed, failures };
+  const observations = await recordCatalogObservations(refreshed, options);
+  return {
+    catalog: refreshed,
+    failures,
+    observationFailures: observations.failures,
+  };
 }
 
 export function rankCatalog(packages: CatalogPackage[]): CatalogPackage[] {

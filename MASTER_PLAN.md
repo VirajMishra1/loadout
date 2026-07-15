@@ -760,7 +760,7 @@ modes.
 - [ ] `P11-01 [SOL]` Design GitHub OAuth and minimal-scope authorization model.
 - [ ] `P11-02 [TERRA]` Implement optional private-repository discovery.
 - [x] `P11-03 [TERRA]` Implement Community Loadout export/import with versioning.
-- [ ] `P11-04 [TERRA]` Implement star/release/download snapshot storage and charts.
+- [x] `P11-04 [TERRA]` Implement star/release/download snapshot storage and charts.
 - [x] `P11-05 [SOL]` Define provider-neutral model configuration schema.
 - [ ] `P11-06 [TERRA]` Implement OpenRouter provider adapter without storing keys in
       application state.

@@ -15,6 +15,14 @@ export interface GitHubRepositoryMetadata {
   fetchedAt: string;
 }
 
+/** Public release facts used for local trend history, never for installation. */
+export interface GitHubReleaseMetadata {
+  tag: string | null;
+  publishedAt: string | null;
+  downloadCount: number;
+  fetchedAt: string;
+}
+
 export interface GitHubMetadataOptions {
   /** Cache lifetime in milliseconds. Defaults to six hours. */
   maxAgeMs?: number;
@@ -43,11 +51,18 @@ function cachePath(repository: string): string {
   );
 }
 
-async function readCache(
-  path: string,
-): Promise<GitHubRepositoryMetadata | undefined> {
+function releaseCachePath(repository: string): string {
+  return join(
+    loadoutHome(),
+    "cache",
+    "github-releases",
+    `${repository.replace("/", "__")}.json`,
+  );
+}
+
+async function readCache<T>(path: string): Promise<T | undefined> {
   try {
-    return JSON.parse(await readFile(path, "utf8")) as GitHubRepositoryMetadata;
+    return JSON.parse(await readFile(path, "utf8")) as T;
   } catch {
     return undefined;
   }
@@ -60,7 +75,7 @@ export async function fetchGitHubMetadata(
 ): Promise<GitHubRepositoryMetadata> {
   const repository = normalizeRepository(input);
   const path = cachePath(repository);
-  const cached = await readCache(path);
+  const cached = await readCache<GitHubRepositoryMetadata>(path);
   const maxAgeMs = options.maxAgeMs ?? 6 * 60 * 60 * 1000;
   if (
     cached &&
@@ -118,6 +133,87 @@ export async function fetchGitHubMetadata(
     fetchedAt: new Date().toISOString(),
   };
   await mkdir(join(loadoutHome(), "cache", "github-metadata"), {
+    recursive: true,
+  });
+  const temporary = `${path}.${process.pid}.tmp`;
+  await writeFile(temporary, JSON.stringify(metadata, null, 2), "utf8");
+  await rename(temporary, path);
+  return metadata;
+}
+
+/**
+ * Read the latest public GitHub release and aggregate its asset downloads.
+ * Repositories without releases return explicit null/zero values. Drafts are
+ * never exposed by GitHub's public release listing.
+ */
+export async function fetchGitHubReleaseMetadata(
+  input: string,
+  options: GitHubMetadataOptions = {},
+): Promise<GitHubReleaseMetadata> {
+  const repository = normalizeRepository(input);
+  const path = releaseCachePath(repository);
+  const cached = await readCache<GitHubReleaseMetadata>(path);
+  const maxAgeMs = options.maxAgeMs ?? 6 * 60 * 60 * 1000;
+  if (
+    cached &&
+    !options.forceRefresh &&
+    Date.now() - Date.parse(cached.fetchedAt) < maxAgeMs
+  )
+    return cached;
+
+  const fetcher = options.fetcher ?? fetch;
+  const headers: Record<string, string> = {
+    accept: "application/vnd.github+json",
+    "user-agent": "loadout-discovery",
+  };
+  if (process.env.GITHUB_TOKEN)
+    headers.authorization = `Bearer ${process.env.GITHUB_TOKEN}`;
+  let response: Response;
+  try {
+    response = await fetcher(
+      `https://api.github.com/repos/${repository}/releases?per_page=1`,
+      { headers },
+    );
+  } catch (error) {
+    if (cached) return cached;
+    throw new Error(
+      `Unable to reach GitHub releases for ${repository}: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+  if (!response.ok) {
+    if (cached) return cached;
+    throw new Error(
+      `GitHub release request failed (${response.status}) for ${repository}`,
+    );
+  }
+  const releases = (await response.json()) as unknown;
+  const release = Array.isArray(releases) ? releases[0] : undefined;
+  const record = release && typeof release === "object" ? release : {};
+  const assets = Array.isArray((record as { assets?: unknown }).assets)
+    ? ((record as { assets: unknown[] }).assets as Array<
+        Record<string, unknown>
+      >)
+    : [];
+  const metadata: GitHubReleaseMetadata = {
+    tag:
+      typeof (record as { tag_name?: unknown }).tag_name === "string"
+        ? (record as { tag_name: string }).tag_name
+        : null,
+    publishedAt:
+      typeof (record as { published_at?: unknown }).published_at === "string"
+        ? (record as { published_at: string }).published_at
+        : null,
+    downloadCount: assets.reduce(
+      (total, asset) =>
+        total +
+        (typeof asset.download_count === "number" && asset.download_count >= 0
+          ? asset.download_count
+          : 0),
+      0,
+    ),
+    fetchedAt: new Date().toISOString(),
+  };
+  await mkdir(join(loadoutHome(), "cache", "github-releases"), {
     recursive: true,
   });
   const temporary = `${path}.${process.pid}.tmp`;

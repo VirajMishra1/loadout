@@ -1,6 +1,5 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { InstallRecord } from "../shared/types.js";
 import { fetchRepositorySnapshot } from "./source.js";
 import { repositoryCachePath } from "./source.js";
 import { diffRepositorySnapshots, type ChangedFileDiff } from "./diff.js";

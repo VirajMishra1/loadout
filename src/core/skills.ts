@@ -1,4 +1,4 @@
-import { cp, lstat, mkdir, readdir, readFile, rm } from "node:fs/promises";
+import { cp, lstat, readdir, readFile, rm } from "node:fs/promises";
 import { dirname, join, relative, resolve, sep } from "node:path";
 import type { ConflictDiagnostic, InstallPlan, PlannedFile } from "../shared/types.js";
 import { ensureDirectory } from "./paths.js";

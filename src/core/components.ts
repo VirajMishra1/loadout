@@ -1,6 +1,6 @@
 import { lstat, readdir } from "node:fs/promises";
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
-import type { AgentId, ComponentCompatibility, DetectedAgent, InstallPlan, PlannedFile, ResourceSummary } from "../shared/types.js";
+import type { DetectedAgent, InstallPlan, PlannedFile, ResourceSummary } from "../shared/types.js";
 import { buildSkillPlan } from "./install.js";
 import { adapterCapabilities, agentComponentDirectory } from "./adapters.js";
 

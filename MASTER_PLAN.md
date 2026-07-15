@@ -731,12 +731,12 @@ modes.
 ### Phase 9: Cross-platform verification
 
 - [x] `P9-01 [TERRA]` Windows native install test.
-  - CI run `29401149042` passed on Windows Server 2025 with Node 20 and 22. The native-filesystem smoke test used disposable `LOADOUT_USER_HOME` and `LOADOUT_HOME` directories to plan, install, byte-verify, and remove a real skill through every declared agent-owned skills layout.
+  - CI run `29401149042` passed on `windows-latest` with Node 20 and 22. The native-filesystem smoke test used disposable `LOADOUT_USER_HOME` and `LOADOUT_HOME` directories to plan, install, byte-verify, and remove a real skill through every declared agent-owned skills layout.
 - [x] `P9-02 [TERRA]` WSL behavior test or documented compatibility boundary.
 - [x] `P9-03 [TERRA]` macOS install test.
-  - CI run `29401149042` passed on macOS with Node 20 and 22 using the host path implementation, not a simulated layout.
+  - CI run `29401149042` passed on `macos-latest` with Node 20 and 22 using the host path implementation, not a simulated layout.
 - [x] `P9-04 [TERRA]` Linux install test.
-  - CI run `29401149042` passed on Ubuntu with Node 20 and 22 using the host path implementation, not a simulated layout.
+  - CI run `29401149042` passed on `ubuntu-latest` with Node 20 and 22 using the host path implementation, not a simulated layout.
 - [x] `P9-05 [LUNA]` CRLF/LF fixture coverage.
 - [x] `P9-06 [LUNA]` `.cmd` executable-resolution fixture coverage.
 - [x] `P9-07 [SOL]` Cross-platform go/no-go review.

@@ -12,7 +12,8 @@ export type FreshnessAlertKind =
   | "archived"
   | "materially-stale"
   | "reviewed-commit-changed"
-  | "permission-expansion";
+  | "permission-expansion"
+  | "outperformed";
 
 export interface FreshnessAlert {
   id: string;
@@ -28,6 +29,19 @@ export interface FreshnessAlert {
 interface AlertDecisions {
   schemaVersion: 1;
   ignored: Array<{ id: string; ignoredAt: string }>;
+  replacementPins: Array<{
+    packageId: string;
+    replacementPackageId: string;
+    pinnedAt: string;
+  }>;
+}
+
+export interface ReplacementEvidence {
+  installedPackageId: string;
+  replacementPackageId: string;
+  /** Positive only after a signed, category-scoped evaluation result is reviewed. */
+  scoreDelta: number;
+  evidenceId: string;
 }
 
 const decisionsPath = (): string => join(loadoutHome(), "alert-decisions.json");
@@ -56,10 +70,19 @@ async function readDecisions(): Promise<AlertDecisions> {
           !item ||
           typeof item.id !== "string" ||
           typeof item.ignoredAt !== "string",
-      )
+      ) ||
+      (value.replacementPins !== undefined &&
+        (!Array.isArray(value.replacementPins) ||
+          value.replacementPins.some(
+            (item) =>
+              !item ||
+              typeof item.packageId !== "string" ||
+              typeof item.replacementPackageId !== "string" ||
+              typeof item.pinnedAt !== "string",
+          )))
     )
       throw new Error("alert decision schema is invalid");
-    return value;
+    return { ...value, replacementPins: value.replacementPins ?? [] };
   } catch (error) {
     if (
       error &&
@@ -67,7 +90,7 @@ async function readDecisions(): Promise<AlertDecisions> {
       "code" in error &&
       (error as { code?: string }).code === "ENOENT"
     )
-      return { schemaVersion: 1, ignored: [] };
+      return { schemaVersion: 1, ignored: [], replacementPins: [] };
     throw error;
   }
 }
@@ -76,6 +99,7 @@ function packageAlerts(
   state: InstallState,
   catalog: CatalogPackage[],
   updates: UpdatePlan[],
+  replacementEvidence: ReplacementEvidence[],
   now: Date,
 ): FreshnessAlert[] {
   const catalogById = new Map(catalog.map((item) => [item.id, item]));
@@ -171,6 +195,27 @@ function packageAlerts(
         ignored: false,
       });
     }
+    for (const evidence of replacementEvidence.filter(
+      (item) =>
+        item.installedPackageId === install.packageId && item.scoreDelta > 0,
+    )) {
+      const replacement = catalogById.get(evidence.replacementPackageId);
+      if (!replacement) continue;
+      const proof = `signed evidence ${evidence.evidenceId} reports ${replacement.id} ahead by ${evidence.scoreDelta.toFixed(2)} points in its declared category`;
+      alerts.push({
+        id: alertId(install.packageId, "outperformed", proof),
+        packageId: install.packageId,
+        kind: "outperformed",
+        severity: "info",
+        message: `${replacement.displayName} has stronger reviewed evaluation evidence for a declared category.`,
+        evidence: [proof],
+        actions: [
+          `loadout compare ${install.packageId}`,
+          `loadout alert-pin ${install.packageId} ${replacement.id}`,
+        ],
+        ignored: false,
+      });
+    }
     return alerts;
   });
 }
@@ -180,6 +225,7 @@ export async function buildFreshnessAlerts(
     catalog?: CatalogPackage[];
     state?: InstallState;
     updates?: UpdatePlan[];
+    replacementEvidence?: ReplacementEvidence[];
     checkUpdates?: boolean;
     now?: Date;
   } = {},
@@ -192,9 +238,13 @@ export async function buildFreshnessAlerts(
     readDecisions(),
   ]);
   const ignored = new Set(decisions.ignored.map((item) => item.id));
-  return packageAlerts(state, catalog, updates, options.now ?? new Date()).map(
-    (alert) => ({ ...alert, ignored: ignored.has(alert.id) }),
-  );
+  return packageAlerts(
+    state,
+    catalog,
+    updates,
+    options.replacementEvidence ?? [],
+    options.now ?? new Date(),
+  ).map((alert) => ({ ...alert, ignored: ignored.has(alert.id) }));
 }
 
 export async function ignoreFreshnessAlert(id: string): Promise<void> {
@@ -209,6 +259,53 @@ export async function ignoreFreshnessAlert(id: string): Promise<void> {
     decisionsPath(),
     `${JSON.stringify(decisions, null, 2)}\n`,
   );
+}
+
+function validPackageId(value: string): void {
+  if (!/^[a-z0-9][a-z0-9._-]{0,127}$/i.test(value))
+    throw new Error("Invalid package id");
+}
+
+/** Record an explicit local replacement preference; this never changes an active set. */
+export async function pinReplacement(
+  packageId: string,
+  replacementPackageId: string,
+): Promise<void> {
+  validPackageId(packageId);
+  validPackageId(replacementPackageId);
+  const decisions = await readDecisions();
+  decisions.replacementPins = [
+    ...decisions.replacementPins.filter((item) => item.packageId !== packageId),
+    { packageId, replacementPackageId, pinnedAt: new Date().toISOString() },
+  ];
+  await ensureDirectory(dirname(decisionsPath()));
+  await writeFileAtomically(
+    decisionsPath(),
+    `${JSON.stringify(decisions, null, 2)}\n`,
+  );
+}
+
+export async function unpinReplacement(packageId: string): Promise<boolean> {
+  validPackageId(packageId);
+  const decisions = await readDecisions();
+  const replacementPins = decisions.replacementPins.filter(
+    (item) => item.packageId !== packageId,
+  );
+  const changed = replacementPins.length !== decisions.replacementPins.length;
+  if (!changed) return false;
+  decisions.replacementPins = replacementPins;
+  await ensureDirectory(dirname(decisionsPath()));
+  await writeFileAtomically(
+    decisionsPath(),
+    `${JSON.stringify(decisions, null, 2)}\n`,
+  );
+  return true;
+}
+
+export async function readReplacementPins(): Promise<
+  AlertDecisions["replacementPins"]
+> {
+  return (await readDecisions()).replacementPins;
 }
 
 export function formatFreshnessAlerts(alerts: FreshnessAlert[]): string {

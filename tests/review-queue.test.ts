@@ -91,4 +91,46 @@ describe("candidate review queue", () => {
       queue.items.find((item) => item.repository === "owner/existing"),
     ).toMatchObject({ alreadyCataloged: true });
   });
+
+  it("uses a measured GitHub-star velocity only after a prior daily observation", async () => {
+    root = await mkdtemp(join(tmpdir(), "loadout-review-velocity-"));
+    process.env.LOADOUT_HOME = root;
+    await mergeReviewQueue(
+      [
+        {
+          source: "github-search",
+          repository: "owner/fast",
+          title: "fast",
+          description: "",
+          url: "https://github.com/owner/fast",
+          stars: 100,
+          forks: 0,
+          createdAt: "",
+          updatedAt: "",
+          query: "skills",
+        },
+      ],
+      [],
+      new Date("2026-07-15T00:00:00Z"),
+    );
+    const queue = await mergeReviewQueue(
+      [
+        {
+          source: "github-search",
+          repository: "owner/fast",
+          title: "fast",
+          description: "",
+          url: "https://github.com/owner/fast",
+          stars: 124,
+          forks: 0,
+          createdAt: "",
+          updatedAt: "",
+          query: "skills",
+        },
+      ],
+      [],
+      new Date("2026-07-17T00:00:00Z"),
+    );
+    expect(queue.items[0]).toMatchObject({ stars: 124, starVelocity: 12 });
+  });
 });

@@ -1,7 +1,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { createHash } from "node:crypto";
-import { signPayload, type SignedEnvelope } from "./signing.js";
+import { signPayload, verifyEnvelope, type SignedEnvelope } from "./signing.js";
 
 export type HeadToHeadCategory = "workflow-adherence" | "code-review-coverage";
 
@@ -55,8 +55,17 @@ export interface HeadToHeadEvidence {
   safetyBoundary: string;
 }
 
+export interface SignedReplacementEvidence {
+  installedPackageId: string;
+  replacementPackageId: string;
+  scoreDelta: number;
+  evidenceId: string;
+}
+
 function normalized(items: string[]): Set<string> {
-  return new Set(items.map((item) => item.trim().toLowerCase()).filter(Boolean));
+  return new Set(
+    items.map((item) => item.trim().toLowerCase()).filter(Boolean),
+  );
 }
 
 function clamp(value: number): number {
@@ -92,12 +101,16 @@ function workflowResult(
   return {
     candidateId: trial.candidateId,
     fixtureId: fixture.id,
-    score: safetyFailure ? 0 : Object.values(dimensions).reduce((a, b) => a + b, 0),
+    score: safetyFailure
+      ? 0
+      : Object.values(dimensions).reduce((a, b) => a + b, 0),
     blockingSafetyFailure: safetyFailure,
     dimensions,
     rationale: [
       `required actions recalled: ${recalled.length}/${required.size}`,
-      ...(violated.length ? [`forbidden actions observed: ${violated.join(", ")}`] : []),
+      ...(violated.length
+        ? [`forbidden actions observed: ${violated.join(", ")}`]
+        : []),
     ],
     durationMs: trial.durationMs,
     inputTokens: trial.inputTokens,
@@ -119,14 +132,18 @@ function reviewResult(
   );
   const recall = seeded.length ? matched.length / seeded.length : 1;
   const precision = findings.length ? matched.length / findings.length : 1;
-  const calibration = matched.length ? correctlyCalibrated.length / matched.length : 1;
+  const calibration = matched.length
+    ? correctlyCalibrated.length / matched.length
+    : 1;
   const dimensions = {
     "seeded-defect-recall": clamp(recall * 45),
     precision: clamp(precision * 20),
     "severity-calibration": clamp(calibration * 15),
     "actionable-evidence": clamp((matched.length ? 1 : 0) * 10),
     "regression-test-advice": clamp(
-      (normalized(trial.observations).has("recommend-regression-test") ? 1 : 0) * 10,
+      (normalized(trial.observations).has("recommend-regression-test")
+        ? 1
+        : 0) * 10,
     ),
   };
   return {
@@ -155,17 +172,23 @@ export function runHeadToHeadHarness(
   trials: HeadToHeadTrial[],
   createdAt = new Date().toISOString(),
 ): HeadToHeadEvidence {
-  if (!trials.length) throw new Error("Head-to-head evaluation requires at least one trial");
+  if (!trials.length)
+    throw new Error("Head-to-head evaluation requires at least one trial");
   if (trials.some((trial) => trial.fixtureId !== fixture.id))
     throw new Error("Every trial must name the evaluated fixture");
   if (trials.some((trial) => !trial.candidateId || trial.durationMs < 0))
     throw new Error("Trials require a candidate id and non-negative duration");
-  const score = fixture.category === "workflow-adherence" ? workflowResult : reviewResult;
+  const score =
+    fixture.category === "workflow-adherence" ? workflowResult : reviewResult;
   return {
     schemaVersion: 1,
     harnessVersion: 1,
     category: fixture.category,
-    fixture: { id: fixture.id, version: fixture.version, sha256: fixtureHash(fixture) },
+    fixture: {
+      id: fixture.id,
+      version: fixture.version,
+      sha256: fixtureHash(fixture),
+    },
     createdAt,
     results: trials.map((trial) => score(fixture, trial)),
     uncertainty:
@@ -184,6 +207,43 @@ export async function writeSignedHeadToHeadEvidence(
   const target = resolve(outputPath);
   const envelope = signPayload(evidence, privateKeyPem, evidence.createdAt);
   await mkdir(dirname(target), { recursive: true });
-  await writeFile(target, `${JSON.stringify(envelope, null, 2)}\n`, { flag: "wx", mode: 0o600 });
+  await writeFile(target, `${JSON.stringify(envelope, null, 2)}\n`, {
+    flag: "wx",
+    mode: 0o600,
+  });
   return envelope;
+}
+
+/**
+ * Derive comparisons from a verified, category-scoped signed snapshot. The
+ * caller decides which candidates map to installed package ids; this function
+ * never claims cross-category or unsigned evidence is comparable.
+ */
+export function replacementEvidenceFromSignedSnapshot(
+  envelope: SignedEnvelope<HeadToHeadEvidence>,
+  publicKeyPem: string,
+): SignedReplacementEvidence[] {
+  if (!verifyEnvelope(envelope, publicKeyPem).valid)
+    throw new Error("Head-to-head evidence signature is invalid");
+  const results = envelope.payload.results;
+  const evidenceId = `${envelope.publicKeyFingerprint}:${envelope.createdAt}:${envelope.payload.fixture.sha256.slice(0, 12)}`;
+  return results.flatMap((installed) =>
+    results.flatMap((replacement) => {
+      const scoreDelta = replacement.score - installed.score;
+      if (
+        installed.candidateId === replacement.candidateId ||
+        scoreDelta <= 0 ||
+        replacement.blockingSafetyFailure
+      )
+        return [];
+      return [
+        {
+          installedPackageId: installed.candidateId,
+          replacementPackageId: replacement.candidateId,
+          scoreDelta,
+          evidenceId,
+        },
+      ];
+    }),
+  );
 }

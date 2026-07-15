@@ -19,6 +19,8 @@ export interface ReviewQueueItem {
   decision: ReviewDecision;
   alreadyCataloged: boolean;
   stars?: number;
+  /** Observed star change per day; absent until two GitHub observations exist. */
+  starVelocity?: number;
   forks?: number;
   repositoryCreatedAt?: string;
   repositoryUpdatedAt?: string;
@@ -139,6 +141,17 @@ export async function mergeReviewQueue(
             sources: [...new Set([...existing.sources, ...incoming.sources])],
             firstSeenAt: existing.firstSeenAt,
             decision: existing.decision,
+            ...(incoming.stars !== undefined && existing.stars !== undefined
+              ? {
+                  starVelocity:
+                    (incoming.stars - existing.stars) /
+                    Math.max(
+                      1,
+                      (now.getTime() - Date.parse(existing.lastSeenAt)) /
+                        86_400_000,
+                    ),
+                }
+              : {}),
           }
         : incoming,
     );
@@ -151,6 +164,8 @@ export async function mergeReviewQueue(
         Number(left.alreadyCataloged) - Number(right.alreadyCataloged) ||
         Number(right.decision === "shortlisted") -
           Number(left.decision === "shortlisted") ||
+        (right.starVelocity ?? Number.NEGATIVE_INFINITY) -
+          (left.starVelocity ?? Number.NEGATIVE_INFINITY) ||
         (right.stars ?? right.communityScore ?? 0) -
           (left.stars ?? left.communityScore ?? 0) ||
         left.repository.localeCompare(right.repository),
@@ -186,7 +201,7 @@ export function formatReviewQueue(queue: ReviewQueue): string {
     `Review queue: ${visible.length} uncataloged candidate(s), ${queue.items.length - visible.length} already cataloged`,
     ...visible.map(
       (item) =>
-        `${item.decision === "shortlisted" ? "★" : item.decision === "ignored" ? "×" : "○"} ${item.repository} — ${item.stars !== undefined ? `${item.stars} stars` : `community score ${item.communityScore ?? 0}`} — ${item.sources.join("+")}`,
+        `${item.decision === "shortlisted" ? "★" : item.decision === "ignored" ? "×" : "○"} ${item.repository} — ${item.stars !== undefined ? `${item.stars} stars${item.starVelocity !== undefined ? ` (${item.starVelocity >= 0 ? "+" : ""}${item.starVelocity.toFixed(1)}/day)` : ""}` : `community score ${item.communityScore ?? 0}`} — ${item.sources.join("+")}`,
     ),
   ].join("\n");
 }

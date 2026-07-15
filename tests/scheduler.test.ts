@@ -36,6 +36,27 @@ describe("native read-only scheduler", () => {
     }
   });
 
+  it("can schedule read-only multi-source candidate discovery", () => {
+    const plan = planNativeScheduler("schedule", {
+      platform: "linux",
+      home: "/home/test",
+      stateHome: "/home/test/.loadout",
+      nodePath: "/usr/bin/node",
+      cliPath: "/opt/loadout/cli.js",
+      job: "discovery",
+    });
+    expect(plan.job).toBe("discovery");
+    expect(plan.command.slice(-4)).toEqual([
+      "--source",
+      "all",
+      "--queue",
+      "--json",
+    ]);
+    expect(plan.files.map((file) => file.content).join("\n")).not.toMatch(
+      /\b(?:install|update --yes|sync --yes)\b/,
+    );
+  });
+
   it("applies and removes a Linux timer through a mocked native runner", async () => {
     root = await mkdtemp(join(tmpdir(), "loadout-scheduler-"));
     process.env.LOADOUT_HOME = join(root, "state");

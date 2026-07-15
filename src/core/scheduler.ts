@@ -17,6 +17,7 @@ const execFileAsync = promisify(execFile);
 
 export type SchedulerPlatform = "darwin" | "linux" | "win32";
 export type SchedulerAction = "schedule" | "unschedule";
+export type SchedulerJob = "updates" | "discovery";
 
 export interface SchedulerFile {
   path: string;
@@ -25,6 +26,7 @@ export interface SchedulerFile {
 
 export interface NativeSchedulerPlan {
   action: SchedulerAction;
+  job: SchedulerJob;
   platform: SchedulerPlatform;
   time: string;
   command: string[];
@@ -83,6 +85,7 @@ export function planNativeScheduler(
     nodePath?: string;
     cliPath?: string;
     uid?: number;
+    job?: SchedulerJob;
   } = {},
 ): NativeSchedulerPlan {
   const platform = options.platform ?? process.platform;
@@ -96,7 +99,11 @@ export function planNativeScheduler(
   const stateHome = options.stateHome ?? loadoutHome(process.env, platform);
   const nodePath = options.nodePath ?? process.execPath;
   const cliPath = options.cliPath ?? process.argv[1];
-  const command = [nodePath, cliPath, "watch", "--once", "--json"];
+  const job = options.job ?? "updates";
+  const command =
+    job === "updates"
+      ? [nodePath, cliPath, "watch", "--once", "--json"]
+      : [nodePath, cliPath, "discover", "--source", "all", "--queue", "--json"];
   if (selectedPlatform === "darwin") {
     const path = join(
       home,
@@ -119,6 +126,7 @@ export function planNativeScheduler(
     const domain = `gui/${options.uid ?? process.getuid?.() ?? 0}`;
     return {
       action,
+      job,
       platform: selectedPlatform,
       time: time.text,
       command,
@@ -165,6 +173,7 @@ export function planNativeScheduler(
     );
     return {
       action,
+      job,
       platform: selectedPlatform,
       time: time.text,
       command,
@@ -173,7 +182,7 @@ export function planNativeScheduler(
         {
           path: service,
           content: `[Unit]
-Description=Loadout read-only update check
+Description=Loadout read-only ${job === "updates" ? "update check" : "candidate discovery"}
 
 [Service]
 Type=oneshot
@@ -183,7 +192,7 @@ ExecStart=${command.map(systemd).join(" ")}
         {
           path: timer,
           content: `[Unit]
-Description=Daily Loadout read-only update check
+Description=Daily Loadout read-only ${job === "updates" ? "update check" : "candidate discovery"}
 
 [Timer]
 OnCalendar=*-*-* ${time.text}:00
@@ -238,6 +247,7 @@ WantedBy=timers.target
 `;
   return {
     action,
+    job,
     platform: selectedPlatform,
     time: time.text,
     command,
@@ -317,12 +327,12 @@ export async function applyNativeScheduler(
 
 export function formatNativeScheduler(plan: NativeSchedulerPlan): string {
   return [
-    `${plan.action === "schedule" ? "Schedule" : "Unschedule"} daily read-only checks — ${plan.platform} at ${plan.time}`,
+    `${plan.action === "schedule" ? "Schedule" : "Unschedule"} daily read-only ${plan.job === "updates" ? "update check" : "candidate discovery"} — ${plan.platform} at ${plan.time}`,
     `Command: ${plan.command.join(" ")}`,
     ...plan.files.map((file) => `File: ${file.path}`),
     ...plan.applyCommands.map(
       (item) => `Native action: ${item.command} ${item.args.join(" ")}`,
     ),
-    "Guarantee: the scheduled command is watch --once; it can report updates but cannot apply them.",
+    `Guarantee: the scheduled command is ${plan.command.slice(2).join(" ")}; it can only report updates or queue candidates and cannot apply changes.`,
   ].join("\n");
 }

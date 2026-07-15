@@ -774,7 +774,8 @@ modes.
 - [x] `P11-10 [SOL]` Define catalog signing, rotation, and compromise recovery.
 - [x] `P11-11 [TERRA]` Implement catalog signing in CI and verification in client.
 - [x] `P11-12 [SOL]` Design cross-platform hook/subagent compiler with loss reports.
-- [ ] `P11-13 [TERRA]` Implement first two hook/subagent conversion targets.
+- [x] `P11-13 [TERRA]` Implement first two hook/subagent conversion targets.
+  - `loadout convert` creates a loss-reported static skill from a subagent or a non-executable review artifact from a hook; it never synthesizes executable hook behavior and requires manual approval.
 - [x] `P11-14 [SOL]` Design sandbox threat model for third-party installers.
 - [x] `P11-15 [TERRA]` Implement disposable sandbox runner with no host secrets.
   - `loadout sandbox-run` uses explicit approval, a reviewed image, read-only source mount, no network, dropped capabilities, resource limits, and a scrubbed environment; Docker remains an explicit local prerequisite.

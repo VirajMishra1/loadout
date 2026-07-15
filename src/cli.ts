@@ -9,7 +9,9 @@ import {
   type InstallSelectionMode,
 } from "./core/catalog.js";
 import { detectAgents } from "./core/paths.js";
-import { readFile, readdir } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
+import { readdir } from "node:fs/promises";
+import { resolve } from "node:path";
 import {
   buildSkillPlan,
   applySkillInstall,
@@ -103,6 +105,12 @@ import {
 import { evaluatePackage, formatPackageEvaluation } from "./core/evaluate.js";
 import { checkForUpdates, startUpdateWatcher } from "./core/update-watch.js";
 import { runDisposableSandbox } from "./core/sandbox.js";
+import {
+  compileConversion,
+  type ConversionKind,
+  type ConversionTarget,
+} from "./core/conversion.js";
+import { writeFileAtomically } from "./core/atomic-file.js";
 
 const program = new Command();
 program
@@ -1591,6 +1599,72 @@ program
       const plans = await buildUpdatePlan();
       console.log(
         options.json ? JSON.stringify(plans, null, 2) : formatUpdatePlan(plans),
+      );
+    },
+  );
+
+program
+  .command("convert")
+  .description(
+    "Convert a subagent or hook into a static, loss-reported artifact",
+  )
+  .requiredOption("--kind <kind>", "subagent or hook")
+  .requiredOption(
+    "--target <target>",
+    "codex-skill, claude-skill, or static-review",
+  )
+  .requiredOption("--name <name>", "source component name")
+  .requiredOption("--input <path>", "UTF-8 instruction or hook source file")
+  .requiredOption("--output <directory>", "artifact output directory")
+  .option("--yes", "write the artifact; otherwise preview only")
+  .option("--json", "emit machine-readable JSON")
+  .action(
+    async (options: {
+      kind: string;
+      target: string;
+      name: string;
+      input: string;
+      output: string;
+      yes?: boolean;
+      json?: boolean;
+    }) => {
+      const kinds: ConversionKind[] = ["subagent", "hook"];
+      const targets: ConversionTarget[] = [
+        "codex-skill",
+        "claude-skill",
+        "static-review",
+      ];
+      if (!kinds.includes(options.kind as ConversionKind))
+        throw new Error("--kind must be subagent or hook");
+      if (!targets.includes(options.target as ConversionTarget))
+        throw new Error(
+          "--target must be codex-skill, claude-skill, or static-review",
+        );
+      const result = compileConversion(
+        {
+          kind: options.kind as ConversionKind,
+          name: options.name,
+          body: await readFile(options.input, "utf8"),
+        },
+        options.target as ConversionTarget,
+      );
+      const destination = resolve(options.output, result.relativePath);
+      if (options.yes)
+        await writeFileAtomically(destination, result.content, 0o600);
+      const report = {
+        ...result,
+        ...(options.yes
+          ? { destination }
+          : { destination, write: "preview-only" as const }),
+      };
+      console.log(
+        options.json
+          ? JSON.stringify(report, null, 2)
+          : `${options.yes ? "Wrote" : "Previewed"} ${destination}.\n` +
+              `Preserved: ${result.preserved.join(", ")}. Dropped: ${result.dropped.length} field(s).\n` +
+              (result.requiresApproval
+                ? "Manual approval is required before using this artifact."
+                : "No additional approval is required."),
       );
     },
   );

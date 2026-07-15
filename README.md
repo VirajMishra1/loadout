@@ -16,9 +16,10 @@ lockfile generation, safe managed-file removal, drift-aware health reports, test
 profiles, local project recommendations, transactional multi-package sync, applied
 updates with risk approval, and an evidence-first improvement proposal command.
 
-See [NITISH_MASTER_PLAN.md](./NITISH_MASTER_PLAN.md) for the expanded implementation
-plan and [SIMPLE_PLAN.md](./SIMPLE_PLAN.md) for the short plain-language version. The
-original hackathon baseline remains in [MASTER_PLAN.md](./MASTER_PLAN.md).
+See [MASTER_PLAN.md](./MASTER_PLAN.md) for the canonical, current implementation plan
+and [SIMPLE_PLAN.md](./SIMPLE_PLAN.md) for the short plain-language version.
+[NITISH_MASTER_PLAN.md](./NITISH_MASTER_PLAN.md) is retained as a contributor-specific
+implementation record, not the source of truth for project status.
 
 ## Supported platforms
 

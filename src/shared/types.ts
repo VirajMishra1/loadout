@@ -1,6 +1,30 @@
 export type AgentId =
   "claude-code" | "codex" | "cursor" | "gemini-cli" | "opencode" | "hermes";
 
+/** A non-secret pointer to credentials managed outside Loadout. */
+export type CredentialReference =
+  | { kind: "environment"; name: string }
+  | { kind: "os-keychain"; service: string; account?: string };
+
+/**
+ * A declarative model choice. Loadout can validate and share this shape, but
+ * it deliberately does not resolve credentials or configure a provider here.
+ */
+export interface ProviderModelSelection {
+  id: string;
+  provider: string;
+  model: string;
+  endpoint: string;
+  credential?: CredentialReference;
+  targetAgents?: AgentId[];
+}
+
+/** Provider-neutral, secret-free model configuration for a future adapter. */
+export interface ProviderModelConfiguration {
+  schemaVersion: 1;
+  selections: ProviderModelSelection[];
+}
+
 export type PackageTier = "official" | "stable" | "trending" | "community";
 
 /** Operating systems on which Loadout can fetch and inspect a public Git source. */

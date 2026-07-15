@@ -57,6 +57,90 @@ const safeRepositoryPath = z
     "must be a safe repository-relative path",
   );
 
+const secretLikeValue =
+  /^(?:(?:sk|rk|pk)[_-]|ghp_|github_pat_)[A-Za-z0-9_-]{12,}$/i;
+const safeModelText = z
+  .string()
+  .trim()
+  .min(1, "must not be empty")
+  .max(200, "must be at most 200 characters")
+  .refine(
+    (value) => !secretLikeValue.test(value),
+    "must not contain a credential value",
+  );
+const providerIdSchema = safeModelText.regex(
+  /^[a-z0-9]+(?:[a-z0-9-]*[a-z0-9])?$/,
+  "must be a lowercase provider identifier",
+);
+const environmentVariableNameSchema = z
+  .string()
+  .regex(
+    /^[A-Z_][A-Z0-9_]*$/,
+    "must be an environment variable name, not its value",
+  )
+  .max(128);
+const httpsEndpointSchema = z.url("must be a URL").refine((value) => {
+  const endpoint = new URL(value);
+  return (
+    endpoint.protocol === "https:" &&
+    !endpoint.username &&
+    !endpoint.password &&
+    !endpoint.search &&
+    !endpoint.hash
+  );
+}, "must be an HTTPS URL without credentials, query parameters, or fragments");
+
+export const credentialReferenceSchema = z.discriminatedUnion("kind", [
+  z
+    .object({
+      kind: z.literal("environment"),
+      name: environmentVariableNameSchema,
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal("os-keychain"),
+      service: safeModelText,
+      account: safeModelText.optional(),
+    })
+    .strict(),
+]);
+
+export const providerModelSelectionSchema = z
+  .object({
+    id: providerIdSchema,
+    provider: providerIdSchema,
+    model: safeModelText,
+    endpoint: httpsEndpointSchema,
+    credential: credentialReferenceSchema.optional(),
+    targetAgents: z.array(agentIdSchema).min(1).optional(),
+  })
+  .strict();
+
+/**
+ * This deliberately has no apiKey/token/header fields. It is safe to put in a
+ * shared Loadout because it contains only metadata and credential references.
+ */
+export const providerModelConfigurationSchema = z
+  .object({
+    schemaVersion: z.literal(1),
+    selections: z.array(providerModelSelectionSchema).min(1),
+  })
+  .strict()
+  .superRefine((value, context) => {
+    const seen = new Set<string>();
+    for (const [index, selection] of value.selections.entries()) {
+      if (seen.has(selection.id)) {
+        context.addIssue({
+          code: "custom",
+          path: ["selections", index, "id"],
+          message: "must be unique",
+        });
+      }
+      seen.add(selection.id);
+    }
+  });
+
 export const catalogSourceEvidenceSchema = z
   .object({
     type: z.literal("github"),
@@ -269,3 +353,6 @@ export type RuntimeInstallPlan = z.infer<typeof installPlanSchema>;
 export type RuntimeLoadoutManifest = z.infer<typeof loadoutManifestSchema>;
 export type RuntimeInstallState = z.infer<typeof installStateSchema>;
 export type RuntimeLoadoutLockfile = z.infer<typeof loadoutLockfileSchema>;
+export type RuntimeProviderModelConfiguration = z.infer<
+  typeof providerModelConfigurationSchema
+>;

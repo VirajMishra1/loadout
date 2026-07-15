@@ -10,7 +10,17 @@
     "components": ["skill", "plugin"],
     "operatingSystems": ["windows", "macos", "linux"],
     "stars": 254615,
-    "source": { "type": "github", "url": "https://github.com/obra/superpowers", "defaultBranch": "main", "commit": "d884ae04edebef577e82ff7c4e143debd0bbec99", "evidencePaths": ["skills/brainstorming/SKILL.md", ".claude-plugin/plugin.json"], "verifiedAt": "2026-07-14T18:17:03Z" }
+    "source": {
+      "type": "github",
+      "url": "https://github.com/obra/superpowers",
+      "defaultBranch": "main",
+      "commit": "d884ae04edebef577e82ff7c4e143debd0bbec99",
+      "evidencePaths": [
+        "skills/brainstorming/SKILL.md",
+        ".claude-plugin/plugin.json"
+      ],
+      "verifiedAt": "2026-07-14T18:17:03Z"
+    }
   },
   {
     "id": "context7",
@@ -23,7 +33,18 @@
     "components": ["skill", "mcp", "plugin"],
     "operatingSystems": ["windows", "macos", "linux"],
     "stars": 59102,
-    "source": { "type": "github", "url": "https://github.com/upstash/context7", "defaultBranch": "master", "commit": "eb7ac502f6e83692363375d3088d550afa298a60", "evidencePaths": ["plugins/claude/context7/.mcp.json", "plugins/claude/context7/skills/context7-mcp/SKILL.md", "plugins/claude/context7/.claude-plugin/plugin.json"], "verifiedAt": "2026-07-14T18:17:03Z" }
+    "source": {
+      "type": "github",
+      "url": "https://github.com/upstash/context7",
+      "defaultBranch": "master",
+      "commit": "eb7ac502f6e83692363375d3088d550afa298a60",
+      "evidencePaths": [
+        "plugins/claude/context7/.mcp.json",
+        "plugins/claude/context7/skills/context7-mcp/SKILL.md",
+        "plugins/claude/context7/.claude-plugin/plugin.json"
+      ],
+      "verifiedAt": "2026-07-14T18:17:03Z"
+    }
   },
   {
     "id": "playwright-mcp",
@@ -36,7 +57,14 @@
     "components": ["mcp"],
     "operatingSystems": ["windows", "macos", "linux"],
     "stars": 35074,
-    "source": { "type": "github", "url": "https://github.com/microsoft/playwright-mcp", "defaultBranch": "main", "commit": "5f8fc00210b27b4407c375b59cda4838045d429c", "evidencePaths": ["README.md", "package.json", "index.js"], "verifiedAt": "2026-07-14T18:17:03Z" }
+    "source": {
+      "type": "github",
+      "url": "https://github.com/microsoft/playwright-mcp",
+      "defaultBranch": "main",
+      "commit": "5f8fc00210b27b4407c375b59cda4838045d429c",
+      "evidencePaths": ["README.md", "package.json", "index.js"],
+      "verifiedAt": "2026-07-14T18:17:03Z"
+    }
   },
   {
     "id": "ui-ux-pro-max",
@@ -49,7 +77,17 @@
     "components": ["skill", "plugin"],
     "operatingSystems": ["windows", "macos", "linux"],
     "stars": 105540,
-    "source": { "type": "github", "url": "https://github.com/nextlevelbuilder/ui-ux-pro-max-skill", "defaultBranch": "main", "commit": "fe3f65e5d0203341b40b7db80650501cd9de4961", "evidencePaths": [".claude/skills/ui-ux-pro-max/SKILL.md", ".claude-plugin/plugin.json"], "verifiedAt": "2026-07-14T18:17:03Z" }
+    "source": {
+      "type": "github",
+      "url": "https://github.com/nextlevelbuilder/ui-ux-pro-max-skill",
+      "defaultBranch": "main",
+      "commit": "fe3f65e5d0203341b40b7db80650501cd9de4961",
+      "evidencePaths": [
+        ".claude/skills/ui-ux-pro-max/SKILL.md",
+        ".claude-plugin/plugin.json"
+      ],
+      "verifiedAt": "2026-07-14T18:17:03Z"
+    }
   },
   {
     "id": "github-mcp-server",
@@ -62,7 +100,14 @@
     "components": ["mcp"],
     "operatingSystems": ["windows", "macos", "linux"],
     "stars": 31437,
-    "source": { "type": "github", "url": "https://github.com/github/github-mcp-server", "defaultBranch": "main", "commit": "c36e4e4493c76eafe2c1a9cbc5272e8eede29189", "evidencePaths": ["README.md", "cmd/github-mcp-server/main.go", "go.mod"], "verifiedAt": "2026-07-14T18:17:03Z" }
+    "source": {
+      "type": "github",
+      "url": "https://github.com/github/github-mcp-server",
+      "defaultBranch": "main",
+      "commit": "c36e4e4493c76eafe2c1a9cbc5272e8eede29189",
+      "evidencePaths": ["README.md", "cmd/github-mcp-server/main.go", "go.mod"],
+      "verifiedAt": "2026-07-14T18:17:03Z"
+    }
   },
   {
     "id": "openai-skills",
@@ -75,7 +120,17 @@
     "components": ["skill"],
     "operatingSystems": ["windows", "macos", "linux"],
     "stars": 23702,
-    "source": { "type": "github", "url": "https://github.com/openai/skills", "defaultBranch": "main", "commit": "49f948faa9258a0c61caceaf225e179651397431", "evidencePaths": ["skills/.curated/cli-creator/SKILL.md", "skills/.curated/cloudflare-deploy/SKILL.md"], "verifiedAt": "2026-07-14T18:17:03Z" }
+    "source": {
+      "type": "github",
+      "url": "https://github.com/openai/skills",
+      "defaultBranch": "main",
+      "commit": "49f948faa9258a0c61caceaf225e179651397431",
+      "evidencePaths": [
+        "skills/.curated/cli-creator/SKILL.md",
+        "skills/.curated/cloudflare-deploy/SKILL.md"
+      ],
+      "verifiedAt": "2026-07-14T18:17:03Z"
+    }
   },
   {
     "id": "anthropic-skills",
@@ -88,7 +143,17 @@
     "components": ["skill"],
     "operatingSystems": ["windows", "macos", "linux"],
     "stars": 161108,
-    "source": { "type": "github", "url": "https://github.com/anthropics/skills", "defaultBranch": "main", "commit": "9d2f1ae187231d8199c64b5b762e1bdf2244733d", "evidencePaths": ["skills/skill-creator/SKILL.md", "skills/mcp-builder/SKILL.md"], "verifiedAt": "2026-07-14T18:17:03Z" }
+    "source": {
+      "type": "github",
+      "url": "https://github.com/anthropics/skills",
+      "defaultBranch": "main",
+      "commit": "9d2f1ae187231d8199c64b5b762e1bdf2244733d",
+      "evidencePaths": [
+        "skills/skill-creator/SKILL.md",
+        "skills/mcp-builder/SKILL.md"
+      ],
+      "verifiedAt": "2026-07-14T18:17:03Z"
+    }
   },
   {
     "id": "wshobson-agents",
@@ -101,7 +166,17 @@
     "components": ["skill", "plugin"],
     "operatingSystems": ["windows", "macos", "linux"],
     "stars": 37906,
-    "source": { "type": "github", "url": "https://github.com/wshobson/agents", "defaultBranch": "main", "commit": "b6af3711058190e4b5c5274b9758498fe626ec5a", "evidencePaths": ["plugins/accessibility-compliance/.claude-plugin/plugin.json", "plugins/accessibility-compliance/skills/wcag-audit-patterns/SKILL.md"], "verifiedAt": "2026-07-14T18:17:03Z" }
+    "source": {
+      "type": "github",
+      "url": "https://github.com/wshobson/agents",
+      "defaultBranch": "main",
+      "commit": "b6af3711058190e4b5c5274b9758498fe626ec5a",
+      "evidencePaths": [
+        "plugins/accessibility-compliance/.claude-plugin/plugin.json",
+        "plugins/accessibility-compliance/skills/wcag-audit-patterns/SKILL.md"
+      ],
+      "verifiedAt": "2026-07-14T18:17:03Z"
+    }
   },
   {
     "id": "vercel-agent-skills",
@@ -114,7 +189,17 @@
     "components": ["skill"],
     "operatingSystems": ["windows", "macos", "linux"],
     "stars": 29060,
-    "source": { "type": "github", "url": "https://github.com/vercel-labs/agent-skills", "defaultBranch": "main", "commit": "f8a72b9603728bb92a217a879b7e62e43ad76c81", "evidencePaths": ["skills/react-best-practices/SKILL.md", "skills/deploy-to-vercel/SKILL.md"], "verifiedAt": "2026-07-14T18:17:03Z" }
+    "source": {
+      "type": "github",
+      "url": "https://github.com/vercel-labs/agent-skills",
+      "defaultBranch": "main",
+      "commit": "f8a72b9603728bb92a217a879b7e62e43ad76c81",
+      "evidencePaths": [
+        "skills/react-best-practices/SKILL.md",
+        "skills/deploy-to-vercel/SKILL.md"
+      ],
+      "verifiedAt": "2026-07-14T18:17:03Z"
+    }
   },
   {
     "id": "vercel-skills",
@@ -127,7 +212,14 @@
     "components": ["skill"],
     "operatingSystems": ["windows", "macos", "linux"],
     "stars": 26124,
-    "source": { "type": "github", "url": "https://github.com/vercel-labs/skills", "defaultBranch": "main", "commit": "5527c09adc367612b0bffd9c80e3bc28a6b01b6d", "evidencePaths": ["skills/find-skills/SKILL.md"], "verifiedAt": "2026-07-14T18:17:03Z" }
+    "source": {
+      "type": "github",
+      "url": "https://github.com/vercel-labs/skills",
+      "defaultBranch": "main",
+      "commit": "5527c09adc367612b0bffd9c80e3bc28a6b01b6d",
+      "evidencePaths": ["skills/find-skills/SKILL.md"],
+      "verifiedAt": "2026-07-14T18:17:03Z"
+    }
   },
   {
     "id": "cloudflare-mcp-server",
@@ -140,7 +232,14 @@
     "components": ["mcp"],
     "operatingSystems": ["windows", "macos", "linux"],
     "stars": 3941,
-    "source": { "type": "github", "url": "https://github.com/cloudflare/mcp-server-cloudflare", "defaultBranch": "main", "commit": "52c633e37684fadb94ae236f74909b9bbefc0db8", "evidencePaths": ["README.md", "apps/ai-gateway/package.json"], "verifiedAt": "2026-07-14T18:17:03Z" }
+    "source": {
+      "type": "github",
+      "url": "https://github.com/cloudflare/mcp-server-cloudflare",
+      "defaultBranch": "main",
+      "commit": "52c633e37684fadb94ae236f74909b9bbefc0db8",
+      "evidencePaths": ["README.md", "apps/ai-gateway/package.json"],
+      "verifiedAt": "2026-07-14T18:17:03Z"
+    }
   },
   {
     "id": "supabase-mcp",
@@ -153,7 +252,17 @@
     "components": ["mcp"],
     "operatingSystems": ["windows", "macos", "linux"],
     "stars": 2805,
-    "source": { "type": "github", "url": "https://github.com/supabase/mcp", "defaultBranch": "main", "commit": "9f0396a1b367dfa6a424f4686a21701c8f05b1c3", "evidencePaths": ["README.md", "packages/mcp-server-supabase/src/index.ts"], "verifiedAt": "2026-07-14T18:17:03Z" }
+    "source": {
+      "type": "github",
+      "url": "https://github.com/supabase/mcp",
+      "defaultBranch": "main",
+      "commit": "9f0396a1b367dfa6a424f4686a21701c8f05b1c3",
+      "evidencePaths": [
+        "README.md",
+        "packages/mcp-server-supabase/src/index.ts"
+      ],
+      "verifiedAt": "2026-07-14T18:17:03Z"
+    }
   },
   {
     "id": "sentry-mcp",
@@ -166,7 +275,14 @@
     "components": ["skill", "mcp"],
     "operatingSystems": ["windows", "macos", "linux"],
     "stars": 771,
-    "source": { "type": "github", "url": "https://github.com/getsentry/sentry-mcp", "defaultBranch": "main", "commit": "ce099fd251973774116749016847b78a6049ba0a", "evidencePaths": ["README.md", ".agents/skills/mcp-audit/SKILL.md"], "verifiedAt": "2026-07-14T18:17:03Z" }
+    "source": {
+      "type": "github",
+      "url": "https://github.com/getsentry/sentry-mcp",
+      "defaultBranch": "main",
+      "commit": "ce099fd251973774116749016847b78a6049ba0a",
+      "evidencePaths": ["README.md", ".agents/skills/mcp-audit/SKILL.md"],
+      "verifiedAt": "2026-07-14T18:17:03Z"
+    }
   },
   {
     "id": "exa-mcp-server",
@@ -179,7 +295,18 @@
     "components": ["skill", "mcp", "plugin"],
     "operatingSystems": ["windows", "macos", "linux"],
     "stars": 4717,
-    "source": { "type": "github", "url": "https://github.com/exa-labs/exa-mcp-server", "defaultBranch": "main", "commit": "8823cbea80b6ec5999c6217cccd91660fe953b97", "evidencePaths": ["README.md", "skills/search/SKILL.md", ".claude-plugin/plugin.json"], "verifiedAt": "2026-07-14T18:17:03Z" }
+    "source": {
+      "type": "github",
+      "url": "https://github.com/exa-labs/exa-mcp-server",
+      "defaultBranch": "main",
+      "commit": "8823cbea80b6ec5999c6217cccd91660fe953b97",
+      "evidencePaths": [
+        "README.md",
+        "skills/search/SKILL.md",
+        ".claude-plugin/plugin.json"
+      ],
+      "verifiedAt": "2026-07-14T18:17:03Z"
+    }
   },
   {
     "id": "firecrawl-mcp-server",
@@ -192,7 +319,14 @@
     "components": ["mcp"],
     "operatingSystems": ["windows", "macos", "linux"],
     "stars": 6953,
-    "source": { "type": "github", "url": "https://github.com/firecrawl/firecrawl-mcp-server", "defaultBranch": "main", "commit": "3eb1115b1f2883ff2fb74e61b5c4acf5a9ac0fb0", "evidencePaths": ["README.md", "src/index.ts", "package.json"], "verifiedAt": "2026-07-14T18:17:03Z" }
+    "source": {
+      "type": "github",
+      "url": "https://github.com/firecrawl/firecrawl-mcp-server",
+      "defaultBranch": "main",
+      "commit": "3eb1115b1f2883ff2fb74e61b5c4acf5a9ac0fb0",
+      "evidencePaths": ["README.md", "src/index.ts", "package.json"],
+      "verifiedAt": "2026-07-14T18:17:03Z"
+    }
   },
   {
     "id": "azure-devops-mcp",
@@ -205,7 +339,14 @@
     "components": ["mcp"],
     "operatingSystems": ["windows", "macos", "linux"],
     "stars": 1887,
-    "source": { "type": "github", "url": "https://github.com/microsoft/azure-devops-mcp", "defaultBranch": "main", "commit": "0a08dc649c951208eda942154c66187dec9985bd", "evidencePaths": ["README.md", "mcp.json", "src/index.ts"], "verifiedAt": "2026-07-14T18:17:03Z" }
+    "source": {
+      "type": "github",
+      "url": "https://github.com/microsoft/azure-devops-mcp",
+      "defaultBranch": "main",
+      "commit": "0a08dc649c951208eda942154c66187dec9985bd",
+      "evidencePaths": ["README.md", "mcp.json", "src/index.ts"],
+      "verifiedAt": "2026-07-14T18:17:03Z"
+    }
   },
   {
     "id": "docker-mcp-gateway",
@@ -218,7 +359,18 @@
     "components": ["skill", "mcp"],
     "operatingSystems": ["windows", "macos", "linux"],
     "stars": 1484,
-    "source": { "type": "github", "url": "https://github.com/docker/mcp-gateway", "defaultBranch": "main", "commit": "6ce7ff38e75e1c62ccefd9882145c4a2ab3134ed", "evidencePaths": ["README.md", "cmd/docker-mcp/main.go", ".claude/skills/otel-instrument/SKILL.md"], "verifiedAt": "2026-07-14T18:17:03Z" }
+    "source": {
+      "type": "github",
+      "url": "https://github.com/docker/mcp-gateway",
+      "defaultBranch": "main",
+      "commit": "6ce7ff38e75e1c62ccefd9882145c4a2ab3134ed",
+      "evidencePaths": [
+        "README.md",
+        "cmd/docker-mcp/main.go",
+        ".claude/skills/otel-instrument/SKILL.md"
+      ],
+      "verifiedAt": "2026-07-14T18:17:03Z"
+    }
   },
   {
     "id": "huggingface-mcp-server",
@@ -231,6 +383,17 @@
     "components": ["mcp"],
     "operatingSystems": ["windows", "macos", "linux"],
     "stars": 261,
-    "source": { "type": "github", "url": "https://github.com/huggingface/hf-mcp-server", "defaultBranch": "main", "commit": "2ec6f0723591214ac647ceb0a31c34221b9a317e", "evidencePaths": ["README.md", "packages/mcp/src/index.ts", "packages/mcp/package.json"], "verifiedAt": "2026-07-14T18:17:03Z" }
+    "source": {
+      "type": "github",
+      "url": "https://github.com/huggingface/hf-mcp-server",
+      "defaultBranch": "main",
+      "commit": "2ec6f0723591214ac647ceb0a31c34221b9a317e",
+      "evidencePaths": [
+        "README.md",
+        "packages/mcp/src/index.ts",
+        "packages/mcp/package.json"
+      ],
+      "verifiedAt": "2026-07-14T18:17:03Z"
+    }
   }
 ]

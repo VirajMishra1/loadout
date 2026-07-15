@@ -4,7 +4,7 @@ Status: Approved baseline for implementation
 Hackathon: OpenAI Build Week 2026  
 Category: Developer Tools  
 Team size: 3  
-Target submission: July 21, 2026 at 5:00 PM Pacific / July 22 at 4:00 AM Dubai  
+Target submission: July 21, 2026 at 5:00 PM Pacific / July 22 at 4:00 AM Dubai
 
 ## 1. Executive summary
 
@@ -759,7 +759,7 @@ modes.
 - [ ] `P11-04 [TERRA]` Implement star/release/download snapshot storage and charts.
 - [ ] `P11-05 [SOL]` Define provider-neutral model configuration schema.
 - [ ] `P11-06 [TERRA]` Implement OpenRouter provider adapter without storing keys in
-  application state.
+      application state.
 - [ ] `P11-07 [SOL]` Define category-specific evaluation protocol and uncertainty.
 - [ ] `P11-08 [TERRA]` Implement first two automated evaluation categories.
 - [ ] `P11-09 [TERRA]` Implement background update service and notifications.

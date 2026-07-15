@@ -11,7 +11,11 @@ export interface ChangedFileDiff {
   status: ChangedFileStatus;
 }
 
-const MCP_NAMES = new Set(["mcp.json", ".mcp.json", "claude_desktop_config.json"]);
+const MCP_NAMES = new Set([
+  "mcp.json",
+  ".mcp.json",
+  "claude_desktop_config.json",
+]);
 
 function classify(path: string): ChangedFileKind | undefined {
   const name = path.split("/").at(-1) ?? path;
@@ -27,12 +31,19 @@ async function files(root: string): Promise<Map<string, string>> {
   async function visit(directory: string, depth: number): Promise<void> {
     if (depth > 8) return;
     let entries;
-    try { entries = await readdir(directory, { withFileTypes: true }); } catch { return; }
+    try {
+      entries = await readdir(directory, { withFileTypes: true });
+    } catch {
+      return;
+    }
     for (const entry of entries) {
       if (entry.name === ".git" || entry.name === "node_modules") continue;
       const absolute = resolve(directory, entry.name);
       if (entry.isSymbolicLink()) continue;
-      if (entry.isDirectory()) { await visit(absolute, depth + 1); continue; }
+      if (entry.isDirectory()) {
+        await visit(absolute, depth + 1);
+        continue;
+      }
       if (!entry.isFile()) continue;
       const path = relative(base, absolute).split("\\").join("/");
       if (!classify(path)) continue;
@@ -41,7 +52,9 @@ async function files(root: string): Promise<Map<string, string>> {
         if (info.size > 2_000_000) continue;
         const content = await readFile(absolute);
         result.set(path, createHash("sha256").update(content).digest("hex"));
-      } catch { /* a concurrently removed file is simply omitted */ }
+      } catch {
+        /* a concurrently removed file is simply omitted */
+      }
     }
   }
   await visit(base, 0);
@@ -49,8 +62,14 @@ async function files(root: string): Promise<Map<string, string>> {
 }
 
 /** Compare two repository revisions using hashes only; never executes repository code. */
-export async function diffRepositorySnapshots(oldPath: string, newPath: string): Promise<ChangedFileDiff[]> {
-  const [oldFiles, newFiles] = await Promise.all([files(oldPath), files(newPath)]);
+export async function diffRepositorySnapshots(
+  oldPath: string,
+  newPath: string,
+): Promise<ChangedFileDiff[]> {
+  const [oldFiles, newFiles] = await Promise.all([
+    files(oldPath),
+    files(newPath),
+  ]);
   const paths = [...new Set([...oldFiles.keys(), ...newFiles.keys()])].sort();
   return paths.flatMap<ChangedFileDiff>((path): ChangedFileDiff[] => {
     const oldHash = oldFiles.get(path);

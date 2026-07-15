@@ -8,10 +8,17 @@ import { randomUUID } from "node:crypto";
  * operation on supported local filesystems, instead of exposing a truncated
  * JSON file while it is being written.
  */
-export async function writeFileAtomically(path: string, content: string | Uint8Array, mode = 0o600): Promise<void> {
+export async function writeFileAtomically(
+  path: string,
+  content: string | Uint8Array,
+  mode = 0o600,
+): Promise<void> {
   const directory = dirname(path);
   await mkdir(directory, { recursive: true });
-  const temporary = join(directory, `.${basename(path)}.loadout-${randomUUID()}.tmp`);
+  const temporary = join(
+    directory,
+    `.${basename(path)}.loadout-${randomUUID()}.tmp`,
+  );
   try {
     await writeFile(temporary, content, { mode });
     await rename(temporary, path);

@@ -16,22 +16,31 @@ describe("repository diff", () => {
       await writeFile(join(oldPath, "mcp.json"), "{}\n");
       await writeFile(join(oldPath, "removed-config.json"), "{}\n");
       await writeFile(join(newPath, "skills", "SKILL.md"), "new");
-      await writeFile(join(newPath, "mcp.json"), "{\"mcpServers\":{}}\n");
+      await writeFile(join(newPath, "mcp.json"), '{"mcpServers":{}}\n');
       await writeFile(join(newPath, "config.json"), "{}\n");
       await writeFile(join(newPath, "README.md"), "ignored");
       expect(await diffRepositorySnapshots(oldPath, newPath)).toEqual([
         { path: "config.json", kind: "config", status: "added" },
         { path: "mcp.json", kind: "mcp", status: "changed" },
         { path: "removed-config.json", kind: "config", status: "removed" },
-        { path: "skills/SKILL.md", kind: "skill", status: "changed" }
+        { path: "skills/SKILL.md", kind: "skill", status: "changed" },
       ]);
-    } finally { await rm(root, { recursive: true, force: true }); }
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
   });
 
   it("does not inspect or execute unrelated files", async () => {
     const root = await mkdtemp(join(tmpdir(), "loadout-diff-"));
     try {
-      await expect(diffRepositorySnapshots(join(root, "missing-old"), join(root, "missing-new"))).resolves.toEqual([]);
-    } finally { await rm(root, { recursive: true, force: true }); }
+      await expect(
+        diffRepositorySnapshots(
+          join(root, "missing-old"),
+          join(root, "missing-new"),
+        ),
+      ).resolves.toEqual([]);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
   });
 });

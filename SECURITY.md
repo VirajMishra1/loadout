@@ -16,4 +16,3 @@ Loadout handles third-party repositories and agent configuration, so its safety 
 Static inspection cannot prove that a package is benign. It may miss obfuscated behavior, interpreter-specific behavior, malicious content hidden in generated files, or risks introduced by an agent consuming a text instruction. Stars, repository age, and “official” labels are discovery signals, not security proofs.
 
 Loadout does not currently sandbox arbitrary executables or automatically execute third-party installers. Users should review diffs, licenses, requested permissions, and provenance before approving a change.
-

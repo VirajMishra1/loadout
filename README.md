@@ -22,12 +22,12 @@ original hackathon baseline remains in [MASTER_PLAN.md](./MASTER_PLAN.md).
 
 ## Supported platforms
 
-| Platform | Detection | Skill target roots | Verification |
-| --- | --- | --- | --- |
-| macOS | `PATH` executable or existing agent directory | Claude Code, Codex, Cursor, Gemini CLI, OpenCode, Hermes | CI matrix + local smoke tests |
-| Linux | `PATH` executable or existing agent directory | Claude Code, Codex, Cursor, Gemini CLI, OpenCode, Hermes | CI matrix + local smoke tests |
-| Windows | `PATH` executable/`.cmd` resolution or existing agent directory | Claude Code, Codex, Cursor, Gemini CLI, OpenCode, Hermes | CI matrix; native install coverage remains in progress |
-| WSL | Linux executable and POSIX `$HOME` only | Linux-side agent directories only | Deterministic boundary tests + Linux CI |
+| Platform | Detection                                                       | Skill target roots                                       | Verification                                           |
+| -------- | --------------------------------------------------------------- | -------------------------------------------------------- | ------------------------------------------------------ |
+| macOS    | `PATH` executable or existing agent directory                   | Claude Code, Codex, Cursor, Gemini CLI, OpenCode, Hermes | CI matrix + local smoke tests                          |
+| Linux    | `PATH` executable or existing agent directory                   | Claude Code, Codex, Cursor, Gemini CLI, OpenCode, Hermes | CI matrix + local smoke tests                          |
+| Windows  | `PATH` executable/`.cmd` resolution or existing agent directory | Claude Code, Codex, Cursor, Gemini CLI, OpenCode, Hermes | CI matrix; native install coverage remains in progress |
+| WSL      | Linux executable and POSIX `$HOME` only                         | Linux-side agent directories only                        | Deterministic boundary tests + Linux CI                |
 
 Loadout writes to the detected agent's documented user directory and supports
 `LOADOUT_USER_HOME` for an isolated test or demo profile. It does not claim that every
@@ -130,6 +130,7 @@ The [catalog policy](./docs/CATALOG_POLICY.md) explains ranking, anti-gaming lim
 and Stable/Maximum/Custom conflict handling. The [compatibility policy](./docs/COMPATIBILITY_POLICY.md)
 defines exactly what native, adapted, and unsupported mean on Windows, macOS, Linux,
 and WSL.
+
 ## Try the real install path
 
 ```bash

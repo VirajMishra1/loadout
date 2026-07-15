@@ -6,13 +6,48 @@ import type { AgentId, DetectedAgent } from "../shared/types.js";
 
 const execFileAsync = promisify(execFile);
 
-export const AGENT_DEFINITIONS: ReadonlyArray<{ id: AgentId; displayName: string; binary: string; directory: readonly [string, string] }> = [
-  { id: "claude-code", displayName: "Claude Code", binary: "claude", directory: [".claude", "skills"] },
-  { id: "codex", displayName: "Codex", binary: "codex", directory: [".agents", "skills"] },
-  { id: "cursor", displayName: "Cursor", binary: "cursor", directory: [".cursor", "skills"] },
-  { id: "gemini-cli", displayName: "Gemini CLI", binary: "gemini", directory: [".gemini", "skills"] },
-  { id: "opencode", displayName: "OpenCode", binary: "opencode", directory: [".opencode", "skills"] },
-  { id: "hermes", displayName: "Hermes", binary: "hermes", directory: [".hermes", "skills"] }
+export const AGENT_DEFINITIONS: ReadonlyArray<{
+  id: AgentId;
+  displayName: string;
+  binary: string;
+  directory: readonly [string, string];
+}> = [
+  {
+    id: "claude-code",
+    displayName: "Claude Code",
+    binary: "claude",
+    directory: [".claude", "skills"],
+  },
+  {
+    id: "codex",
+    displayName: "Codex",
+    binary: "codex",
+    directory: [".agents", "skills"],
+  },
+  {
+    id: "cursor",
+    displayName: "Cursor",
+    binary: "cursor",
+    directory: [".cursor", "skills"],
+  },
+  {
+    id: "gemini-cli",
+    displayName: "Gemini CLI",
+    binary: "gemini",
+    directory: [".gemini", "skills"],
+  },
+  {
+    id: "opencode",
+    displayName: "OpenCode",
+    binary: "opencode",
+    directory: [".opencode", "skills"],
+  },
+  {
+    id: "hermes",
+    displayName: "Hermes",
+    binary: "hermes",
+    directory: [".hermes", "skills"],
+  },
 ];
 
 type PathEnvironment = NodeJS.ProcessEnv;
@@ -24,13 +59,23 @@ export type RuntimeBoundary = "windows" | "wsl" | "posix";
  * Windows USERPROFILE into /mnt/c because that would install into a different
  * agent profile than the Linux executable uses.
  */
-export function runtimeBoundary(env: PathEnvironment = process.env, platform: NodeJS.Platform = process.platform): RuntimeBoundary {
+export function runtimeBoundary(
+  env: PathEnvironment = process.env,
+  platform: NodeJS.Platform = process.platform,
+): RuntimeBoundary {
   if (platform === "win32") return "windows";
-  if (platform === "linux" && (Boolean(env.WSL_DISTRO_NAME) || Boolean(env.WSL_INTEROP))) return "wsl";
+  if (
+    platform === "linux" &&
+    (Boolean(env.WSL_DISTRO_NAME) || Boolean(env.WSL_INTEROP))
+  )
+    return "wsl";
   return "posix";
 }
 
-export function userHome(env: PathEnvironment = process.env, platform: NodeJS.Platform = process.platform): string {
+export function userHome(
+  env: PathEnvironment = process.env,
+  platform: NodeJS.Platform = process.platform,
+): string {
   if (env.LOADOUT_USER_HOME) return env.LOADOUT_USER_HOME;
   // USERPROFILE is the canonical home variable on native Windows. HOME is
   // still accepted as a fallback for Git Bash/WSL and test environments.
@@ -38,29 +83,45 @@ export function userHome(env: PathEnvironment = process.env, platform: NodeJS.Pl
   return env.HOME ?? env.USERPROFILE ?? process.cwd();
 }
 
-export function loadoutHome(env: PathEnvironment = process.env, platform: NodeJS.Platform = process.platform): string {
+export function loadoutHome(
+  env: PathEnvironment = process.env,
+  platform: NodeJS.Platform = process.platform,
+): string {
   if (env.LOADOUT_HOME) return env.LOADOUT_HOME;
   if (platform === "win32") {
     // Application state belongs in roaming app data on Windows rather than a
     // dot-directory in the profile. APPDATA may be absent in stripped-down
     // shells, so fall back to a conventional profile path.
-    const appData = env.APPDATA ?? win32.join(userHome(env, platform), "AppData", "Roaming");
+    const appData =
+      env.APPDATA ?? win32.join(userHome(env, platform), "AppData", "Roaming");
     return win32.join(appData, "loadout");
   }
   return join(userHome(env, platform), ".loadout");
 }
 
 /** The lookup order accepts npm's Windows .cmd shims as first-class executables. */
-export function executableCandidates(binary: string, platform: NodeJS.Platform = process.platform): string[] {
+export function executableCandidates(
+  binary: string,
+  platform: NodeJS.Platform = process.platform,
+): string[] {
   if (platform !== "win32") return [binary];
   return [binary, `${binary}.cmd`, `${binary}.exe`, `${binary}.bat`];
 }
 
-export function executableLookup(binary: string, platform: NodeJS.Platform = process.platform): { command: string; candidates: string[] } {
-  return { command: platform === "win32" ? "where" : "which", candidates: executableCandidates(binary, platform) };
+export function executableLookup(
+  binary: string,
+  platform: NodeJS.Platform = process.platform,
+): { command: string; candidates: string[] } {
+  return {
+    command: platform === "win32" ? "where" : "which",
+    candidates: executableCandidates(binary, platform),
+  };
 }
 
-async function hasBinary(binary: string, platform: NodeJS.Platform = process.platform): Promise<boolean> {
+async function hasBinary(
+  binary: string,
+  platform: NodeJS.Platform = process.platform,
+): Promise<boolean> {
   const lookup = executableLookup(binary, platform);
   try {
     for (const candidate of lookup.candidates) {
@@ -78,21 +139,41 @@ async function hasBinary(binary: string, platform: NodeJS.Platform = process.pla
   }
 }
 
-export function agentSkillsDirectory(agent: AgentId, home = userHome(), platform: NodeJS.Platform = process.platform): string {
+export function agentSkillsDirectory(
+  agent: AgentId,
+  home = userHome(),
+  platform: NodeJS.Platform = process.platform,
+): string {
   const definition = AGENT_DEFINITIONS.find((entry) => entry.id === agent);
   if (!definition) throw new Error(`Unknown agent '${agent}'`);
   const path = platform === "win32" ? win32 : posix;
   return path.join(home, ...definition.directory);
 }
 
-export async function detectAgents(options: { env?: PathEnvironment; platform?: NodeJS.Platform } = {}): Promise<DetectedAgent[]> {
+export async function detectAgents(
+  options: { env?: PathEnvironment; platform?: NodeJS.Platform } = {},
+): Promise<DetectedAgent[]> {
   const env = options.env ?? process.env;
   const platform = options.platform ?? process.platform;
   const home = userHome(env, platform);
-  return Promise.all(AGENT_DEFINITIONS.map(async (definition) => {
-    const skillsDirectory = agentSkillsDirectory(definition.id, home, platform);
-    return { id: definition.id, displayName: definition.displayName, binary: definition.binary, installed: await hasBinary(definition.binary, platform) || await directoryExists(dirnameForDetection(skillsDirectory)), skillsDirectory };
-  }));
+  return Promise.all(
+    AGENT_DEFINITIONS.map(async (definition) => {
+      const skillsDirectory = agentSkillsDirectory(
+        definition.id,
+        home,
+        platform,
+      );
+      return {
+        id: definition.id,
+        displayName: definition.displayName,
+        binary: definition.binary,
+        installed:
+          (await hasBinary(definition.binary, platform)) ||
+          (await directoryExists(dirnameForDetection(skillsDirectory))),
+        skillsDirectory,
+      };
+    }),
+  );
 }
 
 function dirnameForDetection(skillsDirectory: string): string {
@@ -104,9 +185,18 @@ export async function ensureDirectory(path: string): Promise<void> {
 }
 
 export async function directoryExists(path: string): Promise<boolean> {
-  try { await access(path); return true; } catch { return false; }
+  try {
+    await access(path);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export async function listDirectory(path: string): Promise<string[]> {
-  try { return await readdir(path); } catch { return []; }
+  try {
+    return await readdir(path);
+  } catch {
+    return [];
+  }
 }

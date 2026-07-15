@@ -3,7 +3,12 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createSnapshot } from "../src/core/snapshot.js";
-import { beginTransaction, markTransactionCommitting, recoverPendingTransactions, transactionRoot } from "../src/core/transaction.js";
+import {
+  beginTransaction,
+  markTransactionCommitting,
+  recoverPendingTransactions,
+  transactionRoot,
+} from "../src/core/transaction.js";
 
 describe("durable transaction recovery", () => {
   let root = "";
@@ -20,7 +25,8 @@ describe("durable transaction recovery", () => {
     const first = join(root, "agent", "first.txt");
     const second = join(root, "agent", "second.txt");
     await mkdir(join(root, "agent"), { recursive: true });
-    await writeFile(first, "before-first"); await writeFile(second, "before-second");
+    await writeFile(first, "before-first");
+    await writeFile(second, "before-second");
     const snapshot = await createSnapshot([first, second]);
     const transaction = await beginTransaction(snapshot, [first, second]);
     await markTransactionCommitting(transaction);
@@ -40,7 +46,11 @@ describe("durable transaction recovery", () => {
     await mkdir(stage, { recursive: true });
     await writeFile(join(stage, "transaction.json"), "{not-json");
 
-    await expect(recoverPendingTransactions()).rejects.toThrow(/Corrupt Loadout transaction journal/);
-    expect(await readFile(join(stage, "transaction.json"), "utf8")).toBe("{not-json");
+    await expect(recoverPendingTransactions()).rejects.toThrow(
+      /Corrupt Loadout transaction journal/,
+    );
+    expect(await readFile(join(stage, "transaction.json"), "utf8")).toBe(
+      "{not-json",
+    );
   });
 });

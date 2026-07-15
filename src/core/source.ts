@@ -19,7 +19,10 @@ export interface RepositoryFetchOptions {
 }
 
 /** Stable on-disk location used to retain fetched repository revisions. */
-export function repositoryCachePath(repository: string, commit: string): string {
+export function repositoryCachePath(
+  repository: string,
+  commit: string,
+): string {
   return join(loadoutHome(), "cache", repository.replace("/", "__"), commit);
 }
 
@@ -30,27 +33,56 @@ export function normalizeRepository(input: string): string {
     .replace(/\.git$/, "")
     .replace(/\/$/, "");
   if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(value)) {
-    throw new Error(`Expected a public GitHub repository like owner/repo, received: ${input}`);
+    throw new Error(
+      `Expected a public GitHub repository like owner/repo, received: ${input}`,
+    );
   }
   return value;
 }
 
 function normalizeRef(ref: string): string {
-  if (!/^[A-Za-z0-9][A-Za-z0-9._/-]*$/.test(ref) || ref.includes("..") || ref.endsWith("/")) throw new Error(`Invalid Git ref: ${ref}`);
+  if (
+    !/^[A-Za-z0-9][A-Za-z0-9._/-]*$/.test(ref) ||
+    ref.includes("..") ||
+    ref.endsWith("/")
+  )
+    throw new Error(`Invalid Git ref: ${ref}`);
   return ref;
 }
 
-export async function fetchRepositorySnapshot(input: string, options: RepositoryFetchOptions = {}): Promise<RepositorySnapshot> {
+export async function fetchRepositorySnapshot(
+  input: string,
+  options: RepositoryFetchOptions = {},
+): Promise<RepositorySnapshot> {
   const repository = normalizeRepository(input);
   const temporary = await mkdtemp(join(tmpdir(), "loadout-repository-"));
   try {
     const refArgs = options.ref ? ["--branch", normalizeRef(options.ref)] : [];
-    await execFileAsync("git", ["clone", "--depth", "1", ...refArgs, `https://github.com/${repository}.git`, temporary], { maxBuffer: 10 * 1024 * 1024 });
-    const { stdout } = await execFileAsync("git", ["-C", temporary, "rev-parse", "HEAD"]);
+    await execFileAsync(
+      "git",
+      [
+        "clone",
+        "--depth",
+        "1",
+        ...refArgs,
+        `https://github.com/${repository}.git`,
+        temporary,
+      ],
+      { maxBuffer: 10 * 1024 * 1024 },
+    );
+    const { stdout } = await execFileAsync("git", [
+      "-C",
+      temporary,
+      "rev-parse",
+      "HEAD",
+    ]);
     const commit = stdout.trim();
-    if (!/^[0-9a-f]{40}$/i.test(commit)) throw new Error(`Git returned an invalid commit for ${repository}`);
+    if (!/^[0-9a-f]{40}$/i.test(commit))
+      throw new Error(`Git returned an invalid commit for ${repository}`);
     const cachePath = repositoryCachePath(repository, commit);
-    await ensureDirectory(join(loadoutHome(), "cache", repository.replace("/", "__")));
+    await ensureDirectory(
+      join(loadoutHome(), "cache", repository.replace("/", "__")),
+    );
     await rm(cachePath, { recursive: true, force: true });
     await rename(temporary, cachePath);
     return { repository, commit, path: cachePath };
@@ -63,33 +95,59 @@ export async function fetchRepositorySnapshot(input: string, options: Repository
 
 function normalizeGitUrl(input: string): string {
   const value = input.trim();
-  if (value !== input || /[\0\r\n]/.test(value) || value.startsWith("-")) throw new Error("Invalid Git URL");
+  if (value !== input || /[\0\r\n]/.test(value) || value.startsWith("-"))
+    throw new Error("Invalid Git URL");
   const httpsOrSsh = /^(?:https|ssh):\/\/[^\s]+$/i.test(value);
-  const scp = /^[A-Za-z0-9._-]+@[A-Za-z0-9.-]+:[A-Za-z0-9._~/-]+(?:\.git)?$/.test(value);
-  if (!httpsOrSsh && !scp) throw new Error("Generic Git sources require an HTTPS or SSH URL");
+  const scp =
+    /^[A-Za-z0-9._-]+@[A-Za-z0-9.-]+:[A-Za-z0-9._~/-]+(?:\.git)?$/.test(value);
+  if (!httpsOrSsh && !scp)
+    throw new Error("Generic Git sources require an HTTPS or SSH URL");
   if (httpsOrSsh) {
     const parsed = new URL(value);
     // Git includes failing command arguments in its error text. Reject URLs
     // that can embed a token before invoking Git, rather than leaking one in
     // a clone failure.
     if (parsed.password || (parsed.protocol === "https:" && parsed.username)) {
-      throw new Error("Git URLs must not embed credentials; use an SSH agent or credential helper");
+      throw new Error(
+        "Git URLs must not embed credentials; use an SSH agent or credential helper",
+      );
     }
-    if (parsed.search || parsed.hash) throw new Error("Git URLs must not include query strings or fragments");
+    if (parsed.search || parsed.hash)
+      throw new Error("Git URLs must not include query strings or fragments");
   }
   return value;
 }
 
 /** Fetch a generic Git source without running repository hooks or lifecycle scripts. */
-export async function fetchGitSnapshot(input: string, options: RepositoryFetchOptions = {}): Promise<RepositorySnapshot> {
+export async function fetchGitSnapshot(
+  input: string,
+  options: RepositoryFetchOptions = {},
+): Promise<RepositorySnapshot> {
   const url = normalizeGitUrl(input);
   const temporary = await mkdtemp(join(tmpdir(), "loadout-git-"));
   try {
     const refArgs = options.ref ? ["--branch", normalizeRef(options.ref)] : [];
-    await execFileAsync("git", ["clone", "--depth", "1", ...refArgs, "--", url, temporary], { maxBuffer: 10 * 1024 * 1024, env: { ...process.env, GIT_CONFIG_NOSYSTEM: "1", GIT_TERMINAL_PROMPT: "0" } });
-    const { stdout } = await execFileAsync("git", ["-C", temporary, "rev-parse", "HEAD"]);
+    await execFileAsync(
+      "git",
+      ["clone", "--depth", "1", ...refArgs, "--", url, temporary],
+      {
+        maxBuffer: 10 * 1024 * 1024,
+        env: {
+          ...process.env,
+          GIT_CONFIG_NOSYSTEM: "1",
+          GIT_TERMINAL_PROMPT: "0",
+        },
+      },
+    );
+    const { stdout } = await execFileAsync("git", [
+      "-C",
+      temporary,
+      "rev-parse",
+      "HEAD",
+    ]);
     const commit = stdout.trim();
-    if (!/^[0-9a-f]{40}$/i.test(commit)) throw new Error("Git returned an invalid commit");
+    if (!/^[0-9a-f]{40}$/i.test(commit))
+      throw new Error("Git returned an invalid commit");
     const key = createHash("sha256").update(url).digest("hex");
     const cachePath = join(loadoutHome(), "cache", "git", key, commit);
     await ensureDirectory(join(loadoutHome(), "cache", "git", key));
@@ -98,6 +156,8 @@ export async function fetchGitSnapshot(input: string, options: RepositoryFetchOp
     return { repository: url, commit, path: cachePath };
   } catch (error) {
     await rm(temporary, { recursive: true, force: true });
-    throw new Error(`Could not fetch Git source: ${error instanceof Error ? error.message : String(error)}`);
+    throw new Error(
+      `Could not fetch Git source: ${error instanceof Error ? error.message : String(error)}`,
+    );
   }
 }

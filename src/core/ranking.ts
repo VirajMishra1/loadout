@@ -18,7 +18,7 @@ const TIER_ORDER: Record<CatalogPackage["tier"], number> = {
   official: 4,
   stable: 3,
   trending: 2,
-  community: 1
+  community: 1,
 };
 
 function bounded(value: number, maximum: number): number {
@@ -36,41 +36,109 @@ function daysSince(value: string, now: Date): number | undefined {
  * A single star count cannot establish momentum, so momentum is intentionally
  * assigned zero points until the discovery service stores a second observation.
  */
-export function explainCatalogScore(pkg: CatalogPackage, now = new Date()): CatalogScoreExplanation {
-  const adoption = pkg.stars === undefined
-    ? { factor: "adoption" as const, points: 0, maximum: 30, evidence: "No independently fetched adoption count is available." }
-    : { factor: "adoption" as const, points: Number(bounded((Math.log10(pkg.stars + 1) / 6) * 30, 30).toFixed(2)), maximum: 30, evidence: `${pkg.stars.toLocaleString()} GitHub stars, logarithmically scaled and capped.` };
+export function explainCatalogScore(
+  pkg: CatalogPackage,
+  now = new Date(),
+): CatalogScoreExplanation {
+  const adoption =
+    pkg.stars === undefined
+      ? {
+          factor: "adoption" as const,
+          points: 0,
+          maximum: 30,
+          evidence: "No independently fetched adoption count is available.",
+        }
+      : {
+          factor: "adoption" as const,
+          points: Number(
+            bounded((Math.log10(pkg.stars + 1) / 6) * 30, 30).toFixed(2),
+          ),
+          maximum: 30,
+          evidence: `${pkg.stars.toLocaleString()} GitHub stars, logarithmically scaled and capped.`,
+        };
 
-  const momentum = { factor: "momentum" as const, points: 0, maximum: 20, evidence: "No two-point star or download history is stored yet; a single snapshot is not treated as momentum." };
+  const momentum = {
+    factor: "momentum" as const,
+    points: 0,
+    maximum: 20,
+    evidence:
+      "No two-point star or download history is stored yet; a single snapshot is not treated as momentum.",
+  };
 
   const age = pkg.pushedAt ? daysSince(pkg.pushedAt, now) : undefined;
-  const maintenance = age === undefined
-    ? { factor: "maintenance" as const, points: 0, maximum: 20, evidence: "No valid code-push timestamp is available; metadata edits and catalog verification are not counted as maintenance." }
-    : { factor: "maintenance" as const, points: Number((age <= 30 ? 20 : age <= 90 ? 16 : age <= 180 ? 10 : age <= 365 ? 5 : 0).toFixed(2)), maximum: 20, evidence: `Repository code was last pushed ${Math.floor(age)} day(s) ago.` };
+  const maintenance =
+    age === undefined
+      ? {
+          factor: "maintenance" as const,
+          points: 0,
+          maximum: 20,
+          evidence:
+            "No valid code-push timestamp is available; metadata edits and catalog verification are not counted as maintenance.",
+        }
+      : {
+          factor: "maintenance" as const,
+          points: Number(
+            (age <= 30
+              ? 20
+              : age <= 90
+                ? 16
+                : age <= 180
+                  ? 10
+                  : age <= 365
+                    ? 5
+                    : 0
+            ).toFixed(2),
+          ),
+          maximum: 20,
+          evidence: `Repository code was last pushed ${Math.floor(age)} day(s) ago.`,
+        };
 
   const platforms = pkg.operatingSystems?.length ?? 0;
-  const compatibilityPoints = (pkg.components?.length ? 5 : 0) + Math.min(platforms, 3) / 3 * 10;
-  const compatibility = { factor: "compatibility" as const, points: Number(compatibilityPoints.toFixed(2)), maximum: 15, evidence: `${pkg.components?.length ?? 0} evidenced component kind(s) and ${platforms} supported platform(s); no inferred adapter support is counted.` };
+  const compatibilityPoints =
+    (pkg.components?.length ? 5 : 0) + (Math.min(platforms, 3) / 3) * 10;
+  const compatibility = {
+    factor: "compatibility" as const,
+    points: Number(compatibilityPoints.toFixed(2)),
+    maximum: 15,
+    evidence: `${pkg.components?.length ?? 0} evidenced component kind(s) and ${platforms} supported platform(s); no inferred adapter support is counted.`,
+  };
 
-  const trustPoints = (pkg.source ? 6 : 0) + (pkg.license ? 4 : 0) + (pkg.tier === "official" ? 5 : 0);
-  const trust = { factor: "trust" as const, points: trustPoints, maximum: 15, evidence: `${pkg.source ? "Immutable source evidence" : "No immutable source evidence"}, ${pkg.license ? "license metadata" : "no license metadata"}${pkg.tier === "official" ? ", and a reviewed official publisher tier" : ""}.` };
+  const trustPoints =
+    (pkg.source ? 6 : 0) +
+    (pkg.license ? 4 : 0) +
+    (pkg.tier === "official" ? 5 : 0);
+  const trust = {
+    factor: "trust" as const,
+    points: trustPoints,
+    maximum: 15,
+    evidence: `${pkg.source ? "Immutable source evidence" : "No immutable source evidence"}, ${pkg.license ? "license metadata" : "no license metadata"}${pkg.tier === "official" ? ", and a reviewed official publisher tier" : ""}.`,
+  };
 
   const contributions = [adoption, momentum, maintenance, compatibility, trust];
   return {
-    score: Number(contributions.reduce((sum, contribution) => sum + contribution.points, 0).toFixed(2)),
+    score: Number(
+      contributions
+        .reduce((sum, contribution) => sum + contribution.points, 0)
+        .toFixed(2),
+    ),
     contributions,
     guardrails: [
       "Scores order candidates inside a capability category; they do not compare unrelated tools or prove universal quality.",
       "Stars are logarithmic and capped, so popularity cannot overwhelm tier, provenance, license, archive, or compatibility policy.",
       "Missing evidence earns no points. Self-reported README claims, topics, and a single timestamp are not treated as adoption, momentum, or safety proof.",
-      "Official is a publisher-identity tier, not a security guarantee. Archived packages remain ineligible for automatic profiles."
-    ]
+      "Official is a publisher-identity tier, not a security guarantee. Archived packages remain ineligible for automatic profiles.",
+    ],
   };
 }
 
 /** A deterministic ordering: review tier first, then explainable evidence, then id. */
-export function compareCatalogPackages(a: CatalogPackage, b: CatalogPackage): number {
-  return TIER_ORDER[b.tier] - TIER_ORDER[a.tier]
-    || explainCatalogScore(b).score - explainCatalogScore(a).score
-    || a.id.localeCompare(b.id);
+export function compareCatalogPackages(
+  a: CatalogPackage,
+  b: CatalogPackage,
+): number {
+  return (
+    TIER_ORDER[b.tier] - TIER_ORDER[a.tier] ||
+    explainCatalogScore(b).score - explainCatalogScore(a).score ||
+    a.id.localeCompare(b.id)
+  );
 }

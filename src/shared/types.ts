@@ -1,4 +1,5 @@
-export type AgentId = "claude-code" | "codex" | "cursor" | "gemini-cli" | "opencode" | "hermes";
+export type AgentId =
+  "claude-code" | "codex" | "cursor" | "gemini-cli" | "opencode" | "hermes";
 
 export type PackageTier = "official" | "stable" | "trending" | "community";
 
@@ -59,7 +60,8 @@ export interface PlannedFile {
   skillName?: string;
 }
 
-export type ComponentType = "skill" | "rule" | "command" | "agent" | "mcp" | "plugin" | "root";
+export type ComponentType =
+  "skill" | "rule" | "command" | "agent" | "mcp" | "plugin" | "root";
 export type ComponentCompatibility = "native" | "adapted" | "unsupported";
 
 /** A non-executable entry observed below an agent-owned Loadout directory. */
@@ -131,7 +133,13 @@ export interface Snapshot {
   id: string;
   createdAt: string;
   roots: string[];
-  files: Array<{ path: string; existed: boolean; directory?: boolean; content?: string; encoding?: "base64" }>;
+  files: Array<{
+    path: string;
+    existed: boolean;
+    directory?: boolean;
+    content?: string;
+    encoding?: "base64";
+  }>;
 }
 
 export interface InstallRecord {
@@ -225,7 +233,12 @@ export interface LoadoutLockfile {
   manifestName: string;
   generatedAt: string;
   packages: LockedPackage[];
-  mcpServers?: Array<{ packageId: string; configPath: string; serverName: string; fingerprint: string }>;
+  mcpServers?: Array<{
+    packageId: string;
+    configPath: string;
+    serverName: string;
+    fingerprint: string;
+  }>;
 }
 
 export type SafetyRiskLevel = "safe" | "review" | "blocked";
@@ -327,6 +340,14 @@ export interface PackageInspection {
   resources: ResourceSummary[];
   plugins: PluginSummary[];
   mcpServers: McpServerSummary[];
-  counts: { skills: number; rules: number; commands: number; agents: number; plugins: number; mcpServers: number; manifests: number };
+  counts: {
+    skills: number;
+    rules: number;
+    commands: number;
+    agents: number;
+    plugins: number;
+    mcpServers: number;
+    manifests: number;
+  };
   warnings: string[];
 }

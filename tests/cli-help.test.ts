@@ -6,15 +6,27 @@ const exec = promisify(execFile);
 
 async function runCli(...args: string[]) {
   try {
-    const result = await exec(process.execPath, ["--import", "tsx", "src/cli.ts", ...args], {
-      cwd: process.cwd(),
-      env: { ...process.env, NO_COLOR: "1" },
-      maxBuffer: 1024 * 1024,
-    });
+    const result = await exec(
+      process.execPath,
+      ["--import", "tsx", "src/cli.ts", ...args],
+      {
+        cwd: process.cwd(),
+        env: { ...process.env, NO_COLOR: "1" },
+        maxBuffer: 1024 * 1024,
+      },
+    );
     return { code: 0, stdout: result.stdout, stderr: result.stderr };
   } catch (error) {
-    const result = error as { code?: number | string; stdout?: string; stderr?: string };
-    return { code: Number(result.code ?? 1), stdout: result.stdout ?? "", stderr: result.stderr ?? "" };
+    const result = error as {
+      code?: number | string;
+      stdout?: string;
+      stderr?: string;
+    };
+    return {
+      code: Number(result.code ?? 1),
+      stdout: result.stdout ?? "",
+      stderr: result.stderr ?? "",
+    };
   }
 }
 
@@ -22,7 +34,9 @@ describe("CLI contract", () => {
   it("keeps top-level help useful for judges and first-time users", async () => {
     const result = await runCli("--help");
     expect(result.code).toBe(0);
-    expect(result.stdout).toContain("Universal upgrade manager for AI coding agents");
+    expect(result.stdout).toContain(
+      "Universal upgrade manager for AI coding agents",
+    );
     expect(result.stdout).toContain("status");
     expect(result.stdout).toContain("doctor");
     expect(result.stdout).toContain("demo");
@@ -31,7 +45,14 @@ describe("CLI contract", () => {
   });
 
   it("reports mutually exclusive source errors without mutating state", async () => {
-    const result = await runCli("add", "demo", "--catalog", "demo", "--repository", "owner/repo");
+    const result = await runCli(
+      "add",
+      "demo",
+      "--catalog",
+      "demo",
+      "--repository",
+      "owner/repo",
+    );
     expect(result.code).not.toBe(0);
     expect(result.stderr).toContain("Choose exactly one source");
   });

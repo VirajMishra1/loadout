@@ -1,4 +1,9 @@
-import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
+import {
+  createServer,
+  type IncomingMessage,
+  type Server,
+  type ServerResponse,
+} from "node:http";
 import { loadEffectiveCatalog, rankCatalog } from "./catalog.js";
 import { detectAgents } from "./paths.js";
 import { buildUpdatePlan } from "./update.js";
@@ -22,7 +27,11 @@ export interface ApiHandle {
   close: () => Promise<void>;
 }
 
-function json(response: ServerResponse, statusCode: number, body: unknown): void {
+function json(
+  response: ServerResponse,
+  statusCode: number,
+  body: unknown,
+): void {
   const payload = JSON.stringify(body);
   response.writeHead(statusCode, {
     "content-type": "application/json; charset=utf-8",
@@ -41,28 +50,47 @@ function errorBody(code: string, message: string): unknown {
 }
 
 function pathOf(request: IncomingMessage): string {
-  try { return new URL(request.url ?? "/", "http://127.0.0.1").pathname; }
-  catch { return "/"; }
+  try {
+    return new URL(request.url ?? "/", "http://127.0.0.1").pathname;
+  } catch {
+    return "/";
+  }
 }
 
-export async function startApiServer(options: ApiOptions = {}): Promise<ApiHandle> {
+export async function startApiServer(
+  options: ApiOptions = {},
+): Promise<ApiHandle> {
   const host = options.host ?? "127.0.0.1";
   const port = options.port ?? 0;
   if (host !== "127.0.0.1" && host !== "::1") {
     throw new Error("Loadout API is loopback-only; use 127.0.0.1 or ::1");
   }
   const status = options.status ?? (async () => detectAgents());
-  const catalog = options.catalog ?? (async () => rankCatalog(await loadEffectiveCatalog()));
+  const catalog =
+    options.catalog ?? (async () => rankCatalog(await loadEffectiveCatalog()));
   const updates = options.updates ?? (async () => buildUpdatePlan());
   const health = options.health ?? (async () => buildHealthReport());
 
   const server = createServer(async (request, response) => {
     if (request.method !== "GET") {
-      json(response, 405, errorBody("METHOD_NOT_ALLOWED", "Only GET requests are supported."));
+      json(
+        response,
+        405,
+        errorBody("METHOD_NOT_ALLOWED", "Only GET requests are supported."),
+      );
       return;
     }
     const path = pathOf(request);
-    const handler = path === "/status" ? status : path === "/catalog" ? catalog : path === "/health" ? health : path === "/update" || path === "/updates" ? updates : undefined;
+    const handler =
+      path === "/status"
+        ? status
+        : path === "/catalog"
+          ? catalog
+          : path === "/health"
+            ? health
+            : path === "/update" || path === "/updates"
+              ? updates
+              : undefined;
     if (!handler) {
       json(response, 404, errorBody("NOT_FOUND", "Endpoint not found."));
       return;
@@ -76,8 +104,14 @@ export async function startApiServer(options: ApiOptions = {}): Promise<ApiHandl
   });
 
   await new Promise<void>((resolve, reject) => {
-    const onError = (cause: Error) => { server.off("listening", onListening); reject(cause); };
-    const onListening = () => { server.off("error", onError); resolve(); };
+    const onError = (cause: Error) => {
+      server.off("listening", onListening);
+      reject(cause);
+    };
+    const onListening = () => {
+      server.off("error", onError);
+      resolve();
+    };
     server.once("error", onError);
     server.once("listening", onListening);
     server.listen(port, host);
@@ -91,6 +125,9 @@ export async function startApiServer(options: ApiOptions = {}): Promise<ApiHandl
     server,
     host,
     port: address.port,
-    close: () => new Promise<void>((resolve, reject) => server.close((cause) => cause ? reject(cause) : resolve())),
+    close: () =>
+      new Promise<void>((resolve, reject) =>
+        server.close((cause) => (cause ? reject(cause) : resolve())),
+      ),
   };
 }

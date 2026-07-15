@@ -39,7 +39,10 @@ export interface DemoResult {
 function isWithin(root: string, path: string): boolean {
   const resolvedRoot = resolve(root);
   const resolvedPath = resolve(path);
-  return resolvedPath === resolvedRoot || resolvedPath.startsWith(`${resolvedRoot}${sep}`);
+  return (
+    resolvedPath === resolvedRoot ||
+    resolvedPath.startsWith(`${resolvedRoot}${sep}`)
+  );
 }
 
 /**
@@ -48,12 +51,19 @@ function isWithin(root: string, path: string): boolean {
  * binaries: the demo proves the installer while never treating a user's real
  * Codex, Claude, or other agent profile as a demo target.
  */
-export async function runIsolatedDemo(options: DemoOptions = {}): Promise<DemoResult> {
-  if (options.source && options.repository) throw new Error("Demo accepts either a local source or a repository, not both");
+export async function runIsolatedDemo(
+  options: DemoOptions = {},
+): Promise<DemoResult> {
+  if (options.source && options.repository)
+    throw new Error(
+      "Demo accepts either a local source or a repository, not both",
+    );
   const profile = await mkdtemp(join(tmpdir(), "loadout-demo-"));
   const demoLoadoutHome = join(profile, ".loadout");
   const packageId = options.packageId ?? DEFAULT_PACKAGE_ID;
-  const agentIds: AgentId[] = options.agents?.length ? options.agents : ["codex"];
+  const agentIds: AgentId[] = options.agents?.length
+    ? options.agents
+    : ["codex"];
   const previousUserHome = process.env.LOADOUT_USER_HOME;
   const previousLoadoutHome = process.env.LOADOUT_HOME;
   let completed = false;
@@ -65,29 +75,48 @@ export async function runIsolatedDemo(options: DemoOptions = {}): Promise<DemoRe
       ? undefined
       : await fetchRepositorySnapshot(options.repository ?? DEFAULT_REPOSITORY);
     const source = options.source ?? fetched!.path;
-    const repository = fetched?.repository ?? `local source: ${resolve(source)}`;
+    const repository =
+      fetched?.repository ?? `local source: ${resolve(source)}`;
     const targets: DetectedAgent[] = agentIds.map((id) => ({
       id,
       displayName: `${id} (isolated demo target)`,
       installed: true,
-      skillsDirectory: agentSkillsDirectory(id, profile)
+      skillsDirectory: agentSkillsDirectory(id, profile),
     }));
 
     const plan = await buildSkillPlan(source, packageId, targets);
     if (plan.files.some((file) => !isWithin(profile, file.target))) {
-      throw new Error("Demo safety check failed: a planned target escaped the isolated profile");
+      throw new Error(
+        "Demo safety check failed: a planned target escaped the isolated profile",
+      );
     }
-    const snapshotId = await applySkillInstall(plan, fetched ? { repository: fetched.repository, resolvedCommit: fetched.commit } : undefined);
+    const snapshotId = await applySkillInstall(
+      plan,
+      fetched
+        ? { repository: fetched.repository, resolvedCommit: fetched.commit }
+        : undefined,
+    );
     const state = await readInstallState();
-    const record = state.installs.find((item) => item.packageId === packageId && item.snapshotId === snapshotId);
-    if (!record) throw new Error("Demo safety check failed: the isolated install was not recorded");
+    const record = state.installs.find(
+      (item) => item.packageId === packageId && item.snapshotId === snapshotId,
+    );
+    if (!record)
+      throw new Error(
+        "Demo safety check failed: the isolated install was not recorded",
+      );
     if (record.files.some((file) => !isWithin(profile, file.path))) {
-      throw new Error("Demo safety check failed: managed state escaped the isolated profile");
+      throw new Error(
+        "Demo safety check failed: managed state escaped the isolated profile",
+      );
     }
 
     let rolledBack = false;
     if (!options.keep) {
-      const snapshotPath = join(demoLoadoutHome, "snapshots", `${snapshotId}.json`);
+      const snapshotPath = join(
+        demoLoadoutHome,
+        "snapshots",
+        `${snapshotId}.json`,
+      );
       const snapshot = JSON.parse(await readFile(snapshotPath, "utf8"));
       await restoreSnapshot(snapshot);
       rolledBack = true;
@@ -104,7 +133,7 @@ export async function runIsolatedDemo(options: DemoOptions = {}): Promise<DemoRe
       installedFiles: record.files.length,
       snapshotId,
       rolledBack,
-      cleanedUp: !options.keep
+      cleanedUp: !options.keep,
     };
   } finally {
     if (previousUserHome === undefined) delete process.env.LOADOUT_USER_HOME;
@@ -113,12 +142,15 @@ export async function runIsolatedDemo(options: DemoOptions = {}): Promise<DemoRe
     else process.env.LOADOUT_HOME = previousLoadoutHome;
     // The default mode has completed its rollback before removal. On an error
     // we also remove the partial profile; source repositories are never deleted.
-    if (!options.keep || !completed) await rm(profile, { recursive: true, force: true });
+    if (!options.keep || !completed)
+      await rm(profile, { recursive: true, force: true });
   }
 }
 
 export function formatDemoResult(result: DemoResult): string {
-  const source = result.resolvedCommit ? `${result.repository} @ ${result.resolvedCommit}` : result.repository;
+  const source = result.resolvedCommit
+    ? `${result.repository} @ ${result.resolvedCommit}`
+    : result.repository;
   const ending = result.rolledBack
     ? "Rollback verified and the temporary profile was removed."
     : `Isolated profile retained at ${result.profile}. Delete it when finished.`;
@@ -128,8 +160,11 @@ export function formatDemoResult(result: DemoResult): string {
     `Virtual targets: ${result.targetAgents.join(", ")}`,
     `Installed ${result.installedFiles}/${result.plannedFiles} planned skill directory(ies).`,
     `Snapshot: ${result.snapshotId}`,
-    ending
+    ending,
   ].join("\n");
 }
 
-export const demoDefaults = { repository: DEFAULT_REPOSITORY, packageId: DEFAULT_PACKAGE_ID } as const;
+export const demoDefaults = {
+  repository: DEFAULT_REPOSITORY,
+  packageId: DEFAULT_PACKAGE_ID,
+} as const;

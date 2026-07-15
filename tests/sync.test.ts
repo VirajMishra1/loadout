@@ -105,6 +105,37 @@ describe("manifest synchronization", () => {
     ).rejects.toThrow(/violates manifest policy/);
   });
 
+  it("enforces shared package allowlists and denylists before apply", async () => {
+    root = await mkdtemp(join(tmpdir(), "loadout-sync-policy-list-"));
+    const source = join(root, "package");
+    const home = join(root, "home");
+    await mkdir(join(home, ".agents"), { recursive: true });
+    await mkdir(source);
+    await writeFile(
+      join(source, "SKILL.md"),
+      "---\nname: demo\ndescription: Demo skill\n---\nSafe instructions\n",
+    );
+    const manifestPath = join(root, "loadout.json");
+    await writeFile(
+      manifestPath,
+      JSON.stringify({
+        schemaVersion: 1,
+        name: "policy-list",
+        scope: "global",
+        agents: ["codex"],
+        policy: { allowPackages: ["approved"], deniedPackages: ["demo"] },
+        packages: [{ id: "demo", source: { type: "local", path: source } }],
+      }),
+    );
+    process.env.LOADOUT_HOME = join(root, ".loadout");
+    process.env.LOADOUT_USER_HOME = home;
+    const plan = await buildSyncPlan(manifestPath);
+    expect(plan.policyViolations).toEqual([
+      "demo is not on the package allowlist",
+      "demo is on the package denylist",
+    ]);
+  });
+
   it("applies MCP-only packages transactionally and rolls back config plus state", async () => {
     root = await mkdtemp(join(tmpdir(), "loadout-sync-mcp-"));
     const source = join(root, "package");

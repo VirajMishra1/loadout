@@ -758,7 +758,8 @@ modes.
 ### Phase 11: Advanced committed capabilities
 
 - [x] `P11-01 [SOL]` Design GitHub OAuth and minimal-scope authorization model.
-- [ ] `P11-02 [TERRA]` Implement optional private-repository discovery.
+- [x] `P11-02 [TERRA]` Implement optional private-repository discovery.
+  - `loadout discover --private` uses an explicit caller-provided `GITHUB_TOKEN`, returns metadata only, and never persists or logs the token; OAuth/App brokering remains deployment-configured per `docs/GITHUB_AUTHORIZATION.md`.
 - [x] `P11-03 [TERRA]` Implement Community Loadout export/import with versioning.
 - [x] `P11-04 [TERRA]` Implement star/release/download snapshot storage and charts.
 - [x] `P11-05 [SOL]` Define provider-neutral model configuration schema.
@@ -784,7 +785,8 @@ modes.
 - [ ] `P11-21 [TERRA]` Add the next six agent adapters through the SDK.
 - [ ] `P11-22 [TERRA]` Add compliant Hacker News and community-source connectors.
 - [x] `P11-23 [SOL]` Design team/enterprise policy and audit schemas.
-- [ ] `P11-24 [TERRA]` Implement shared Loadouts, allowlists, denylists, and audit view.
+- [x] `P11-24 [TERRA]` Implement shared Loadouts, allowlists, denylists, and audit view.
+  - Manifest policy now enforces package/repository allowlists and denylists before synchronization; existing audit output remains the read-only decision view.
 
 ## 19. Seven-day schedule
 

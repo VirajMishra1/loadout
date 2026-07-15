@@ -177,7 +177,32 @@ function policyViolations(
       command.toLowerCase(),
     ),
   );
+  const allowPackages = new Set(manifest.policy?.allowPackages ?? []);
+  const allowRepositories = new Set(
+    (manifest.policy?.allowRepositories ?? []).map((repository) =>
+      repository.toLowerCase(),
+    ),
+  );
+  const deniedPackages = new Set(manifest.policy?.deniedPackages ?? []);
+  const deniedRepositories = new Set(
+    (manifest.policy?.deniedRepositories ?? []).map((repository) =>
+      repository.toLowerCase(),
+    ),
+  );
   for (const entry of packages) {
+    const packageId = entry.plan.packageId;
+    const repository = entry.metadata?.repository?.toLowerCase();
+    if (allowPackages.size && !allowPackages.has(packageId))
+      violations.push(`${packageId} is not on the package allowlist`);
+    if (
+      allowRepositories.size &&
+      (!repository || !allowRepositories.has(repository))
+    )
+      violations.push(`${packageId} is not on the repository allowlist`);
+    if (deniedPackages.has(packageId))
+      violations.push(`${packageId} is on the package denylist`);
+    if (repository && deniedRepositories.has(repository))
+      violations.push(`${packageId} is on the repository denylist`);
     for (const finding of entry.safety.findings) {
       if (finding.category === "domain")
         for (const domain of finding.names ?? [])

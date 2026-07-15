@@ -264,6 +264,11 @@ export const loadoutManifestSchema = z
         allowRisk: z.array(safetyRiskLevelSchema).optional(),
         blockedDomains: z.array(text).optional(),
         blockedCommands: z.array(text).optional(),
+        allowPackages: z.array(text).optional(),
+        allowRepositories: z.array(text).optional(),
+        deniedPackages: z.array(text).optional(),
+        deniedRepositories: z.array(text).optional(),
+        requiredApprovals: z.number().int().min(0).optional(),
       })
       // Preserve unknown policy keys so portable-export secret scanning can
       // reject them rather than silently dropping them during validation.

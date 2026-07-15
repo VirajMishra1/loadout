@@ -238,6 +238,11 @@ export interface LoadoutManifest {
     allowRisk?: SafetyRiskLevel[];
     blockedDomains?: string[];
     blockedCommands?: string[];
+    allowPackages?: string[];
+    allowRepositories?: string[];
+    deniedPackages?: string[];
+    deniedRepositories?: string[];
+    requiredApprovals?: number;
   };
 }
 

@@ -12,3 +12,7 @@ four independent controls:
 The serverless/local MVP stores policy in a project-controlled JSON file and validates
 it before a plan. There is no hidden admin override. A later hosted product can add
 identity and retention without changing the portable policy semantics.
+
+The current manifest implementation enforces package/repository allowlists and
+denylists before synchronization, alongside the existing blocked-domain and
+blocked-command rules. Violations are included in the dry-run plan and stop apply.

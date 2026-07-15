@@ -94,6 +94,7 @@ import {
 import { formatDemoResult, runIsolatedDemo } from "./core/demo.js";
 import { resolveCatalogProfile } from "./core/profiles.js";
 import { discoverHackerNewsRepositories } from "./core/community.js";
+import { discoverPrivateRepositories } from "./core/private-discovery.js";
 import {
   formatStarHistory,
   readCatalogObservations,
@@ -893,6 +894,10 @@ program
     "--query <words>",
     "comma-separated words that must appear in a story (for example: codex,mcp,agent)",
   )
+  .option(
+    "--private",
+    "opt into private GitHub metadata discovery using GITHUB_TOKEN",
+  )
   .option("--json", "emit source evidence as JSON")
   .action(
     async (options: {
@@ -900,8 +905,18 @@ program
       limit: string;
       minScore: string;
       query?: string;
+      private?: boolean;
       json?: boolean;
     }) => {
+      if (options.private) {
+        const repositories = await discoverPrivateRepositories();
+        if (options.json)
+          return console.log(JSON.stringify(repositories, null, 2));
+        console.log(`Private GitHub repositories: ${repositories.length}`);
+        for (const repository of repositories)
+          console.log(`${repository.repository} — ${repository.description}`);
+        return;
+      }
       if (options.source !== "hacker-news")
         throw new Error(
           `Unsupported discovery source '${options.source}'. Supported: hacker-news`,

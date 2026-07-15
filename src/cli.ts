@@ -93,6 +93,7 @@ import {
 } from "./core/codex-mcp.js";
 import { formatDemoResult, runIsolatedDemo } from "./core/demo.js";
 import { resolveCatalogProfile } from "./core/profiles.js";
+import { discoverHackerNewsRepositories } from "./core/community.js";
 
 const program = new Command();
 program
@@ -848,6 +849,46 @@ program
         `Warning: could not refresh ${failure.repository}: ${failure.error}`,
       );
   });
+
+program
+  .command("discover")
+  .description("Find public community leads; discovery never installs anything")
+  .option("--source <source>", "community source", "hacker-news")
+  .option("--limit <count>", "front-page stories to inspect", "50")
+  .option("--min-score <count>", "minimum Hacker News score", "20")
+  .option("--json", "emit source evidence as JSON")
+  .action(
+    async (options: {
+      source: string;
+      limit: string;
+      minScore: string;
+      json?: boolean;
+    }) => {
+      if (options.source !== "hacker-news")
+        throw new Error(
+          `Unsupported discovery source '${options.source}'. Supported: hacker-news`,
+        );
+      const limit = Number(options.limit);
+      const minScore = Number(options.minScore);
+      if (!Number.isInteger(limit) || limit < 1)
+        throw new Error("--limit must be a positive integer");
+      if (!Number.isFinite(minScore) || minScore < 0)
+        throw new Error("--min-score must be a non-negative number");
+      const result = await discoverHackerNewsRepositories({
+        limit,
+        minScore,
+      });
+      if (options.json) return console.log(JSON.stringify(result, null, 2));
+      console.log(
+        `Hacker News: ${result.candidates.length} GitHub repository lead(s) from ${result.storiesScanned} stories.`,
+      );
+      for (const candidate of result.candidates) {
+        console.log(
+          `★${candidate.score} · ${candidate.repository} — ${candidate.title}\n  ${candidate.discussionUrl}`,
+        );
+      }
+    },
+  );
 
 program
   .command("keygen")

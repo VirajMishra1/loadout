@@ -22,12 +22,12 @@ original hackathon baseline remains in [MASTER_PLAN.md](./MASTER_PLAN.md).
 
 ## Supported platforms
 
-| Platform | Detection                                                       | Skill target roots                                       | Verification                                           |
-| -------- | --------------------------------------------------------------- | -------------------------------------------------------- | ------------------------------------------------------ |
-| macOS    | `PATH` executable or existing agent directory                   | Claude Code, Codex, Cursor, Gemini CLI, OpenCode, Hermes | CI matrix + local smoke tests                          |
-| Linux    | `PATH` executable or existing agent directory                   | Claude Code, Codex, Cursor, Gemini CLI, OpenCode, Hermes | CI matrix + local smoke tests                          |
-| Windows  | `PATH` executable/`.cmd` resolution or existing agent directory | Claude Code, Codex, Cursor, Gemini CLI, OpenCode, Hermes | CI matrix; native install coverage remains in progress |
-| WSL      | Linux executable and POSIX `$HOME` only                         | Linux-side agent directories only                        | Deterministic boundary tests + Linux CI                |
+| Platform | Detection                                                       | Skill target roots                                       | Verification                            |
+| -------- | --------------------------------------------------------------- | -------------------------------------------------------- | --------------------------------------- |
+| macOS    | `PATH` executable or existing agent directory                   | Claude Code, Codex, Cursor, Gemini CLI, OpenCode, Hermes | Native install/remove CI smoke test     |
+| Linux    | `PATH` executable or existing agent directory                   | Claude Code, Codex, Cursor, Gemini CLI, OpenCode, Hermes | Native install/remove CI smoke test     |
+| Windows  | `PATH` executable/`.cmd` resolution or existing agent directory | Claude Code, Codex, Cursor, Gemini CLI, OpenCode, Hermes | Native install/remove CI smoke test     |
+| WSL      | Linux executable and POSIX `$HOME` only                         | Linux-side agent directories only                        | Deterministic boundary tests + Linux CI |
 
 Loadout writes to the detected agent's documented user directory and supports
 `LOADOUT_USER_HOME` for an isolated test or demo profile. It does not claim that every
@@ -151,7 +151,7 @@ and copies only discovered `SKILL.md` directories into the selected agent roots.
 
 ## Catalog provenance and attribution
 
-The bundled catalog contains 18 public repositories selected for inspectable skills,
+The bundled catalog contains 20 public repositories selected for inspectable skills,
 plugins, or MCP tooling. Every record pins the GitHub HEAD commit observed on
 2026-07-14 and records the exact repository-relative paths used as component evidence.
 It also records the SPDX identifier GitHub returned; `NOASSERTION` means GitHub did
@@ -162,6 +162,18 @@ upstream terms always remain authoritative.
 `loadout catalog --refresh` refreshes mutable metadata such as stars and topics, but
 does not rewrite the reviewed commit evidence. A future catalog-review update must
 verify a new commit and its paths before changing those fields.
+
+## Early discovery without blind installation
+
+```bash
+# Public Hacker News API only; finds current front-page stories that link to GitHub.
+node dist/src/cli.js discover --source hacker-news --min-score 20
+node dist/src/cli.js discover --source hacker-news --json
+```
+
+Discovery returns a scored lead with the exact HN discussion URL and repository URL.
+It never adds a package to the catalog, fetches a repository, or installs anything.
+Review a lead first; then use the normal `plan` command to inspect a pinned snapshot.
 
 ## Two-minute hackathon demo
 

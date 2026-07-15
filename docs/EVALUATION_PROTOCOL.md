@@ -14,8 +14,10 @@ Inputs are a pinned source snapshot and discovered `SKILL.md` directories. Check
   domains; and
 - the package declares at least one compatible target layout.
 
-Result: `ready`, `needs-review`, or `blocked`, plus findings. This says nothing about
-whether the instructions improve a particular model's output.
+Result: `ready`, `needs-review`, `blocked`, or `not-applicable`, plus findings.
+An absent component category is `not-applicable` and never blocks a different
+supported component. This says nothing about whether the instructions improve a
+particular model's output.
 
 ## Category 2: MCP manifest safety
 

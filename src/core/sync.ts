@@ -435,6 +435,10 @@ export async function applySyncPlan(
   lockPath = "loadout.lock",
   options: { approveRisk?: boolean } = {},
 ): Promise<{ snapshotId?: string; lockfile: string }> {
+  if (plan.skipped.length)
+    throw new Error(
+      `Synchronization cannot produce a reproducible lockfile because package(s) were skipped: ${plan.skipped.map((entry) => `${entry.packageId} (${entry.reason})`).join("; ")}`,
+    );
   if (plan.policyViolations.length)
     throw new Error(
       `Synchronization violates manifest policy: ${plan.policyViolations.join("; ")}`,

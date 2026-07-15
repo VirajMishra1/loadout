@@ -6,8 +6,8 @@ import {
   sign,
   verify,
 } from "node:crypto";
-import { readFile, writeFile } from "node:fs/promises";
-import { resolve } from "node:path";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { dirname, resolve } from "node:path";
 
 export interface SignedEnvelope<T> {
   schemaVersion: 1;
@@ -120,6 +120,10 @@ export async function generateSigningKeys(
     .toString();
   const privateKey = resolve(privatePath);
   const publicKey = resolve(publicPath);
+  await Promise.all([
+    mkdir(dirname(privateKey), { recursive: true }),
+    mkdir(dirname(publicKey), { recursive: true }),
+  ]);
   await writeFile(privateKey, privatePem, { mode: 0o600, flag: "wx" });
   await writeFile(publicKey, publicPem, { mode: 0o644, flag: "wx" });
   return { privateKey, publicKey, fingerprint: fingerprint(pair.publicKey) };
@@ -133,7 +137,9 @@ export async function signJsonFile(
   const payload = JSON.parse(await readFile(resolve(input), "utf8"));
   const privateKey = await readFile(resolve(privateKeyPath), "utf8");
   const envelope = signPayload(payload, privateKey);
-  await writeFile(resolve(output), `${JSON.stringify(envelope, null, 2)}\n`, {
+  const target = resolve(output);
+  await mkdir(dirname(target), { recursive: true });
+  await writeFile(target, `${JSON.stringify(envelope, null, 2)}\n`, {
     flag: "wx",
   });
   return envelope;

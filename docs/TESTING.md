@@ -15,6 +15,16 @@ npx . --help
 `npx .` runs the same `loadout` executable that `npx loadout-ai` will run after npm
 publication.
 
+Before creating a disposable profile, the only recommended real-profile command is the
+read-only inventory:
+
+```bash
+npx . scan
+```
+
+It reports actual `SKILL.md` capabilities, Loadout ownership, duplicates, and capacity
+warnings. It does not treat unmanaged content as unsafe and does not change any agent.
+
 ## 2. Create a completely disposable agent profile
 
 macOS or Linux:
@@ -39,7 +49,16 @@ New-Item -ItemType Directory -Force (Join-Path $env:LOADOUT_USER_HOME ".claude")
 Those empty directories make Loadout detect virtual Codex and Claude Code profiles.
 Every write stays below the disposable path.
 
-## 3. Preview Maximum Boost
+## 3. Preview Stable, then stress-test Maximum
+
+Stable is the daily-use default:
+
+```bash
+npx . setup --mode stable
+```
+
+Expect the bundled catalog to prepare only Superpowers and Context7. Maximum is the
+explicit broad-library stress test:
 
 ```bash
 npx . setup --mode maximum

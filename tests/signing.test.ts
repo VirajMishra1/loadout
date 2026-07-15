@@ -53,4 +53,16 @@ describe("signed trust evidence", () => {
     expect((await verifyJsonFile(signed, publicPath)).valid).toBe(true);
     await expect(signJsonFile(catalog, privatePath, signed)).rejects.toThrow();
   });
+
+  it("creates missing parent directories for keys and signed output", async () => {
+    root = await mkdtemp(join(tmpdir(), "loadout-signing-parent-"));
+    const privatePath = join(root, "nested", "keys", "private.pem");
+    const publicPath = join(root, "nested", "public", "public.pem");
+    await generateSigningKeys(privatePath, publicPath);
+    const catalog = join(root, "catalog.json");
+    const signed = join(root, "nested", "releases", "catalog.signed.json");
+    await writeFile(catalog, JSON.stringify([{ id: "demo" }]));
+    await signJsonFile(catalog, privatePath, signed);
+    expect((await verifyJsonFile(signed, publicPath)).valid).toBe(true);
+  });
 });

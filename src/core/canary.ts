@@ -12,7 +12,7 @@ export interface CanaryCandidate {
 export interface CanaryPolicy {
   /** Canary mode must be explicitly enabled by the caller. */
   enabled: boolean;
-  /** Require every static evaluation category to be ready. */
+  /** Require every applicable static evaluation category to be ready. */
   requireStaticReady?: boolean;
   /** Require an explicit human approval before promotion. */
   requireApproval?: boolean;
@@ -59,14 +59,24 @@ export async function runCanary(
       status: "blocked",
       reason: "Canary mode is disabled by policy.",
     };
+  const applicable = evaluation.categories.filter(
+    (category) => category.status !== "not-applicable",
+  );
+  if (applicable.length === 0)
+    return {
+      ...base,
+      status: "blocked",
+      reason: "Static evaluation found no supported component to verify.",
+    };
   if (
     policy.requireStaticReady !== false &&
-    evaluation.categories.some((category) => category.status !== "ready")
+    applicable.some((category) => category.status !== "ready")
   )
     return {
       ...base,
       status: "blocked",
-      reason: "Static evaluation is not ready for every component category.",
+      reason:
+        "Static evaluation is not ready for every applicable component category.",
     };
   const verification = runtime.verify
     ? await runtime.verify(candidate)

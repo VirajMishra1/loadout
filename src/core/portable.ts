@@ -71,7 +71,7 @@ export async function exportPortableLoadout(
   );
   if (absoluteLocal)
     throw new Error(
-      `Package '${absoluteLocal.id}' uses an absolute local path and cannot be exported portably`,
+      `Package '${absoluteLocal.id}' uses an absolute local path and cannot be exported portably. Move it below the manifest and add it with a relative --path, or publish it to a Loadout registry first.`,
     );
   const lockfile = lockPath ? await readLockfile(lockPath) : undefined;
   const bundle = parsePortableLoadout({

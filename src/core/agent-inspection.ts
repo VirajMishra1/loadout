@@ -164,7 +164,7 @@ export function formatAgentInventory(inventory: AgentInventory): string {
   ];
   for (const component of inventory.components) {
     const state = component.scanned
-      ? `${component.directoryExists ? `${component.entries.length} item(s)` : "not created"} — ${component.directory}`
+      ? `${component.directoryExists ? `${component.entries.length} filesystem item(s)` : "not created"} — ${component.directory}`
       : (component.note ?? "not inspected");
     lines.push(`  ${component.type}: ${component.compatibility}; ${state}`);
   }

@@ -29,6 +29,9 @@ describe("local package registry", () => {
       description: "Demo package",
       version: "1.0.0",
     });
+    expect(
+      await readFile(join(packageRoot, "skills", "demo", "SKILL.md"), "utf8"),
+    ).toContain("name: demo");
     await writeFile(
       join(packageRoot, "commands", "review.md"),
       "Review safely.\n",

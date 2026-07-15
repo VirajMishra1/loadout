@@ -102,6 +102,54 @@ describe("CLI-first catalog setup", () => {
     ).rejects.toThrow(/No supported AI coding agent/);
   });
 
+  it("warns when a broad plan exceeds the recommended active skill budget", async () => {
+    const prepared = {
+      selection: { mode: "maximum" as const },
+      resolution: {
+        mode: "maximum" as const,
+        packages: [],
+        deferred: [],
+        conflicts: [],
+        warnings: [],
+      },
+      agents: [
+        {
+          id: "codex" as const,
+          displayName: "Codex",
+          installed: true,
+          skillsDirectory: "/tmp/skills",
+        },
+      ],
+      entries: [
+        {
+          package: {
+            id: "large",
+            displayName: "Large",
+            repository: "example/large",
+            description: "Large",
+            category: "test",
+            tier: "stable" as const,
+          },
+          plan: {
+            packageId: "large",
+            targetAgents: ["codex" as const],
+            warnings: [],
+            files: Array.from({ length: 31 }, (_, index) => ({
+              source: `/source/${index}`,
+              target: `/tmp/skills/${index}`,
+            })),
+          },
+          safety: { approvalRequired: false, findings: [] },
+        },
+      ],
+      skipped: [],
+      collisions: [],
+    };
+    expect(formatPreparedCatalogInstall(prepared)).toContain(
+      "recommended active-set limit of 30",
+    );
+  });
+
   it("keeps the higher-ranked source when broad collections share a skill target", async () => {
     root = await mkdtemp(join(tmpdir(), "loadout-catalog-collision-"));
     const target = join(root, "home", ".codex", "skills");

@@ -22,6 +22,8 @@ import {
   type UpdateSafetyAnalysis,
 } from "./safety.js";
 
+export const RECOMMENDED_ACTIVE_SKILL_LIMIT = 30;
+
 export interface CatalogInstallEntry extends InstallBatchEntry {
   package: CatalogPackage;
   safety: UpdateSafetyAnalysis;
@@ -231,6 +233,9 @@ export function formatPreparedCatalogInstall(
     (total, entry) => total + entry.plan.files.length,
     0,
   );
+  const directoriesPerAgent = prepared.agents.length
+    ? Math.ceil(targetDirectories / prepared.agents.length)
+    : 0;
   const risky = prepared.entries.filter(
     (entry) => entry.safety.approvalRequired,
   );
@@ -247,6 +252,10 @@ export function formatPreparedCatalogInstall(
     `Ready to install: ${prepared.entries.length} skill repositories (${targetDirectories} agent skill directories)`,
     `Explicit setup later: ${explicit.length} repository/repositories`,
   ];
+  if (directoriesPerAgent > RECOMMENDED_ACTIVE_SKILL_LIMIT)
+    lines.push(
+      `Capacity warning: about ${directoriesPerAgent} skill directories per agent exceeds the recommended active-set limit of ${RECOMMENDED_ACTIVE_SKILL_LIMIT}. Prefer Stable or Custom for daily use.`,
+    );
   if (failures.length)
     lines.push(
       `Preparation failures (installation will remain blocked): ${failures.map((item) => item.packageId).join(", ")}`,

@@ -76,11 +76,12 @@ export async function createPackage(
     description: options.description ?? `${options.name} Loadout package`,
   });
   await mkdir(directory, { recursive: false });
-  await Promise.all(
-    ["skills", "rules", "commands", "agents"].map((name) =>
+  await Promise.all([
+    mkdir(join(directory, "skills", descriptor.name), { recursive: true }),
+    ...["rules", "commands", "agents"].map((name) =>
       mkdir(join(directory, name)),
     ),
-  );
+  ]);
   await writeFile(
     join(directory, "loadout-package.json"),
     `${JSON.stringify(descriptor, null, 2)}\n`,
@@ -88,6 +89,10 @@ export async function createPackage(
   await writeFile(
     join(directory, "README.md"),
     `# ${descriptor.name}\n\n${descriptor.description}\n`,
+  );
+  await writeFile(
+    join(directory, "skills", descriptor.name, "SKILL.md"),
+    `---\nname: ${descriptor.name}\ndescription: ${JSON.stringify(descriptor.description)}\n---\n\n# ${descriptor.name}\n\nReplace this paragraph with the focused workflow this skill should follow.\n`,
   );
   return descriptor;
 }

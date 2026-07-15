@@ -259,4 +259,37 @@ describe("manifest synchronization", () => {
     expect(await readFile(target, "utf8")).toBe("before\n");
     expect(await readdir(transactionRoot())).toEqual([]);
   });
+
+  it("refuses a misleading lockfile when an enabled package was skipped", async () => {
+    root = await mkdtemp(join(tmpdir(), "loadout-sync-skipped-"));
+    const source = join(root, "empty-package");
+    const home = join(root, "home");
+    const manifestPath = join(root, "loadout.json");
+    const lockPath = join(root, "loadout.lock");
+    await mkdir(join(home, ".agents"), { recursive: true });
+    await mkdir(source);
+    await writeFile(
+      manifestPath,
+      JSON.stringify({
+        schemaVersion: 1,
+        name: "skipped",
+        scope: "global",
+        agents: ["codex"],
+        packages: [{ id: "empty", source: { type: "local", path: source } }],
+      }),
+    );
+    process.env.LOADOUT_HOME = join(root, ".loadout");
+    process.env.LOADOUT_USER_HOME = home;
+
+    const plan = await buildSyncPlan(manifestPath);
+    expect(plan.skipped).toEqual([
+      expect.objectContaining({ packageId: "empty" }),
+    ]);
+    await expect(applySyncPlan(plan, lockPath)).rejects.toThrow(
+      /cannot produce a reproducible lockfile.*empty/i,
+    );
+    await expect(readFile(lockPath, "utf8")).rejects.toMatchObject({
+      code: "ENOENT",
+    });
+  });
 });

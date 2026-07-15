@@ -5,6 +5,7 @@ import type {
   PackageRecommendation,
   ProjectSignals,
 } from "../shared/types.js";
+import { STABLE_BOOST_PACKAGE_IDS } from "./profiles.js";
 
 const SIGNAL_FILES = new Set([
   "package.json",
@@ -130,7 +131,7 @@ export const TESTED_PROFILES: Record<
 > = {
   stable: {
     description: "Small, broadly useful, reviewed foundation.",
-    packages: ["superpowers", "context7"],
+    packages: [...STABLE_BOOST_PACKAGE_IDS],
   },
   web: {
     description:

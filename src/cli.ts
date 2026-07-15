@@ -121,6 +121,10 @@ import {
   type CatalogInstallProgress,
   type PreparedCatalogInstall,
 } from "./core/catalog-install.js";
+import {
+  formatInstalledSkillInventory,
+  scanInstalledSkills,
+} from "./core/skill-inventory.js";
 
 const collectOption = (value: string, previous: string[] = []): string[] => [
   ...previous,
@@ -184,7 +188,7 @@ async function runSetup(options: SetupOptions): Promise<void> {
     if (!mode) {
       if (!interactive) {
         console.log(
-          "Loadout is CLI-first. Run `loadout setup --mode maximum` to preview the broad reviewed loadout, or add `--yes --approve-risk` after reviewing to install it non-interactively.",
+          "Loadout is CLI-first. Run `loadout setup --mode stable` to preview the small reviewed default, or choose `--mode maximum` for an explicit stress-tested broad library.",
         );
         return;
       }
@@ -194,10 +198,10 @@ async function runSetup(options: SetupOptions): Promise<void> {
       });
       const answer = (
         await reader.question(
-          "Choose a loadout: [1] Maximum Boost (recommended), [2] Stable Boost, [3] Custom: ",
+          "Choose a loadout: [1] Stable Boost (recommended), [2] Maximum Library, [3] Custom: ",
         )
       ).trim();
-      mode = answer === "2" ? "stable" : answer === "3" ? "custom" : "maximum";
+      mode = answer === "2" ? "maximum" : answer === "3" ? "custom" : "stable";
       if (mode === "custom") {
         const custom = await reader.question(
           "Enter comma-separated catalog package ids: ",
@@ -903,6 +907,39 @@ program
       );
     },
   );
+
+program
+  .command("scan")
+  .description(
+    "Inventory existing agent skills, ownership, fingerprints, and duplicates without changing anything",
+  )
+  .option(
+    "--agents <ids>",
+    "comma-separated agent ids; defaults to detected agents",
+  )
+  .option("--json", "emit the complete machine-readable inventory")
+  .action(async (options: { agents?: string; json?: boolean }) => {
+    const detected = await detectAgents();
+    const requested = options.agents
+      ?.split(",")
+      .map((value) => value.trim())
+      .filter(Boolean);
+    const known = new Set(detected.map((agent) => agent.id));
+    const unknown = (requested ?? []).filter((id) => !known.has(id as AgentId));
+    if (unknown.length)
+      throw new Error(`Unknown agent id(s): ${unknown.join(", ")}`);
+    const selected = requested?.length
+      ? detected.filter((agent) => requested.includes(agent.id))
+      : detected.filter((agent) => agent.installed);
+    if (!selected.length)
+      throw new Error("No detected agent profile is available to scan");
+    const report = await scanInstalledSkills(selected);
+    console.log(
+      options.json
+        ? JSON.stringify(report, null, 2)
+        : formatInstalledSkillInventory(report),
+    );
+  });
 
 program
   .command("status")

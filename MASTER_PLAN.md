@@ -23,16 +23,17 @@ npx loadout-ai
 ```
 
 ```text
-Choose a loadout: [1] Maximum Boost (recommended), [2] Stable Boost, [3] Custom
+Choose a loadout: [1] Stable Boost (recommended), [2] Maximum Library, [3] Custom
 ```
 
 The executable installed by the package is still named `loadout`. The `loadout` npm
 package name belongs to an unrelated project, so the publishable package is
 `loadout-ai`.
 
-The hackathon MVP will prove the full loop with a curated catalog rather than trying
-to index the entire internet: discover -> recommend -> install -> verify -> update ->
-block an unsafe or incompatible update -> rollback.
+The hackathon MVP proves the safe package lifecycle with a curated catalog. The
+product-defining loop is broader: scan what the user already has -> discover and
+review candidates -> compare evidence -> recommend a small active set -> install or
+activate -> verify -> update -> block an unsafe or incompatible update -> rollback.
 
 ## 2. Product thesis
 
@@ -44,10 +45,11 @@ installed agent more capable without requiring manual discovery or configuration
 
 Loadout wins through:
 
-1. A one-click consumer experience.
+1. A one-command consumer experience.
 2. Broad agent and operating-system support.
 3. A maintained Stable and Trending catalog.
-4. Conflict-aware activation instead of blindly enabling every package.
+4. A large reviewed library plus a small conflict-aware active set instead of blindly
+   exposing every downloaded package to every agent.
 5. Human-readable update and permission diffs.
 6. Snapshots and rollback.
 7. Optional project-aware recommendations without requiring GitHub access.
@@ -58,7 +60,8 @@ Loadout wins through:
 
 - TypeScript CLI packaged for `npx loadout-ai` after an owner publishes it to npm.
 - CLI-first interactive and non-interactive Stable/Maximum/Custom setup.
-- Optional framework-free local dashboard served on a random loopback port.
+- CLI-only primary experience. The existing framework-free loopback dashboard is a
+  secondary diagnostic surface and is not required for onboarding or daily use.
 - Windows 11, macOS, and Linux support.
 - Agent detection for:
   - Claude Code
@@ -135,7 +138,9 @@ The ambitious scope does not authorize unsafe shortcuts:
 Uses Claude, Codex, Cursor, or other agents for many kinds of work and wants the
 largest useful capability set without manually visiting repositories.
 
-Default path: Maximum Boost.
+Default path: audit the existing setup, retain a broad reviewed library, and activate
+only the best evidence-backed global and project-specific subset. Maximum Library is
+explicit stress/power-user mode, not the default active set.
 
 ### 4.2 New agent user
 
@@ -160,8 +165,12 @@ Post-MVP path: commit `loadout.lock` and restore it on another machine.
 ### 5.1 First run
 
 1. User runs `npx loadout-ai` after publication, or `npx .` from a clone.
-2. Loadout detects supported installed agents and asks for Maximum, Stable, or Custom.
-3. It filters out components that require explicit credentials/configuration, then
+2. Loadout detects supported installed agents and read-only scans their existing
+   skills, separating Loadout-managed content from unmanaged content without assuming
+   unmanaged means unsafe.
+3. It recommends Stable, Maximum Library, Custom, or an evidence-backed optimization
+   of the existing setup. It filters out components that require explicit
+   credentials/configuration, then
    concurrently fetches only reviewed skill repositories at their pinned commits.
 4. It resolves overlapping skill targets deterministically, keeps the higher-ranked
    reviewed source, and reports every deferred duplicate.
@@ -171,12 +180,16 @@ Post-MVP path: commit `loadout.lock` and restore it on another machine.
    findings when present.
 7. Loadout snapshots all targets and installs the entire loadout as one durable,
    rollback-safe transaction; caught or interrupted failures restore prior state.
-8. Daily use continues through `status`, fast local `health`, `update`, `discover`,
-   `recommend`, `remove`, and `rollback`. The dashboard remains optional.
+8. Daily use continues through `scan`, `status`, fast local `health`, `update`,
+   `discover`, `recommend`, `compare`, `optimize`, `remove`, and `rollback`. Commands
+   not yet implemented remain Phase 12 backlog items. The dashboard remains optional.
 
 ### 5.2 Normal use
 
 - `loadout status`: agents, packages, conflicts, and update health.
+- `loadout scan`: read-only inventory of existing skills, ownership, fingerprints,
+  duplicates, and capacity warnings.
+- `loadout setup --mode stable`: preview the small reviewed daily-use foundation.
 - `loadout setup --mode maximum`: preview the broad reviewed loadout.
 - `loadout setup --mode maximum --yes --approve-risk`: install it non-interactively
   after review.
@@ -186,7 +199,8 @@ Post-MVP path: commit `loadout.lock` and restore it on another machine.
   default.
 - `loadout rollback`: restore the previous snapshot.
 - `loadout doctor`: validate configurations and dependencies.
-- `loadout dashboard`: start the local dashboard and print its loopback URL.
+- `loadout dashboard`: optional secondary diagnostic surface; never required by the
+  CLI-first journey.
 
 ### 5.3 No-account guarantee
 
@@ -809,6 +823,133 @@ modes.
 - [x] `P11-24 [TERRA]` Implement shared Loadouts, allowlists, denylists, and audit view.
   - Manifest policy now enforces package/repository allowlists and denylists before synchronization; existing audit output remains the read-only decision view.
 
+### Phase 12: Best-available optimization and public beta
+
+This phase turns the safe installer into the product thesis: Loadout continuously
+understands what a user already has, maintains a broad reviewed library, and exposes
+only a small evidence-backed active set for the current agent and project. “Best”
+always means best supported choice under disclosed evidence and uncertainty, never a
+universal or permanent truth.
+
+- [x] `P12-01 [SOL]` Correct the default product posture from Maximum-first to
+      Stable-first.
+  - Stable is the small `superpowers + context7` foundation when those records exist.
+    Maximum remains an explicit broad-library/stress mode.
+- [x] `P12-02 [TERRA]` Add read-only `loadout scan` for existing skill directories.
+  - Acceptance: report actual `SKILL.md` count, normalized names, content
+    fingerprints, Loadout ownership, unmanaged content, within-agent duplicates,
+    cross-agent mirrors, per-agent totals, and capacity warnings without executing or
+    changing instructions.
+- [x] `P12-03 [TERRA]` Close integration defects found by the packaged-CLI audit.
+  - New packages include an installable skill skeleton; skipped enabled packages fail
+    synchronization rather than producing a misleading lock; absent evaluation
+    categories are `not-applicable`; empty canaries still block; signing creates parent
+    directories; portable absolute-path errors provide a remedy.
+- [x] `P12-04 [TERRA]` Warn when a prepared loadout exceeds 30 active skill
+      directories per agent.
+  - The warning is a capacity heuristic, not a claim that the agent cannot load more.
+- [ ] `P12-05 [SOL]` Define the provenance confidence model for existing unmanaged
+      content.
+  - Levels: exact Loadout record, exact catalog hash, embedded repository/commit,
+    heuristic source match, and unknown. Never invent provenance from a folder name.
+- [ ] `P12-06 [TERRA]` Implement catalog-hash and embedded-metadata provenance
+      matching in `loadout scan`.
+  - Acceptance: every match includes evidence and confidence; network access is
+    optional; unknown remains a first-class result.
+- [ ] `P12-07 [SOL]` Define semantic duplicate and capability-family rules.
+  - Separate exact duplicate, same-name divergent content, cross-agent mirror,
+    overlapping workflow, complementary capability, and verified hard conflict.
+- [ ] `P12-08 [TERRA]` Implement `loadout compare <skill-or-package>`.
+  - Show installed candidate, reviewed alternatives, provenance, maintenance,
+    adoption velocity, permissions, compatibility, evaluation evidence, uncertainty,
+    and a plain-language recommendation. No mutation.
+- [ ] `P12-09 [SOL]` Define the reviewed-library versus active-set state model and
+      migration boundary.
+  - Downloaded/cached, reviewed, installed, active, disabled, quarantined, and removed
+    are distinct states. Existing user files are never silently adopted or deleted.
+- [ ] `P12-10 [TERRA]` Implement transactional `loadout enable` and `loadout disable`.
+  - Acceptance: only Loadout-managed links/files change; one snapshot covers a batch;
+    disabling preserves the library copy; rollback restores byte-identical state.
+- [ ] `P12-11 [TERRA]` Implement `loadout adopt` for explicitly selected unmanaged
+      skills.
+  - Preview provenance and hashes, snapshot first, preserve original content, and
+    require confirmation. Bulk adoption without review is forbidden.
+- [ ] `P12-12 [SOL]` Define active-set selection policy.
+  - Inputs include user-pinned capabilities, project signals, agent compatibility,
+    conflicts, task families, capacity budget, evaluation confidence, and prior human
+    outcomes. Popularity cannot override safety or user pins.
+- [ ] `P12-13 [TERRA]` Implement project-aware `loadout activate --project <path>`.
+  - Preview the delta between global and project active sets; do not require GitHub;
+    do not expose irrelevant library content to the agent.
+- [ ] `P12-14 [TERRA]` Implement `loadout optimize` as the primary guided workflow.
+  - Flow: scan -> explain findings -> compare alternatives -> propose active set ->
+    preview exact changes -> confirm -> verify -> provide one-command rollback.
+- [ ] `P12-15 [SOL]` Design representative, category-specific head-to-head
+      evaluations.
+  - Start with workflow adherence, code-review coverage, documentation retrieval, and
+    browser-test planning. Record fixtures, rubrics, model/version, variance, cost, and
+    uncertainty; never execute untrusted host code.
+- [ ] `P12-16 [TERRA]` Implement the first two head-to-head evaluation harnesses and
+      persist signed evidence snapshots.
+  - Results inform comparison but never silently replace a user's active capability.
+- [ ] `P12-17 [TERRA]` Add daily candidate ingestion and review queues.
+  - Combine official sources, GitHub search, release/activity observations, star
+    velocity, compliant community connectors, deduplication, rate-limit handling, and
+    a human promotion gate. Discovery never installs automatically.
+- [ ] `P12-18 [TERRA]` Add freshness and replacement alerts.
+  - Explain when an installed source is archived, materially stale, permission-expanded,
+    superseded, or outperformed by reviewed evidence. Offer compare/ignore/pin actions.
+- [ ] `P12-19 [SOL]` Define privacy-preserving local outcome signals.
+  - Default local-only: explicit accept/reject, rollback, disable, repeated activation,
+    and task-category success. No source code, prompts, filenames, or secrets leave the
+    machine without separate informed consent.
+- [ ] `P12-20 [TERRA]` Connect improvement feedback to ranking evidence without
+      creating a popularity feedback loop.
+  - Human outcomes are scoped by task and agent; one user's preference cannot globally
+    crown a package.
+- [ ] `P12-21 [TERRA]` Expose provider-neutral model/OpenRouter configuration through
+      validated CLI commands.
+  - The current adapter is library-level only. Acceptance requires plan/apply/status,
+    redacted output, credential references, and disposable mocked-network tests before
+    any real-key test.
+- [ ] `P12-22 [TERRA]` Add reviewed MCP setup recipes and connection verification.
+  - Separate install from authorization; show commands, permissions, environment names,
+    and target config; never print values; preserve unrelated JSON/TOML content.
+- [ ] `P12-23 [TERRA]` Complete P11-17 keychain backends and connect them to provider,
+      private-discovery, registry, and MCP workflows.
+- [ ] `P12-24 [SOL]` Design a cross-platform daily scheduler that invokes read-only
+      discovery/update checks.
+  - macOS LaunchAgent, Windows Task Scheduler, and Linux systemd/cron implementations
+    must be opt-in, inspectable, removable, rate-limited, and unable to apply updates.
+- [ ] `P12-25 [TERRA]` Implement `loadout schedule` and `loadout unschedule` with native
+      disposable/configuration tests.
+- [ ] `P12-26 [TERRA]` Polish the CLI as the sole required product surface.
+  - Consistent progress, compact tables, accessible color/no-color output, actionable
+    errors, interruption handling, shell completion, noninteractive JSON, and terminal
+    widths from 80 to 200 columns.
+- [ ] `P12-27 [LUNA]` Reframe README, testing, and demo around scan/compare/optimize;
+      move dashboard instructions to an optional diagnostics section.
+- [ ] `P12-28 [TERRA]` Add a privacy-safe `loadout report`/`loadout share` artifact.
+  - Default output contains package ids, versions, evidence, and compatibility only;
+    exclude usernames, absolute paths, private repositories, project names, and secrets.
+- [ ] `P12-29 [TERRA]` Complete P1-11 with at least 50 reviewed records and capability
+      coverage metrics.
+  - Measure unique capabilities, overlap, licenses, immutable commits, install shape,
+    platforms, activity, and evaluation readiness rather than raw repository count.
+- [ ] `P12-30 [HUMAN]` Complete legal/license attribution review, including all current
+      `NOASSERTION` records, before distribution.
+- [ ] `P12-31 [TERRA]` Publish `loadout-ai` to npm and run clean-machine package tests
+      from outside the repository on macOS, Windows, Linux, and Node 20/22.
+- [ ] `P12-32 [HUMAN]` Run moderated founder testing on the real Claude and Codex
+      profiles with snapshots and explicit rollback checkpoints.
+- [ ] `P12-33 [HUMAN]` Run at least ten external user tests spanning new users, power
+      users, Windows, macOS, Linux, one-agent, and multi-agent setups.
+- [ ] `P12-34 [SOL]` Public-beta go/no-go review.
+  - Required: zero known destructive data-loss defects; every mutation previewed and
+    recoverable; no false “best” or compatibility claims; install/optimize/rollback
+    success on all supported platforms; p95 local scan under five seconds for 1,000
+    skills; actionable failure messages; npm provenance and attribution complete.
+
 ## 19. Seven-day schedule
 
 ### Day 1: Foundation
@@ -859,7 +1000,7 @@ The MVP is done only when a judge can:
 2. Run documented setup successfully.
 3. Launch Loadout without providing an account.
 4. See detected agents or use isolated demo mode.
-5. Select Stable or Maximum Boost.
+5. Scan existing skills and select Stable, Maximum Library, or Custom.
 6. Preview exact planned changes.
 7. Apply a real skill to at least Claude and Codex fixtures or installations.
 8. Verify unrelated configuration survives.
@@ -875,6 +1016,7 @@ The MVP is done only when a judge can:
 - Conflict selection.
 - Platform path resolution.
 - Agent detection in fake home directories.
+- Existing-skill inventory, ownership, fingerprint, duplicate, and capacity reporting.
 - Skill parsing.
 - MCP parsing.
 - Path traversal rejection.
@@ -894,9 +1036,11 @@ The MVP is done only when a judge can:
 
 1. Show Claude, Codex, and Cursor with inconsistent/manual setup.
 2. Run `npx loadout-ai` after npm publication, or `npx .` from the cloned repository.
-3. CLI detects agents and offers Maximum, Stable, or Custom.
-4. Select Maximum Boost and show concurrent reviewed-commit preparation.
-5. Review repository count, unique skill count, overlaps, deferred MCP setup, and
+3. Run the read-only scan and show actual skills, unmanaged content, duplicates, and
+   overloaded profiles without changing anything.
+4. Select Stable for daily use; show Maximum Library as an explicit stress/power-user
+   option rather than the default.
+5. Review repository count, actual skill count, overlaps, deferred MCP setup, and
    safety findings.
 6. Approve; show the single-transaction success and restore point.
 7. Show a newly discovered Trending repository.
@@ -923,12 +1067,14 @@ checks, approval for new powers, no claims that stars imply safety.
 
 ### Weak differentiation from OpenPackage/skills installers
 
-Mitigation: lead with one-click diagnosis, Stable/Maximum outcomes, automatic
-discovery tiers, conflict resolution, update explanation, and rollback.
+Mitigation: lead with one-command diagnosis of what the user already has, honest
+provenance, evidence-backed comparison, reviewed-library versus active-set separation,
+project optimization, automatic discovery tiers, update explanation, and rollback.
 
 ### Dashboard consumes too much time
 
-Mitigation: four screens only; CLI remains source of truth; no cloud accounts.
+Mitigation: stop feature investment in the dashboard for the hackathon. The CLI is the
+only required surface; the existing dashboard remains optional diagnostics.
 
 ### GitHub API rate limits
 
@@ -953,17 +1099,25 @@ small PRs, no long-lived branches.
 
 ## 25. Immediate next tasks
 
-1. Complete P10-05 through P10-10: license review, demo recording, Codex usage
+1. Complete P12-05 through P12-14: provenance, duplicate semantics, comparison,
+   reviewed-library state, safe enable/disable/adoption, project activation, and the
+   guided optimize workflow.
+2. Complete P12-15 through P12-20 in parallel: category-specific evaluations, daily
+   review queues, freshness alerts, and privacy-preserving human outcomes.
+3. Fix and regression-test every issue found by real Claude/Codex founder testing
+   before expanding the default catalog or enabling scheduled work.
+4. Complete P10-05 through P10-10: license review, demo recording, Codex usage
    explanation, feedback session ID, Devpost fields, and submission.
-2. Have the repository owner choose npm publishing credentials, publish
-   `loadout-ai`, and immediately verify the interactive `npx loadout-ai` setup.
-3. Resolve P0-05 when repository visibility or the GitHub plan permits branch
+5. Have the repository owner choose npm publishing credentials, publish
+   `loadout-ai`, and immediately verify the interactive `npx loadout-ai` setup from
+   outside the repository on clean machines.
+6. Resolve P0-05 when repository visibility or the GitHub plan permits branch
    protection.
-4. Implement P11-17 only after selecting and threat-modeling real macOS, Windows,
+7. Implement P11-17 only after selecting and threat-modeling real macOS, Windows,
    and Linux keychain integrations.
-5. Design and add the six P11-21 adapters from official path/config documentation;
+8. Design and add the six P11-21 adapters from official path/config documentation;
    do not infer support from repository popularity.
-6. Expand P1-11 with reviewed skill and MCP sources, measuring unique capabilities and
+9. Expand P1-11 with reviewed skill and MCP sources, measuring unique capabilities and
    overlap rather than treating GitHub stars or raw repository count as quality.
-7. Run real user testing from disposable profiles, record every failure, and feed
-   reproducible defects into `loadout improve` and the regression suite.
+10. Run real user testing from disposable profiles, record every failure, and feed
+    reproducible defects into `loadout improve` and the regression suite.

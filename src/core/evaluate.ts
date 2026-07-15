@@ -1,7 +1,8 @@
 import { inspectPackage } from "./package.js";
 import { analyzeUpdateSafety, type SafetyFinding } from "./safety.js";
 
-export type EvaluationStatus = "ready" | "needs-review" | "blocked";
+export type EvaluationStatus =
+  "ready" | "needs-review" | "blocked" | "not-applicable";
 
 export interface PackageEvaluation {
   evaluatorVersion: 1;
@@ -40,9 +41,6 @@ export async function evaluatePackage(
     (name, index) => names.indexOf(name) !== index,
   );
   const skillFindings = [
-    ...(inspection.skills.length
-      ? []
-      : ["No parseable SKILL.md directories found."]),
     ...(duplicateNames.length
       ? [`Duplicate skill names: ${[...new Set(duplicateNames)].join(", ")}`]
       : []),
@@ -56,7 +54,6 @@ export async function evaluatePackage(
     (server) => server.transport === "unknown",
   );
   const mcpFindings = [
-    ...(inspection.counts.manifests ? [] : ["No MCP manifests found."]),
     ...mcpWarnings,
     ...invalidMcp.map((server) => `${server.name}: no usable transport`),
     ...sharedSafety,
@@ -69,20 +66,22 @@ export async function evaluatePackage(
         category: "skills",
         status:
           inspection.skills.length === 0
-            ? "needs-review"
+            ? "not-applicable"
             : statusFor(safety.findings),
-        findings: skillFindings,
+        findings: inspection.skills.length ? skillFindings : [],
       },
       {
         category: "mcp",
         status:
-          invalidMcp.length ||
-          safety.findings.some((item) => item.category === "secret")
-            ? "blocked"
-            : inspection.counts.manifests === 0 || mcpFindings.length
-              ? "needs-review"
-              : "ready",
-        findings: mcpFindings,
+          inspection.counts.manifests === 0
+            ? "not-applicable"
+            : invalidMcp.length ||
+                safety.findings.some((item) => item.category === "secret")
+              ? "blocked"
+              : mcpFindings.length
+                ? "needs-review"
+                : "ready",
+        findings: inspection.counts.manifests ? mcpFindings : [],
       },
     ],
     uncertainty:

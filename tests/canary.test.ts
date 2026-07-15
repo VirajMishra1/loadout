@@ -63,4 +63,41 @@ describe("policy-gated canary pipeline", () => {
     expect(result.status).toBe("blocked");
     expect(result.reason).toContain("Static evaluation");
   });
+
+  it("ignores component categories that do not apply to the candidate", async () => {
+    const result = await runCanary(
+      { packageId: "skill-only", root: "/tmp/candidate" },
+      { enabled: true },
+      {},
+      {
+        evaluate: async () => ({
+          ...ready,
+          categories: [
+            ready.categories[0],
+            { category: "mcp", status: "not-applicable", findings: [] },
+          ],
+        }),
+      },
+    );
+    expect(result.status).toBe("verified");
+  });
+
+  it("blocks candidates with no supported component evidence", async () => {
+    const result = await runCanary(
+      { packageId: "empty", root: "/tmp/candidate" },
+      { enabled: true },
+      {},
+      {
+        evaluate: async () => ({
+          ...ready,
+          categories: ready.categories.map((category) => ({
+            ...category,
+            status: "not-applicable" as const,
+          })),
+        }),
+      },
+    );
+    expect(result.status).toBe("blocked");
+    expect(result.reason).toContain("no supported component");
+  });
 });

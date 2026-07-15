@@ -86,4 +86,19 @@ describe("catalog profile conflict resolution", () => {
       ),
     ).toThrow(/Archived catalog package/);
   });
+
+  it("keeps the bundled Stable Boost intentionally small", () => {
+    const superpowers = item("superpowers", "stable", 1000);
+    const context7 = item("context7", "stable", 900);
+    const popularExtra = item("popular-extra", "official", 1_000_000);
+    const result = resolveCatalogProfile(
+      [popularExtra, context7, superpowers],
+      { mode: "stable" },
+      [],
+    );
+    expect(result.packages.map((pkg) => pkg.id)).toEqual([
+      "superpowers",
+      "context7",
+    ]);
+  });
 });

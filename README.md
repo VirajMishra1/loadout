@@ -14,10 +14,11 @@ After the npm package is published, the normal product experience is one CLI com
 npx loadout-ai
 ```
 
-Loadout detects supported agents, asks for Maximum, Stable, or Custom, downloads the
-reviewed pinned sources, shows conflicts and safety findings, and installs the approved
-skills as one rollback-safe transaction. The dashboard is optional and is not required
-for setup or daily use.
+Loadout detects supported agents, scans the skills already present without changing
+them, and recommends a small Stable foundation by default. Maximum Library and Custom
+remain explicit choices. Reviewed pinned sources, conflicts, capacity, and safety
+findings are shown before one rollback-safe transaction. The product is CLI-first; the
+existing dashboard is optional diagnostics and is not required for setup or daily use.
 
 From a cloned checkout, use the identical package entry point:
 
@@ -30,20 +31,24 @@ npx .
 For automation after reviewing the preview:
 
 ```bash
-npx loadout-ai setup --mode maximum                 # read-only preview
-npx loadout-ai setup --mode maximum --yes --approve-risk
+npx loadout-ai scan                                 # read-only existing setup
+npx loadout-ai setup --mode stable                  # read-only daily-use preview
+npx loadout-ai setup --mode stable --yes --approve-risk
+npx loadout-ai setup --mode maximum                 # explicit broad stress mode
 ```
 
 The current 20-repository reviewed catalog contains 13 automatically installable skill
-repositories. In the verified Maximum run on 2026-07-15, overlap resolution produced
-684 unique skill directories per detected agent; seven MCP-only repositories were
-deferred for explicit credentials and configuration. Loadout never runs repository
-install scripts.
+repositories. In the verified Maximum stress run on 2026-07-15, overlap resolution
+produced 684 unique skill directories per detected agent; seven MCP-only repositories
+were deferred for explicit credentials and configuration. That breadth is not the
+recommended active set. Loadout warns above 30 active skills per agent and never runs
+repository install scripts.
 
 Daily use remains CLI-first:
 
 ```bash
 loadout status
+loadout scan
 loadout health
 loadout update
 loadout rollback
@@ -53,12 +58,12 @@ loadout recommend --project .
 
 ## Status
 
-The working product path detects installed agents, prepares the broad reviewed catalog
-at pinned commits, resolves overlapping skills, previews every target and safety
-finding, installs the full approved loadout as one transaction, tracks updates, and
-rolls back cleanly. The integrated project also includes validated shareable manifests,
-lockfiles, safe managed-file removal, drift-aware health, tested profiles, project
-recommendations, and an evidence-first improvement command.
+The working product path detects installed agents, inventories actual `SKILL.md`
+capabilities and ownership, prepares reviewed catalog sources at pinned commits,
+resolves exact overlaps, previews every target and safety finding, installs the approved
+loadout as one transaction, tracks updates, and rolls back cleanly. Provenance matching,
+head-to-head comparison, library-versus-active-set state, and guided optimization are
+explicit Phase 12 work rather than falsely presented as complete.
 
 See [MASTER_PLAN.md](./MASTER_PLAN.md) for the canonical, current implementation plan
 and [SIMPLE_PLAN.md](./SIMPLE_PLAN.md) for the short plain-language version. New users
@@ -86,9 +91,13 @@ from native Windows if you want to manage the Windows-side agent profile.
 ## Core commands
 
 ```bash
-# Install the reviewed broad loadout.
+# Audit existing agents, then install the small reviewed default.
+node dist/src/cli.js scan
+node dist/src/cli.js setup --mode stable
+node dist/src/cli.js setup --mode stable --yes --approve-risk
+
+# Stress-test the broad reviewed library explicitly.
 node dist/src/cli.js setup --mode maximum
-node dist/src/cli.js setup --mode maximum --yes --approve-risk
 
 # Create and validate a shareable desired-state file.
 node dist/src/cli.js init --name my-team
@@ -186,7 +195,8 @@ and WSL.
 npm ci
 npm run build
 npx . --help
-npx . setup --mode maximum # real read-only catalog preview
+npx . scan                 # real read-only existing-skill inventory
+npx . setup --mode stable  # small read-only catalog preview
 node dist/src/cli.js status
 node dist/src/cli.js doctor
 node dist/src/cli.js catalog

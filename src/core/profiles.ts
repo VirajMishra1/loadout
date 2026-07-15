@@ -27,6 +27,13 @@ export interface ProfileResolution {
 }
 
 /**
+ * The default profile must stay small enough for agents to expose its skills
+ * without crowding their initial context. Maximum remains the explicit broad
+ * catalog mode.
+ */
+export const STABLE_BOOST_PACKAGE_IDS = ["superpowers", "context7"] as const;
+
+/**
  * These are overlap warnings, not claims that the listed repositories are
  * technically incompatible. The catalog currently has no evidenced hard
  * family; hard-family support exists for a future verified incompatibility.
@@ -57,10 +64,17 @@ function eligiblePackages(
   const ranked = [...packages]
     .filter((pkg) => !pkg.archived)
     .sort(compareCatalogPackages);
-  if (selection.mode === "stable")
-    return ranked.filter(
+  if (selection.mode === "stable") {
+    const reviewed = ranked.filter(
       (pkg) => pkg.tier === "official" || pkg.tier === "stable",
     );
+    const curated = reviewed.filter((pkg) =>
+      (STABLE_BOOST_PACKAGE_IDS as readonly string[]).includes(pkg.id),
+    );
+    // Fixtures and downstream catalogs may not contain Loadout's bundled ids;
+    // preserve reviewed-tier behavior in that case instead of returning empty.
+    return curated.length ? curated : reviewed;
+  }
   if (selection.mode === "maximum") return ranked;
   const ids = selection.packageIds ?? [];
   if (ids.length === 0)

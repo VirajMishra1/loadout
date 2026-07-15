@@ -118,7 +118,7 @@ export function formatDoctorReport(report: DoctorReport): string {
     );
     for (const component of entry.inventory.components) {
       const detail = component.scanned
-        ? `${component.directoryExists ? `${component.entries.length} item(s)` : "not created"}${component.directory ? ` at ${component.directory}` : ""}`
+        ? `${component.directoryExists ? `${component.entries.length} filesystem item(s)` : "not created"}${component.directory ? ` at ${component.directory}` : ""}`
         : (component.note ?? "not inspected");
       lines.push(
         `    ${component.type}: ${component.compatibility}; ${detail}`,

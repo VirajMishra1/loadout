@@ -10,7 +10,7 @@ describe("static package evaluation", () => {
     if (root) await rm(root, { recursive: true, force: true });
   });
 
-  it("reports skill evidence separately from absent MCP evidence", async () => {
+  it("marks absent component categories not applicable", async () => {
     root = await mkdtemp(join(tmpdir(), "loadout-evaluate-"));
     await mkdir(join(root, "skills", "review"), { recursive: true });
     await writeFile(
@@ -20,7 +20,7 @@ describe("static package evaluation", () => {
     const result = await evaluatePackage(root);
     expect(result.categories).toEqual([
       expect.objectContaining({ category: "skills", status: "ready" }),
-      expect.objectContaining({ category: "mcp", status: "needs-review" }),
+      expect.objectContaining({ category: "mcp", status: "not-applicable" }),
     ]);
   });
 

@@ -3,7 +3,7 @@ import { lstat } from "node:fs/promises";
 import { join } from "node:path";
 import type { AgentId, DetectedAgent, InstallPlan } from "../shared/types.js";
 import { planAdapterSkillInstall } from "./adapters.js";
-import { createSnapshot, restoreSnapshot } from "./snapshot.js";
+import { createSnapshot } from "./snapshot.js";
 import { applySkillPlan, detectInstallConflicts, validateSkillDirectory } from "./skills.js";
 import { installStatePath, recordInstall, recordInstallBatch } from "./state.js";
 import { beginTransaction, completeTransaction, markTransactionCommitting, recoverPendingTransactions, rollbackTransaction } from "./transaction.js";

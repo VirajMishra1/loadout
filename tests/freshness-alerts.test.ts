@@ -5,6 +5,9 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   buildFreshnessAlerts,
   ignoreFreshnessAlert,
+  pinReplacement,
+  readReplacementPins,
+  unpinReplacement,
 } from "../src/core/freshness-alerts.js";
 import type { CatalogPackage, InstallState } from "../src/shared/types.js";
 
@@ -114,5 +117,58 @@ describe("freshness and replacement alerts", () => {
     expect(ignored.find((alert) => alert.id === alerts[0].id)?.ignored).toBe(
       true,
     );
+  });
+
+  it("shows only evidence-backed replacements and persists explicit local pins", async () => {
+    root = await mkdtemp(join(tmpdir(), "loadout-alert-pins-"));
+    process.env.LOADOUT_HOME = root;
+    const state: InstallState = {
+      version: 1,
+      installs: [
+        {
+          packageId: "old",
+          targetAgents: ["codex"],
+          files: [],
+          snapshotId: "snapshot",
+          installedAt: "2026-01-01T00:00:00Z",
+        },
+      ],
+      mcpInstalls: [],
+      activations: [],
+    };
+    const catalog = ["old", "new"].map((id) => ({
+      id,
+      displayName: id,
+      repository: `owner/${id}`,
+      description: id,
+      category: "review",
+      tier: "stable" as const,
+    }));
+    const alerts = await buildFreshnessAlerts({
+      state,
+      catalog,
+      replacementEvidence: [
+        {
+          installedPackageId: "old",
+          replacementPackageId: "new",
+          scoreDelta: 4.2,
+          evidenceId: "signed-fixture",
+        },
+      ],
+    });
+    expect(alerts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ kind: "outperformed", packageId: "old" }),
+      ]),
+    );
+    await pinReplacement("old", "new");
+    await pinReplacement("old", "newer");
+    expect(await readReplacementPins()).toEqual([
+      expect.objectContaining({
+        packageId: "old",
+        replacementPackageId: "newer",
+      }),
+    ]);
+    await expect(unpinReplacement("old")).resolves.toBe(true);
   });
 });

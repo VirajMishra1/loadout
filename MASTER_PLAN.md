@@ -900,23 +900,30 @@ universal or permanent truth.
   - `docs/HEAD_TO_HEAD_EVALUATION.md` defines fixtures, weighted rubrics, trial
     controls, variance/effect thresholds, cost evidence, uncertainty, non-execution
     boundaries, and signed snapshot requirements for all four categories.
-- [ ] `P12-16 [TERRA]` Implement the first two head-to-head evaluation harnesses and
+- [x] `P12-16 [TERRA]` Implement the first two head-to-head evaluation harnesses and
       persist signed evidence snapshots.
-  - Results inform comparison but never silently replace a user's active capability.
-- [ ] `P12-17 [TERRA]` Add daily candidate ingestion and review queues.
+  - `loadout head-to-head` scores synthetic workflow-adherence and code-review-coverage
+    trial observations against declared fixtures, persists an Ed25519-signed evidence
+    envelope, and never executes candidate content. Results do not silently replace a
+    user's active capability.
+- [x] `P12-17 [TERRA]` Add daily candidate ingestion and review queues.
   - Combine official sources, GitHub search, release/activity observations, star
     velocity, compliant community connectors, deduplication, rate-limit handling, and
     a human promotion gate. Discovery never installs automatically.
-  - Partial: `discover --queue`, `review-queue`, and `review` persist and
-    deduplicate GitHub/Hacker News leads while preserving human shortlist/ignore
-    decisions. Daily multi-source aggregation, official release feeds, and star-
-    velocity prioritization remain.
-- [ ] `P12-18 [TERRA]` Add freshness and replacement alerts.
+  - `discover --source all --queue` aggregates the documented GitHub REST and
+    Hacker News Firebase sources, preserves partial-source failures, deduplicates
+    leads, and keeps human shortlist/ignore decisions. Repeated GitHub observations
+    calculate disclosed per-day star velocity; `schedule --job discovery` runs only
+    this read-only candidate queue refresh. Discovery never installs or promotes a
+    candidate.
+- [x] `P12-18 [TERRA]` Add freshness and replacement alerts.
   - Explain when an installed source is archived, materially stale, permission-expanded,
     superseded, or outperformed by reviewed evidence. Offer compare/ignore/pin actions.
-  - Partial: `alerts` reports archived, one-year-stale, reviewed-commit-change, and
-    permission-expansion evidence with compare/update/disable actions and local ignore.
-    Evaluation-backed outperformance and persistent replacement pins remain.
+  - `alerts` reports archived, one-year-stale, reviewed-commit-change,
+    permission-expansion, and verified signed-evidence outperformance findings with
+    compare/update/disable actions and local ignore. `alert-pin`, `alert-unpin`, and
+    `alert-pins` persist explicit local replacement preferences without changing the
+    active set.
 - [x] `P12-19 [SOL]` Define privacy-preserving local outcome signals.
   - Default local-only: explicit accept/reject, rollback, disable, repeated activation,
     and task-category success. No source code, prompts, filenames, or secrets leave the
@@ -938,9 +945,13 @@ universal or permanent truth.
   - `loadout models set/status/verify` stores only validated metadata and credential
     references; apply is snapshotted, output is redacted, and provider requests resolve
     the environment credential only at the explicit verification boundary.
-- [ ] `P12-22 [TERRA]` Add reviewed MCP setup recipes and connection verification.
-  - Separate install from authorization; show commands, permissions, environment names,
-    and target config; never print values; preserve unrelated JSON/TOML content.
+- [x] `P12-22 [TERRA]` Add reviewed MCP setup recipes and connection verification.
+  - `mcp-recipe` provides source-linked Playwright and GitHub read-only recipes,
+    previews commands, permissions, environment names, and target config without
+    printing values, and separates authorization from configuration. It preserves
+    unrelated JSON keys and verifies the configured transport/references without
+    launching a server; the existing Codex MCP planner remains the TOML-preserving
+    path.
 - [ ] `P12-23 [TERRA]` Complete P11-17 keychain backends and connect them to provider,
       private-discovery, registry, and MCP workflows.
 - [x] `P12-24 [SOL]` Design a cross-platform daily scheduler that invokes read-only

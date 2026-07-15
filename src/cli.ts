@@ -28,6 +28,12 @@ import {
   summarizeMcpConfigPlan,
   applyMcpConfigPlan,
 } from "./core/mcp.js";
+import {
+  REVIEWED_MCP_RECIPES,
+  formatMcpRecipePlan,
+  planMcpRecipe,
+  verifyMcpRecipe,
+} from "./core/mcp-recipes.js";
 import type { McpServer } from "./shared/types.js";
 import { runDoctor, formatDoctorReport } from "./core/doctor.js";
 import {
@@ -186,7 +192,21 @@ import {
   buildFreshnessAlerts,
   formatFreshnessAlerts,
   ignoreFreshnessAlert,
+  pinReplacement,
+  readReplacementPins,
+  unpinReplacement,
 } from "./core/freshness-alerts.js";
+import {
+  runHeadToHeadHarness,
+  replacementEvidenceFromSignedSnapshot,
+  writeSignedHeadToHeadEvidence,
+  type HeadToHeadFixture,
+  type HeadToHeadTrial,
+} from "./core/head-to-head.js";
+import {
+  parseCompletionShell,
+  renderShellCompletion,
+} from "./core/completion.js";
 
 const collectOption = (value: string, previous: string[] = []): string[] => [
   ...previous,
@@ -1003,11 +1023,30 @@ program
   )
   .option("--updates", "perform live update safety checks")
   .option("--all", "include ignored alerts")
+  .option("--evidence <path>", "verified signed head-to-head evidence path")
+  .option("--public-key <path>", "trusted public key for --evidence")
   .option("--json", "emit machine-readable JSON")
   .action(
-    async (options: { updates?: boolean; all?: boolean; json?: boolean }) => {
+    async (options: {
+      updates?: boolean;
+      all?: boolean;
+      evidence?: string;
+      publicKey?: string;
+      json?: boolean;
+    }) => {
+      if (Boolean(options.evidence) !== Boolean(options.publicKey))
+        throw new Error(
+          "--evidence and --public-key must be provided together",
+        );
+      const replacementEvidence = options.evidence
+        ? replacementEvidenceFromSignedSnapshot(
+            JSON.parse(await readFile(resolve(options.evidence), "utf8")),
+            await readFile(resolve(options.publicKey!), "utf8"),
+          )
+        : undefined;
       const alerts = await buildFreshnessAlerts({
         checkUpdates: options.updates,
+        replacementEvidence,
       });
       const selected = options.all
         ? alerts
@@ -1028,6 +1067,50 @@ program
     await ignoreFreshnessAlert(id);
     console.log(
       `Ignored ${id} locally. Re-run loadout alerts --all to inspect it.`,
+    );
+  });
+
+program
+  .command("alert-pin")
+  .description(
+    "Pin a reviewed replacement preference after comparing evidence; does not change active skills",
+  )
+  .argument("<package>", "currently installed package id")
+  .argument("<replacement>", "reviewed replacement package id")
+  .action(async (packageId: string, replacementId: string) => {
+    await pinReplacement(packageId, replacementId);
+    console.log(
+      `Pinned ${replacementId} as a local replacement preference for ${packageId}. Review and activate it explicitly with loadout compare/enable.`,
+    );
+  });
+
+program
+  .command("alert-unpin")
+  .description("Remove a local replacement preference")
+  .argument("<package>", "currently installed package id")
+  .action(async (packageId: string) => {
+    const removed = await unpinReplacement(packageId);
+    console.log(
+      removed
+        ? `Removed the replacement preference for ${packageId}.`
+        : `No replacement preference exists for ${packageId}.`,
+    );
+  });
+
+program
+  .command("alert-pins")
+  .description("Show local replacement preferences")
+  .option("--json", "emit machine-readable JSON")
+  .action(async (options: { json?: boolean }) => {
+    const pins = await readReplacementPins();
+    console.log(
+      options.json
+        ? JSON.stringify(pins, null, 2)
+        : pins.length
+          ? pins
+              .map((pin) => `${pin.packageId} -> ${pin.replacementPackageId}`)
+              .join("\n")
+          : "No local replacement preferences.",
     );
   });
 
@@ -1595,7 +1678,11 @@ program
 program
   .command("discover")
   .description("Find public community leads; discovery never installs anything")
-  .option("--source <source>", "community source", "hacker-news")
+  .option(
+    "--source <source>",
+    "community source: github, hacker-news, or all",
+    "hacker-news",
+  )
   .option("--limit <count>", "front-page stories to inspect", "50")
   .option("--min-score <count>", "minimum Hacker News score", "20")
   .option(
@@ -1633,6 +1720,68 @@ program
           console.log(`${repository.repository} — ${repository.description}`);
         return;
       }
+      if (options.source === "all") {
+        const minScore = Number(options.minScore);
+        if (!Number.isFinite(minScore) || minScore < 0)
+          throw new Error("--min-score must be a non-negative number");
+        const [github, hackerNews] = await Promise.allSettled([
+          discoverGitHubRepositories({
+            query:
+              options.query ??
+              "(topic:mcp OR topic:agent OR topic:skills) created:>=2026-01-01",
+            limit,
+          }),
+          discoverHackerNewsRepositories({
+            limit,
+            minScore,
+            keywords: options.query?.split(",") ?? [],
+          }),
+        ]);
+        const leads = [
+          ...(github.status === "fulfilled" ? github.value : []),
+          ...(hackerNews.status === "fulfilled"
+            ? hackerNews.value.candidates
+            : []),
+        ];
+        if (!leads.length) {
+          const failures = [github, hackerNews]
+            .filter(
+              (result): result is PromiseRejectedResult =>
+                result.status === "rejected",
+            )
+            .map((result) =>
+              result.reason instanceof Error
+                ? result.reason.message
+                : String(result.reason),
+            );
+          throw new Error(
+            `All discovery sources failed: ${failures.join("; ")}`,
+          );
+        }
+        const sourceWarnings = [github, hackerNews]
+          .filter(
+            (result): result is PromiseRejectedResult =>
+              result.status === "rejected",
+          )
+          .map((result) =>
+            result.reason instanceof Error
+              ? result.reason.message
+              : String(result.reason),
+          );
+        const queue = options.queue
+          ? await mergeReviewQueue(leads, await loadEffectiveCatalog())
+          : undefined;
+        const output = { leads, queue, sourceWarnings };
+        if (options.json) return console.log(JSON.stringify(output, null, 2));
+        if (queue) console.log(formatReviewQueue(queue));
+        else
+          console.log(
+            `Multi-source discovery: ${leads.length} public lead(s).`,
+          );
+        for (const warning of sourceWarnings)
+          console.error(`Warning: ${warning}`);
+        return;
+      }
       if (options.source === "github") {
         const repositories = await discoverGitHubRepositories({
           query:
@@ -1660,7 +1809,7 @@ program
       }
       if (options.source !== "hacker-news")
         throw new Error(
-          `Unsupported discovery source '${options.source}'. Supported: hacker-news`,
+          `Unsupported discovery source '${options.source}'. Supported: github, hacker-news, all`,
         );
       const minScore = Number(options.minScore);
       if (!Number.isFinite(minScore) || minScore < 0)
@@ -1919,6 +2068,88 @@ program
   });
 
 program
+  .command("completion")
+  .description(
+    "Print a shell-completion script; redirect it to your shell profile",
+  )
+  .argument("<shell>", "bash, zsh, fish, or powershell")
+  .action((shell: string) => {
+    process.stdout.write(renderShellCompletion(parseCompletionShell(shell)));
+  });
+
+program
+  .command("mcp-recipe")
+  .description(
+    "Preview, configure, or verify a reviewed MCP recipe without authorizing or starting it",
+  )
+  .argument("[id]", "recipe id; omit to list reviewed recipes")
+  .option("--config <path>", "target JSON MCP config path")
+  .option("--yes", "write the reviewed server entry after preview")
+  .option("--verify", "verify the configured entry without starting a server")
+  .option("--json", "emit machine-readable JSON")
+  .action(
+    async (
+      id: string | undefined,
+      options: {
+        config?: string;
+        yes?: boolean;
+        verify?: boolean;
+        json?: boolean;
+      },
+    ) => {
+      if (!id) {
+        const listed = REVIEWED_MCP_RECIPES.map((recipe) => ({
+          id: recipe.id,
+          displayName: recipe.displayName,
+          source: recipe.source,
+          permissions: recipe.permissions,
+          environment: recipe.environment,
+        }));
+        console.log(
+          options.json
+            ? JSON.stringify(listed, null, 2)
+            : listed
+                .map(
+                  (recipe) =>
+                    `${recipe.id} — ${recipe.displayName} — env: ${recipe.environment.length ? recipe.environment.join(", ") : "none"}`,
+                )
+                .join("\n"),
+        );
+        return;
+      }
+      if (!options.config)
+        throw new Error("--config is required when selecting an MCP recipe");
+      if (options.verify) {
+        if (options.yes)
+          throw new Error("--verify cannot be combined with --yes");
+        const verification = await verifyMcpRecipe(id, options.config);
+        console.log(
+          options.json
+            ? JSON.stringify(verification, null, 2)
+            : `${verification.configured ? "Configured" : "Not configured"}: ${verification.recipeId}\n${[...verification.checks, ...verification.warnings].join("\n")}`,
+        );
+        if (!verification.configured) process.exitCode = 1;
+        return;
+      }
+      const plan = await planMcpRecipe(id, options.config);
+      if (!options.yes) {
+        console.log(
+          options.json
+            ? JSON.stringify(plan, null, 2)
+            : `${formatMcpRecipePlan(plan)}\nDry run only. Re-run with --yes to write this server entry.`,
+        );
+        return;
+      }
+      const snapshot = await applyMcpConfigPlan(plan.config);
+      console.log(
+        options.json
+          ? JSON.stringify({ plan, snapshot }, null, 2)
+          : `${formatMcpRecipePlan(plan)}\nConfigured. Snapshot: ${snapshot.id}\nAuthorize the service separately, then run: loadout mcp-recipe ${id} --config ${plan.config.path} --verify`,
+      );
+    },
+  );
+
+program
   .command("mcp")
   .description("Inspect MCP manifests without executing servers or scripts")
   .option("--source <directory>", "local repository directory")
@@ -2003,6 +2234,47 @@ program
   );
 
 program
+  .command("head-to-head")
+  .description(
+    "Score synthetic workflow or code-review trials and write signed evidence; never executes candidate content",
+  )
+  .requiredOption("--fixture <path>", "synthetic fixture JSON path")
+  .requiredOption("--trials <path>", "declared trial observations JSON path")
+  .requiredOption("--private-key <path>", "Ed25519 private key PEM path")
+  .requiredOption("--output <path>", "new signed evidence JSON path")
+  .option("--json", "emit the signed envelope as JSON")
+  .action(
+    async (options: {
+      fixture: string;
+      trials: string;
+      privateKey: string;
+      output: string;
+      json?: boolean;
+    }) => {
+      const [fixture, trials, privateKey] = await Promise.all([
+        readFile(resolve(options.fixture), "utf8").then(
+          (value) => JSON.parse(value) as HeadToHeadFixture,
+        ),
+        readFile(resolve(options.trials), "utf8").then(
+          (value) => JSON.parse(value) as HeadToHeadTrial[],
+        ),
+        readFile(resolve(options.privateKey), "utf8"),
+      ]);
+      const evidence = runHeadToHeadHarness(fixture, trials);
+      const envelope = await writeSignedHeadToHeadEvidence(
+        evidence,
+        privateKey,
+        options.output,
+      );
+      console.log(
+        options.json
+          ? JSON.stringify(envelope, null, 2)
+          : `Signed ${evidence.category} evidence for ${evidence.results.length} trial(s).\nOutput: ${resolve(options.output)}\nFingerprint: ${envelope.publicKeyFingerprint}`,
+      );
+    },
+  );
+
+program
   .command("watch")
   .description(
     "Watch for read-only updates; never applies changes automatically",
@@ -2048,16 +2320,25 @@ for (const action of [
   program
     .command(action)
     .description(
-      `${action === "schedule" ? "Install" : "Remove"} the native daily read-only update check`,
+      `${action === "schedule" ? "Install" : "Remove"} a native daily read-only update or candidate-discovery check`,
     )
     .option("--time <HH:MM>", "local daily check time", "09:00")
+    .option("--job <updates|discovery>", "daily read-only job", "updates")
     .option("--yes", "apply the native scheduler change")
     .option("--json", "emit machine-readable JSON")
     .action(
-      async (options: { time: string; yes?: boolean; json?: boolean }) => {
+      async (options: {
+        time: string;
+        job: string;
+        yes?: boolean;
+        json?: boolean;
+      }) => {
+        if (options.job !== "updates" && options.job !== "discovery")
+          throw new Error("--job must be updates or discovery");
         const plan = planNativeScheduler(action, {
           time: options.time,
           cliPath: process.argv[1],
+          job: options.job,
         });
         if (!options.yes) {
           console.log(

@@ -95,12 +95,14 @@ import { formatDemoResult, runIsolatedDemo } from "./core/demo.js";
 import { resolveCatalogProfile } from "./core/profiles.js";
 import { discoverHackerNewsRepositories } from "./core/community.js";
 import { discoverPrivateRepositories } from "./core/private-discovery.js";
+import { discoverGitHubRepositories } from "./core/github-discovery.js";
 import {
   formatStarHistory,
   readCatalogObservations,
 } from "./core/observations.js";
 import { evaluatePackage, formatPackageEvaluation } from "./core/evaluate.js";
 import { checkForUpdates, startUpdateWatcher } from "./core/update-watch.js";
+import { runDisposableSandbox } from "./core/sandbox.js";
 
 const program = new Command();
 program
@@ -908,6 +910,9 @@ program
       private?: boolean;
       json?: boolean;
     }) => {
+      const limit = Number(options.limit);
+      if (!Number.isInteger(limit) || limit < 1)
+        throw new Error("--limit must be a positive integer");
       if (options.private) {
         const repositories = await discoverPrivateRepositories();
         if (options.json)
@@ -917,14 +922,27 @@ program
           console.log(`${repository.repository} — ${repository.description}`);
         return;
       }
+      if (options.source === "github") {
+        const repositories = await discoverGitHubRepositories({
+          query:
+            options.query ??
+            "(topic:mcp OR topic:agent OR topic:skills) created:>=2026-01-01",
+          limit,
+        });
+        if (options.json)
+          return console.log(JSON.stringify(repositories, null, 2));
+        console.log(`GitHub: ${repositories.length} repository lead(s)`);
+        for (const repository of repositories)
+          console.log(
+            `★${repository.stars} · ${repository.repository} — ${repository.description}`,
+          );
+        return;
+      }
       if (options.source !== "hacker-news")
         throw new Error(
           `Unsupported discovery source '${options.source}'. Supported: hacker-news`,
         );
-      const limit = Number(options.limit);
       const minScore = Number(options.minScore);
-      if (!Number.isInteger(limit) || limit < 1)
-        throw new Error("--limit must be a positive integer");
       if (!Number.isFinite(minScore) || minScore < 0)
         throw new Error("--min-score must be a non-negative number");
       const result = await discoverHackerNewsRepositories({
@@ -1115,6 +1133,47 @@ program
       process.once("SIGINT", shutdown);
       process.once("SIGTERM", shutdown);
       await new Promise<void>(() => undefined);
+    },
+  );
+
+program
+  .command("sandbox-run")
+  .description(
+    "Run an explicitly approved command in a disposable networkless Docker sandbox",
+  )
+  .requiredOption("--source <directory>", "read-only source directory")
+  .requiredOption("--image <image>", "reviewed/pinned Docker image reference")
+  .requiredOption(
+    "--command <argument>",
+    "command argument (repeatable; first is executable)",
+    (value: string, previous: string[] = []) => [...previous, value],
+    [],
+  )
+  .requiredOption("--approve-risk", "explicitly approve sandbox execution")
+  .option("--timeout <milliseconds>", "execution timeout", "120000")
+  .option("--json", "emit result JSON")
+  .action(
+    async (options: {
+      source: string;
+      image: string;
+      command: string[];
+      approveRisk: boolean;
+      timeout: string;
+      json?: boolean;
+    }) => {
+      const result = await runDisposableSandbox({
+        sourceDirectory: options.source,
+        image: options.image,
+        command: options.command,
+        approveRisk: options.approveRisk,
+        timeoutMs: Number(options.timeout),
+      });
+      console.log(
+        options.json
+          ? JSON.stringify(result, null, 2)
+          : `Sandbox exited ${result.exitCode}\n${result.stdout}${result.stderr ? `\n${result.stderr}` : ""}`,
+      );
+      if (result.exitCode !== 0) process.exitCode = result.exitCode;
     },
   );
 

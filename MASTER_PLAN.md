@@ -776,14 +776,16 @@ modes.
 - [x] `P11-12 [SOL]` Design cross-platform hook/subagent compiler with loss reports.
 - [ ] `P11-13 [TERRA]` Implement first two hook/subagent conversion targets.
 - [x] `P11-14 [SOL]` Design sandbox threat model for third-party installers.
-- [ ] `P11-15 [TERRA]` Implement disposable sandbox runner with no host secrets.
+- [x] `P11-15 [TERRA]` Implement disposable sandbox runner with no host secrets.
+  - `loadout sandbox-run` uses explicit approval, a reviewed image, read-only source mount, no network, dropped capabilities, resource limits, and a scrubbed environment; Docker remains an explicit local prerequisite.
 - [x] `P11-16 [SOL]` Design OS-keychain-backed credential interface.
 - [ ] `P11-17 [TERRA]` Implement macOS, Windows, and Linux credential backends.
 - [x] `P11-18 [SOL]` Define autonomous-update permission policies and recovery rules.
 - [ ] `P11-19 [TERRA]` Implement policy-gated canary update pipeline.
 - [x] `P11-20 [SOL]` Publish adapter SDK and conformance contract.
 - [ ] `P11-21 [TERRA]` Add the next six agent adapters through the SDK.
-- [ ] `P11-22 [TERRA]` Add compliant Hacker News and community-source connectors.
+- [x] `P11-22 [TERRA]` Add compliant Hacker News and community-source connectors.
+  - Hacker News Firebase and GitHub REST repository search are read-only connectors; neither mutates the catalog or installs a lead.
 - [x] `P11-23 [SOL]` Design team/enterprise policy and audit schemas.
 - [x] `P11-24 [TERRA]` Implement shared Loadouts, allowlists, denylists, and audit view.
   - Manifest policy now enforces package/repository allowlists and denylists before synchronization; existing audit output remains the read-only decision view.

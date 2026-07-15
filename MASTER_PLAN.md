@@ -971,10 +971,10 @@ universal or permanent truth.
   - Partial: the primary workflows are CLI-only, dry-run first, JSON-capable, and
     actionable. Shell completion, width-aware tables, signal cleanup, and explicit
     color policy remain.
-- [ ] `P12-27 [LUNA]` Reframe README, testing, and demo around scan/compare/optimize;
+- [x] `P12-27 [LUNA]` Reframe README, testing, and demo around scan/compare/optimize;
       move dashboard instructions to an optional diagnostics section.
-  - Partial: README and testing now lead with Power/Maximum Library and optimize; the
-    recorded demo/e2e story still needs to move away from dashboard-first.
+  - README and disposable testing now lead with the scan -> compare -> optimize ->
+    rollback workflow; dashboard instructions are explicitly optional diagnostics.
 - [x] `P12-28 [TERRA]` Add a privacy-safe `loadout report`/`loadout share` artifact.
   - Default output contains package ids, versions, evidence, and compatibility only;
     exclude usernames, absolute paths, private repositories, project names, and secrets.

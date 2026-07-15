@@ -289,60 +289,41 @@ Discovery returns a scored lead with the exact HN discussion URL and repository 
 It never adds a package to the catalog, fetches a repository, or installs anything.
 Review a lead first; then use the normal `plan` command to inspect a pinned snapshot.
 
-## Optional isolated demo and dashboard
+## CLI-first demo
 
-The actual product is the CLI setup above. These optional tools are useful for judges,
-development, or inspecting Loadout without changing a real agent profile. They use live
-GitHub data and do not rely on seeded install results.
-
-In terminal 1, build and open the local dashboard:
+The judge-facing product path is entirely terminal based. The dashboard is an optional
+diagnostics surface and is not needed for scan, compare, optimize, update, or rollback.
 
 ```bash
-npm ci
+# 1. See the actual skills already present. This does not mutate agent files.
+npx . scan
+
+# 2. Compare a discovered or installed skill with the reviewed catalog.
+npx . compare <skill-name>
+
+# 3. Preview a small project-aware active set, then apply only after review.
+npx . optimize --project .
+npx . optimize --project . --yes
+
+# 4. Inspect the snapshot id and recover in one command if needed.
+npx . rollback --snapshot <snapshot-id>
+```
+
+For a fully disposable presentation, follow [docs/TESTING.md](./docs/TESTING.md): it
+creates temporary agent and Loadout homes, demonstrates the same scan/compare/optimize
+flow, and leaves the real profile untouched.
+
+### Optional dashboard diagnostics
+
+The local dashboard is useful for visual inspection only:
+
+```bash
 npm run build
 npx . dashboard
 ```
 
-Open the loopback URL printed by the command. Loadout requests an OS-assigned random
-port by default; use `npx . dashboard --port 4173` only when you specifically need a
-fixed local address. The page reads the detected agents and the real catalog from this
-checkout.
-It also shows installed package state, health, updates, local project recommendations,
-tested profiles, and locally published registry packages. The dashboard can preview
-and apply plans that require no risk override, then undo that exact dashboard change.
-Mutations require a private same-origin session token; risky plans remain CLI-only.
-
-In terminal 2, run the story in this order:
-
-```bash
-# Keep all demo writes in a temporary home and Loadout state directory.
-DEMO_HOME="$(mktemp -d)"
-export LOADOUT_USER_HOME="$DEMO_HOME"
-export LOADOUT_HOME="$DEMO_HOME/.loadout"
-
-# 1. Detect the agents available on this machine and check prerequisites.
-node dist/src/cli.js status
-node dist/src/cli.js doctor
-
-# 2. Show the curated, real-repository catalog (refresh is optional but compelling).
-node dist/src/cli.js catalog --refresh
-
-# 3. Inspect a real MCP repository without starting its server or running scripts.
-node dist/src/cli.js mcp --repository upstash/context7
-
-# 4. Preview, then apply, a real skill package from GitHub.
-node dist/src/cli.js plan --repository obra/superpowers --package obra-superpowers --agents codex
-node dist/src/cli.js install --repository obra/superpowers --package obra-superpowers --agents codex --yes
-
-# 5. Show commit-aware update status, then demonstrate one-command recovery.
-node dist/src/cli.js update
-node dist/src/cli.js rollback
-```
-
-The narrative is: one catalog replaces repository-hopping; the plan makes every file
-change visible; the installer records the exact Git commit; and rollback restores the
-previous state. For a presentation, leave the dashboard visible between steps 1 and 2
-and show the generated snapshot identifier after step 4.
+Open the loopback URL printed by the command. It never replaces the CLI workflow, and
+risky mutations remain CLI-only.
 
 ### One-command safe demo
 

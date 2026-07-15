@@ -67,6 +67,16 @@ function normalizeGitUrl(input: string): string {
   const httpsOrSsh = /^(?:https|ssh):\/\/[^\s]+$/i.test(value);
   const scp = /^[A-Za-z0-9._-]+@[A-Za-z0-9.-]+:[A-Za-z0-9._~/-]+(?:\.git)?$/.test(value);
   if (!httpsOrSsh && !scp) throw new Error("Generic Git sources require an HTTPS or SSH URL");
+  if (httpsOrSsh) {
+    const parsed = new URL(value);
+    // Git includes failing command arguments in its error text. Reject URLs
+    // that can embed a token before invoking Git, rather than leaking one in
+    // a clone failure.
+    if (parsed.password || (parsed.protocol === "https:" && parsed.username)) {
+      throw new Error("Git URLs must not embed credentials; use an SSH agent or credential helper");
+    }
+    if (parsed.search || parsed.hash) throw new Error("Git URLs must not include query strings or fragments");
+  }
   return value;
 }
 

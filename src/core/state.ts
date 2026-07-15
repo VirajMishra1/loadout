@@ -1,15 +1,16 @@
 import { createHash } from "node:crypto";
-import { readFile, readdir, stat, writeFile } from "node:fs/promises";
+import { readFile, readdir, stat } from "node:fs/promises";
 import { join } from "node:path";
 import type { InstallPlan, InstallRecord, InstallState, McpConfigPlan, McpInstallRecord } from "../shared/types.js";
 import { ensureDirectory, loadoutHome } from "./paths.js";
+import { writeFileAtomically } from "./atomic-file.js";
 
 const stateFile = () => join(loadoutHome(), "state.json");
 export const installStatePath = (): string => stateFile();
 
 async function writeInstallState(state: InstallState): Promise<void> {
   await ensureDirectory(loadoutHome());
-  await writeFile(stateFile(), `${JSON.stringify(state, null, 2)}\n`, { mode: 0o600 });
+  await writeFileAtomically(stateFile(), `${JSON.stringify(state, null, 2)}\n`);
 }
 
 export async function readInstallState(): Promise<InstallState> {

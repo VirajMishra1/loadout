@@ -569,10 +569,9 @@ program.command("update")
 
 program.command("serve")
   .description("Start a loopback-only read-only API for status, health, catalog, and updates")
-  .option("--host <host>", "bind address (defaults to 127.0.0.1)", "127.0.0.1")
   .option("--port <port>", "TCP port (0 selects an available port)", "0")
-  .action(async (options: { host: string; port: string }) => {
-    const handle = await startApiServer({ host: options.host, port: Number(options.port) });
+  .action(async (options: { port: string }) => {
+    const handle = await startApiServer({ port: Number(options.port) });
     console.log(`Loadout API listening at http://${handle.host}:${handle.port}`);
     await new Promise<void>((resolve) => {
       process.once("SIGINT", resolve);

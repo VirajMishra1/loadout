@@ -48,6 +48,9 @@ function pathOf(request: IncomingMessage): string {
 export async function startApiServer(options: ApiOptions = {}): Promise<ApiHandle> {
   const host = options.host ?? "127.0.0.1";
   const port = options.port ?? 0;
+  if (host !== "127.0.0.1" && host !== "::1") {
+    throw new Error("Loadout API is loopback-only; use 127.0.0.1 or ::1");
+  }
   const status = options.status ?? (async () => detectAgents());
   const catalog = options.catalog ?? (async () => rankCatalog(await loadEffectiveCatalog()));
   const updates = options.updates ?? (async () => buildUpdatePlan());

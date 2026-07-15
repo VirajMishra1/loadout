@@ -2,6 +2,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import type { AgentId, LoadoutLockfile, LoadoutManifest, ManifestPackage, PackageSource } from "../shared/types.js";
 import { readInstallState } from "./state.js";
+import { writeFileAtomically } from "./atomic-file.js";
 
 const AGENTS = new Set<AgentId>(["claude-code", "codex", "cursor", "gemini-cli", "opencode", "hermes"]);
 
@@ -107,7 +108,7 @@ export async function initManifest(path = "loadout.json", options: { name?: stri
 }
 
 async function writeManifest(manifest: LoadoutManifest, path: string): Promise<void> {
-  await writeFile(resolve(path), `${JSON.stringify(manifest, null, 2)}\n`);
+  await writeFileAtomically(resolve(path), `${JSON.stringify(manifest, null, 2)}\n`, 0o644);
 }
 
 export async function addManifestPackage(path: string, pkg: ManifestPackage): Promise<LoadoutManifest> {
@@ -155,6 +156,6 @@ export async function writeLockfile(manifest: LoadoutManifest, path = "loadout.l
     })),
     mcpServers: (state.mcpInstalls ?? []).filter((entry) => sourceById.has(entry.packageId)).map(({ packageId, configPath, serverName, fingerprint }) => ({ packageId, configPath, serverName, fingerprint })),
   };
-  await writeFile(resolve(path), `${JSON.stringify(lockfile, null, 2)}\n`);
+  await writeFileAtomically(resolve(path), `${JSON.stringify(lockfile, null, 2)}\n`, 0o600);
   return lockfile;
 }

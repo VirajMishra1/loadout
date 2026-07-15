@@ -22,4 +22,9 @@ describe("repository sources", () => {
     await expect(fetchGitSnapshot("http://example.com/repo.git")).rejects.toThrow(/HTTPS or SSH/);
     await expect(fetchGitSnapshot("--upload-pack=bad")).rejects.toThrow(/Invalid Git URL/);
   });
+
+  it("rejects credential-bearing generic Git URLs before invoking Git", async () => {
+    await expect(fetchGitSnapshot("https://token:secret@example.com/team/repo.git")).rejects.toThrow(/must not embed credentials/);
+    await expect(fetchGitSnapshot("https://token@example.com/team/repo.git")).rejects.toThrow(/must not embed credentials/);
+  });
 });

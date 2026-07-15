@@ -62,6 +62,11 @@ function authorized(request: IncomingMessage, token: string): boolean {
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
+function isLoopbackPeer(request: IncomingMessage): boolean {
+  const address = request.socket.remoteAddress;
+  return address === "127.0.0.1" || address === "::1" || address === "::ffff:127.0.0.1";
+}
+
 async function body(request: IncomingMessage): Promise<Record<string, unknown>> {
   const chunks: Buffer[] = []; let size = 0;
   for await (const chunk of request) {
@@ -125,6 +130,10 @@ function operationPayload(operation: DashboardOperation | undefined): unknown {
 async function route(request: IncomingMessage, response: ServerResponse, context: DashboardContext): Promise<void> {
   const pathname = new URL(request.url ?? "/", "http://localhost").pathname;
   try {
+    // Host headers are attacker-controlled. Check the actual peer too so an
+    // accidentally externally bound server cannot be reached by spoofing
+    // `Host: localhost`.
+    if (!isLoopbackPeer(request)) { await sendJson(response, 403, { error: "Dashboard accepts loopback peers only" }); return; }
     const host = request.headers.host?.split(":")[0];
     if (host && host !== "127.0.0.1" && host !== "localhost" && host !== "[::1]") { await sendJson(response, 403, { error: "Dashboard accepts loopback hosts only" }); return; }
     if (request.method === "POST" && request.headers.origin) {

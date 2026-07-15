@@ -32,4 +32,8 @@ describe("local API", () => {
     expect(response.status).toBe(405);
     expect((await response.json()).error.code).toBe("METHOD_NOT_ALLOWED");
   });
+
+  it("refuses non-loopback bindings", async () => {
+    await expect(startApiServer({ host: "0.0.0.0", port: 0 })).rejects.toThrow(/loopback-only/);
+  });
 });

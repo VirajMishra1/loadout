@@ -44,12 +44,19 @@ async function mcpDrift(
 }
 
 export async function buildHealthReport(
-  options: { updates?: () => Promise<UpdatePlan[]> } = {},
+  options: {
+    updates?: () => Promise<UpdatePlan[]>;
+    checkUpdates?: boolean;
+  } = {},
 ): Promise<HealthReport> {
   const [agents, state, updates] = await Promise.all([
     detectAgents(),
     readInstallState(),
-    (options.updates ?? buildUpdatePlan)(),
+    options.updates
+      ? options.updates()
+      : options.checkUpdates
+        ? buildUpdatePlan()
+        : Promise.resolve([]),
   ]);
   const drifted = (await Promise.all(state.installs.map(drift))).flat();
   const driftedMcpServers = (
@@ -124,6 +131,7 @@ export async function buildHealthReport(
     generatedAt: new Date().toISOString(),
     agents,
     installedPackages: state.installs.length,
+    updatesChecked: Boolean(options.updates || options.checkUpdates),
     updatesAvailable: available.length,
     driftedFiles: drifted.length,
     driftedMcpServers,
@@ -140,7 +148,7 @@ export function formatHealthReport(report: HealthReport): string {
         : "✗";
   const lines = [
     `${icon} Loadout health: ${report.status}`,
-    `Packages: ${report.installedPackages} installed, ${report.updatesAvailable} update(s), ${report.driftedFiles} drifted file(s), ${report.driftedMcpServers} drifted MCP server(s)`,
+    `Packages: ${report.installedPackages} installed, ${report.updatesChecked ? `${report.updatesAvailable} update(s)` : "updates not checked (use --updates)"}, ${report.driftedFiles} drifted file(s), ${report.driftedMcpServers} drifted MCP server(s)`,
   ];
   for (const finding of report.findings)
     lines.push(

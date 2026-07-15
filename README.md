@@ -6,18 +6,64 @@ Cursor, Gemini CLI, OpenCode, Hermes, and other compatible agents.
 
 The project is being built for the OpenAI Build Week **Developer Tools** category.
 
+## Install your loadout
+
+After the npm package is published, the normal product experience is one CLI command:
+
+```bash
+npx loadout-ai
+```
+
+Loadout detects supported agents, asks for Maximum, Stable, or Custom, downloads the
+reviewed pinned sources, shows conflicts and safety findings, and installs the approved
+skills as one rollback-safe transaction. The dashboard is optional and is not required
+for setup or daily use.
+
+From a cloned checkout, use the identical package entry point:
+
+```bash
+npm ci
+npm run build
+npx .
+```
+
+For automation after reviewing the preview:
+
+```bash
+npx loadout-ai setup --mode maximum                 # read-only preview
+npx loadout-ai setup --mode maximum --yes --approve-risk
+```
+
+The current 20-repository reviewed catalog contains 13 automatically installable skill
+repositories. In the verified Maximum run on 2026-07-15, overlap resolution produced
+684 unique skill directories per detected agent; seven MCP-only repositories were
+deferred for explicit credentials and configuration. Loadout never runs repository
+install scripts.
+
+Daily use remains CLI-first:
+
+```bash
+loadout status
+loadout health
+loadout update
+loadout rollback
+loadout discover --source github
+loadout recommend --project .
+```
+
 ## Status
 
-The working vertical slice detects installed agents, fetches real public GitHub
-repositories at resolved commits, finds supported components, previews every target,
-installs into agent-specific directories, and records rollback snapshots. The
-integrated project also includes validated shareable manifests, lockfiles, safe
-managed-file removal, drift-aware health, tested profiles, project recommendations,
-durable transactional synchronization, risk-gated updates, and an evidence-first
-improvement command.
+The working product path detects installed agents, prepares the broad reviewed catalog
+at pinned commits, resolves overlapping skills, previews every target and safety
+finding, installs the full approved loadout as one transaction, tracks updates, and
+rolls back cleanly. The integrated project also includes validated shareable manifests,
+lockfiles, safe managed-file removal, drift-aware health, tested profiles, project
+recommendations, and an evidence-first improvement command.
 
 See [MASTER_PLAN.md](./MASTER_PLAN.md) for the canonical, current implementation plan
-and [SIMPLE_PLAN.md](./SIMPLE_PLAN.md) for the short plain-language version.
+and [SIMPLE_PLAN.md](./SIMPLE_PLAN.md) for the short plain-language version. New users
+can follow [docs/TESTING.md](./docs/TESTING.md) for a disposable end-to-end product
+test before touching a real agent profile.
 
 ## Supported platforms
 
@@ -40,6 +86,10 @@ from native Windows if you want to manage the Windows-side agent profile.
 ## Core commands
 
 ```bash
+# Install the reviewed broad loadout.
+node dist/src/cli.js setup --mode maximum
+node dist/src/cli.js setup --mode maximum --yes --approve-risk
+
 # Create and validate a shareable desired-state file.
 node dist/src/cli.js init --name my-team
 node dist/src/cli.js sync --manifest loadout.json       # dry run
@@ -136,6 +186,7 @@ and WSL.
 npm ci
 npm run build
 npx . --help
+npx . setup --mode maximum # real read-only catalog preview
 node dist/src/cli.js status
 node dist/src/cli.js doctor
 node dist/src/cli.js catalog
@@ -148,8 +199,8 @@ node dist/src/cli.js rollback
 The publishable npm package is named `loadout-ai` because the unscoped `loadout`
 name is already owned by an unrelated package. After the owner publishes this
 project, the judge-facing commands will be `npx loadout-ai --help` and
-`npx loadout-ai dashboard`; the installed executable remains `loadout`. Until then,
-`npx .` exercises the same package entry point from a clone.
+`npx loadout-ai`; the installed executable remains `loadout`. Until then, `npx .`
+exercises the same package entry point from a clone.
 
 Tests are hermetic: Vitest gives each test file disposable `LOADOUT_HOME` and
 `LOADOUT_USER_HOME` directories, so the suite cannot create records in a developer's
@@ -197,12 +248,11 @@ Discovery returns a scored lead with the exact HN discussion URL and repository 
 It never adds a package to the catalog, fetches a repository, or installs anything.
 Review a lead first; then use the normal `plan` command to inspect a pinned snapshot.
 
-## Two-minute hackathon demo
+## Optional isolated demo and dashboard
 
-This is a live-data demo: the package is fetched from GitHub at the time you run it,
-and the catalog can be refreshed from the GitHub API. It does not rely on seeded
-install results. The install below uses a disposable profile so a demo cannot alter a
-developer's existing agent configuration.
+The actual product is the CLI setup above. These optional tools are useful for judges,
+development, or inspecting Loadout without changing a real agent profile. They use live
+GitHub data and do not rely on seeded install results.
 
 In terminal 1, build and open the local dashboard:
 

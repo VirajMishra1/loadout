@@ -284,6 +284,7 @@ export interface HealthReport {
   generatedAt: string;
   agents: DetectedAgent[];
   installedPackages: number;
+  updatesChecked: boolean;
   updatesAvailable: number;
   driftedFiles: number;
   driftedMcpServers: number;

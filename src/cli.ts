@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { Command } from "commander";
+import { createInterface } from "node:readline/promises";
 import {
   explainCatalogScore,
   loadEffectiveCatalog,
@@ -113,12 +114,189 @@ import {
 import { writeFileAtomically } from "./core/atomic-file.js";
 import { formatCanaryResult, runCanary } from "./core/canary.js";
 import { startDashboardServer } from "./dashboard.js";
+import {
+  applyPreparedCatalogInstall,
+  formatPreparedCatalogInstall,
+  prepareCatalogInstall,
+  type CatalogInstallProgress,
+  type PreparedCatalogInstall,
+} from "./core/catalog-install.js";
+
+const collectOption = (value: string, previous: string[] = []): string[] => [
+  ...previous,
+  value,
+];
+
+interface SetupOptions {
+  mode?: string;
+  agents?: string;
+  package: string[];
+  yes?: boolean;
+  approveRisk?: boolean;
+}
+
+function setupSelection(
+  mode: string,
+  packageIds: string[],
+): { mode: InstallSelectionMode; packageIds?: string[] } {
+  if (!(["stable", "maximum", "custom"] as string[]).includes(mode))
+    throw new Error("--mode must be stable, maximum, or custom");
+  if (mode === "custom" && packageIds.length === 0)
+    throw new Error("Custom setup requires at least one --package <id>");
+  if (mode !== "custom" && packageIds.length)
+    throw new Error("--package can only be used with --mode custom");
+  return {
+    mode: mode as InstallSelectionMode,
+    ...(packageIds.length ? { packageIds } : {}),
+  };
+}
+
+function printSetupProgress(progress: CatalogInstallProgress): void {
+  const marker =
+    progress.status === "ready"
+      ? "✓"
+      : progress.status === "skipped"
+        ? "○"
+        : "↓";
+  console.error(
+    `${marker} [${progress.completed}/${progress.total}] ${progress.message}`,
+  );
+}
+
+function riskyPackageSummary(prepared: PreparedCatalogInstall): string {
+  return prepared.entries
+    .filter((entry) => entry.safety.approvalRequired)
+    .map((entry) => {
+      const categories = [
+        ...new Set(entry.safety.findings.map((finding) => finding.category)),
+      ];
+      return `${entry.package.id} (${categories.join(", ")})`;
+    })
+    .join(", ");
+}
+
+async function runSetup(options: SetupOptions): Promise<void> {
+  const interactive = Boolean(process.stdin.isTTY && process.stdout.isTTY);
+  let mode = options.mode;
+  let packageIds = options.package ?? [];
+  let reader: ReturnType<typeof createInterface> | undefined;
+  try {
+    if (!mode) {
+      if (!interactive) {
+        console.log(
+          "Loadout is CLI-first. Run `loadout setup --mode maximum` to preview the broad reviewed loadout, or add `--yes --approve-risk` after reviewing to install it non-interactively.",
+        );
+        return;
+      }
+      reader = createInterface({
+        input: process.stdin,
+        output: process.stdout,
+      });
+      const answer = (
+        await reader.question(
+          "Choose a loadout: [1] Maximum Boost (recommended), [2] Stable Boost, [3] Custom: ",
+        )
+      ).trim();
+      mode = answer === "2" ? "stable" : answer === "3" ? "custom" : "maximum";
+      if (mode === "custom") {
+        const custom = await reader.question(
+          "Enter comma-separated catalog package ids: ",
+        );
+        packageIds = custom
+          .split(",")
+          .map((value) => value.trim())
+          .filter(Boolean);
+      }
+    }
+    const selection = setupSelection(mode, packageIds);
+    console.log("\nPreparing a read-only install plan from reviewed commits…");
+    const prepared = await prepareCatalogInstall(selection, {
+      requestedAgents: options.agents?.split(",") as AgentId[] | undefined,
+      onProgress: printSetupProgress,
+    });
+    console.log(`\n${formatPreparedCatalogInstall(prepared)}\n`);
+    const risky = riskyPackageSummary(prepared);
+    let approved = Boolean(options.yes);
+    let riskApproved = Boolean(options.approveRisk);
+    if (!approved) {
+      if (!interactive) {
+        console.log(
+          "Preview complete; nothing was changed. Re-run with --yes to install this exact reviewed plan.",
+        );
+        return;
+      }
+      reader ??= createInterface({
+        input: process.stdin,
+        output: process.stdout,
+      });
+      approved = /^(?:y|yes)$/i.test(
+        (
+          await reader.question(
+            "Install this loadout as one rollback-safe transaction? [y/N] ",
+          )
+        ).trim(),
+      );
+      if (!approved) {
+        console.log("Cancelled; no agent files were changed.");
+        return;
+      }
+    }
+    if (risky && !riskApproved) {
+      if (!interactive)
+        throw new Error(
+          `The reviewed skills contain additional safety findings: ${risky}. Inspect the preview and add --approve-risk to proceed.`,
+        );
+      reader ??= createInterface({
+        input: process.stdin,
+        output: process.stdout,
+      });
+      console.log(`Additional safety findings: ${risky}`);
+      riskApproved = /^(?:y|yes)$/i.test(
+        (
+          await reader.question(
+            "Approve these reviewed script/domain/instruction findings? [y/N] ",
+          )
+        ).trim(),
+      );
+      if (!riskApproved) {
+        console.log("Cancelled; no agent files were changed.");
+        return;
+      }
+    }
+    const snapshotId = await applyPreparedCatalogInstall(prepared, {
+      approveRisk: riskApproved,
+    });
+    console.log(
+      `\nLoadout installed ${prepared.entries.length} repositories for ${prepared.agents.length} agent(s). Snapshot: ${snapshotId}`,
+    );
+    console.log(
+      "Next: `loadout status`, `loadout update`, or `loadout rollback`.",
+    );
+  } finally {
+    reader?.close();
+  }
+}
 
 const program = new Command();
 program
   .name("loadout")
   .description("Universal upgrade manager for AI coding agents")
   .version("0.1.0");
+
+program
+  .command("setup")
+  .description(
+    "Preview and install a broad reviewed skill loadout for detected agents",
+  )
+  .option("--mode <mode>", "stable, maximum, or custom")
+  .option("--agents <ids>", "comma-separated target agent ids")
+  .option("--package <id>", "package id for custom mode", collectOption, [])
+  .option("-y, --yes", "install after preparing the reviewed plan")
+  .option(
+    "--approve-risk",
+    "approve reviewed safety findings in non-interactive mode",
+  )
+  .action((options: SetupOptions) => runSetup(options));
 
 program
   .command("init")
@@ -516,10 +694,11 @@ program
 
 program
   .command("health")
-  .description("Check agents, installed packages, updates, and file drift")
+  .description("Quickly check agents, installed packages, and local file drift")
   .option("--json", "emit machine-readable JSON")
-  .action(async (options: { json?: boolean }) => {
-    const report = await buildHealthReport();
+  .option("--updates", "also perform live network update checks")
+  .action(async (options: { json?: boolean; updates?: boolean }) => {
+    const report = await buildHealthReport({ checkUpdates: options.updates });
     console.log(
       options.json
         ? JSON.stringify(report, null, 2)
@@ -1360,6 +1539,39 @@ program
         throw new Error(
           "Provide --mode or exactly one of --source/--repository",
         );
+      if (!hasSource) {
+        const prepared = await prepareCatalogInstall(
+          setupSelection(options.mode!, packageIds),
+          {
+            requestedAgents: options.agents?.split(",") as
+              AgentId[] | undefined,
+            onProgress: printSetupProgress,
+          },
+        );
+        console.log(
+          JSON.stringify(
+            {
+              mode: prepared.selection.mode,
+              agents: prepared.agents.map((agent) => agent.id),
+              packages: prepared.entries.map((entry) => ({
+                ...entry.plan,
+                repository: entry.metadata?.repository,
+                resolvedCommit: entry.metadata?.resolvedCommit,
+                safety: entry.safety,
+              })),
+              skipped: prepared.skipped,
+              profile: {
+                deferred: prepared.resolution.deferred.map((pkg) => pkg.id),
+                conflicts: prepared.resolution.conflicts,
+                warnings: prepared.resolution.warnings,
+              },
+            },
+            null,
+            2,
+          ),
+        );
+        return;
+      }
       const resolution = hasSource
         ? undefined
         : resolveCatalogProfile(await loadEffectiveCatalog(), {
@@ -1448,6 +1660,7 @@ program
     "comma-separated agent ids; defaults to all detected agents",
   )
   .option("--yes", "apply without interactive confirmation")
+  .option("--approve-risk", "approve reviewed safety findings for catalog mode")
   .action(
     async (options: {
       source?: string;
@@ -1456,6 +1669,7 @@ program
       mode?: string;
       agents?: string;
       yes?: boolean;
+      approveRisk?: boolean;
     }) => {
       const packageIds = options.package ?? [];
       const hasSource = Boolean(options.source || options.repository);
@@ -1471,6 +1685,30 @@ program
         throw new Error(
           "Provide --mode or exactly one of --source/--repository",
         );
+      if (!hasSource) {
+        const prepared = await prepareCatalogInstall(
+          setupSelection(options.mode!, packageIds),
+          {
+            requestedAgents: options.agents?.split(",") as
+              AgentId[] | undefined,
+            onProgress: printSetupProgress,
+          },
+        );
+        console.log(formatPreparedCatalogInstall(prepared));
+        if (!options.yes) {
+          console.log(
+            "Preview complete; nothing was changed. Use --yes after reviewing to install this exact plan.",
+          );
+          return;
+        }
+        const snapshotId = await applyPreparedCatalogInstall(prepared, {
+          approveRisk: options.approveRisk,
+        });
+        console.log(
+          `Installed ${prepared.entries.length} repositories as one transaction. Snapshot: ${snapshotId}`,
+        );
+        return;
+      }
       const resolution = hasSource
         ? undefined
         : resolveCatalogProfile(await loadEffectiveCatalog(), {
@@ -1751,15 +1989,7 @@ program
     await handle.close();
   });
 
-program.action(async () => {
-  const agents = await detectAgents();
-  const packages = rankCatalog(await loadEffectiveCatalog());
-  console.log("Loadout detected:");
-  for (const agent of agents)
-    console.log(`  ${agent.installed ? "✓" : "○"} ${agent.displayName}`);
-  console.log(`\n${packages.length} real catalog packages are available.`);
-  console.log("Run `loadout status` or `loadout catalog` for details.");
-});
+program.action(() => runSetup({ package: [] }));
 
 try {
   await program.parseAsync();

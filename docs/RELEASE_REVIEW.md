@@ -65,7 +65,7 @@ On 2026-07-15 the corrective audit also verified:
 npm run format:check
 npm run lint
 npm run typecheck
-npm test -- --run        # 53 files, 161 tests
+npm test -- --run        # 55 files, 169 tests
 npm run build
 npm run test:e2e         # Chromium first-run preview/apply flow
 ```
@@ -87,8 +87,31 @@ The audit fixed these release blockers and added regressions for them:
   not compiled tests, and resolves its catalog/dashboard independently of the current
   working directory.
 
-An outside-checkout 70-file tarball smoke test launched version `0.1.0`, read all 20
+An outside-checkout 72-file tarball smoke test launched version `0.1.0`, read all 20
 catalog records, and served the packaged dashboard. The live isolated demo fetched
 `obra/superpowers`, planned 14 skill directories and 48 files, then verified rollback
 and removed its temporary profile. The npm package is named `loadout-ai`; the shorter
 `loadout` registry name is owned by an unrelated package.
+
+## CLI-first product correction
+
+The dashboard is now explicitly secondary. Running `loadout` in an interactive terminal
+starts Maximum/Stable/Custom onboarding, while `loadout setup --mode maximum` provides
+a scriptable read-only preview and `--yes --approve-risk` applies the reviewed result.
+
+Catalog setup now:
+
+- filters out MCP/executable-only records before cloning;
+- fetches up to four repositories concurrently with visible progress;
+- fetches the catalog's exact reviewed commit rather than mutable default-branch HEAD;
+- reuses only a clean cache whose Git HEAD matches that commit;
+- resolves duplicate skill targets by retaining the higher-ranked reviewed source and
+  reporting every lower-ranked duplicate;
+- installs all remaining packages through one transaction and one restore point;
+- keeps local health checks network-free unless `--updates` is explicitly requested.
+
+A disposable real Maximum Boost run detected virtual Claude Code and Codex profiles,
+prepared 13 skill repositories from the 20-record catalog, deferred seven explicit MCP
+setups, resolved 32 duplicate target directories, and installed 1,368 skill directories
+(684 per agent). `status` observed the installed content, and rollback returned managed
+install state to zero. No real user agent directory was used.

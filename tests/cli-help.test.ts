@@ -38,6 +38,7 @@ describe("CLI contract", () => {
       "Universal upgrade manager for AI coding agents",
     );
     expect(result.stdout).toContain("status");
+    expect(result.stdout).toContain("setup");
     expect(result.stdout).toContain("doctor");
     expect(result.stdout).toContain("demo");
     expect(result.stdout).toContain("plan");
@@ -49,6 +50,21 @@ describe("CLI contract", () => {
     expect(result.stdout).toContain("convert");
     expect(result.stdout).toContain("canary");
     expect(result.stdout).toContain("dashboard");
+  });
+
+  it("makes the CLI setup flow the non-interactive default without mutating", async () => {
+    const result = await runCli();
+    expect(result.code).toBe(0);
+    expect(result.stdout).toContain("Loadout is CLI-first");
+    expect(result.stdout).toContain("setup --mode maximum");
+  });
+
+  it("validates setup mode before fetching repositories", async () => {
+    const result = await runCli("setup", "--mode", "unknown");
+    expect(result.code).not.toBe(0);
+    expect(result.stderr).toContain(
+      "--mode must be stable, maximum, or custom",
+    );
   });
 
   it("reports mutually exclusive source errors without mutating state", async () => {

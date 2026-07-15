@@ -331,7 +331,7 @@ function renderHealth(data) {
   setMarkupState(
     health,
     `health-list ${state}`,
-    `<div class="metric-row"><strong>${Number(report.installedPackages) || 0}</strong><span>packages</span><strong>${Number(report.updatesAvailable) || 0}</strong><span>updates</span><strong>${Number(report.driftedFiles) || 0}</strong><span>drifted files</span><strong>${Number(report.driftedMcpServers) || 0}</strong><span>drifted MCP</span></div>${findings.map((finding) => `<p><span class="finding-level">${escapeHtml(finding.level || "info")}</span>${escapeHtml(finding.message || "")}</p>`).join("")}`,
+    `<div class="metric-row"><strong>${Number(report.installedPackages) || 0}</strong><span>packages</span><strong>${report.updatesChecked ? Number(report.updatesAvailable) || 0 : "—"}</strong><span>${report.updatesChecked ? "updates" : "updates not checked"}</span><strong>${Number(report.driftedFiles) || 0}</strong><span>drifted files</span><strong>${Number(report.driftedMcpServers) || 0}</strong><span>drifted MCP</span></div>${findings.map((finding) => `<p><span class="finding-level">${escapeHtml(finding.level || "info")}</span>${escapeHtml(finding.message || "")}</p>`).join("")}`,
   );
 }
 

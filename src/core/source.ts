@@ -55,21 +55,62 @@ export async function fetchRepositorySnapshot(
   options: RepositoryFetchOptions = {},
 ): Promise<RepositorySnapshot> {
   const repository = normalizeRepository(input);
+  const ref = options.ref ? normalizeRef(options.ref) : undefined;
+  if (ref && /^[0-9a-f]{40}$/i.test(ref)) {
+    const cached = repositoryCachePath(repository, ref);
+    try {
+      const [{ stdout: head }, { stdout: status }] = await Promise.all([
+        execFileAsync("git", ["-C", cached, "rev-parse", "HEAD"]),
+        execFileAsync("git", ["-C", cached, "status", "--porcelain"]),
+      ]);
+      if (
+        head.trim().toLowerCase() === ref.toLowerCase() &&
+        status.trim() === ""
+      )
+        return { repository, commit: ref, path: cached };
+    } catch {
+      /* missing or modified cache: fetch a clean reviewed snapshot below */
+    }
+  }
   const temporary = await mkdtemp(join(tmpdir(), "loadout-repository-"));
   try {
-    const refArgs = options.ref ? ["--branch", normalizeRef(options.ref)] : [];
-    await execFileAsync(
-      "git",
-      [
-        "clone",
-        "--depth",
-        "1",
-        ...refArgs,
-        `https://github.com/${repository}.git`,
-        temporary,
-      ],
-      { maxBuffer: 10 * 1024 * 1024 },
-    );
+    const url = `https://github.com/${repository}.git`;
+    const gitOptions = {
+      maxBuffer: 10 * 1024 * 1024,
+      env: {
+        ...process.env,
+        GIT_CONFIG_NOSYSTEM: "1",
+        GIT_TERMINAL_PROMPT: "0",
+      },
+    };
+    if (ref && /^[0-9a-f]{40}$/i.test(ref)) {
+      // `git clone --branch` accepts branch or tag names, not an arbitrary
+      // reviewed commit. Fetch the immutable catalog commit directly so a
+      // later default-branch change cannot alter what Loadout installs.
+      await execFileAsync("git", ["init", "--quiet", temporary], gitOptions);
+      await execFileAsync(
+        "git",
+        ["-C", temporary, "remote", "add", "origin", url],
+        gitOptions,
+      );
+      await execFileAsync(
+        "git",
+        ["-C", temporary, "fetch", "--depth", "1", "origin", ref],
+        gitOptions,
+      );
+      await execFileAsync(
+        "git",
+        ["-C", temporary, "checkout", "--quiet", "--detach", "FETCH_HEAD"],
+        gitOptions,
+      );
+    } else {
+      const refArgs = ref ? ["--branch", ref] : [];
+      await execFileAsync(
+        "git",
+        ["clone", "--depth", "1", ...refArgs, "--", url, temporary],
+        gitOptions,
+      );
+    }
     const { stdout } = await execFileAsync("git", [
       "-C",
       temporary,

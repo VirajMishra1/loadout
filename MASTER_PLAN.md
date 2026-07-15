@@ -14,16 +14,16 @@ catalogs and high-signal GitHub repositories, installs them in the correct forma
 keeps configurations synchronized, checks for updates, and restores a known-good
 snapshot if an update fails.
 
-The product is intentionally consumer-first. A user should not need to understand
-`SKILL.md`, MCP configuration, plugin manifests, platform-specific directories, or
-GitHub repository layouts. The packaged dashboard starts with one command:
+The product is intentionally consumer-first and CLI-first. A user should not need to
+understand `SKILL.md`, MCP configuration, plugin manifests, platform-specific
+directories, or GitHub repository layouts. Interactive setup starts with one command:
 
 ```bash
-npx loadout-ai dashboard
+npx loadout-ai
 ```
 
 ```text
-Loadout dashboard: http://127.0.0.1:<random-port>
+Choose a loadout: [1] Maximum Boost (recommended), [2] Stable Boost, [3] Custom
 ```
 
 The executable installed by the package is still named `loadout`. The `loadout` npm
@@ -57,7 +57,8 @@ Loadout wins through:
 ### 3.1 Submission-critical vertical slice
 
 - TypeScript CLI packaged for `npx loadout-ai` after an owner publishes it to npm.
-- Framework-free local dashboard served by the CLI on a random loopback port.
+- CLI-first interactive and non-interactive Stable/Maximum/Custom setup.
+- Optional framework-free local dashboard served on a random loopback port.
 - Windows 11, macOS, and Linux support.
 - Agent detection for:
   - Claude Code
@@ -158,24 +159,27 @@ Post-MVP path: commit `loadout.lock` and restore it on another machine.
 
 ### 5.1 First run
 
-1. User runs `npx loadout-ai dashboard` after the package is published, or
-   `npx . dashboard` from a cloned checkout.
-2. Loadout binds to loopback on a random port and prints the local URL.
-3. The user opens that URL; Loadout detects installed agents without modifying them.
-4. The dashboard shows detected agents, catalog records, installed state, health,
-   updates, recommendations, and tested profiles.
-5. The user creates or updates `loadout.json` through the CLI and previews its exact
-   files, permissions, conflicts, and MCP changes in the dashboard or CLI.
-6. An explicitly acknowledged safe dashboard plan, or a confirmed CLI plan, fetches
-   pinned sources and snapshots every target before mutation.
-7. Loadout records a durable transaction journal, validates and writes the plan,
-   updates managed state and `loadout.lock`, and removes the journal only on success.
-8. A caught failure rolls back immediately; an interrupted transaction is recovered
-   before the next synchronization.
+1. User runs `npx loadout-ai` after publication, or `npx .` from a clone.
+2. Loadout detects supported installed agents and asks for Maximum, Stable, or Custom.
+3. It filters out components that require explicit credentials/configuration, then
+   concurrently fetches only reviewed skill repositories at their pinned commits.
+4. It resolves overlapping skill targets deterministically, keeps the higher-ranked
+   reviewed source, and reports every deferred duplicate.
+5. It shows repository counts, actual skill-directory counts, safety findings,
+   deferred MCP/executable packages, and detected targets before mutation.
+6. The user confirms the loadout and separately approves script/domain/instruction
+   findings when present.
+7. Loadout snapshots all targets and installs the entire loadout as one durable,
+   rollback-safe transaction; caught or interrupted failures restore prior state.
+8. Daily use continues through `status`, fast local `health`, `update`, `discover`,
+   `recommend`, `remove`, and `rollback`. The dashboard remains optional.
 
 ### 5.2 Normal use
 
 - `loadout status`: agents, packages, conflicts, and update health.
+- `loadout setup --mode maximum`: preview the broad reviewed loadout.
+- `loadout setup --mode maximum --yes --approve-risk`: install it non-interactively
+  after review.
 - `loadout add <package>`: plan and add a package.
 - `loadout remove <package>`: remove only files managed by Loadout.
 - `loadout update`: fetch package update information and display a read-only plan by
@@ -623,6 +627,9 @@ modes.
 - [x] `P1-10 [TERRA]` Implement conflict-family resolver.
   - Acceptance: Stable picks one default; hard conflicts block; Custom can override
     soft conflicts.
+- [ ] `P1-11 [TERRA]` Expand from 20 to at least 50 fully reviewed catalog records.
+  - Every record needs immutable commit, license review, component evidence, platform
+    evidence, and an install/config path; popularity alone is insufficient.
 
 ### Phase 2: Agent detection
 
@@ -695,6 +702,10 @@ modes.
 - [x] `P6-08 [TERRA]` `loadout rollback`.
 - [x] `P6-09 [LUNA]` CLI snapshot tests for help and error messages.
 - [x] `P6-10 [SOL]` Review destructive command confirmation and recovery behavior.
+- [x] `P6-11 [TERRA]` Make interactive CLI setup the primary product path.
+  - Maximum/Stable/Custom detect targets, concurrently prepare pinned reviewed
+    commits, defer explicit MCP setup, resolve lower-ranked duplicate skill targets,
+    show safety findings, and install as one transaction.
 
 ### Phase 7: Local API and dashboard
 
@@ -882,13 +893,12 @@ The MVP is done only when a judge can:
 ## 22. Demo script
 
 1. Show Claude, Codex, and Cursor with inconsistent/manual setup.
-2. Run `npx loadout-ai dashboard` after npm publication, or `npx . dashboard`
-   from the cloned repository.
-3. Dashboard detects agents and shows missing capabilities/conflicts.
-4. Show Maximum Boost, apply it to a prepared manifest with
-   `loadout profiles maximum --apply-to loadout.json`, and preview the manifest.
-5. Review packages and platform compatibility.
-6. Apply; show synchronized success and restore point.
+2. Run `npx loadout-ai` after npm publication, or `npx .` from the cloned repository.
+3. CLI detects agents and offers Maximum, Stable, or Custom.
+4. Select Maximum Boost and show concurrent reviewed-commit preparation.
+5. Review repository count, unique skill count, overlaps, deferred MCP setup, and
+   safety findings.
+6. Approve; show the single-transaction success and restore point.
 7. Show a newly discovered Trending repository.
 8. Show a benign update and approve it.
 9. Show a second update adding a hook and external domain; Loadout blocks it.
@@ -946,12 +956,14 @@ small PRs, no long-lived branches.
 1. Complete P10-05 through P10-10: license review, demo recording, Codex usage
    explanation, feedback session ID, Devpost fields, and submission.
 2. Have the repository owner choose npm publishing credentials, publish
-   `loadout-ai`, and immediately verify `npx loadout-ai --help` plus the dashboard.
+   `loadout-ai`, and immediately verify the interactive `npx loadout-ai` setup.
 3. Resolve P0-05 when repository visibility or the GitHub plan permits branch
    protection.
 4. Implement P11-17 only after selecting and threat-modeling real macOS, Windows,
    and Linux keychain integrations.
 5. Design and add the six P11-21 adapters from official path/config documentation;
    do not infer support from repository popularity.
-6. Run real user testing from disposable profiles, record every failure, and feed
+6. Expand P1-11 with reviewed skill and MCP sources, measuring unique capabilities and
+   overlap rather than treating GitHub stars or raw repository count as quality.
+7. Run real user testing from disposable profiles, record every failure, and feed
    reproducible defects into `loadout improve` and the regression suite.

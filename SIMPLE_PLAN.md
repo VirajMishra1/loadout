@@ -14,12 +14,15 @@ Then Loadout will add three major advantages:
 3. **Guidance:** check setup health and recommend tested add-on collections for the
    user's project.
 
-The build order is:
+The original build order was:
 
 1. Finish the reliable package-manager foundation.
 2. Match OpenPackage's package types, sources, synchronization, and publishing.
 3. Add health checks, security scanning, safe updates, recommendations, and profiles.
 4. Finish the dashboard and prove every supported platform with tests.
 
-All Nitish work stays on `dev/nitish`. Nitish will review it before any PR to
-`develop`; stable approved work can later move from `develop` to `main`.
+That foundation is now integrated on `main`. [MASTER_PLAN.md](./MASTER_PLAN.md) is the
+only canonical checklist; contributor branches and notes are historical inputs, not
+separate sources of project status. The remaining work is the explicitly unchecked
+human release tasks, OS-keychain backends, six additional documented adapters, npm
+publication, and real user testing.

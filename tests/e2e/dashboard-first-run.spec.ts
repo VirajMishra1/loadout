@@ -30,4 +30,20 @@ test("first run previews and applies an isolated safe manifest", async ({
   await expect(result).toContainText("Synchronized successfully.");
   await expect(acknowledgement).toBeDisabled();
   await expect(apply).toBeDisabled();
+
+  await page.getByRole("link", { name: "Installed", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Installed packages", exact: true }),
+  ).toBeVisible();
+  await expect(page.locator("#installed-list")).toContainText(
+    "No Loadout-managed packages are installed",
+  );
+
+  await page.getByRole("link", { name: "Updates", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Updates", exact: true }),
+  ).toBeVisible();
+  await expect(page.locator("#updates-list")).toContainText(
+    "No tracked installations yet",
+  );
 });

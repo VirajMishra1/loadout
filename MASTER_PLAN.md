@@ -16,21 +16,19 @@ snapshot if an update fails.
 
 The product is intentionally consumer-first. A user should not need to understand
 `SKILL.md`, MCP configuration, plugin manifests, platform-specific directories, or
-GitHub repository layouts. The primary experience is one command followed by one
-choice:
+GitHub repository layouts. The packaged dashboard starts with one command:
 
 ```bash
-npx loadout
+npx loadout-ai dashboard
 ```
 
 ```text
-Detected: Claude Code, Codex, Cursor
-
-Choose a setup:
-1. Stable Boost
-2. Maximum Boost
-3. Custom
+Loadout dashboard: http://127.0.0.1:<random-port>
 ```
+
+The executable installed by the package is still named `loadout`. The `loadout` npm
+package name belongs to an unrelated project, so the publishable package is
+`loadout-ai`.
 
 The hackathon MVP will prove the full loop with a curated catalog rather than trying
 to index the entire internet: discover -> recommend -> install -> verify -> update ->
@@ -58,8 +56,8 @@ Loadout wins through:
 
 ### 3.1 Submission-critical vertical slice
 
-- TypeScript CLI installable through `npx loadout`.
-- Local React dashboard opened by the CLI.
+- TypeScript CLI packaged for `npx loadout-ai` after an owner publishes it to npm.
+- Framework-free local dashboard served by the CLI on a random loopback port.
 - Windows 11, macOS, and Linux support.
 - Agent detection for:
   - Claude Code
@@ -70,8 +68,9 @@ Loadout wins through:
   - Hermes
 - Skill installation for all six agents where their supported layout is known.
 - MCP configuration for Claude Code, Codex, and Cursor.
-- Curated catalog containing 20-30 real packages.
-- Stable, Trending, Official, and Community catalog tiers.
+- Curated catalog containing 20 pinned real repositories.
+- Stable, Trending, Official, and Community tier support; the current bundled review
+  set contains Official and Stable records.
 - Stable Boost, Maximum Boost, and Custom modes.
 - Immutable package records pinned by Git commit SHA.
 - Snapshot before the first mutation.
@@ -159,33 +158,31 @@ Post-MVP path: commit `loadout.lock` and restore it on another machine.
 
 ### 5.1 First run
 
-1. User runs `npx loadout`.
-2. CLI checks Node version and operating system.
-3. Loadout detects installed agents without modifying anything.
-4. Loadout creates a backup of discovered configuration files.
-5. Browser opens the local dashboard.
-6. Dashboard shows detected agents and existing extensions.
-7. User selects Stable, Maximum, or Custom.
-8. Loadout shows a plan: packages, platforms, files, permissions, and conflicts.
-9. User confirms.
-10. Loadout downloads pinned sources into its cache.
-11. Loadout stages all writes in a transaction directory.
-12. Schemas and paths are validated.
-13. Changes are atomically committed where the operating system permits.
-14. Smoke tests run.
-15. `loadout.lock` and a restore point are written.
-16. Dashboard displays success and any components that require a restart.
+1. User runs `npx loadout-ai dashboard` after the package is published, or
+   `npx . dashboard` from a cloned checkout.
+2. Loadout binds to loopback on a random port and prints the local URL.
+3. The user opens that URL; Loadout detects installed agents without modifying them.
+4. The dashboard shows detected agents, catalog records, installed state, health,
+   updates, recommendations, and tested profiles.
+5. The user creates or updates `loadout.json` through the CLI and previews its exact
+   files, permissions, conflicts, and MCP changes in the dashboard or CLI.
+6. An explicitly acknowledged safe dashboard plan, or a confirmed CLI plan, fetches
+   pinned sources and snapshots every target before mutation.
+7. Loadout records a durable transaction journal, validates and writes the plan,
+   updates managed state and `loadout.lock`, and removes the journal only on success.
+8. A caught failure rolls back immediately; an interrupted transaction is recovered
+   before the next synchronization.
 
 ### 5.2 Normal use
 
 - `loadout status`: agents, packages, conflicts, and update health.
 - `loadout add <package>`: plan and add a package.
 - `loadout remove <package>`: remove only files managed by Loadout.
-- `loadout update`: fetch catalog and package update information.
-- `loadout update --plan`: make no changes; display proposed updates.
+- `loadout update`: fetch package update information and display a read-only plan by
+  default.
 - `loadout rollback`: restore the previous snapshot.
 - `loadout doctor`: validate configurations and dependencies.
-- `loadout ui`: reopen the local dashboard.
+- `loadout dashboard`: start the local dashboard and print its loopback URL.
 
 ### 5.3 No-account guarantee
 
@@ -332,41 +329,39 @@ Rules:
 
 ## 9. Technical architecture
 
-### 9.1 Monorepo
+### 9.1 Implemented repository layout
 
 ```text
 loadout/
-├── apps/
-│   ├── cli/                 # Commands and local HTTP server
-│   └── dashboard/           # React/Vite local UI
-├── packages/
-│   ├── core/                # Plans, transactions, snapshots, lockfile
-│   ├── catalog/             # Catalog schema, discovery, scoring
-│   ├── adapters/            # One subfolder per agent
-│   ├── scanners/            # Static safety and manifest checks
-│   └── shared/              # Types, schemas, logging
+├── src/
+│   ├── cli.ts               # Commands and packaged executable
+│   ├── dashboard.ts         # Loopback HTTP server and authenticated API
+│   ├── core/                # Catalog, adapters, transactions, policy, registry
+│   └── shared/              # Types and runtime schemas
+├── dashboard/               # Dependency-free HTML, CSS, and JavaScript UI
 ├── catalog/
-│   ├── packages.json        # MVP curated catalog
-│   └── conflicts.json       # Conflict families and policies
-├── fixtures/                # Fake home directories and package fixtures
-├── tests/
+│   └── packages.json        # Reviewed catalog with immutable source evidence
+├── docs/                    # Security, compatibility, and operating policies
+├── tests/                   # Unit, integration, fixtures, and Playwright E2E
 ├── README.md
 ├── MASTER_PLAN.md
-└── loadout.lock.example
+└── package.json
 ```
 
-### 9.2 Suggested stack
+The flat package is deliberate for the hackathon: it avoids workspace build and
+publishing complexity while keeping modules separated by responsibility.
 
-- Node.js 22+
+### 9.2 Implemented stack
+
+- Node.js 20+
 - TypeScript
-- pnpm workspaces
-- Commander or Clipanion for CLI
-- React + Vite for dashboard
+- npm with a committed lockfile
+- Commander for CLI
+- Browser-native HTML, CSS, and JavaScript for the dashboard
 - Zod for runtime schemas
 - Vitest for unit/integration tests
 - Playwright for dashboard end-to-end tests
-- TOML parser preserving unrelated configuration where possible
-- JSON/JSONC parser that preserves comments where required
+- Conservative append-only Codex TOML support and unrelated-key-preserving JSON writes
 - GitHub Actions on Windows, macOS, and Linux
 
 ### 9.3 Local state
@@ -596,14 +591,18 @@ modes.
 
 ### Phase 0: Repository and team setup
 
-- [x] `P0-01 [LUNA]` Add pnpm workspace skeleton matching section 9.1.
-  - Acceptance: `pnpm install` succeeds and every workspace has a placeholder test.
+- [x] `P0-01 [LUNA]` Add the npm/TypeScript project skeleton matching section 9.1.
+  - Acceptance: `npm ci`, build, lint, typecheck, and tests succeed from the root.
 - [x] `P0-02 [LUNA]` Add `.gitignore`, `.editorconfig`, Prettier, and ESLint defaults.
   - Acceptance: formatting and lint commands run at repository root.
 - [x] `P0-03 [TERRA]` Add GitHub Actions matrix for Node on Windows, macOS, Linux.
   - Acceptance: install, lint, typecheck, and tests run on all three.
-- [ ] `P0-04 [HUMAN]` Add all three teammates to the private repository.
+- [x] `P0-04 [HUMAN]` Add all three teammates to the private repository.
+  - Verified collaborators: `VirajMishra1`, `cars3`, and `reddynitish`.
 - [ ] `P0-05 [HUMAN]` Protect `main` after the first working CI run.
+  - Blocked by GitHub's branch-protection restriction for this private repository on
+    the current plan (API returned HTTP 403). Revisit after making the repository
+    public or enabling a plan that supports protection.
 
 ### Phase 1: Shared types and catalog
 
@@ -689,9 +688,10 @@ modes.
 - [x] `P6-02 [TERRA]` `loadout status`.
 - [x] `P6-03 [TERRA]` `loadout doctor`.
 - [x] `P6-04 [TERRA]` `loadout plan --mode stable|maximum|custom`.
-- [x] `P6-05 [TERRA]` `loadout apply` with confirmation.
+- [x] `P6-05 [TERRA]` Confirmed `loadout install --yes` and `loadout sync --yes`
+      mutation paths.
 - [x] `P6-06 [TERRA]` `loadout add` and `loadout remove`.
-- [x] `P6-07 [TERRA]` `loadout update --plan`.
+- [x] `P6-07 [TERRA]` Read-only `loadout update` planning by default.
 - [x] `P6-08 [TERRA]` `loadout rollback`.
 - [x] `P6-09 [LUNA]` CLI snapshot tests for help and error messages.
 - [x] `P6-10 [SOL]` Review destructive command confirmation and recovery behavior.
@@ -769,10 +769,13 @@ modes.
 - [x] `P11-07 [SOL]` Define category-specific evaluation protocol and uncertainty.
 - [x] `P11-08 [TERRA]` Implement first two automated evaluation categories.
   - Static skill hygiene and MCP manifest evaluations are deterministic and never execute package code; see `docs/EVALUATION_PROTOCOL.md`.
-- [x] `P11-09 [TERRA]` Implement background update service and notifications.
+- [x] `P11-09 [TERRA]` Implement a read-only update watcher and notifications.
   - `loadout watch` performs read-only interval checks and emits human or JSON notifications; it never applies updates automatically.
 - [x] `P11-10 [SOL]` Define catalog signing, rotation, and compromise recovery.
-- [x] `P11-11 [TERRA]` Implement catalog signing in CI and verification in client.
+- [x] `P11-11 [TERRA]` Implement catalog signing and client-side verification tools.
+  - `keygen`, `catalog-sign`, and `catalog-verify` are covered by tests. A real release
+    key and signed-release publishing step remain owner-controlled release work; CI
+    does not contain or manufacture the production signing identity.
 - [x] `P11-12 [SOL]` Design cross-platform hook/subagent compiler with loss reports.
 - [x] `P11-13 [TERRA]` Implement first two hook/subagent conversion targets.
   - `loadout convert` creates a loss-reported static skill from a subagent or a non-executable review artifact from a hook; it never synthesizes executable hook behavior and requires manual approval.
@@ -782,9 +785,12 @@ modes.
 - [x] `P11-16 [SOL]` Design OS-keychain-backed credential interface.
 - [ ] `P11-17 [TERRA]` Implement macOS, Windows, and Linux credential backends.
 - [x] `P11-18 [SOL]` Define autonomous-update permission policies and recovery rules.
-- [x] `P11-19 [TERRA]` Implement policy-gated canary update pipeline.
+- [x] `P11-19 [TERRA]` Implement a policy-gated canary planning pipeline.
   - `loadout canary` performs a non-mutating static gate; promotion requires explicit approval plus injected verification and transaction callbacks, so it cannot silently update agent files.
-- [x] `P11-20 [SOL]` Publish adapter SDK and conformance contract.
+- [x] `P11-20 [SOL]` Define the internal adapter contract and conformance tests.
+  - `src/core/adapters.ts`, the shared capability matrix, compatibility policy, and
+    conformance tests are the implemented contract. A separately versioned public SDK
+    package and community registry are not yet published.
 - [ ] `P11-21 [TERRA]` Add the next six agent adapters through the SDK.
 - [x] `P11-22 [TERRA]` Add compliant Hacker News and community-source connectors.
   - Hacker News Firebase and GitHub REST repository search are read-only connectors; neither mutates the catalog or installs a lead.
@@ -876,10 +882,12 @@ The MVP is done only when a judge can:
 ## 22. Demo script
 
 1. Show Claude, Codex, and Cursor with inconsistent/manual setup.
-2. Run `npx loadout`.
+2. Run `npx loadout-ai dashboard` after npm publication, or `npx . dashboard`
+   from the cloned repository.
 3. Dashboard detects agents and shows missing capabilities/conflicts.
-4. Select Maximum Boost.
-5. Preview packages and platform compatibility.
+4. Show Maximum Boost, apply it to a prepared manifest with
+   `loadout profiles maximum --apply-to loadout.json`, and preview the manifest.
+5. Review packages and platform compatibility.
 6. Apply; show synchronized success and restore point.
 7. Show a newly discovered Trending repository.
 8. Show a benign update and approve it.
@@ -935,10 +943,15 @@ small PRs, no long-lived branches.
 
 ## 25. Immediate next tasks
 
-1. Assign Track A/B/C owners.
-2. Complete P0 repository tasks.
-3. Complete P1-01 and P2-01 architecture contracts with Sol/Extra High review.
-4. Give Luna the fixture, catalog-record, and repository-configuration tasks.
-5. Give Terra the first implementations after interfaces are approved.
-6. Integrate one thin vertical slice before expanding platform breadth:
-   detect -> plan -> install one skill -> snapshot -> rollback -> display in UI.
+1. Complete P10-05 through P10-10: license review, demo recording, Codex usage
+   explanation, feedback session ID, Devpost fields, and submission.
+2. Have the repository owner choose npm publishing credentials, publish
+   `loadout-ai`, and immediately verify `npx loadout-ai --help` plus the dashboard.
+3. Resolve P0-05 when repository visibility or the GitHub plan permits branch
+   protection.
+4. Implement P11-17 only after selecting and threat-modeling real macOS, Windows,
+   and Linux keychain integrations.
+5. Design and add the six P11-21 adapters from official path/config documentation;
+   do not infer support from repository popularity.
+6. Run real user testing from disposable profiles, record every failure, and feed
+   reproducible defects into `loadout improve` and the regression suite.

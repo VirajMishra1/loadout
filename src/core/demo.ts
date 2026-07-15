@@ -158,7 +158,7 @@ export function formatDemoResult(result: DemoResult): string {
     "Loadout safe demo complete.",
     `Source: ${source}`,
     `Virtual targets: ${result.targetAgents.join(", ")}`,
-    `Installed ${result.installedFiles}/${result.plannedFiles} planned skill directory(ies).`,
+    `Installed ${result.plannedFiles} planned skill directory(ies); tracking ${result.installedFiles} file(s).`,
     `Snapshot: ${result.snapshotId}`,
     ending,
   ].join("\n");

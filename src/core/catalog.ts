@@ -1,5 +1,7 @@
+import { existsSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import type { CatalogPackage } from "../shared/types.js";
 import { catalogSchema, formatSchemaError } from "../shared/schemas.js";
 import { fetchGitHubMetadata, type GitHubMetadataOptions } from "./github.js";
@@ -17,6 +19,16 @@ export interface InstallSelection {
 }
 
 const cachedCatalogPath = () => join(loadoutHome(), "catalog.json");
+
+function bundledCatalogPath(): string {
+  const moduleDirectory = dirname(fileURLToPath(import.meta.url));
+  const candidates = [
+    join(moduleDirectory, "..", "..", "catalog", "packages.json"),
+    join(moduleDirectory, "..", "..", "..", "catalog", "packages.json"),
+    join(process.cwd(), "catalog", "packages.json"),
+  ];
+  return candidates.find((candidate) => existsSync(candidate)) ?? candidates[0];
+}
 
 const TIERS = new Set<CatalogPackage["tier"]>([
   "official",
@@ -182,7 +194,7 @@ export function validateCatalog(
 }
 
 export async function loadCatalog(
-  path = join(process.cwd(), "catalog", "packages.json"),
+  path = bundledCatalogPath(),
 ): Promise<CatalogPackage[]> {
   const raw = await readFile(path, "utf8");
   const value: unknown = JSON.parse(raw);
@@ -192,19 +204,20 @@ export async function loadCatalog(
 
 /** Load the most recently refreshed catalog, falling back to the bundled catalog offline. */
 export async function loadEffectiveCatalog(
-  path = join(process.cwd(), "catalog", "packages.json"),
+  path = bundledCatalogPath(),
 ): Promise<CatalogPackage[]> {
   try {
     const raw = await readFile(cachedCatalogPath(), "utf8");
     const value: unknown = JSON.parse(raw);
     validateCatalog(value);
     const bundled = await loadCatalog(path);
-    const verified = new Map(bundled.map((pkg) => [pkg.id, pkg]));
+    const cachedById = new Map(value.map((pkg) => [pkg.id, pkg]));
     // A refresh cache contains mutable GitHub fields. Never allow an older
-    // cache format to erase immutable provenance or static compatibility facts.
-    return value.map((cached) => {
-      const base = verified.get(cached.id);
-      if (!base) return cached;
+    // cache format to erase immutable provenance, add stale records, or hide
+    // packages introduced by a newer bundled catalog.
+    return bundled.map((base) => {
+      const cached = cachedById.get(base.id);
+      if (!cached) return base;
       return {
         ...base,
         ...(cached.stars !== undefined ? { stars: cached.stars } : {}),

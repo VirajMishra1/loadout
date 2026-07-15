@@ -1,10 +1,26 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import {
+  mkdir,
+  mkdtemp,
+  readFile,
+  readdir,
+  rm,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { applySyncPlan, buildSyncPlan } from "../src/core/sync.js";
 import { readInstallState } from "../src/core/state.js";
-import { readSnapshot, restoreSnapshot } from "../src/core/snapshot.js";
+import {
+  createSnapshot,
+  readSnapshot,
+  restoreSnapshot,
+} from "../src/core/snapshot.js";
+import {
+  beginTransaction,
+  markTransactionCommitting,
+  transactionRoot,
+} from "../src/core/transaction.js";
 
 describe("manifest synchronization", () => {
   let root = "";
@@ -204,5 +220,43 @@ describe("manifest synchronization", () => {
     await restoreSnapshot(await readSnapshot(result.snapshotId!));
     expect(await readFile(config, "utf8")).toBe(original);
     expect((await readInstallState()).installs).toEqual([]);
+  });
+
+  it("recovers an interrupted transaction before an otherwise empty sync", async () => {
+    root = await mkdtemp(join(tmpdir(), "loadout-sync-recovery-"));
+    process.env.LOADOUT_HOME = join(root, ".loadout");
+    process.env.LOADOUT_USER_HOME = join(root, "home");
+    const target = join(root, "managed.txt");
+    const manifestPath = join(root, "loadout.json");
+    const lockPath = join(root, "loadout.lock");
+    await writeFile(target, "before\n");
+    await writeFile(
+      manifestPath,
+      JSON.stringify({
+        schemaVersion: 1,
+        name: "empty-recovery",
+        scope: "global",
+        agents: ["codex"],
+        packages: [],
+      }),
+    );
+    const snapshot = await createSnapshot([target]);
+    const transaction = await beginTransaction(snapshot, [target]);
+    await markTransactionCommitting(transaction);
+    await writeFile(target, "interrupted\n");
+
+    await applySyncPlan(
+      {
+        manifest: manifestPath,
+        packages: [],
+        mcpPlans: [],
+        skipped: [],
+        policyViolations: [],
+      },
+      lockPath,
+    );
+
+    expect(await readFile(target, "utf8")).toBe("before\n");
+    expect(await readdir(transactionRoot())).toEqual([]);
   });
 });

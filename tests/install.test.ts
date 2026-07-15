@@ -95,6 +95,7 @@ describe("skill installation transaction", () => {
   it("accepts LF and CRLF SKILL.md frontmatter and preserves CRLF on install", async () => {
     const root = await mkdtemp(join(tmpdir(), "loadout-line-endings-"));
     directories.push(root);
+    process.env.LOADOUT_HOME = join(root, ".loadout");
     const lf = join(root, "lf");
     const crlf = join(root, "crlf");
     const target = join(root, "target");

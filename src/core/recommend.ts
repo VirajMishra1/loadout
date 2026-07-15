@@ -143,10 +143,9 @@ export const TESTED_PROFILES: Record<
   },
   maximum: {
     description:
-      "Every currently curated package; always review MCP permissions.",
+      "Broad reviewed toolkit; always review MCP permissions before applying.",
     packages: [
       "superpowers",
-      "graphify",
       "context7",
       "playwright-mcp",
       "ui-ux-pro-max",

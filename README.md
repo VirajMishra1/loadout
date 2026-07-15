@@ -8,18 +8,16 @@ The project is being built for the OpenAI Build Week **Developer Tools** categor
 
 ## Status
 
-The first working vertical slice is now implemented: Loadout detects installed agents,
-fetches a real public GitHub repository at its current commit, finds its `SKILL.md`
-packages, creates a preview plan, installs into agent-specific directories, and records
-a rollback snapshot. Nitish's branch also includes a validated shareable manifest,
-lockfile generation, safe managed-file removal, drift-aware health reports, tested
-profiles, local project recommendations, transactional multi-package sync, applied
-updates with risk approval, and an evidence-first improvement proposal command.
+The working vertical slice detects installed agents, fetches real public GitHub
+repositories at resolved commits, finds supported components, previews every target,
+installs into agent-specific directories, and records rollback snapshots. The
+integrated project also includes validated shareable manifests, lockfiles, safe
+managed-file removal, drift-aware health, tested profiles, project recommendations,
+durable transactional synchronization, risk-gated updates, and an evidence-first
+improvement command.
 
 See [MASTER_PLAN.md](./MASTER_PLAN.md) for the canonical, current implementation plan
 and [SIMPLE_PLAN.md](./SIMPLE_PLAN.md) for the short plain-language version.
-[NITISH_MASTER_PLAN.md](./NITISH_MASTER_PLAN.md) is retained as a contributor-specific
-implementation record, not the source of truth for project status.
 
 ## Supported platforms
 
@@ -39,7 +37,7 @@ WSL is deliberately treated as Linux: when a Linux-side CLI runs under WSL, Load
 uses its POSIX `$HOME` and never translates `USERPROFILE` into `/mnt/c`. Run Loadout
 from native Windows if you want to manage the Windows-side agent profile.
 
-## Nitish branch commands
+## Core commands
 
 ```bash
 # Create and validate a shareable desired-state file.
@@ -135,8 +133,9 @@ and WSL.
 ## Try the real install path
 
 ```bash
-npm install
+npm ci
 npm run build
+npx . --help
 node dist/src/cli.js status
 node dist/src/cli.js doctor
 node dist/src/cli.js catalog
@@ -145,6 +144,16 @@ node dist/src/cli.js plan --repository obra/superpowers --package obra-superpowe
 node dist/src/cli.js install --repository obra/superpowers --package obra-superpowers --agents codex --yes
 node dist/src/cli.js rollback
 ```
+
+The publishable npm package is named `loadout-ai` because the unscoped `loadout`
+name is already owned by an unrelated package. After the owner publishes this
+project, the judge-facing commands will be `npx loadout-ai --help` and
+`npx loadout-ai dashboard`; the installed executable remains `loadout`. Until then,
+`npx .` exercises the same package entry point from a clone.
+
+Tests are hermetic: Vitest gives each test file disposable `LOADOUT_HOME` and
+`LOADOUT_USER_HOME` directories, so the suite cannot create records in a developer's
+real `~/.loadout` or agent configuration.
 
 Repository installs are currently public GitHub repositories only. Loadout clones a
 shallow snapshot, records the resolved commit, never runs repository lifecycle scripts,
@@ -198,14 +207,15 @@ developer's existing agent configuration.
 In terminal 1, build and open the local dashboard:
 
 ```bash
-npm install
+npm ci
 npm run build
-npm run dashboard
+npx . dashboard
 ```
 
 Open the loopback URL printed by the command. Loadout requests an OS-assigned random
-port by default; set `LOADOUT_PORT=4173` only when you specifically need a fixed local
-address. The page reads the detected agents and the real catalog from this checkout.
+port by default; use `npx . dashboard --port 4173` only when you specifically need a
+fixed local address. The page reads the detected agents and the real catalog from this
+checkout.
 It also shows installed package state, health, updates, local project recommendations,
 tested profiles, and locally published registry packages. The dashboard can preview
 and apply plans that require no risk override, then undo that exact dashboard change.
@@ -299,8 +309,10 @@ catalog, updates, recommendations, and authenticated safe sync/rollback actions.
 - MCP manifests can be inspected and MCP JSON configuration changes can be planned or
   applied, but MCP processes are not launched by Loadout.
 - The catalog is curated rather than an index of every repository on the internet.
-- Updates are reported and installs are transactional; autonomous background updates
-  and signed catalog releases are not yet enabled.
+- Updates are reported, a read-only watcher is available, and synchronization uses
+  snapshots plus durable interruption journals. Policy-gated automatic promotion and
+  owner-signed catalog release publishing are not yet enabled; signing and verification
+  commands exist for a future release process.
 - The manifest currently resolves catalog, public GitHub refs/subpaths, generic HTTPS
   or SSH Git sources, and local sources. Manifest dependencies are ordered and missing,
   disabled, or cyclic dependencies are rejected. Registry package descriptors resolve

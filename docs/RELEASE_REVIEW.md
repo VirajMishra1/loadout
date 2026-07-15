@@ -24,9 +24,9 @@ supported local-filesystem scope.
 
 This is not a claim of durable, power-loss-safe multi-file transactions: a
 process or system failure can still leave either the old or new version of an
-individual file. Transaction journals recover interrupted multi-file work on
-the next mutation; users needing database-grade durability should not rely on
-filesystem rename alone.
+individual file. Transaction journals recover interrupted multi-file work before
+the next synchronization; users needing database-grade durability should not rely
+on filesystem rename alone.
 
 ## P7-15: product and security review — pass with stated boundaries
 
@@ -59,10 +59,36 @@ for plugins, hooks, executables, and arbitrary MCP runtimes.
 
 ## Local verification
 
-On 2026-07-15 the following completed successfully:
+On 2026-07-15 the corrective audit also verified:
 
 ```text
+npm run format:check
+npm run lint
 npm run typecheck
-npm test -- --run
+npm test -- --run        # 53 files, 161 tests
 npm run build
+npm run test:e2e         # Chromium first-run preview/apply flow
 ```
+
+The audit fixed these release blockers and added regressions for them:
+
+- Vitest now assigns every test file disposable Loadout and user homes; a CRLF
+  fixture can no longer write into the developer's real `~/.loadout`.
+- A stale refresh cache overlays mutable metadata onto the bundled catalog instead
+  of hiding newer bundled records or retaining deleted cache-only packages.
+- The Maximum profile references only catalog packages that actually exist.
+- Dashboard Installed and Updates routes have unique container/list IDs and are
+  exercised through navigation in Playwright.
+- Demo output distinguishes planned skill directories from tracked files instead of
+  printing an impossible installed/total fraction.
+- Multi-file synchronization now writes a durable journal and recovers interrupted
+  work even when the next synchronization is otherwise empty.
+- The npm tarball exposes the `loadout` executable, carries runtime code/assets but
+  not compiled tests, and resolves its catalog/dashboard independently of the current
+  working directory.
+
+An outside-checkout 70-file tarball smoke test launched version `0.1.0`, read all 20
+catalog records, and served the packaged dashboard. The live isolated demo fetched
+`obra/superpowers`, planned 14 skill directories and 48 files, then verified rollback
+and removed its temporary profile. The npm package is named `loadout-ai`; the shorter
+`loadout` registry name is owned by an unrelated package.

@@ -1,14 +1,46 @@
 {
-  "name": "loadout",
+  "name": "loadout-ai",
   "version": "0.1.0",
-  "private": true,
+  "private": false,
   "description": "Universal upgrade manager for AI coding agents",
   "type": "module",
+  "bin": {
+    "loadout": "dist/src/cli.js"
+  },
+  "files": [
+    "dist/src",
+    "dashboard",
+    "catalog",
+    "docs",
+    "README.md",
+    "MASTER_PLAN.md",
+    "SIMPLE_PLAN.md",
+    "SECURITY.md"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/VirajMishra1/loadout.git"
+  },
+  "homepage": "https://github.com/VirajMishra1/loadout#readme",
+  "bugs": {
+    "url": "https://github.com/VirajMishra1/loadout/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "keywords": [
+    "ai-agents",
+    "codex",
+    "claude-code",
+    "mcp",
+    "skills"
+  ],
   "engines": {
     "node": ">=20"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "prepack": "npm run build",
     "dev": "tsx src/cli.ts",
     "dashboard": "tsx src/dashboard.ts",
     "format": "prettier --write .",

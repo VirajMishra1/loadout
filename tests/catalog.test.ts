@@ -244,7 +244,8 @@ describe("catalog refresh", () => {
   it("refreshes API metadata and persists an offline catalog", async () => {
     home = await mkdtemp(`${tmpdir()}/loadout-catalog-`);
     process.env.LOADOUT_HOME = home;
-    const result = await refreshCatalog([packageRecord("x", "stable", 1)], {
+    const bundled = await loadCatalog();
+    const result = await refreshCatalog([bundled[0]], {
       fetcher: async () =>
         new Response(
           JSON.stringify({
@@ -267,7 +268,31 @@ describe("catalog refresh", () => {
       topics: ["agents"],
       openIssues: 3,
     });
-    expect((await loadEffectiveCatalog())[0].stars).toBe(99);
+    expect(
+      (await loadEffectiveCatalog()).find((item) => item.id === bundled[0].id)
+        ?.stars,
+    ).toBe(99);
+  });
+
+  it("merges cached metadata onto the bundled catalog without hiding new or retaining stale records", async () => {
+    home = await mkdtemp(`${tmpdir()}/loadout-catalog-merge-`);
+    process.env.LOADOUT_HOME = home;
+    const bundled = await loadCatalog();
+    const cached = [
+      { ...bundled[0], stars: 123 },
+      packageRecord("stale-cache-only", "community", 999),
+    ];
+    await writeFile(join(home, "catalog.json"), JSON.stringify(cached));
+
+    const effective = await loadEffectiveCatalog();
+
+    expect(effective).toHaveLength(bundled.length);
+    expect(effective.find((item) => item.id === bundled[0].id)?.stars).toBe(
+      123,
+    );
+    expect(effective.some((item) => item.id === "stale-cache-only")).toBe(
+      false,
+    );
   });
 
   it("keeps the known package when GitHub refresh fails", async () => {

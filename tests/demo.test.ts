@@ -9,7 +9,7 @@ import {
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { runIsolatedDemo } from "../src/core/demo.js";
+import { formatDemoResult, runIsolatedDemo } from "../src/core/demo.js";
 
 async function pathExists(path: string): Promise<boolean> {
   try {
@@ -71,6 +71,9 @@ describe("isolated demo mode", () => {
     );
     expect(process.env.LOADOUT_HOME).toBe(
       "/real-loadout-home-must-not-be-touched",
+    );
+    expect(formatDemoResult(result)).toContain(
+      "Installed 1 planned skill directory(ies); tracking 1 file(s).",
     );
   });
 

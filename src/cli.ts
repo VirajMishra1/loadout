@@ -112,6 +112,7 @@ import {
 } from "./core/conversion.js";
 import { writeFileAtomically } from "./core/atomic-file.js";
 import { formatCanaryResult, runCanary } from "./core/canary.js";
+import { startDashboardServer } from "./dashboard.js";
 
 const program = new Command();
 program
@@ -1710,6 +1711,27 @@ program
       if (result.status === "blocked") process.exitCode = 1;
     },
   );
+
+program
+  .command("dashboard")
+  .description("Start the local Loadout dashboard on a loopback-only port")
+  .option("--port <port>", "TCP port (0 selects an available port)", "0")
+  .action(async (options: { port: string }) => {
+    const port = Number(options.port);
+    if (!Number.isInteger(port) || port < 0 || port > 65_535)
+      throw new Error("--port must be an integer between 0 and 65535");
+    const handle = await startDashboardServer({}, port);
+    console.log(`Loadout dashboard: http://${handle.host}:${handle.port}`);
+    await new Promise<void>((resolve) => {
+      const stop = () => {
+        process.off("SIGINT", stop);
+        process.off("SIGTERM", stop);
+        void handle.close().then(resolve);
+      };
+      process.on("SIGINT", stop);
+      process.on("SIGTERM", stop);
+    });
+  });
 
 program
   .command("serve")

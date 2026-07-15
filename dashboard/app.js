@@ -1,7 +1,7 @@
 const status = document.querySelector("#status");
 const catalog = document.querySelector("#catalog");
 const count = document.querySelector("#catalog-count");
-const updates = document.querySelector("#updates");
+const updates = document.querySelector("#updates-list");
 const updatesCount = document.querySelector("#updates-count");
 const health = document.querySelector("#health");
 const healthLabel = document.querySelector("#health-label");
@@ -10,7 +10,7 @@ const projectSignals = document.querySelector("#project-signals");
 const profiles = document.querySelector("#profiles");
 const registry = document.querySelector("#registry");
 const registryCount = document.querySelector("#registry-count");
-const installed = document.querySelector("#installed");
+const installed = document.querySelector("#installed-list");
 const installedCount = document.querySelector("#installed-count");
 const lastSnapshot = document.querySelector("#last-snapshot");
 const catalogSearch = document.querySelector("#catalog-search");

@@ -4,9 +4,10 @@ import {
   type Server,
   type ServerResponse,
 } from "node:http";
+import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { detectAgents } from "./core/paths.js";
 import { inspectAgents } from "./core/agent-inspection.js";
 import { loadEffectiveCatalog, rankCatalog } from "./core/catalog.js";
@@ -24,8 +25,19 @@ import { readSnapshot, restoreSnapshot } from "./core/snapshot.js";
 import { readInstallState } from "./core/state.js";
 import { adapterCapabilities } from "./core/adapters.js";
 
-const publicDirectory =
-  process.env.LOADOUT_DASHBOARD_DIR ?? join(process.cwd(), "dashboard");
+function dashboardDirectory(): string {
+  if (process.env.LOADOUT_DASHBOARD_DIR)
+    return process.env.LOADOUT_DASHBOARD_DIR;
+  const moduleDirectory = dirname(fileURLToPath(import.meta.url));
+  const candidates = [
+    join(moduleDirectory, "..", "dashboard"),
+    join(moduleDirectory, "..", "..", "dashboard"),
+    join(process.cwd(), "dashboard"),
+  ];
+  return candidates.find((candidate) => existsSync(candidate)) ?? candidates[0];
+}
+
+const publicDirectory = dashboardDirectory();
 
 async function sendJson(
   response: ServerResponse,

@@ -24,7 +24,7 @@ import {
   packPackage,
   resolveRegistryPackage,
 } from "./registry.js";
-import { createSnapshot, restoreSnapshot } from "./snapshot.js";
+import { createSnapshot } from "./snapshot.js";
 import {
   discoverMcpManifests,
   planMcpConfigBatch,
@@ -32,6 +32,13 @@ import {
 } from "./mcp.js";
 import { applySkillPlan, detectInstallConflicts } from "./skills.js";
 import { installStatePath, recordInstallTransaction } from "./state.js";
+import {
+  beginTransaction,
+  completeTransaction,
+  markTransactionCommitting,
+  recoverPendingTransactions,
+  rollbackTransaction,
+} from "./transaction.js";
 
 export interface SyncPlan {
   manifest: string;
@@ -449,6 +456,10 @@ export async function applySyncPlan(
     throw new Error(
       `Synchronization has blocking target conflicts: ${blockingConflicts.map((conflict) => conflict.message).join("; ")}`,
     );
+  // Recovery must also run for an otherwise empty synchronization. A process
+  // may have died after the previous transaction began but before it was able
+  // to remove its journal.
+  await recoverPendingTransactions();
   if (!plan.packages.length && !plan.mcpPlans.length) {
     await writeLockfile(
       plan.resolvedManifest ?? (await readManifest(plan.manifest)),
@@ -456,15 +467,18 @@ export async function applySyncPlan(
     );
     return { lockfile: lockPath };
   }
-  const snapshot = await createSnapshot([
+  const targets = [
     ...plan.packages.flatMap((entry) =>
       entry.plan.files.map((file) => file.target),
     ),
     ...plan.mcpPlans.map((entry) => entry.plan.path),
     installStatePath(),
     resolve(lockPath),
-  ]);
+  ];
+  const snapshot = await createSnapshot(targets);
+  const transaction = await beginTransaction(snapshot, targets);
   try {
+    await markTransactionCommitting(transaction);
     for (const entry of plan.packages)
       if (entry.plan.files.length) await applySkillPlan(entry.plan);
     for (const entry of plan.mcpPlans) await writeMcpConfigPlan(entry.plan);
@@ -473,8 +487,9 @@ export async function applySyncPlan(
       plan.resolvedManifest ?? (await readManifest(plan.manifest)),
       lockPath,
     );
+    await completeTransaction(transaction);
   } catch (error) {
-    await restoreSnapshot(snapshot);
+    await rollbackTransaction(transaction);
     throw error;
   }
   return { snapshotId: snapshot.id, lockfile: lockPath };

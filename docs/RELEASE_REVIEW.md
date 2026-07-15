@@ -4,7 +4,7 @@ This review covers the current Loadout implementation, not an aspirational
 roadmap. It was performed after the transaction, source-fetch, dashboard, and
 adapter test suites passed locally.
 
-## P4-08: atomic-commit review — conditional
+## P4-08: atomic-commit review — accepted with explicit durability boundary
 
 Mutation metadata that can make a completed install unrecoverable now uses a
 temporary sibling file followed by `rename`:
@@ -17,11 +17,16 @@ temporary sibling file followed by `rename`:
 
 The replacement prevents readers from observing a partially written JSON file
 on local filesystems with atomic same-directory rename support. Snapshots are
-created before mutation and restoration is exercised by tests. This is not a
-claim of durable, power-loss-safe multi-file transactions: a process or system
-failure can still leave either the old or new version of an individual file,
-and the full cross-platform matrix must confirm Node's rename behavior in the
-supported environments.
+created before mutation and restoration is exercised by tests. CI run
+`29401149042` executed the atomic-file and transaction suites on Node 20 and
+22 for Windows, macOS, and Linux. The decision is therefore accepted for the
+supported local-filesystem scope.
+
+This is not a claim of durable, power-loss-safe multi-file transactions: a
+process or system failure can still leave either the old or new version of an
+individual file. Transaction journals recover interrupted multi-file work on
+the next mutation; users needing database-grade durability should not rely on
+filesystem rename alone.
 
 ## P7-15: product and security review — pass with stated boundaries
 
@@ -44,16 +49,13 @@ install scripts, silently replace existing Codex TOML MCP tables, or support
 private repository credentials. It should not be marketed as a full arbitrary
 plugin executor.
 
-## P9-07: cross-platform go/no-go — no-go for a universal-install claim
+## P9-07: cross-platform go/no-go — bounded go for native skills
 
-The repository has a Windows/macOS/Linux CI matrix and tests path selection,
-CRLF handling, Windows command shims, and WSL separation. Those checks do not
-replace native installation verification on all three operating systems.
-
-**Current decision:** ship the CLI/dashboard as an experimental, supported-path
-prototype, but do not claim native installation has been verified on Windows,
-macOS, and Linux. P9-01, P9-03, and P9-04 must be completed with actual native
-agent-profile installs before changing this decision.
+CI run `29401149042` planed, installed, byte-verified, and removed a real
+`SKILL.md` through every declared agent-owned skill layout on Windows, macOS,
+and Linux, using disposable native home and state directories. **Current
+decision:** go for the bounded native-skill-directory claim. The no-go remains
+for plugins, hooks, executables, and arbitrary MCP runtimes.
 
 ## Local verification
 
@@ -61,6 +63,6 @@ On 2026-07-15 the following completed successfully:
 
 ```text
 npm run typecheck
-npm test -- --run  # 40 files, 126 tests
+npm test -- --run
 npm run build
 ```

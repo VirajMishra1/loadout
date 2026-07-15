@@ -43,6 +43,8 @@ describe("CLI contract", () => {
     expect(result.stdout).toContain("plan");
     expect(result.stdout).toContain("rollback");
     expect(result.stdout).toContain("discover");
+    expect(result.stdout).toContain("evaluate");
+    expect(result.stdout).toContain("watch");
   });
 
   it("reports mutually exclusive source errors without mutating state", async () => {

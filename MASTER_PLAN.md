@@ -660,8 +660,8 @@ modes.
 - [x] `P4-05 [TERRA]` Implement staging directory and planned writes.
 - [x] `P4-06 [TERRA]` Implement path traversal and escaping-symlink rejection.
 - [x] `P4-07 [TERRA]` Implement plan collision detection.
-- [ ] `P4-08 [SOL]` Review atomic commit behavior across all three operating systems.
-  - Release review on 2026-07-15 is conditional: persisted state, lockfiles, manifests, and MCP configs use sibling-temp plus rename, but native OS verification remains required before this can be checked.
+- [x] `P4-08 [SOL]` Review atomic commit behavior across all three operating systems.
+  - Accepted for the supported local-filesystem scope after CI run `29401149042` exercised the atomic and transaction suites on Node 20/22 for Windows, macOS, and Linux. See `docs/RELEASE_REVIEW.md` for the explicit power-loss boundary.
 - [x] `P4-09 [TERRA]` Implement commit with automatic restore on failure.
 - [x] `P4-10 [TERRA]` Implement `loadout rollback`.
 - [x] `P4-11 [LUNA]` Add interrupted-write and corrupted-stage fixtures.
@@ -757,30 +757,33 @@ modes.
 
 ### Phase 11: Advanced committed capabilities
 
-- [ ] `P11-01 [SOL]` Design GitHub OAuth and minimal-scope authorization model.
+- [x] `P11-01 [SOL]` Design GitHub OAuth and minimal-scope authorization model.
 - [ ] `P11-02 [TERRA]` Implement optional private-repository discovery.
 - [x] `P11-03 [TERRA]` Implement Community Loadout export/import with versioning.
 - [x] `P11-04 [TERRA]` Implement star/release/download snapshot storage and charts.
 - [x] `P11-05 [SOL]` Define provider-neutral model configuration schema.
-- [ ] `P11-06 [TERRA]` Implement OpenRouter provider adapter without storing keys in
+- [x] `P11-06 [TERRA]` Implement OpenRouter provider adapter without storing keys in
       application state.
-- [ ] `P11-07 [SOL]` Define category-specific evaluation protocol and uncertainty.
-- [ ] `P11-08 [TERRA]` Implement first two automated evaluation categories.
-- [ ] `P11-09 [TERRA]` Implement background update service and notifications.
+  - The adapter resolves a credential reference at request time and never serializes or logs the raw token.
+- [x] `P11-07 [SOL]` Define category-specific evaluation protocol and uncertainty.
+- [x] `P11-08 [TERRA]` Implement first two automated evaluation categories.
+  - Static skill hygiene and MCP manifest evaluations are deterministic and never execute package code; see `docs/EVALUATION_PROTOCOL.md`.
+- [x] `P11-09 [TERRA]` Implement background update service and notifications.
+  - `loadout watch` performs read-only interval checks and emits human or JSON notifications; it never applies updates automatically.
 - [x] `P11-10 [SOL]` Define catalog signing, rotation, and compromise recovery.
 - [x] `P11-11 [TERRA]` Implement catalog signing in CI and verification in client.
-- [ ] `P11-12 [SOL]` Design cross-platform hook/subagent compiler with loss reports.
+- [x] `P11-12 [SOL]` Design cross-platform hook/subagent compiler with loss reports.
 - [ ] `P11-13 [TERRA]` Implement first two hook/subagent conversion targets.
-- [ ] `P11-14 [SOL]` Design sandbox threat model for third-party installers.
+- [x] `P11-14 [SOL]` Design sandbox threat model for third-party installers.
 - [ ] `P11-15 [TERRA]` Implement disposable sandbox runner with no host secrets.
-- [ ] `P11-16 [SOL]` Design OS-keychain-backed credential interface.
+- [x] `P11-16 [SOL]` Design OS-keychain-backed credential interface.
 - [ ] `P11-17 [TERRA]` Implement macOS, Windows, and Linux credential backends.
-- [ ] `P11-18 [SOL]` Define autonomous-update permission policies and recovery rules.
+- [x] `P11-18 [SOL]` Define autonomous-update permission policies and recovery rules.
 - [ ] `P11-19 [TERRA]` Implement policy-gated canary update pipeline.
 - [x] `P11-20 [SOL]` Publish adapter SDK and conformance contract.
 - [ ] `P11-21 [TERRA]` Add the next six agent adapters through the SDK.
 - [ ] `P11-22 [TERRA]` Add compliant Hacker News and community-source connectors.
-- [ ] `P11-23 [SOL]` Design team/enterprise policy and audit schemas.
+- [x] `P11-23 [SOL]` Design team/enterprise policy and audit schemas.
 - [ ] `P11-24 [TERRA]` Implement shared Loadouts, allowlists, denylists, and audit view.
 
 ## 19. Seven-day schedule

@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { parseProviderModelConfiguration } from "../src/core/model-config.js";
+import {
+  parseProviderModelConfiguration,
+  requestOpenRouter,
+} from "../src/core/model-config.js";
 
 describe("provider-neutral model configuration", () => {
   it("accepts a secret-free OpenRouter selection without implementing an adapter", () => {
@@ -85,5 +88,39 @@ describe("provider-neutral model configuration", () => {
         selections: [base, { ...base, model: "anthropic/claude-sonnet-4" }],
       }),
     ).toThrow(/unique/);
+  });
+
+  it("resolves a credential only for the outbound OpenRouter request", async () => {
+    const config = parseProviderModelConfiguration({
+      schemaVersion: 1,
+      selections: [
+        {
+          id: "coding",
+          provider: "openrouter",
+          model: "openai/gpt-5",
+          endpoint: "https://openrouter.ai/api/v1",
+          credential: { kind: "environment", name: "OPENROUTER_API_KEY" },
+        },
+      ],
+    });
+    let request: Request | undefined;
+    const result = await requestOpenRouter(
+      config,
+      "coding",
+      [{ role: "user", content: "hello" }],
+      {
+        resolveCredential: async () => "ephemeral-secret",
+        fetcher: async (input, init) => {
+          request = new Request(input, init);
+          return new Response(JSON.stringify({ choices: [] }), { status: 200 });
+        },
+      },
+    );
+    expect(result).toEqual({ choices: [] });
+    expect(request?.url).toBe("https://openrouter.ai/api/v1/chat/completions");
+    expect(request?.headers.get("authorization")).toBe(
+      "Bearer ephemeral-secret",
+    );
+    expect(JSON.stringify(config)).not.toContain("ephemeral-secret");
   });
 });

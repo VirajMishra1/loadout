@@ -98,6 +98,8 @@ import {
   formatStarHistory,
   readCatalogObservations,
 } from "./core/observations.js";
+import { evaluatePackage, formatPackageEvaluation } from "./core/evaluate.js";
+import { checkForUpdates, startUpdateWatcher } from "./core/update-watch.js";
 
 const program = new Command();
 program
@@ -1031,6 +1033,73 @@ program
           ? JSON.stringify(result, null, 2)
           : formatPackageInspection(result),
       );
+    },
+  );
+
+program
+  .command("evaluate")
+  .description(
+    "Evaluate static skill and MCP evidence without executing package code",
+  )
+  .option("--source <directory>", "local package directory")
+  .option("--repository <owner/repo>", "public GitHub repository")
+  .option("--json", "emit evaluation JSON")
+  .action(
+    async (options: {
+      source?: string;
+      repository?: string;
+      json?: boolean;
+    }) => {
+      if ((options.source ? 1 : 0) + (options.repository ? 1 : 0) !== 1)
+        throw new Error("Provide exactly one of --source or --repository");
+      const source = options.repository
+        ? (await fetchRepositorySnapshot(options.repository)).path
+        : options.source!;
+      const result = await evaluatePackage(source);
+      console.log(
+        options.json
+          ? JSON.stringify(result, null, 2)
+          : formatPackageEvaluation(result),
+      );
+    },
+  );
+
+program
+  .command("watch")
+  .description(
+    "Watch for read-only updates; never applies changes automatically",
+  )
+  .option("--interval <minutes>", "check interval", "1440")
+  .option("--once", "check once and exit")
+  .option("--json", "emit each notification as JSON")
+  .action(
+    async (options: { interval: string; once?: boolean; json?: boolean }) => {
+      const minutes = Number(options.interval);
+      if (!Number.isFinite(minutes) || minutes <= 0)
+        throw new Error("--interval must be a positive number of minutes");
+      const notify = (
+        notification: Awaited<ReturnType<typeof checkForUpdates>>,
+      ) =>
+        console.log(
+          options.json
+            ? JSON.stringify(notification)
+            : `${notification.checkedAt}: ${notification.message}`,
+        );
+      if (options.once) {
+        notify(await checkForUpdates());
+        return;
+      }
+      const stop = startUpdateWatcher({
+        intervalMs: minutes * 60_000,
+        notify,
+      });
+      const shutdown = () => {
+        stop();
+        process.exit(0);
+      };
+      process.once("SIGINT", shutdown);
+      process.once("SIGTERM", shutdown);
+      await new Promise<void>(() => undefined);
     },
   );
 

@@ -65,6 +65,7 @@ export interface UpdateRuntime {
   applyPlan?: (
     plan: InstallPlan,
     metadata: { repository: string; resolvedCommit: string },
+    options?: { allowManagedReplacement?: boolean },
   ) => Promise<string>;
   verify?: (context: UpdateSmokeTestContext) => Promise<void>;
 }
@@ -289,10 +290,14 @@ export async function applyPackageUpdate(
     record.packageId,
     agents,
   );
-  const snapshotId = await (runtime.applyPlan ?? applySkillInstall)(plan, {
-    repository: current.repository,
-    resolvedCommit: current.commit,
-  });
+  const snapshotId = await (runtime.applyPlan ?? applySkillInstall)(
+    plan,
+    {
+      repository: current.repository,
+      resolvedCommit: current.commit,
+    },
+    { allowManagedReplacement: true },
+  );
   try {
     await (runtime.verify ?? verifyInstalledSkills)({
       packageId,

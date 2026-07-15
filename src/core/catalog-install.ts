@@ -5,8 +5,13 @@ import type {
 } from "../shared/types.js";
 import { loadEffectiveCatalog, type InstallSelection } from "./catalog.js";
 import { detectAgents } from "./paths.js";
-import { resolveCatalogProfile, type ProfileResolution } from "./profiles.js";
 import {
+  isPowerSkillSelected,
+  resolveCatalogProfile,
+  type ProfileResolution,
+} from "./profiles.js";
+import {
+  applySkillLibraryBatch,
   applySkillInstallBatch,
   buildSkillPlan,
   installedAgents,
@@ -147,6 +152,18 @@ export async function prepareCatalogInstall(
             `resolved ${fetched.commit}, expected reviewed commit ${pkg.source.commit}`,
           );
         const plan = await buildSkillPlan(fetched.path, pkg.id, agents);
+        if (selection.mode === "power")
+          plan.files = plan.files.filter((file) =>
+            isPowerSkillSelected(
+              pkg.id,
+              file.skillName,
+              file.target.split(/[\\/]/).at(-1) ?? pkg.id,
+            ),
+          );
+        if (!plan.files.length)
+          throw new Error(
+            "no skills from this collection are selected by the Power profile",
+          );
         const safety = await analyzeInstallPlanSafety(plan);
         completed += 1;
         options.onProgress?.({
@@ -247,7 +264,7 @@ export function formatPreparedCatalogInstall(
     (item) => item.kind === "preparation-failed",
   );
   const lines = [
-    `Loadout: ${prepared.selection.mode === "maximum" ? "Maximum Boost" : prepared.selection.mode === "stable" ? "Stable Boost" : "Custom"}`,
+    `Loadout: ${prepared.selection.mode === "maximum" ? "Maximum Library" : prepared.selection.mode === "power" ? "Power Boost" : prepared.selection.mode === "stable" ? "Stable Boost" : "Custom"}`,
     `Detected agents: ${prepared.agents.map((agent) => agent.displayName).join(", ")}`,
     `Catalog selection: ${prepared.resolution.packages.length} repositories`,
     `Ready to install: ${prepared.entries.length} skill repositories (${targetDirectories} agent skill directories)`,
@@ -255,7 +272,7 @@ export function formatPreparedCatalogInstall(
   ];
   if (directoriesPerAgent > RECOMMENDED_ACTIVE_SKILL_LIMIT)
     lines.push(
-      `Capacity warning: about ${directoriesPerAgent} skill directories per agent exceeds the recommended active-set limit of ${RECOMMENDED_ACTIVE_SKILL_LIMIT}. Prefer Stable or Custom for daily use.`,
+      `Capacity warning: about ${directoriesPerAgent} skill directories per agent exceeds the recommended active-set limit of ${RECOMMENDED_ACTIVE_SKILL_LIMIT}.${prepared.selection.mode === "maximum" ? " Maximum stores these in the disabled library; use project activation to choose the working set." : " Prefer Stable or project-aware activation for smaller context."}`,
     );
   if (failures.length)
     lines.push(
@@ -300,5 +317,7 @@ export async function applyPreparedCatalogInstall(
     throw new Error(
       `Additional risk approval is required for: ${risky.map((entry) => entry.package.id).join(", ")}. Review the plan, then use --approve-risk.`,
     );
-  return applySkillInstallBatch(prepared.entries);
+  return prepared.selection.mode === "maximum"
+    ? applySkillLibraryBatch(prepared.entries)
+    : applySkillInstallBatch(prepared.entries);
 }

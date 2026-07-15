@@ -14,11 +14,12 @@ After the npm package is published, the normal product experience is one CLI com
 npx loadout-ai
 ```
 
-Loadout detects supported agents, scans the skills already present without changing
-them, and recommends a small Stable foundation by default. Maximum Library and Custom
-remain explicit choices. Reviewed pinned sources, conflicts, capacity, and safety
-findings are shown before one rollback-safe transaction. The product is CLI-first; the
-existing dashboard is optional diagnostics and is not required for setup or daily use.
+Loadout detects supported agents and offers three honest levels: Stable is the tiny
+18-skill foundation, Power is the broad daily driver, and Maximum downloads every
+reviewed skill into a disabled library. Project-aware activation then exposes only the
+useful subset to Codex, Claude Code, or another detected agent. Reviewed pinned sources,
+conflicts, capacity, and safety findings are shown before mutation. The product is
+CLI-first; the dashboard is optional diagnostics.
 
 From a cloned checkout, use the identical package entry point:
 
@@ -32,9 +33,11 @@ For automation after reviewing the preview:
 
 ```bash
 npx loadout-ai scan                                 # read-only existing setup
-npx loadout-ai setup --mode stable                  # read-only daily-use preview
-npx loadout-ai setup --mode stable --yes --approve-risk
-npx loadout-ai setup --mode maximum                 # explicit broad stress mode
+npx loadout-ai setup --mode power                   # broad daily-use preview
+npx loadout-ai setup --mode power --yes --approve-risk
+npx loadout-ai setup --mode maximum                 # preview the full disabled library
+npx loadout-ai setup --mode maximum --yes --approve-risk
+npx loadout-ai optimize --project .                 # project-aware dry run
 ```
 
 The current 20-repository reviewed catalog contains 13 automatically installable skill
@@ -51,14 +54,24 @@ loadout status
 loadout scan
 loadout scan --refresh-provenance
 loadout compare <skill-name>
+loadout adopt <skill-name> --agent codex
 loadout library
-loadout disable <managed-package>
-loadout enable <managed-package>
+loadout optimize --project .
+loadout activate --project . --limit 40
+loadout disable <package-or-package/skill>
+loadout enable <package-or-package/skill>
 loadout health
 loadout update
 loadout rollback
 loadout discover --source github
 loadout recommend --project .
+loadout models set --id coding --model openai/gpt-5
+loadout models status
+loadout schedule --time 09:00
+loadout unschedule
+loadout outcome openai-skills/playwright --agent codex --task testing --result success
+loadout report
+loadout share loadout-report.json
 ```
 
 ## Status
@@ -66,9 +79,10 @@ loadout recommend --project .
 The working product path detects installed agents, inventories actual `SKILL.md`
 capabilities and ownership, prepares reviewed catalog sources at pinned commits,
 resolves exact overlaps, previews every target and safety finding, installs the approved
-loadout as one transaction, tracks updates, and rolls back cleanly. Provenance matching,
-head-to-head comparison, library-versus-active-set state, and guided optimization are
-explicit Phase 12 work rather than falsely presented as complete.
+loadout transactionally, tracks updates, and rolls back cleanly. Exact provenance,
+comparison, reviewed-library state, per-skill activation, safe adoption, and a first
+deterministic project optimizer now work. Evaluation-backed replacement, scheduled
+discovery, and public-beta hardening remain explicit Phase 12 work.
 
 See [MASTER_PLAN.md](./MASTER_PLAN.md) for the canonical, current implementation plan
 and [SIMPLE_PLAN.md](./SIMPLE_PLAN.md) for the short plain-language version. New users
@@ -96,15 +110,18 @@ from native Windows if you want to manage the Windows-side agent profile.
 ## Core commands
 
 ```bash
-# Audit existing agents, then install the small reviewed default.
+# Audit existing agents, then preview or install the broad daily driver.
 node dist/src/cli.js scan
 node dist/src/cli.js scan --refresh-provenance
 node dist/src/cli.js compare <skill-name>
-node dist/src/cli.js setup --mode stable
-node dist/src/cli.js setup --mode stable --yes --approve-risk
+node dist/src/cli.js setup --mode power
+node dist/src/cli.js setup --mode power --yes --approve-risk
 
-# Stress-test the broad reviewed library explicitly.
+# Download the full reviewed library without activating all of it.
 node dist/src/cli.js setup --mode maximum
+node dist/src/cli.js setup --mode maximum --yes --approve-risk
+node dist/src/cli.js optimize --project .
+node dist/src/cli.js optimize --project . --yes
 
 # Create and validate a shareable desired-state file.
 node dist/src/cli.js init --name my-team
@@ -192,7 +209,7 @@ the documentation cannot quietly claim more than the installer enables. Detectio
 either an executable on `PATH` or an existing agent configuration directory.
 
 The [catalog policy](./docs/CATALOG_POLICY.md) explains ranking, anti-gaming limits,
-and Stable/Maximum/Custom conflict handling. The [compatibility policy](./docs/COMPATIBILITY_POLICY.md)
+and Stable/Power/Maximum/Custom conflict handling. The [compatibility policy](./docs/COMPATIBILITY_POLICY.md)
 defines exactly what native, adapted, and unsupported mean on Windows, macOS, Linux,
 and WSL.
 
@@ -210,7 +227,7 @@ npm ci
 npm run build
 npx . --help
 npx . scan                 # real read-only existing-skill inventory
-npx . setup --mode stable  # small read-only catalog preview
+npx . setup --mode power   # broad read-only catalog preview
 node dist/src/cli.js status
 node dist/src/cli.js doctor
 node dist/src/cli.js catalog
@@ -409,6 +426,7 @@ before writing, and can be undone with the reported snapshot id.
 
 ## Core promise
 
-Run one command, let Loadout detect the agents on your computer, and choose either a
-stable or maximum universal boost. Loadout handles platform-specific installation,
-keeps a record of every change, and can roll back to the last working configuration.
+Run one command, let Loadout detect the agents on your computer, and choose Stable,
+Power, or Maximum Library. Loadout handles platform-specific skill paths, keeps a
+record of every change, activates reviewed skills per project, and can roll back to
+the last working configuration.

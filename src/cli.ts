@@ -140,6 +140,53 @@ import {
   planActivationChange,
   type ActivationAction,
 } from "./core/active-set.js";
+import {
+  applyProjectActivation,
+  formatProjectActivation,
+  planProjectActivation,
+} from "./core/active-policy.js";
+import {
+  applySkillAdoption,
+  formatAdoptionPlan,
+  planSkillAdoption,
+} from "./core/adopt.js";
+import {
+  formatReviewQueue,
+  mergeReviewQueue,
+  readReviewQueue,
+  setReviewDecision,
+  type ReviewDecision,
+} from "./core/review-queue.js";
+import {
+  applyProviderModelSelection,
+  defaultModelConfigurationPath,
+  formatProviderModelConfiguration,
+  planProviderModelSelection,
+  readProviderModelConfiguration,
+  requestOpenRouter,
+} from "./core/model-config.js";
+import {
+  applyNativeScheduler,
+  formatNativeScheduler,
+  planNativeScheduler,
+  type SchedulerAction,
+} from "./core/scheduler.js";
+import {
+  buildPrivacySafeReport,
+  formatPrivacySafeReport,
+  writePrivacySafeReport,
+} from "./core/share-report.js";
+import {
+  readLocalOutcomes,
+  recordLocalOutcome,
+  type OutcomeResult,
+  type OutcomeTaskFamily,
+} from "./core/outcomes.js";
+import {
+  buildFreshnessAlerts,
+  formatFreshnessAlerts,
+  ignoreFreshnessAlert,
+} from "./core/freshness-alerts.js";
 
 const collectOption = (value: string, previous: string[] = []): string[] => [
   ...previous,
@@ -158,8 +205,8 @@ function setupSelection(
   mode: string,
   packageIds: string[],
 ): { mode: InstallSelectionMode; packageIds?: string[] } {
-  if (!(["stable", "maximum", "custom"] as string[]).includes(mode))
-    throw new Error("--mode must be stable, maximum, or custom");
+  if (!(["stable", "power", "maximum", "custom"] as string[]).includes(mode))
+    throw new Error("--mode must be stable, power, maximum, or custom");
   if (mode === "custom" && packageIds.length === 0)
     throw new Error("Custom setup requires at least one --package <id>");
   if (mode !== "custom" && packageIds.length)
@@ -215,7 +262,7 @@ async function runSetup(options: SetupOptions): Promise<void> {
     if (!mode) {
       if (!interactive) {
         console.log(
-          "Loadout is CLI-first. Run `loadout setup --mode stable` to preview the small reviewed default, or choose `--mode maximum` for an explicit stress-tested broad library.",
+          "Loadout is CLI-first. Run `loadout setup --mode power` for the broad daily driver, `--mode stable` for the smallest foundation, or `--mode maximum` to download the reviewed library without activating it.",
         );
         return;
       }
@@ -225,10 +272,17 @@ async function runSetup(options: SetupOptions): Promise<void> {
       });
       const answer = (
         await reader.question(
-          "Choose a loadout: [1] Stable Boost (recommended), [2] Maximum Library, [3] Custom: ",
+          "Choose a loadout: [1] Power Boost (recommended), [2] Stable Boost, [3] Maximum Library, [4] Custom: ",
         )
       ).trim();
-      mode = answer === "2" ? "maximum" : answer === "3" ? "custom" : "stable";
+      mode =
+        answer === "2"
+          ? "stable"
+          : answer === "3"
+            ? "maximum"
+            : answer === "4"
+              ? "custom"
+              : "power";
       if (mode === "custom") {
         const custom = await reader.question(
           "Enter comma-separated catalog package ids: ",
@@ -319,7 +373,7 @@ program
   .description(
     "Preview and install a broad reviewed skill loadout for detected agents",
   )
-  .option("--mode <mode>", "stable, maximum, or custom")
+  .option("--mode <mode>", "stable, power, maximum, or custom")
   .option("--agents <ids>", "comma-separated target agent ids")
   .option("--package <id>", "package id for custom mode", collectOption, [])
   .option("-y, --yes", "install after preparing the reviewed plan")
@@ -738,6 +792,145 @@ program
     );
   });
 
+program
+  .command("report")
+  .description(
+    "Print a privacy-safe shareable summary without paths, code, prompts, or secrets",
+  )
+  .option("--json", "emit the machine-readable artifact")
+  .action(async (options: { json?: boolean }) => {
+    const report = await buildPrivacySafeReport();
+    console.log(
+      options.json
+        ? JSON.stringify(report, null, 2)
+        : formatPrivacySafeReport(report),
+    );
+  });
+
+program
+  .command("outcomes")
+  .description(
+    "Show privacy-safe local outcome signals; never uploads project or prompt data",
+  )
+  .option("--json", "emit machine-readable JSON")
+  .action(async (options: { json?: boolean }) => {
+    const store = await readLocalOutcomes();
+    console.log(
+      options.json
+        ? JSON.stringify(store, null, 2)
+        : [
+            `Local outcomes: ${store.events.length}`,
+            ...store.events.map(
+              (event) =>
+                `${event.recordedAt} — ${event.selector} — ${event.agent}/${event.taskFamily} — ${event.result}`,
+            ),
+            "Privacy: local only; no project names, paths, prompts, code, filenames, or secrets.",
+          ].join("\n"),
+    );
+  });
+
+program
+  .command("outcome")
+  .description("Record an explicit local, agent/task-scoped skill outcome")
+  .argument("<selector>", "exact package/skill selector")
+  .requiredOption("--agent <id>", "agent id")
+  .requiredOption(
+    "--task <family>",
+    "general, frontend, testing, javascript, python, backend, security, or documentation",
+  )
+  .requiredOption(
+    "--result <value>",
+    "accept, reject, success, failure, activation, disable, or rollback",
+  )
+  .action(
+    async (
+      selector: string,
+      options: { agent: string; task: string; result: string },
+    ) => {
+      const knownAgents = new Set(
+        (await detectAgents()).map((agent) => agent.id),
+      );
+      if (!knownAgents.has(options.agent as AgentId))
+        throw new Error(`Unknown agent id: ${options.agent}`);
+      const event = await recordLocalOutcome({
+        selector,
+        agent: options.agent as AgentId,
+        taskFamily: options.task as OutcomeTaskFamily,
+        result: options.result as OutcomeResult,
+      });
+      console.log(
+        `Recorded local outcome ${event.id}. No project, prompt, or source data was stored.`,
+      );
+    },
+  );
+
+program
+  .command("share")
+  .description("Write the privacy-safe Loadout report to a JSON artifact")
+  .argument("<output>", "new or replacement report path")
+  .action(async (output: string) => {
+    const report = await buildPrivacySafeReport();
+    await writePrivacySafeReport(output, report);
+    console.log(
+      `Wrote privacy-safe Loadout report to ${output}. Review it before sharing.`,
+    );
+  });
+
+for (const workflow of ["activate", "optimize"] as const) {
+  program
+    .command(workflow)
+    .description(
+      workflow === "activate"
+        ? "Select and activate reviewed library skills for a project"
+        : "Scan a project and propose the best reviewed active-set additions",
+    )
+    .option("--project <path>", "project directory to scan", ".")
+    .option("--agents <ids>", "comma-separated agent ids")
+    .option("--limit <count>", "maximum active skills per agent", "40")
+    .option(
+      "--pin <selector>",
+      "always prioritize package/skill or skill",
+      collectOption,
+      [],
+    )
+    .option("--yes", "apply the proposed activation transaction")
+    .option("--json", "emit machine-readable JSON")
+    .action(
+      async (options: {
+        project: string;
+        agents?: string;
+        limit: string;
+        pin: string[];
+        yes?: boolean;
+        json?: boolean;
+      }) => {
+        const agents = options.agents
+          ?.split(",")
+          .map((value) => value.trim())
+          .filter(Boolean) as AgentId[] | undefined;
+        const plan = await planProjectActivation(options.project, {
+          ...(agents?.length ? { agents } : {}),
+          limit: Number(options.limit),
+          pins: options.pin,
+        });
+        if (!options.yes) {
+          console.log(
+            options.json
+              ? JSON.stringify(plan, null, 2)
+              : `${formatProjectActivation(plan)}\nDry run only. Re-run with --yes to activate this reviewed set.`,
+          );
+          return;
+        }
+        const snapshotId = await applyProjectActivation(plan);
+        console.log(
+          options.json
+            ? JSON.stringify({ plan, snapshotId }, null, 2)
+            : `${formatProjectActivation(plan)}\nApplied and verified. Snapshot: ${snapshotId}\nRollback: loadout rollback --snapshot ${snapshotId}`,
+        );
+      },
+    );
+}
+
 for (const action of [
   "enable",
   "disable",
@@ -800,6 +993,41 @@ program
       options.json
         ? JSON.stringify(report, null, 2)
         : formatHealthReport(report),
+    );
+  });
+
+program
+  .command("alerts")
+  .description(
+    "Explain evidence-backed archive, staleness, reviewed-commit, and permission alerts",
+  )
+  .option("--updates", "perform live update safety checks")
+  .option("--all", "include ignored alerts")
+  .option("--json", "emit machine-readable JSON")
+  .action(
+    async (options: { updates?: boolean; all?: boolean; json?: boolean }) => {
+      const alerts = await buildFreshnessAlerts({
+        checkUpdates: options.updates,
+      });
+      const selected = options.all
+        ? alerts
+        : alerts.filter((alert) => !alert.ignored);
+      console.log(
+        options.json
+          ? JSON.stringify(selected, null, 2)
+          : formatFreshnessAlerts(selected),
+      );
+    },
+  );
+
+program
+  .command("alert-ignore")
+  .description("Ignore one exact freshness alert id on this machine")
+  .argument("<id>", "alert id shown by loadout alerts")
+  .action(async (id: string) => {
+    await ignoreFreshnessAlert(id);
+    console.log(
+      `Ignored ${id} locally. Re-run loadout alerts --all to inspect it.`,
     );
   });
 
@@ -1058,6 +1286,62 @@ program
         options.json
           ? JSON.stringify(enriched, null, 2)
           : `${formatInstalledSkillInventory(enriched)}\n${formatProvenanceSummary(enriched)}`,
+      );
+    },
+  );
+
+program
+  .command("adopt")
+  .description(
+    "Take ownership of one explicitly selected installed skill without changing its bytes",
+  )
+  .argument("<skill>", "installed skill name, directory name, or exact path")
+  .requiredOption("--agent <id>", "agent that owns the installed skill")
+  .option("--refresh-provenance", "rebuild the reviewed catalog skill index")
+  .option("--yes", "record ownership; otherwise show a dry-run plan")
+  .option("--json", "emit machine-readable JSON")
+  .action(
+    async (
+      skill: string,
+      options: {
+        agent: string;
+        refreshProvenance?: boolean;
+        yes?: boolean;
+        json?: boolean;
+      },
+    ) => {
+      const detected = await detectAgents();
+      const agent = detected.find(
+        (item) => item.id === options.agent && item.installed,
+      );
+      if (!agent)
+        throw new Error(
+          `Agent '${options.agent}' is unknown or is not installed`,
+        );
+      const resolved = await resolveCatalogSkillIndex({
+        refresh: options.refreshProvenance,
+        offline: !options.refreshProvenance,
+        build: {
+          catalog: await loadEffectiveCatalog(),
+          onProgress: options.refreshProvenance
+            ? printProvenanceProgress
+            : undefined,
+        },
+      });
+      const plan = await planSkillAdoption(skill, agent, resolved.index);
+      if (!options.yes) {
+        console.log(
+          options.json
+            ? JSON.stringify(plan, null, 2)
+            : `${formatAdoptionPlan(plan)}\nDry run only. Re-run with --yes to adopt this one skill.`,
+        );
+        return;
+      }
+      const snapshotId = await applySkillAdoption(plan);
+      console.log(
+        options.json
+          ? JSON.stringify({ plan, snapshotId }, null, 2)
+          : `${formatAdoptionPlan(plan)}\nAdopted without changing skill bytes. Snapshot: ${snapshotId}`,
       );
     },
   );
@@ -1322,6 +1606,10 @@ program
     "--private",
     "opt into private GitHub metadata discovery using GITHUB_TOKEN",
   )
+  .option(
+    "--queue",
+    "persist deduplicated public leads for human review; never promotes them",
+  )
   .option("--json", "emit source evidence as JSON")
   .action(
     async (options: {
@@ -1330,6 +1618,7 @@ program
       minScore: string;
       query?: string;
       private?: boolean;
+      queue?: boolean;
       json?: boolean;
     }) => {
       const limit = Number(options.limit);
@@ -1351,6 +1640,15 @@ program
             "(topic:mcp OR topic:agent OR topic:skills) created:>=2026-01-01",
           limit,
         });
+        if (options.queue) {
+          const queue = await mergeReviewQueue(
+            repositories,
+            await loadEffectiveCatalog(),
+          );
+          if (options.json) return console.log(JSON.stringify(queue, null, 2));
+          console.log(formatReviewQueue(queue));
+          return;
+        }
         if (options.json)
           return console.log(JSON.stringify(repositories, null, 2));
         console.log(`GitHub: ${repositories.length} repository lead(s)`);
@@ -1372,6 +1670,15 @@ program
         minScore,
         keywords: options.query?.split(",") ?? [],
       });
+      if (options.queue) {
+        const queue = await mergeReviewQueue(
+          result.candidates,
+          await loadEffectiveCatalog(),
+        );
+        if (options.json) return console.log(JSON.stringify(queue, null, 2));
+        console.log(formatReviewQueue(queue));
+        return;
+      }
       if (options.json) return console.log(JSON.stringify(result, null, 2));
       console.log(
         `Hacker News: ${result.candidates.length} GitHub repository lead(s) from ${result.storiesScanned} stories.`,
@@ -1383,6 +1690,182 @@ program
       }
     },
   );
+
+program
+  .command("review-queue")
+  .description(
+    "Show deduplicated discovery leads awaiting human review; never installs",
+  )
+  .option("--decision <value>", "filter: pending, shortlisted, or ignored")
+  .option("--json", "emit machine-readable JSON")
+  .action(async (options: { decision?: string; json?: boolean }) => {
+    const queue = await readReviewQueue();
+    if (
+      options.decision &&
+      !["pending", "shortlisted", "ignored"].includes(options.decision)
+    )
+      throw new Error("--decision must be pending, shortlisted, or ignored");
+    const filtered = options.decision
+      ? {
+          ...queue,
+          items: queue.items.filter(
+            (item) => item.decision === options.decision,
+          ),
+        }
+      : queue;
+    console.log(
+      options.json
+        ? JSON.stringify(filtered, null, 2)
+        : formatReviewQueue(filtered),
+    );
+  });
+
+program
+  .command("review")
+  .description(
+    "Record a human queue decision; shortlisting still does not promote or install",
+  )
+  .argument("<repository>", "owner/repository")
+  .requiredOption("--decision <value>", "pending, shortlisted, or ignored")
+  .action(async (repository: string, options: { decision: string }) => {
+    if (!["pending", "shortlisted", "ignored"].includes(options.decision))
+      throw new Error("--decision must be pending, shortlisted, or ignored");
+    const item = await setReviewDecision(
+      repository,
+      options.decision as ReviewDecision,
+    );
+    console.log(
+      `${item.repository}: ${item.decision}. No catalog or agent files changed.`,
+    );
+  });
+
+const models = program
+  .command("models")
+  .description(
+    "Plan, apply, inspect, or verify secret-free provider model selections",
+  );
+
+models
+  .command("status")
+  .description("Show configured model metadata and credential references")
+  .option("--config <path>", "model configuration path")
+  .option("--json", "emit machine-readable JSON")
+  .action(async (options: { config?: string; json?: boolean }) => {
+    const configuration = await readProviderModelConfiguration(
+      options.config ?? defaultModelConfigurationPath(),
+    );
+    console.log(
+      options.json
+        ? JSON.stringify(configuration ?? null, null, 2)
+        : formatProviderModelConfiguration(configuration),
+    );
+  });
+
+models
+  .command("set")
+  .description("Plan or store one provider selection; never stores a raw key")
+  .requiredOption("--id <id>", "selection id")
+  .requiredOption("--model <model>", "provider model identifier")
+  .option("--provider <provider>", "provider id", "openrouter")
+  .option(
+    "--endpoint <url>",
+    "provider HTTPS endpoint",
+    "https://openrouter.ai/api/v1",
+  )
+  .option(
+    "--credential-env <name>",
+    "environment variable reference",
+    "OPENROUTER_API_KEY",
+  )
+  .option("--agents <ids>", "comma-separated target agent ids")
+  .option("--config <path>", "model configuration path")
+  .option("--yes", "apply after preview")
+  .option("--json", "emit machine-readable JSON")
+  .action(
+    async (options: {
+      id: string;
+      model: string;
+      provider: string;
+      endpoint: string;
+      credentialEnv: string;
+      agents?: string;
+      config?: string;
+      yes?: boolean;
+      json?: boolean;
+    }) => {
+      const plan = await planProviderModelSelection(
+        {
+          id: options.id,
+          provider: options.provider,
+          model: options.model,
+          endpoint: options.endpoint,
+          credential: {
+            kind: "environment",
+            name: options.credentialEnv,
+          },
+          ...(options.agents
+            ? { targetAgents: options.agents.split(",") as AgentId[] }
+            : {}),
+        },
+        options.config ?? defaultModelConfigurationPath(),
+      );
+      if (!options.yes) {
+        console.log(
+          options.json
+            ? JSON.stringify(plan, null, 2)
+            : `${formatProviderModelConfiguration(plan.configuration)}\nPath: ${plan.path}\nDry run only. Re-run with --yes to save metadata and the credential reference.`,
+        );
+        return;
+      }
+      const snapshotId = await applyProviderModelSelection(plan);
+      console.log(
+        options.json
+          ? JSON.stringify(
+              { configuration: plan.configuration, snapshotId },
+              null,
+              2,
+            )
+          : `${formatProviderModelConfiguration(plan.configuration)}\nSaved. Snapshot: ${snapshotId}`,
+      );
+    },
+  );
+
+models
+  .command("verify")
+  .description(
+    "Make one explicit minimal provider request using the referenced environment key",
+  )
+  .argument("<id>", "selection id")
+  .option("--config <path>", "model configuration path")
+  .action(async (id: string, options: { config?: string }) => {
+    const configuration = await readProviderModelConfiguration(
+      options.config ?? defaultModelConfigurationPath(),
+    );
+    if (!configuration)
+      throw new Error("No provider model configuration exists");
+    await requestOpenRouter(
+      configuration,
+      id,
+      [
+        {
+          role: "user",
+          content: "Reply with the single word OK.",
+        },
+      ],
+      {
+        resolveCredential: async (reference) => {
+          if (reference.kind !== "environment")
+            throw new Error(
+              "OS keychain resolution is not available in this build",
+            );
+          return process.env[reference.name];
+        },
+      },
+    );
+    console.log(
+      `Verified model selection '${id}'. No credential value was stored or printed.`,
+    );
+  });
 
 program
   .command("keygen")
@@ -1557,6 +2040,42 @@ program
       await new Promise<void>(() => undefined);
     },
   );
+
+for (const action of [
+  "schedule",
+  "unschedule",
+] as const satisfies SchedulerAction[]) {
+  program
+    .command(action)
+    .description(
+      `${action === "schedule" ? "Install" : "Remove"} the native daily read-only update check`,
+    )
+    .option("--time <HH:MM>", "local daily check time", "09:00")
+    .option("--yes", "apply the native scheduler change")
+    .option("--json", "emit machine-readable JSON")
+    .action(
+      async (options: { time: string; yes?: boolean; json?: boolean }) => {
+        const plan = planNativeScheduler(action, {
+          time: options.time,
+          cliPath: process.argv[1],
+        });
+        if (!options.yes) {
+          console.log(
+            options.json
+              ? JSON.stringify(plan, null, 2)
+              : `${formatNativeScheduler(plan)}\nDry run only. Re-run with --yes to change the native scheduler.`,
+          );
+          return;
+        }
+        const snapshotId = await applyNativeScheduler(plan);
+        console.log(
+          options.json
+            ? JSON.stringify({ plan, snapshotId }, null, 2)
+            : `${formatNativeScheduler(plan)}\nApplied. Snapshot: ${snapshotId}`,
+        );
+      },
+    );
+}
 
 program
   .command("sandbox-run")
@@ -1745,7 +2264,10 @@ program
     (value: string, previous: string[] = []) => [...previous, value],
     [],
   )
-  .option("--mode <mode>", "catalog selection mode: stable, maximum, or custom")
+  .option(
+    "--mode <mode>",
+    "catalog selection mode: stable, power, maximum, or custom",
+  )
   .option(
     "--agents <ids>",
     "comma-separated agent ids; defaults to all detected agents",
@@ -1887,7 +2409,10 @@ program
     (value: string, previous: string[] = []) => [...previous, value],
     [],
   )
-  .option("--mode <mode>", "catalog selection mode: stable, maximum, or custom")
+  .option(
+    "--mode <mode>",
+    "catalog selection mode: stable, power, maximum, or custom",
+  )
   .option(
     "--agents <ids>",
     "comma-separated agent ids; defaults to all detected agents",

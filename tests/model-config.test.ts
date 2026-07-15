@@ -1,10 +1,21 @@
-import { describe, expect, it } from "vitest";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { afterEach, describe, expect, it } from "vitest";
 import {
+  applyProviderModelSelection,
+  formatProviderModelConfiguration,
   parseProviderModelConfiguration,
+  planProviderModelSelection,
+  readProviderModelConfiguration,
   requestOpenRouter,
 } from "../src/core/model-config.js";
 
 describe("provider-neutral model configuration", () => {
+  let root = "";
+  afterEach(async () => {
+    if (root) await rm(root, { recursive: true, force: true });
+  });
   it("accepts a secret-free OpenRouter selection without implementing an adapter", () => {
     const config = parseProviderModelConfiguration({
       schemaVersion: 1,
@@ -122,5 +133,34 @@ describe("provider-neutral model configuration", () => {
       "Bearer ephemeral-secret",
     );
     expect(JSON.stringify(config)).not.toContain("ephemeral-secret");
+  });
+
+  it("plans, snapshots, applies, and reads a redacted selection", async () => {
+    root = await mkdtemp(join(tmpdir(), "loadout-model-config-"));
+    process.env.LOADOUT_HOME = join(root, ".loadout");
+    const path = join(root, "models.json");
+    const plan = await planProviderModelSelection(
+      {
+        id: "coding",
+        provider: "openrouter",
+        model: "openai/gpt-5",
+        endpoint: "https://openrouter.ai/api/v1",
+        credential: {
+          kind: "environment",
+          name: "OPENROUTER_API_KEY",
+        },
+        targetAgents: ["codex"],
+      },
+      path,
+    );
+    const snapshot = await applyProviderModelSelection(plan);
+    expect(snapshot).toBeTruthy();
+    expect(await readProviderModelConfiguration(path)).toEqual(
+      plan.configuration,
+    );
+    expect(await readFile(path, "utf8")).not.toContain("sk-or-");
+    expect(formatProviderModelConfiguration(plan.configuration)).toContain(
+      "environment:OPENROUTER_API_KEY",
+    );
   });
 });

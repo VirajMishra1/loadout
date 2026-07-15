@@ -8,6 +8,7 @@ import {
   prepareCatalogInstall,
 } from "../src/core/catalog-install.js";
 import type { CatalogPackage, DetectedAgent } from "../src/shared/types.js";
+import { activationLibraryPath, readInstallState } from "../src/core/state.js";
 
 const commit = "a".repeat(40);
 
@@ -88,9 +89,28 @@ describe("CLI-first catalog setup", () => {
 
     const snapshot = await applyPreparedCatalogInstall(prepared);
     expect(snapshot).toBeTruthy();
-    expect(await readFile(join(target, "skill", "SKILL.md"), "utf8")).toContain(
-      "Useful reviewed skill",
-    );
+    expect(
+      await readFile(
+        join(
+          activationLibraryPath("useful-skill", "codex", "skill"),
+          "skill",
+          "SKILL.md",
+        ),
+        "utf8",
+      ),
+    ).toContain("Useful reviewed skill");
+    await expect(
+      readFile(join(target, "skill", "SKILL.md"), "utf8"),
+    ).rejects.toMatchObject({
+      code: "ENOENT",
+    });
+    expect((await readInstallState()).activations).toEqual([
+      expect.objectContaining({
+        packageId: "useful-skill",
+        cacheState: "downloaded",
+        activationState: "disabled",
+      }),
+    ]);
   });
 
   it("refuses setup when no supported agent is installed", async () => {

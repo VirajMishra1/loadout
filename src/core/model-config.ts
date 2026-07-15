@@ -1,9 +1,34 @@
 import { z } from "zod";
+import { readFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
 import {
   formatSchemaError,
   providerModelConfigurationSchema,
 } from "../shared/schemas.js";
-import type { ProviderModelConfiguration } from "../shared/types.js";
+import type {
+  ProviderModelConfiguration,
+  ProviderModelSelection,
+} from "../shared/types.js";
+import { writeFileAtomically } from "./atomic-file.js";
+import { ensureDirectory, loadoutHome } from "./paths.js";
+import { createSnapshot } from "./snapshot.js";
+import {
+  beginTransaction,
+  completeTransaction,
+  markTransactionCommitting,
+  recoverPendingTransactions,
+  rollbackTransaction,
+} from "./transaction.js";
+
+export const defaultModelConfigurationPath = (): string =>
+  join(loadoutHome(), "models.json");
+
+export interface ModelConfigurationPlan {
+  path: string;
+  selection: ProviderModelSelection;
+  configuration: ProviderModelConfiguration;
+  replacing: boolean;
+}
 
 export interface ProviderRequest {
   endpoint: string;
@@ -37,6 +62,90 @@ export function parseProviderModelConfiguration(
     }
     throw error;
   }
+}
+
+export async function readProviderModelConfiguration(
+  path = defaultModelConfigurationPath(),
+): Promise<ProviderModelConfiguration | undefined> {
+  try {
+    return parseProviderModelConfiguration(
+      JSON.parse(await readFile(path, "utf8")),
+    );
+  } catch (error) {
+    if (
+      error &&
+      typeof error === "object" &&
+      "code" in error &&
+      (error as { code?: string }).code === "ENOENT"
+    )
+      return undefined;
+    throw error;
+  }
+}
+
+export async function planProviderModelSelection(
+  selection: ProviderModelSelection,
+  path = defaultModelConfigurationPath(),
+): Promise<ModelConfigurationPlan> {
+  const current = await readProviderModelConfiguration(path);
+  const replacing = Boolean(
+    current?.selections.some((item) => item.id === selection.id),
+  );
+  const configuration = parseProviderModelConfiguration({
+    schemaVersion: 1,
+    selections: [
+      ...(current?.selections.filter((item) => item.id !== selection.id) ?? []),
+      selection,
+    ],
+  });
+  return { path, selection, configuration, replacing };
+}
+
+export async function applyProviderModelSelection(
+  plan: ModelConfigurationPlan,
+): Promise<string> {
+  const fresh = await planProviderModelSelection(plan.selection, plan.path);
+  if (
+    JSON.stringify(fresh.configuration) !== JSON.stringify(plan.configuration)
+  )
+    throw new Error(
+      "Model configuration changed after preview; prepare the plan again.",
+    );
+  await recoverPendingTransactions();
+  const snapshot = await createSnapshot([plan.path]);
+  const transaction = await beginTransaction(snapshot, [plan.path]);
+  try {
+    await markTransactionCommitting(transaction);
+    await ensureDirectory(dirname(plan.path));
+    await writeFileAtomically(
+      plan.path,
+      `${JSON.stringify(plan.configuration, null, 2)}\n`,
+    );
+    await completeTransaction(transaction);
+  } catch (error) {
+    await rollbackTransaction(transaction);
+    throw error;
+  }
+  return snapshot.id;
+}
+
+export function formatProviderModelConfiguration(
+  configuration: ProviderModelConfiguration | undefined,
+): string {
+  if (!configuration) return "No provider model selections are configured.";
+  return [
+    `Model selections: ${configuration.selections.length}`,
+    ...configuration.selections.map(
+      (selection) =>
+        `${selection.id} — ${selection.provider}/${selection.model} — credential:${
+          selection.credential
+            ? selection.credential.kind === "environment"
+              ? `environment:${selection.credential.name}`
+              : `os-keychain:${selection.credential.service}`
+            : "missing"
+        } — agents:${selection.targetAgents?.join(",") ?? "any"}`,
+    ),
+  ].join("\n");
 }
 
 /**

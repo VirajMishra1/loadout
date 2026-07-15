@@ -116,6 +116,29 @@ describe("skill installation transaction", () => {
     );
   });
 
+  it("refuses to overwrite an occupied unmanaged skill target", async () => {
+    const root = await mkdtemp(join(tmpdir(), "loadout-occupied-"));
+    directories.push(root);
+    process.env.LOADOUT_HOME = join(root, ".loadout");
+    const source = join(root, "source");
+    const target = join(root, "skills");
+    const occupied = join(target, "source");
+    await mkdir(source, { recursive: true });
+    await mkdir(occupied, { recursive: true });
+    await writeFile(
+      join(source, "SKILL.md"),
+      "---\nname: source\ndescription: New version\n---\n",
+    );
+    const original =
+      "---\nname: source\ndescription: Existing user version\n---\n";
+    await writeFile(join(occupied, "SKILL.md"), original);
+    const plan = await buildSkillPlan(source, "source", [agent(target)]);
+    await expect(applySkillInstall(plan)).rejects.toThrow(
+      /occupied skill target/,
+    );
+    expect(await readFile(join(occupied, "SKILL.md"), "utf8")).toBe(original);
+  });
+
   it("restores all changes when a later copy fails", async () => {
     const root = await mkdtemp(join(tmpdir(), "loadout-rollback-"));
     directories.push(root);

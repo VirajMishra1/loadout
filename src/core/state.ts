@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { readFile, readdir, stat } from "node:fs/promises";
-import { basename, join } from "node:path";
+import { basename, join, relative, sep } from "node:path";
 import type {
   AgentId,
   InstallPlan,
@@ -46,18 +46,26 @@ export async function readInstallState(): Promise<InstallState> {
 export function activationLibraryPath(
   packageId: string,
   agent: AgentId,
+  unitId?: string,
 ): string {
   const safe = packageId.replace(/[^a-zA-Z0-9._-]+/g, "-").slice(0, 80);
   const suffix = createHash("sha256")
     .update(packageId)
     .digest("hex")
     .slice(0, 10);
-  return join(
+  const base = join(
     loadoutHome(),
     "library",
     `${safe || "package"}-${suffix}`,
     agent,
   );
+  if (!unitId) return base;
+  const safeUnit = unitId.replace(/[^a-zA-Z0-9._-]+/g, "-").slice(0, 80);
+  const unitSuffix = createHash("sha256")
+    .update(unitId)
+    .digest("hex")
+    .slice(0, 8);
+  return join(base, `${safeUnit || "skill"}-${unitSuffix}`);
 }
 
 function activationRecordsForPlan(
@@ -79,24 +87,27 @@ function activationRecordsForPlan(
           .map((file) => file.target),
       ),
     ];
-    if (!targets.length) return [];
-    return [
-      {
+    return targets.map((activePath) => {
+      const unitId = basename(activePath);
+      return {
         packageId: plan.packageId,
+        unitId,
         agent,
         cacheState: "missing",
         reviewState: metadata.reviewed ? "reviewed" : "unreviewed",
         installationState: "installed",
         activationState: "active",
-        libraryPath: activationLibraryPath(plan.packageId, agent),
-        targets: targets.map((activePath) => ({
-          activePath,
-          libraryRelativePath: basename(activePath),
-        })),
+        libraryPath: activationLibraryPath(plan.packageId, agent, unitId),
+        targets: [
+          {
+            activePath,
+            libraryRelativePath: unitId,
+          },
+        ],
         libraryFiles: [],
         updatedAt: now,
-      },
-    ];
+      };
+    });
   });
 }
 
@@ -105,17 +116,21 @@ function mergeActivationRecords(
   records: ManagedActivationRecord[],
 ): ManagedActivationRecord[] {
   const keys = new Set(
-    records.map((item) => `${item.packageId}\0${item.agent}`),
+    records.map(
+      (item) => `${item.packageId}\0${item.agent}\0${item.unitId ?? ""}`,
+    ),
   );
   return [
     ...(current ?? []).filter(
-      (item) => !keys.has(`${item.packageId}\0${item.agent}`),
+      (item) =>
+        !keys.has(`${item.packageId}\0${item.agent}\0${item.unitId ?? ""}`),
     ),
     ...records,
   ].sort(
     (left, right) =>
       left.packageId.localeCompare(right.packageId) ||
-      left.agent.localeCompare(right.agent),
+      left.agent.localeCompare(right.agent) ||
+      (left.unitId ?? "").localeCompare(right.unitId ?? ""),
   );
 }
 
@@ -218,6 +233,117 @@ export async function recordInstallBatch(
     entries.flatMap((entry) =>
       activationRecordsForPlan(entry.plan, entry.metadata),
     ),
+  );
+  await writeInstallState(state);
+  return records;
+}
+
+/**
+ * Record reviewed skills that were copied into Loadout's library but were not
+ * activated. Install hashes deliberately use their future active paths so the
+ * existing enable/disable verifier can prove the same bytes end to end.
+ */
+export async function recordLibraryInstallBatch(
+  entries: Array<{
+    plan: InstallPlan;
+    metadata?: {
+      repository?: string;
+      resolvedCommit?: string;
+      reviewed?: boolean;
+    };
+  }>,
+  snapshotId: string,
+): Promise<InstallRecord[]> {
+  const now = new Date().toISOString();
+  const activationRecords: ManagedActivationRecord[] = [];
+  const records: InstallRecord[] = [];
+  for (const entry of entries) {
+    const installFiles: InstallRecord["files"] = [];
+    const targetAgents: AgentId[] = [];
+    for (const agent of entry.plan.targetAgents) {
+      const planned = entry.plan.files.filter(
+        (file) =>
+          (file.componentType === undefined ||
+            file.componentType === "skill") &&
+          (file.targetAgent === agent ||
+            (!file.targetAgent && entry.plan.targetAgents.length === 1)),
+      );
+      if (!planned.length) continue;
+      targetAgents.push(agent);
+      const targets = [
+        ...new Map(
+          planned.map((file) => [
+            file.target,
+            {
+              activePath: file.target,
+              libraryRelativePath: basename(file.target),
+            },
+          ]),
+        ).values(),
+      ];
+      for (const target of targets) {
+        const unitId = target.libraryRelativePath;
+        const libraryPath = activationLibraryPath(
+          entry.plan.packageId,
+          agent,
+          unitId,
+        );
+        const libraryFiles: Array<{ path: string; sha256: string }> = [];
+        const libraryTarget = join(libraryPath, target.libraryRelativePath);
+        for (const file of await hashDirectory(libraryTarget)) {
+          const child = relative(libraryTarget, file.path);
+          installFiles.push({
+            path: join(target.activePath, child),
+            sha256: file.sha256,
+          });
+          libraryFiles.push({
+            path: join(target.libraryRelativePath, child).split(sep).join("/"),
+            sha256: file.sha256,
+          });
+        }
+        activationRecords.push({
+          packageId: entry.plan.packageId,
+          unitId,
+          agent,
+          cacheState: "downloaded",
+          reviewState: entry.metadata?.reviewed ? "reviewed" : "unreviewed",
+          installationState: "installed",
+          activationState: "disabled",
+          libraryPath,
+          targets: [target],
+          libraryFiles: libraryFiles.sort((left, right) =>
+            left.path.localeCompare(right.path),
+          ),
+          updatedAt: now,
+          snapshotId,
+        });
+      }
+    }
+    records.push({
+      packageId: entry.plan.packageId,
+      ...(entry.metadata?.repository
+        ? { repository: entry.metadata.repository }
+        : {}),
+      ...(entry.metadata?.resolvedCommit
+        ? { resolvedCommit: entry.metadata.resolvedCommit }
+        : {}),
+      targetAgents,
+      files: installFiles.sort((left, right) =>
+        left.path.localeCompare(right.path),
+      ),
+      snapshotId,
+      installedAt: now,
+    });
+  }
+  const state = await readInstallState();
+  const ids = new Set(records.map((record) => record.packageId));
+  state.installs = [
+    ...state.installs.filter((record) => !ids.has(record.packageId)),
+    ...records,
+  ];
+  state.activations = mergeActivationRecords(
+    state.activations,
+    activationRecords,
   );
   await writeInstallState(state);
   return records;

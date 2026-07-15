@@ -305,6 +305,7 @@ export const mcpInstallRecordSchema = z
 export const managedActivationRecordSchema = z
   .object({
     packageId: text,
+    unitId: optionalText,
     agent: agentIdSchema,
     cacheState: z.enum(["missing", "downloaded"]),
     reviewState: z.enum(["unreviewed", "reviewed", "quarantined"]),

@@ -26,6 +26,7 @@ export type ActivationAction = "enable" | "disable";
 
 export interface ActivationChange {
   packageId: string;
+  unitId?: string;
   agent: AgentId;
   from: "active" | "disabled";
   to: "active" | "disabled";
@@ -39,7 +40,12 @@ export interface ActivationPlan {
   packages: string[];
   requestedAgents?: AgentId[];
   changes: ActivationChange[];
-  skipped: Array<{ packageId: string; agent: AgentId; reason: string }>;
+  skipped: Array<{
+    packageId: string;
+    unitId?: string;
+    agent: AgentId;
+    reason: string;
+  }>;
   blocked: boolean;
   warnings: string[];
 }
@@ -195,7 +201,8 @@ function allActivationRecords(
   return [...existing, ...legacyActivations(installs, existing)].sort(
     (left, right) =>
       left.packageId.localeCompare(right.packageId) ||
-      left.agent.localeCompare(right.agent),
+      left.agent.localeCompare(right.agent) ||
+      (left.unitId ?? "").localeCompare(right.unitId ?? ""),
   );
 }
 
@@ -322,27 +329,40 @@ export async function planActivationChange(
   const installs = new Map(
     state.installs.map((install) => [install.packageId, install]),
   );
-  for (const packageId of packages)
-    if (!installs.has(packageId))
-      throw new Error(`Package is not managed by Loadout: ${packageId}`);
+  const selectors = packages.map((selector) => {
+    const separator = selector.indexOf("/");
+    return {
+      selector,
+      packageId: separator < 0 ? selector : selector.slice(0, separator),
+      unitId: separator < 0 ? undefined : selector.slice(separator + 1),
+    };
+  });
+  for (const selector of selectors)
+    if (!installs.has(selector.packageId))
+      throw new Error(
+        `Package is not managed by Loadout: ${selector.packageId}`,
+      );
   const records = allActivationRecords(state.installs, state.activations ?? []);
   const changes: ActivationChange[] = [];
   const skipped: ActivationPlan["skipped"] = [];
-  for (const packageId of packages) {
+  for (const selector of selectors) {
+    const { packageId, unitId } = selector;
     const candidates = records.filter(
       (record) =>
         record.packageId === packageId &&
+        (!unitId || record.unitId === unitId) &&
         (!options.agents || options.agents.includes(record.agent)),
     );
     if (!candidates.length)
       throw new Error(
-        `No managed skill activation for '${packageId}' matches the requested agents`,
+        `No managed skill activation for '${selector.selector}' matches the requested agents`,
       );
     for (const record of candidates) {
       const desired = action === "enable" ? "active" : "disabled";
       if (record.activationState === desired) {
         skipped.push({
           packageId,
+          ...(record.unitId ? { unitId: record.unitId } : {}),
           agent: record.agent,
           reason: `already ${desired}`,
         });
@@ -350,6 +370,7 @@ export async function planActivationChange(
       }
       const change: ActivationChange = {
         packageId,
+        ...(record.unitId ? { unitId: record.unitId } : {}),
         agent: record.agent,
         from: record.activationState,
         to: desired,
@@ -360,7 +381,7 @@ export async function planActivationChange(
       const install = installs.get(packageId)!;
       if (
         resolve(record.libraryPath) !==
-        resolve(activationLibraryPath(packageId, record.agent))
+        resolve(activationLibraryPath(packageId, record.agent, record.unitId))
       )
         change.blockers.push(
           "the library path does not match Loadout's managed path",
@@ -441,9 +462,9 @@ export async function planActivationChange(
 }
 
 function activationKey(
-  record: Pick<ManagedActivationRecord, "packageId" | "agent">,
+  record: Pick<ManagedActivationRecord, "packageId" | "agent" | "unitId">,
 ): string {
-  return `${record.packageId}\0${record.agent}`;
+  return `${record.packageId}\0${record.agent}\0${record.unitId ?? ""}`;
 }
 
 export async function applyActivationChange(
@@ -525,6 +546,15 @@ export async function applyActivationChange(
             force: false,
           });
         }
+        const activeFiles = await activeTreeFiles(change.targets);
+        const copyDifferences = exactTreeDifferences(
+          expectedActiveFiles(installs.get(change.packageId)!, change.targets),
+          activeFiles,
+        );
+        if (copyDifferences.length)
+          throw new Error(
+            `${change.packageId}/${change.agent}: activated copy verification failed: ${copyDifferences.join("; ")}`,
+          );
         replacements.set(activationKey(change), {
           ...current,
           activationState: "active",
@@ -557,7 +587,7 @@ export function formatLibraryStateReport(report: LibraryStateReport): string {
       : []),
     ...report.records.map(
       (record) =>
-        `${record.packageId} — ${record.agent} — cache:${record.cacheState} review:${record.reviewState} install:${record.installationState} activation:${record.activationState} — ${record.targets.length} target(s)`,
+        `${record.packageId}${record.unitId ? `/${record.unitId}` : ""} — ${record.agent} — cache:${record.cacheState} review:${record.reviewState} install:${record.installationState} activation:${record.activationState} — ${record.targets.length} target(s)`,
     ),
   ].join("\n");
 }
@@ -567,10 +597,11 @@ export function formatActivationPlan(plan: ActivationPlan): string {
     `${plan.action === "enable" ? "Enable" : "Disable"} plan: ${plan.changes.length} change(s), ${plan.skipped.length} already in desired state`,
     ...plan.changes.map(
       (change) =>
-        `${change.packageId}/${change.agent}: ${change.from} -> ${change.to} (${change.targets.length} target(s))${change.blockers.length ? ` BLOCKED: ${change.blockers.join("; ")}` : ""}`,
+        `${change.packageId}${change.unitId ? `/${change.unitId}` : ""}/${change.agent}: ${change.from} -> ${change.to} (${change.targets.length} target(s))${change.blockers.length ? ` BLOCKED: ${change.blockers.join("; ")}` : ""}`,
     ),
     ...plan.skipped.map(
-      (item) => `${item.packageId}/${item.agent}: skipped (${item.reason})`,
+      (item) =>
+        `${item.packageId}${item.unitId ? `/${item.unitId}` : ""}/${item.agent}: skipped (${item.reason})`,
     ),
     ...(plan.blocked
       ? ["No changes can be applied until every blocker is resolved."]

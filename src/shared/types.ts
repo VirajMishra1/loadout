@@ -198,6 +198,8 @@ export interface ManagedActivationTarget {
 /** Per-agent state: the same reviewed package may be active in one agent only. */
 export interface ManagedActivationRecord {
   packageId: string;
+  /** Stable skill-level selector within a collection repository. */
+  unitId?: string;
   agent: AgentId;
   cacheState: LibraryCacheState;
   reviewState: LibraryReviewState;

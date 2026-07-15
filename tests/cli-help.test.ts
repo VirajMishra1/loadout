@@ -53,22 +53,23 @@ describe("CLI contract", () => {
     expect(result.stdout).toContain("watch");
     expect(result.stdout).toContain("sandbox-run");
     expect(result.stdout).toContain("convert");
-    expect(result.stdout).toContain("canary");
-    expect(result.stdout).toContain("dashboard");
+    expect(result.stdout).toContain("optimize");
+    expect(result.stdout).toContain("models");
+    expect(result.stdout).toContain("schedule");
   });
 
   it("makes the CLI setup flow the non-interactive default without mutating", async () => {
     const result = await runCli();
     expect(result.code).toBe(0);
     expect(result.stdout).toContain("Loadout is CLI-first");
-    expect(result.stdout).toContain("setup --mode stable");
+    expect(result.stdout).toContain("setup --mode power");
   });
 
   it("validates setup mode before fetching repositories", async () => {
     const result = await runCli("setup", "--mode", "unknown");
     expect(result.code).not.toBe(0);
     expect(result.stderr).toContain(
-      "--mode must be stable, maximum, or custom",
+      "--mode must be stable, power, maximum, or custom",
     );
   });
 

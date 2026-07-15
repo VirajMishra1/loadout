@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  POWER_SKILL_ALLOWLIST,
+  isPowerSkillSelected,
   resolveCatalogProfile,
   type CatalogConflictFamily,
 } from "../src/core/profiles.js";
@@ -100,5 +102,35 @@ describe("catalog profile conflict resolution", () => {
       "superpowers",
       "context7",
     ]);
+  });
+
+  it("selects broad Power collections but filters them at skill granularity", () => {
+    const superpowers = item("superpowers", "stable", 1000);
+    const wshobson = item("wshobson-agents", "stable", 900);
+    const unrelated = item("unrelated", "stable", 2000);
+    const result = resolveCatalogProfile(
+      [unrelated, wshobson, superpowers],
+      { mode: "power" },
+      [],
+    );
+    expect(result.packages.map((pkg) => pkg.id)).toEqual([
+      "superpowers",
+      "wshobson-agents",
+    ]);
+    expect(Object.keys(POWER_SKILL_ALLOWLIST).length).toBeGreaterThan(5);
+    expect(
+      isPowerSkillSelected(
+        "wshobson-agents",
+        "typescript-advanced-types",
+        "typescript-advanced-types",
+      ),
+    ).toBe(true);
+    expect(
+      isPowerSkillSelected(
+        "wshobson-agents",
+        "employment-contract-templates",
+        "employment-contract-templates",
+      ),
+    ).toBe(false);
   });
 });

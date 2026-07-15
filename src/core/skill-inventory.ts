@@ -1,7 +1,12 @@
 import { createHash } from "node:crypto";
 import { lstat, readFile, readdir } from "node:fs/promises";
 import { join, relative, resolve, sep } from "node:path";
-import type { AgentId, DetectedAgent, InstallRecord } from "../shared/types.js";
+import type {
+  AgentId,
+  DetectedAgent,
+  InstallRecord,
+  ManagedActivationRecord,
+} from "../shared/types.js";
 import { readInstallState } from "./state.js";
 
 const MAX_SCAN_DEPTH = 6;
@@ -73,16 +78,34 @@ function isInside(root: string, candidate: string): boolean {
 
 function owningPackage(
   skillRoot: string,
+  agent: AgentId,
   records: InstallRecord[],
+  activations: ManagedActivationRecord[],
 ): string | undefined {
-  return records.find((record) =>
-    record.files.some((file) => isInside(skillRoot, file.path)),
+  const active = activations.find(
+    (record) =>
+      record.agent === agent &&
+      record.activationState === "active" &&
+      record.installationState === "installed" &&
+      record.targets.some((target) => isInside(target.activePath, skillRoot)),
+  );
+  if (active) return active.packageId;
+  return records.find(
+    (record) =>
+      record.targetAgents.includes(agent) &&
+      !activations.some(
+        (activation) =>
+          activation.packageId === record.packageId &&
+          activation.agent === agent,
+      ) &&
+      record.files.some((file) => isInside(skillRoot, file.path)),
   )?.packageId;
 }
 
 async function scanAgentSkills(
   agent: DetectedAgent,
   records: InstallRecord[],
+  activations: ManagedActivationRecord[],
 ): Promise<{ skills: InstalledSkillInventoryEntry[]; warnings: string[] }> {
   const root = resolve(agent.skillsDirectory);
   const skills: InstalledSkillInventoryEntry[] = [];
@@ -116,7 +139,12 @@ async function scanAgentSkills(
       try {
         const path = join(directory, "SKILL.md");
         const content = await readFile(path, "utf8");
-        const packageId = owningPackage(directory, records);
+        const packageId = owningPackage(
+          directory,
+          agent.id,
+          records,
+          activations,
+        );
         const sourceHints = [
           ...new Set(
             [
@@ -220,7 +248,9 @@ export async function scanInstalledSkills(
 ): Promise<InstalledSkillInventoryReport> {
   const state = await readInstallState();
   const scans = await Promise.all(
-    agents.map((agent) => scanAgentSkills(agent, state.installs)),
+    agents.map((agent) =>
+      scanAgentSkills(agent, state.installs, state.activations ?? []),
+    ),
   );
   const skills = scans.flatMap((scan) => scan.skills);
   const warnings = scans.flatMap((scan) => scan.warnings);

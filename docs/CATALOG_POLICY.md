@@ -23,9 +23,11 @@ or private data.
 Conflict families are maintained policy, separate from filesystem collision
 checks. The current real-catalog families are broad skill collections and web
 research MCP servers. They are soft overlaps: Stable Boost chooses one default
-and defers the others, while Maximum and Custom retain them with a plain-language
-warning. A hard family is only added with evidence of real incompatibility; it
-blocks every profile until a person removes all but one candidate.
+and defers the others, while Power, Maximum, and Custom retain them with a
+plain-language warning. Power filters collections at skill granularity; Maximum
+stores the full reviewed set disabled in the library. A hard family is only added
+with evidence of real incompatibility; it blocks every profile until a person
+removes all but one candidate.
 
-Run `loadout plan --mode stable` to see the safely selected package set. The
+Run `loadout plan --mode power` to see the broad daily-driver set. The
 resolver runs before cloning repositories or changing agent directories.

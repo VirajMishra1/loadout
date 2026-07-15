@@ -76,16 +76,16 @@ New-Item -ItemType Directory -Force (Join-Path $env:LOADOUT_USER_HOME ".claude")
 Those empty directories make Loadout detect virtual Codex and Claude Code profiles.
 Every write stays below the disposable path.
 
-## 3. Preview Stable, then stress-test Maximum
+## 3. Preview Power, then inspect Maximum Library
 
-Stable is the daily-use default:
+Power is the broad daily-use profile:
 
 ```bash
-npx . setup --mode stable
+npx . setup --mode power
 ```
 
-Expect the bundled catalog to prepare only Superpowers and Context7. Maximum is the
-explicit broad-library stress test:
+Expect a curated skill-level set across the strongest reviewed collections. Stable
+remains the smallest Superpowers + Context7 option. Maximum prepares the full library:
 
 ```bash
 npx . setup --mode maximum
@@ -102,19 +102,19 @@ This is read-only. Expect the CLI to show:
 
 No agent skill directory or Loadout install state is created by preview.
 
-## 4. Install the reviewed loadout
+## 4. Download the reviewed library
 
 ```bash
 npx . setup --mode maximum --yes --approve-risk
 ```
 
 `--approve-risk` acknowledges the displayed scripts, domains, environment names, or
-instruction findings inside the reviewed skill content. Loadout copies skills but does
-not execute repository installation or lifecycle scripts.
+instruction findings inside the reviewed skill content. Loadout copies skills into its
+disabled library but does not execute repository installation or lifecycle scripts.
 
-The command should finish with one snapshot identifier. The full loadout is one
-transaction: a failure restores every target rather than leaving a half-installed
-profile.
+The command should finish with one snapshot identifier. The library download is one
+transaction: a failure restores every library/state target rather than leaving a
+half-installed profile.
 
 ## 5. Inspect the installed product
 
@@ -122,7 +122,14 @@ profile.
 npx . list
 npx . status
 npx . health
+npx . library
+npx . optimize --project .
+npx . optimize --project . --yes
 ```
+
+The first optimize command is a dry run. The second activates only reviewed,
+project-relevant skill units, verifies their hashes, and prints the exact snapshot
+rollback command.
 
 `health` is local and fast by default. Use `npx . health --updates` or
 `npx . update` when you intentionally want live network update checks.

@@ -870,25 +870,36 @@ universal or permanent truth.
 - [x] `P12-10 [TERRA]` Implement transactional `loadout enable` and `loadout disable`.
   - Acceptance: only Loadout-managed links/files change; one snapshot covers a batch;
     disabling preserves the library copy; rollback restores byte-identical state.
-- [ ] `P12-11 [TERRA]` Implement `loadout adopt` for explicitly selected unmanaged
+- [x] `P12-11 [TERRA]` Implement `loadout adopt` for explicitly selected unmanaged
       skills.
   - Preview provenance and hashes, snapshot first, preserve original content, and
     require confirmation. Bulk adoption without review is forbidden.
-- [ ] `P12-12 [SOL]` Define active-set selection policy.
+  - Adoption is one-skill-only, dry-run by default, rechecks the fingerprint before
+    the state transaction, and marks only exact catalog fingerprints as reviewed.
+- [x] `P12-12 [SOL]` Define active-set selection policy.
   - Inputs include user-pinned capabilities, project signals, agent compatibility,
     conflicts, task families, capacity budget, evaluation confidence, and prior human
     outcomes. Popularity cannot override safety or user pins.
-- [ ] `P12-13 [TERRA]` Implement project-aware `loadout activate --project <path>`.
+  - The complete ordering and neutral boundaries for not-yet-available evaluation and
+    outcome evidence are documented in `docs/ACTIVE_SET_POLICY.md`.
+- [x] `P12-13 [TERRA]` Implement project-aware `loadout activate --project <path>`.
   - Preview the delta between global and project active sets; do not require GitHub;
     do not expose irrelevant library content to the agent.
-- [ ] `P12-14 [TERRA]` Implement `loadout optimize` as the primary guided workflow.
+  - Selection is per skill (not per mega-repository), local-only, capacity-bounded,
+    pin-aware, agent-scoped, and dry-run by default.
+- [x] `P12-14 [TERRA]` Implement `loadout optimize` as the primary guided workflow.
   - Flow: scan -> explain findings -> compare alternatives -> propose active set ->
     preview exact changes -> confirm -> verify -> provide one-command rollback.
-- [ ] `P12-15 [SOL]` Design representative, category-specific head-to-head
+  - The guided CLI prints project signals, scores and reasons, equivalent-source
+    alternatives, the exact enable delta, verified snapshot id, and rollback command.
+- [x] `P12-15 [SOL]` Design representative, category-specific head-to-head
       evaluations.
   - Start with workflow adherence, code-review coverage, documentation retrieval, and
     browser-test planning. Record fixtures, rubrics, model/version, variance, cost, and
     uncertainty; never execute untrusted host code.
+  - `docs/HEAD_TO_HEAD_EVALUATION.md` defines fixtures, weighted rubrics, trial
+    controls, variance/effect thresholds, cost evidence, uncertainty, non-execution
+    boundaries, and signed snapshot requirements for all four categories.
 - [ ] `P12-16 [TERRA]` Implement the first two head-to-head evaluation harnesses and
       persist signed evidence snapshots.
   - Results inform comparison but never silently replace a user's active capability.
@@ -896,42 +907,69 @@ universal or permanent truth.
   - Combine official sources, GitHub search, release/activity observations, star
     velocity, compliant community connectors, deduplication, rate-limit handling, and
     a human promotion gate. Discovery never installs automatically.
+  - Partial: `discover --queue`, `review-queue`, and `review` persist and
+    deduplicate GitHub/Hacker News leads while preserving human shortlist/ignore
+    decisions. Daily multi-source aggregation, official release feeds, and star-
+    velocity prioritization remain.
 - [ ] `P12-18 [TERRA]` Add freshness and replacement alerts.
   - Explain when an installed source is archived, materially stale, permission-expanded,
     superseded, or outperformed by reviewed evidence. Offer compare/ignore/pin actions.
-- [ ] `P12-19 [SOL]` Define privacy-preserving local outcome signals.
+  - Partial: `alerts` reports archived, one-year-stale, reviewed-commit-change, and
+    permission-expansion evidence with compare/update/disable actions and local ignore.
+    Evaluation-backed outperformance and persistent replacement pins remain.
+- [x] `P12-19 [SOL]` Define privacy-preserving local outcome signals.
   - Default local-only: explicit accept/reject, rollback, disable, repeated activation,
     and task-category success. No source code, prompts, filenames, or secrets leave the
     machine without separate informed consent.
-- [ ] `P12-20 [TERRA]` Connect improvement feedback to ranking evidence without
+  - The bounded local store accepts only exact package/skill selectors, agent ids,
+    task families, outcome enums, and timestamps; paths and arbitrary notes are rejected.
+- [x] `P12-20 [TERRA]` Connect improvement feedback to ranking evidence without
       creating a popularity feedback loop.
   - Human outcomes are scoped by task and agent; one user's preference cannot globally
     crown a package.
-- [ ] `P12-21 [TERRA]` Expose provider-neutral model/OpenRouter configuration through
+  - The active-set policy applies capped adjustments only to the same selector,
+    agent, and task family. Strong rejection/rollback evidence suppresses automatic
+    selection, while an explicit pin remains the user's override.
+- [x] `P12-21 [TERRA]` Expose provider-neutral model/OpenRouter configuration through
       validated CLI commands.
   - The current adapter is library-level only. Acceptance requires plan/apply/status,
     redacted output, credential references, and disposable mocked-network tests before
     any real-key test.
+  - `loadout models set/status/verify` stores only validated metadata and credential
+    references; apply is snapshotted, output is redacted, and provider requests resolve
+    the environment credential only at the explicit verification boundary.
 - [ ] `P12-22 [TERRA]` Add reviewed MCP setup recipes and connection verification.
   - Separate install from authorization; show commands, permissions, environment names,
     and target config; never print values; preserve unrelated JSON/TOML content.
 - [ ] `P12-23 [TERRA]` Complete P11-17 keychain backends and connect them to provider,
       private-discovery, registry, and MCP workflows.
-- [ ] `P12-24 [SOL]` Design a cross-platform daily scheduler that invokes read-only
+- [x] `P12-24 [SOL]` Design a cross-platform daily scheduler that invokes read-only
       discovery/update checks.
   - macOS LaunchAgent, Windows Task Scheduler, and Linux systemd/cron implementations
     must be opt-in, inspectable, removable, rate-limited, and unable to apply updates.
-- [ ] `P12-25 [TERRA]` Implement `loadout schedule` and `loadout unschedule` with native
+  - The native plans schedule only `loadout watch --once --json`; generated files and
+    native actions are shown in the dry run, and no apply-capable command is present.
+- [x] `P12-25 [TERRA]` Implement `loadout schedule` and `loadout unschedule` with native
       disposable/configuration tests.
+  - macOS LaunchAgent, Linux systemd user timer, and Windows Task Scheduler XML are
+    generated natively, snapshotted, installed only with `--yes`, and removable.
 - [ ] `P12-26 [TERRA]` Polish the CLI as the sole required product surface.
   - Consistent progress, compact tables, accessible color/no-color output, actionable
     errors, interruption handling, shell completion, noninteractive JSON, and terminal
     widths from 80 to 200 columns.
+  - Partial: the primary workflows are CLI-only, dry-run first, JSON-capable, and
+    actionable. Shell completion, width-aware tables, signal cleanup, and explicit
+    color policy remain.
 - [ ] `P12-27 [LUNA]` Reframe README, testing, and demo around scan/compare/optimize;
       move dashboard instructions to an optional diagnostics section.
-- [ ] `P12-28 [TERRA]` Add a privacy-safe `loadout report`/`loadout share` artifact.
+  - Partial: README and testing now lead with Power/Maximum Library and optimize; the
+    recorded demo/e2e story still needs to move away from dashboard-first.
+- [x] `P12-28 [TERRA]` Add a privacy-safe `loadout report`/`loadout share` artifact.
   - Default output contains package ids, versions, evidence, and compatibility only;
     exclude usernames, absolute paths, private repositories, project names, and secrets.
+  - The artifact contains package ids, commits, agent compatibility, aggregate
+    activation/review counts, and MCP package ids; repository names, server names,
+    paths, filenames, projects, prompts, code, and credential data are excluded.
 - [ ] `P12-29 [TERRA]` Complete P1-11 with at least 50 reviewed records and capability
       coverage metrics.
   - Measure unique capabilities, overlap, licenses, immutable commits, install shape,
@@ -1099,24 +1137,27 @@ small PRs, no long-lived branches.
 
 ## 25. Immediate next tasks
 
-1. Complete P12-11 through P12-14: safe adoption, active-set policy, project
-   activation, and the guided optimize workflow.
-2. Complete P12-15 through P12-20 in parallel: category-specific evaluations, daily
-   review queues, freshness alerts, and privacy-preserving human outcomes.
-3. Fix and regression-test every issue found by real Claude/Codex founder testing
+1. Complete P12-15 through P12-18: category-specific signed evaluations, daily
+   multi-source queue refresh, star-velocity prioritization, and evaluation-backed
+   replacement alerts.
+2. Complete P12-22 and P12-23: reviewed MCP recipes, connection verification, and
+   selected native keychain backends.
+3. Finish P12-26, P12-27, and P12-29: CLI polish, CLI-first demo, at least 50
+   reviewed catalog records, and capability coverage metrics.
+4. Fix and regression-test every issue found by real Claude/Codex founder testing
    before expanding the default catalog or enabling scheduled work.
-4. Complete P10-05 through P10-10: license review, demo recording, Codex usage
+5. Complete P10-05 through P10-10: license review, demo recording, Codex usage
    explanation, feedback session ID, Devpost fields, and submission.
-5. Have the repository owner choose npm publishing credentials, publish
+6. Have the repository owner choose npm publishing credentials, publish
    `loadout-ai`, and immediately verify the interactive `npx loadout-ai` setup from
    outside the repository on clean machines.
-6. Resolve P0-05 when repository visibility or the GitHub plan permits branch
+7. Resolve P0-05 when repository visibility or the GitHub plan permits branch
    protection.
-7. Implement P11-17 only after selecting and threat-modeling real macOS, Windows,
+8. Implement P11-17 only after selecting and threat-modeling real macOS, Windows,
    and Linux keychain integrations.
-8. Design and add the six P11-21 adapters from official path/config documentation;
+9. Design and add the six P11-21 adapters from official path/config documentation;
    do not infer support from repository popularity.
-9. Expand P1-11 with reviewed skill and MCP sources, measuring unique capabilities and
-   overlap rather than treating GitHub stars or raw repository count as quality.
-10. Run real user testing from disposable profiles, record every failure, and feed
+10. Expand P1-11 with reviewed skill and MCP sources, measuring unique capabilities and
+    overlap rather than treating GitHub stars or raw repository count as quality.
+11. Run real user testing from disposable profiles, record every failure, and feed
     reproducible defects into `loadout improve` and the regression suite.

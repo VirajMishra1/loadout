@@ -8,8 +8,14 @@ Loadout separates four facts that package managers often collapse into one word:
   never follows popularity alone;
 - **installation**: `installed` or `removed` records whether Loadout still manages the
   package; and
-- **activation**: `active` or `disabled` is per agent, because the same package can be
-  visible to Claude Code but disabled for Codex.
+- **activation**: `active` or `disabled` is per skill unit and per agent, because one
+  skill from a collection can be visible to Claude Code while another stays disabled
+  for Codex.
+
+Maximum Library starts reviewed skill units as `downloaded + reviewed + installed +
+disabled`. It can therefore hold hundreds of candidates without exposing hundreds of
+instructions to an agent. Power is an intentionally broader active profile; Stable is
+the smallest active foundation.
 
 An initial install is active and may have `cache:missing`. On the first disable,
 Loadout verifies that every managed file is unchanged and that no untracked file would
@@ -36,9 +42,11 @@ activation transition explicit.
 
 ```bash
 loadout library
-loadout disable <package> [more-packages] [--agents codex,claude-code]
-loadout disable <package> --yes
-loadout enable <package> --yes
+loadout disable <package-or-package/skill> [more-selectors] [--agents codex,claude-code]
+loadout disable <package-or-package/skill> --yes
+loadout enable <package-or-package/skill> --yes
+loadout activate --project . --limit 40
+loadout optimize --project .
 loadout rollback --snapshot <id>
 ```
 

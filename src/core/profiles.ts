@@ -34,6 +34,90 @@ export interface ProfileResolution {
 export const STABLE_BOOST_PACKAGE_IDS = ["superpowers", "context7"] as const;
 
 /**
+ * Broad daily-driver capabilities selected at skill granularity. Collection
+ * repositories stay available in full through Maximum Library, while Power
+ * activates only skills with a clear cross-project job.
+ */
+export const POWER_SKILL_ALLOWLIST: Readonly<
+  Record<string, readonly string[]>
+> = {
+  superpowers: [
+    "brainstorming",
+    "dispatching-parallel-agents",
+    "executing-plans",
+    "finishing-a-development-branch",
+    "receiving-code-review",
+    "requesting-code-review",
+    "subagent-driven-development",
+    "systematic-debugging",
+    "test-driven-development",
+    "using-git-worktrees",
+    "using-superpowers",
+    "verification-before-completion",
+    "writing-plans",
+    "writing-skills",
+  ],
+  context7: ["context7-cli", "context7-docs", "context7-mcp", "find-docs"],
+  "anthropic-skills": [
+    "docx",
+    "frontend-design",
+    "mcp-builder",
+    "pdf",
+    "web-artifacts-builder",
+    "webapp-testing",
+  ],
+  "openai-skills": [
+    "cli-creator",
+    "figma-implement-design",
+    "gh-fix-ci",
+    "imagegen",
+    "openai-docs",
+    "playwright",
+    "screenshot",
+    "security-best-practices",
+  ],
+  "vercel-agent-skills": [
+    "deploy-to-vercel",
+    "vercel-composition-patterns",
+    "vercel-optimize",
+    "vercel-react-best-practices",
+    "web-design-guidelines",
+  ],
+  "ui-ux-pro-max": ["design-system", "slides", "ui-styling", "ui-ux-pro-max"],
+  "wshobson-agents": [
+    "accessibility-compliance",
+    "api-design-principles",
+    "architecture-patterns",
+    "code-review-excellence",
+    "debugging-strategies",
+    "e2e-testing-patterns",
+    "modern-javascript-patterns",
+    "python-testing-patterns",
+    "python-type-safety",
+    "typescript-advanced-types",
+  ],
+  "awesome-copilot": [
+    "acquire-codebase-knowledge",
+    "chrome-devtools",
+    "create-implementation-plan",
+    "github-actions-hardening",
+    "security-review",
+  ],
+} as const;
+
+export function isPowerSkillSelected(
+  packageId: string,
+  skillName: string | undefined,
+  targetName: string,
+): boolean {
+  const selected = POWER_SKILL_ALLOWLIST[packageId];
+  if (!selected) return false;
+  return (
+    selected.includes(skillName ?? targetName) || selected.includes(targetName)
+  );
+}
+
+/**
  * These are overlap warnings, not claims that the listed repositories are
  * technically incompatible. The catalog currently has no evidenced hard
  * family; hard-family support exists for a future verified incompatibility.
@@ -75,6 +159,13 @@ function eligiblePackages(
     // preserve reviewed-tier behavior in that case instead of returning empty.
     return curated.length ? curated : reviewed;
   }
+  if (selection.mode === "power") {
+    const packageIds = new Set(Object.keys(POWER_SKILL_ALLOWLIST));
+    const selected = ranked.filter((pkg) => packageIds.has(pkg.id));
+    return selected.length
+      ? selected
+      : ranked.filter((pkg) => pkg.components?.includes("skill"));
+  }
   if (selection.mode === "maximum") return ranked;
   const ids = selection.packageIds ?? [];
   if (ids.length === 0)
@@ -105,7 +196,11 @@ export function resolveCatalogProfile(
   selection: InstallSelection,
   families: CatalogConflictFamily[] = CATALOG_CONFLICT_FAMILIES,
 ): ProfileResolution {
-  if (!(["stable", "maximum", "custom"] as string[]).includes(selection.mode))
+  if (
+    !(["stable", "power", "maximum", "custom"] as string[]).includes(
+      selection.mode,
+    )
+  )
     throw new Error(`Unknown install mode '${selection.mode}'`);
   const candidates = eligiblePackages(packages, selection);
   const selected = new Map(candidates.map((pkg) => [pkg.id, pkg]));
@@ -150,7 +245,7 @@ export function resolveCatalogProfile(
       );
     } else {
       warnings.push(
-        `Maximum Boost retains the soft overlap in ${family.label}. ${primary.displayName} is the recommended default; review each package before installation.`,
+        `${selection.mode === "power" ? "Power Boost" : "Maximum Library"} retains the soft overlap in ${family.label}. ${primary.displayName} is the recommended default; review each package before installation.`,
       );
     }
   }

@@ -10,7 +10,7 @@ import { compareCatalogPackages, explainCatalogScore } from "./ranking.js";
 import { resolveCatalogProfile } from "./profiles.js";
 import { recordCatalogObservations } from "./observations.js";
 
-export type InstallSelectionMode = "stable" | "maximum" | "custom";
+export type InstallSelectionMode = "stable" | "power" | "maximum" | "custom";
 
 export interface InstallSelection {
   mode: InstallSelectionMode;

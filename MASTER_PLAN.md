@@ -611,13 +611,13 @@ modes.
   - Acceptance: schema decision documented; no secret-value fields exist.
 - [x] `P1-02 [TERRA]` Implement Zod schemas and inferred TypeScript types.
   - Acceptance: valid fixtures parse; invalid fixtures fail with actionable errors.
-- [ ] `P1-03 [LUNA]` Create valid/invalid catalog fixtures.
+- [x] `P1-03 [LUNA]` Create valid/invalid catalog fixtures.
   - Acceptance: at least five valid and ten invalid cases.
 - [x] `P1-04 [TERRA]` Implement seed catalog loader.
   - Acceptance: loads bundled catalog offline and returns categories/packages.
-- [ ] `P1-05 [LUNA]` Add first ten verified catalog records.
+- [x] `P1-05 [LUNA]` Add first ten verified catalog records.
   - Acceptance: source, category, tier, license, commit/ref, components, platforms.
-- [ ] `P1-06 [LUNA]` Add next ten verified catalog records.
+- [x] `P1-06 [LUNA]` Add next ten verified catalog records.
 - [x] `P1-07 [TERRA]` Implement GitHub metadata fetch with cache and rate-limit errors.
 - [x] `P1-08 [TERRA]` Implement tier and ranking functions.
 - [x] `P1-09 [SOL]` Review scoring for obvious gaming and bias failure modes.
@@ -730,14 +730,17 @@ modes.
 
 ### Phase 9: Cross-platform verification
 
-- [ ] `P9-01 [TERRA]` Windows native install test.
+- [x] `P9-01 [TERRA]` Windows native install test.
+  - CI run `29401149042` passed on Windows Server 2025 with Node 20 and 22. The native-filesystem smoke test used disposable `LOADOUT_USER_HOME` and `LOADOUT_HOME` directories to plan, install, byte-verify, and remove a real skill through every declared agent-owned skills layout.
 - [x] `P9-02 [TERRA]` WSL behavior test or documented compatibility boundary.
-- [ ] `P9-03 [TERRA]` macOS install test.
-- [ ] `P9-04 [TERRA]` Linux install test.
+- [x] `P9-03 [TERRA]` macOS install test.
+  - CI run `29401149042` passed on macOS with Node 20 and 22 using the host path implementation, not a simulated layout.
+- [x] `P9-04 [TERRA]` Linux install test.
+  - CI run `29401149042` passed on Ubuntu with Node 20 and 22 using the host path implementation, not a simulated layout.
 - [x] `P9-05 [LUNA]` CRLF/LF fixture coverage.
 - [x] `P9-06 [LUNA]` `.cmd` executable-resolution fixture coverage.
-- [ ] `P9-07 [SOL]` Cross-platform go/no-go review.
-  - Reviewed 2026-07-15: no-go for a universal-install claim until P9-01, P9-03, and P9-04 have real native installation evidence.
+- [x] `P9-07 [SOL]` Cross-platform go/no-go review.
+  - Reviewed 2026-07-15 after successful CI run `29401149042`: go for the bounded claim that Loadout can plan, install, verify, and remove native `SKILL.md` directories on Windows, macOS, and Linux. No-go remains for a universal runtime claim covering plugins, hooks, executables, or arbitrary MCP servers.
 
 ### Phase 10: Submission
 
@@ -758,7 +761,7 @@ modes.
 - [ ] `P11-02 [TERRA]` Implement optional private-repository discovery.
 - [x] `P11-03 [TERRA]` Implement Community Loadout export/import with versioning.
 - [ ] `P11-04 [TERRA]` Implement star/release/download snapshot storage and charts.
-- [ ] `P11-05 [SOL]` Define provider-neutral model configuration schema.
+- [x] `P11-05 [SOL]` Define provider-neutral model configuration schema.
 - [ ] `P11-06 [TERRA]` Implement OpenRouter provider adapter without storing keys in
       application state.
 - [ ] `P11-07 [SOL]` Define category-specific evaluation protocol and uncertainty.

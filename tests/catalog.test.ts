@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import {
@@ -90,15 +90,58 @@ describe("catalog evidence validation", () => {
     },
   };
 
+  async function fixture<T>(name: string): Promise<T> {
+    return JSON.parse(
+      await readFile(
+        new URL(`./fixtures/catalog/${name}`, import.meta.url),
+        "utf8",
+      ),
+    ) as T;
+  }
+
   it("loads the bundled catalog with pinned source, component, platform, and license evidence", async () => {
     const catalog = await loadCatalog();
-    expect(catalog.length).toBeGreaterThanOrEqual(18);
+    expect(catalog.length).toBeGreaterThanOrEqual(20);
     for (const item of catalog) {
       expect(item.source?.commit).toMatch(/^[a-f0-9]{40}$/);
       expect(item.source?.url).toBe(`https://github.com/${item.repository}`);
       expect(item.components?.length).toBeGreaterThan(0);
       expect(item.operatingSystems).toEqual(["windows", "macos", "linux"]);
       expect(item.license).toBeTruthy();
+    }
+  });
+
+  it("parses five real evidence-rich fixture records", async () => {
+    const records = await fixture<unknown>("valid.json");
+    expect(Array.isArray(records)).toBe(true);
+    expect((records as unknown[]).length).toBe(5);
+    expect(() =>
+      validateCatalog(records, { requireEvidence: true }),
+    ).not.toThrow();
+  });
+
+  it("rejects every invalid catalog fixture with its declared reason", async () => {
+    const invalid = await fixture<
+      Array<{
+        name: string;
+        patch?: Record<string, unknown>;
+        sourcePatch?: Record<string, unknown>;
+        message: string;
+      }>
+    >("invalid.json");
+    expect(invalid).toHaveLength(11);
+    for (const item of invalid) {
+      const candidate = {
+        ...verified,
+        ...item.patch,
+        ...(item.sourcePatch
+          ? { source: { ...verified.source, ...item.sourcePatch } }
+          : {}),
+      };
+      expect(
+        () => validateCatalog([candidate], { requireEvidence: true }),
+        item.name,
+      ).toThrow(new RegExp(item.message));
     }
   });
 

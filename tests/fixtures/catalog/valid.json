@@ -1,0 +1,112 @@
+[
+  {
+    "id": "superpowers",
+    "displayName": "Superpowers",
+    "repository": "obra/superpowers",
+    "description": "An agentic skills framework & software development methodology that works.",
+    "category": "engineering-workflow",
+    "tier": "stable",
+    "license": "MIT",
+    "components": ["skill", "plugin"],
+    "operatingSystems": ["windows", "macos", "linux"],
+    "stars": 254615,
+    "source": {
+      "type": "github",
+      "url": "https://github.com/obra/superpowers",
+      "defaultBranch": "main",
+      "commit": "d884ae04edebef577e82ff7c4e143debd0bbec99",
+      "evidencePaths": [
+        "skills/brainstorming/SKILL.md",
+        ".claude-plugin/plugin.json"
+      ],
+      "verifiedAt": "2026-07-14T18:17:03Z"
+    }
+  },
+  {
+    "id": "context7",
+    "displayName": "Context7",
+    "repository": "upstash/context7",
+    "description": "Context7 Platform -- Up-to-date code documentation for LLMs and AI code editors.",
+    "category": "documentation",
+    "tier": "stable",
+    "license": "MIT",
+    "components": ["skill", "mcp", "plugin"],
+    "operatingSystems": ["windows", "macos", "linux"],
+    "stars": 59102,
+    "source": {
+      "type": "github",
+      "url": "https://github.com/upstash/context7",
+      "defaultBranch": "master",
+      "commit": "eb7ac502f6e83692363375d3088d550afa298a60",
+      "evidencePaths": [
+        "plugins/claude/context7/.mcp.json",
+        "plugins/claude/context7/skills/context7-mcp/SKILL.md",
+        "plugins/claude/context7/.claude-plugin/plugin.json"
+      ],
+      "verifiedAt": "2026-07-14T18:17:03Z"
+    }
+  },
+  {
+    "id": "playwright-mcp",
+    "displayName": "Playwright MCP",
+    "repository": "microsoft/playwright-mcp",
+    "description": "Playwright MCP server.",
+    "category": "browser-verification",
+    "tier": "official",
+    "license": "Apache-2.0",
+    "components": ["mcp"],
+    "operatingSystems": ["windows", "macos", "linux"],
+    "stars": 35074,
+    "source": {
+      "type": "github",
+      "url": "https://github.com/microsoft/playwright-mcp",
+      "defaultBranch": "main",
+      "commit": "5f8fc00210b27b4407c375b59cda4838045d429c",
+      "evidencePaths": ["README.md", "package.json", "index.js"],
+      "verifiedAt": "2026-07-14T18:17:03Z"
+    }
+  },
+  {
+    "id": "ui-ux-pro-max",
+    "displayName": "UI UX Pro Max",
+    "repository": "nextlevelbuilder/ui-ux-pro-max-skill",
+    "description": "An AI skill that provides design intelligence for building professional UI/UX across multiple platforms.",
+    "category": "frontend-design",
+    "tier": "stable",
+    "license": "MIT",
+    "components": ["skill", "plugin"],
+    "operatingSystems": ["windows", "macos", "linux"],
+    "stars": 105540,
+    "source": {
+      "type": "github",
+      "url": "https://github.com/nextlevelbuilder/ui-ux-pro-max-skill",
+      "defaultBranch": "main",
+      "commit": "fe3f65e5d0203341b40b7db80650501cd9de4961",
+      "evidencePaths": [
+        ".claude/skills/ui-ux-pro-max/SKILL.md",
+        ".claude-plugin/plugin.json"
+      ],
+      "verifiedAt": "2026-07-14T18:17:03Z"
+    }
+  },
+  {
+    "id": "github-mcp-server",
+    "displayName": "GitHub MCP Server",
+    "repository": "github/github-mcp-server",
+    "description": "GitHub's official MCP Server.",
+    "category": "source-control",
+    "tier": "official",
+    "license": "MIT",
+    "components": ["mcp"],
+    "operatingSystems": ["windows", "macos", "linux"],
+    "stars": 31437,
+    "source": {
+      "type": "github",
+      "url": "https://github.com/github/github-mcp-server",
+      "defaultBranch": "main",
+      "commit": "c36e4e4493c76eafe2c1a9cbc5272e8eede29189",
+      "evidencePaths": ["README.md", "cmd/github-mcp-server/main.go", "go.mod"],
+      "verifiedAt": "2026-07-14T18:17:03Z"
+    }
+  }
+]

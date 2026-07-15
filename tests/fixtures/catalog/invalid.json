@@ -1,0 +1,45 @@
+[
+  {
+    "name": "id-format",
+    "patch": { "id": "Not Kebab" },
+    "message": "kebab-case"
+  },
+  {
+    "name": "empty-description",
+    "patch": { "description": "" },
+    "message": "description"
+  },
+  {
+    "name": "repository-format",
+    "patch": { "repository": "not-a-repository" },
+    "message": "owner/repository"
+  },
+  { "name": "tier", "patch": { "tier": "untrusted" }, "message": "tier" },
+  { "name": "negative-stars", "patch": { "stars": -1 }, "message": "stars" },
+  { "name": "empty-license", "patch": { "license": "" }, "message": "license" },
+  {
+    "name": "duplicate-components",
+    "patch": { "components": ["skill", "skill"] },
+    "message": "duplicates"
+  },
+  {
+    "name": "unsupported-platform",
+    "patch": { "operatingSystems": ["windows", "beos"] },
+    "message": "operatingSystems"
+  },
+  {
+    "name": "short-commit",
+    "sourcePatch": { "commit": "short" },
+    "message": "full Git SHA"
+  },
+  {
+    "name": "unsafe-evidence-path",
+    "sourcePatch": { "evidencePaths": ["../escape"] },
+    "message": "evidencePaths"
+  },
+  {
+    "name": "mismatched-source-url",
+    "sourcePatch": { "url": "https://github.com/example/other" },
+    "message": "source.url"
+  }
+]

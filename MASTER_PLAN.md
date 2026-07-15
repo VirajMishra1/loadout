@@ -598,7 +598,7 @@ modes.
 
 - [x] `P0-01 [LUNA]` Add pnpm workspace skeleton matching section 9.1.
   - Acceptance: `pnpm install` succeeds and every workspace has a placeholder test.
-- [ ] `P0-02 [LUNA]` Add `.gitignore`, `.editorconfig`, Prettier, and ESLint defaults.
+- [x] `P0-02 [LUNA]` Add `.gitignore`, `.editorconfig`, Prettier, and ESLint defaults.
   - Acceptance: formatting and lint commands run at repository root.
 - [x] `P0-03 [TERRA]` Add GitHub Actions matrix for Node on Windows, macOS, Linux.
   - Acceptance: install, lint, typecheck, and tests run on all three.
@@ -743,7 +743,7 @@ modes.
 
 - [x] `P10-01 [LUNA]` Expand README with install and supported-platform table.
 - [x] `P10-02 [LUNA]` Add sample catalog data and judge test instructions.
-- [ ] `P10-03 [TERRA]` Add one-command demo mode using isolated fake home dirs.
+- [x] `P10-03 [TERRA]` Add one-command demo mode using isolated fake home dirs.
 - [x] `P10-04 [SOL]` Final architecture and threat-model review.
 - [ ] `P10-05 [HUMAN]` Verify licenses and attribution for included sources.
 - [ ] `P10-06 [HUMAN]` Record under-three-minute demo.

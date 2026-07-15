@@ -782,7 +782,8 @@ modes.
 - [x] `P11-16 [SOL]` Design OS-keychain-backed credential interface.
 - [ ] `P11-17 [TERRA]` Implement macOS, Windows, and Linux credential backends.
 - [x] `P11-18 [SOL]` Define autonomous-update permission policies and recovery rules.
-- [ ] `P11-19 [TERRA]` Implement policy-gated canary update pipeline.
+- [x] `P11-19 [TERRA]` Implement policy-gated canary update pipeline.
+  - `loadout canary` performs a non-mutating static gate; promotion requires explicit approval plus injected verification and transaction callbacks, so it cannot silently update agent files.
 - [x] `P11-20 [SOL]` Publish adapter SDK and conformance contract.
 - [ ] `P11-21 [TERRA]` Add the next six agent adapters through the SDK.
 - [x] `P11-22 [TERRA]` Add compliant Hacker News and community-source connectors.

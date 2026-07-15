@@ -47,6 +47,7 @@ describe("CLI contract", () => {
     expect(result.stdout).toContain("watch");
     expect(result.stdout).toContain("sandbox-run");
     expect(result.stdout).toContain("convert");
+    expect(result.stdout).toContain("canary");
   });
 
   it("reports mutually exclusive source errors without mutating state", async () => {

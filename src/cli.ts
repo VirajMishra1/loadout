@@ -111,6 +111,7 @@ import {
   type ConversionTarget,
 } from "./core/conversion.js";
 import { writeFileAtomically } from "./core/atomic-file.js";
+import { formatCanaryResult, runCanary } from "./core/canary.js";
 
 const program = new Command();
 program
@@ -1666,6 +1667,47 @@ program
                 ? "Manual approval is required before using this artifact."
                 : "No additional approval is required."),
       );
+    },
+  );
+
+program
+  .command("canary")
+  .description(
+    "Run a static canary policy gate for a candidate without installing it",
+  )
+  .requiredOption("--source <directory>", "candidate package directory")
+  .requiredOption("--package <id>", "candidate package id")
+  .option("--repository <owner/repo>", "candidate repository")
+  .option("--commit <sha>", "candidate immutable commit")
+  .option("--approve", "approve promotion if a promotion callback is supplied")
+  .option("--allow-unready", "allow review findings in the static gate")
+  .option("--json", "emit machine-readable JSON")
+  .action(
+    async (options: {
+      source: string;
+      package: string;
+      repository?: string;
+      commit?: string;
+      approve?: boolean;
+      allowUnready?: boolean;
+      json?: boolean;
+    }) => {
+      const result = await runCanary(
+        {
+          packageId: options.package,
+          root: options.source,
+          ...(options.repository ? { repository: options.repository } : {}),
+          ...(options.commit ? { commit: options.commit } : {}),
+        },
+        { enabled: true, requireStaticReady: !options.allowUnready },
+        { approve: options.approve },
+      );
+      console.log(
+        options.json
+          ? JSON.stringify(result, null, 2)
+          : formatCanaryResult(result),
+      );
+      if (result.status === "blocked") process.exitCode = 1;
     },
   );
 

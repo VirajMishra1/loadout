@@ -1,6 +1,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { CatalogPackage } from "../shared/types.js";
+import { catalogSchema, formatSchemaError } from "../shared/schemas.js";
 import { fetchGitHubMetadata, type GitHubMetadataOptions } from "./github.js";
 import { loadoutHome } from "./paths.js";
 import { compareCatalogPackages, explainCatalogScore } from "./ranking.js";
@@ -47,6 +48,11 @@ export function validateCatalog(
   options: { requireEvidence?: boolean } = {},
 ): asserts value is CatalogPackage[] {
   if (!Array.isArray(value)) throw new Error("Catalog must be an array");
+  const schema = catalogSchema.safeParse(value);
+  if (!schema.success)
+    throw new Error(
+      `Catalog schema is invalid: ${formatSchemaError(schema.error)}`,
+    );
   const ids = new Set<string>();
   const repositories = new Set<string>();
   for (const [index, item] of value.entries()) {

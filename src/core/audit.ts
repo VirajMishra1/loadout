@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import type { LoadoutLockfile, LoadoutManifest } from "../shared/types.js";
+import { formatSchemaError, loadoutLockfileSchema } from "../shared/schemas.js";
 import { readManifest } from "./manifest.js";
 import { readInstallState } from "./state.js";
 
@@ -19,16 +20,12 @@ export interface AuditReport {
 }
 
 export function parseLockfile(value: unknown): LoadoutLockfile {
-  if (!value || typeof value !== "object")
-    throw new Error("Lockfile must be an object");
-  const item = value as Partial<LoadoutLockfile>;
-  if (
-    item.schemaVersion !== 1 ||
-    typeof item.manifestName !== "string" ||
-    !Array.isArray(item.packages)
-  )
-    throw new Error("Lockfile schema is invalid");
-  return item as LoadoutLockfile;
+  const result = loadoutLockfileSchema.safeParse(value);
+  if (!result.success)
+    throw new Error(
+      `Lockfile schema is invalid: ${formatSchemaError(result.error)}`,
+    );
+  return result.data;
 }
 
 export async function readLockfile(

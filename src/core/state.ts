@@ -8,6 +8,7 @@ import type {
   McpConfigPlan,
   McpInstallRecord,
 } from "../shared/types.js";
+import { formatSchemaError, installStateSchema } from "../shared/schemas.js";
 import { ensureDirectory, loadoutHome } from "./paths.js";
 import { writeFileAtomically } from "./atomic-file.js";
 
@@ -21,17 +22,10 @@ async function writeInstallState(state: InstallState): Promise<void> {
 
 export async function readInstallState(): Promise<InstallState> {
   try {
-    const parsed = JSON.parse(
-      await readFile(stateFile(), "utf8"),
-    ) as Partial<InstallState>;
-    if (parsed.version !== 1 || !Array.isArray(parsed.installs))
-      throw new Error("invalid state");
-    if (parsed.mcpInstalls !== undefined && !Array.isArray(parsed.mcpInstalls))
-      throw new Error("invalid state");
-    return {
-      ...(parsed as InstallState),
-      mcpInstalls: parsed.mcpInstalls ?? [],
-    };
+    const parsed: unknown = JSON.parse(await readFile(stateFile(), "utf8"));
+    const result = installStateSchema.safeParse(parsed);
+    if (!result.success) throw new Error(formatSchemaError(result.error));
+    return result.data;
   } catch (error) {
     if (
       error &&
@@ -41,7 +35,9 @@ export async function readInstallState(): Promise<InstallState> {
     ) {
       return { version: 1, installs: [], mcpInstalls: [] };
     }
-    throw new Error(`Loadout state is invalid at ${stateFile()}`);
+    throw new Error(
+      `Loadout state is invalid at ${stateFile()}: ${error instanceof Error ? error.message : String(error)}`,
+    );
   }
 }
 

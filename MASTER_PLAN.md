@@ -607,9 +607,9 @@ modes.
 
 ### Phase 1: Shared types and catalog
 
-- [ ] `P1-01 [SOL]` Finalize catalog, installed-state, plan, and lockfile schemas.
+- [x] `P1-01 [SOL]` Finalize catalog, installed-state, plan, and lockfile schemas.
   - Acceptance: schema decision documented; no secret-value fields exist.
-- [ ] `P1-02 [TERRA]` Implement Zod schemas and inferred TypeScript types.
+- [x] `P1-02 [TERRA]` Implement Zod schemas and inferred TypeScript types.
   - Acceptance: valid fixtures parse; invalid fixtures fail with actionable errors.
 - [ ] `P1-03 [LUNA]` Create valid/invalid catalog fixtures.
   - Acceptance: at least five valid and ten invalid cases.

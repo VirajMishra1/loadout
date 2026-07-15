@@ -7,6 +7,7 @@ import type {
   ManifestPackage,
   PackageSource,
 } from "../shared/types.js";
+import { formatSchemaError, loadoutManifestSchema } from "../shared/schemas.js";
 import { readInstallState } from "./state.js";
 import { writeFileAtomically } from "./atomic-file.js";
 
@@ -201,7 +202,7 @@ export function parseManifest(value: unknown): LoadoutManifest {
           `Package '${pkg.id}' depends on missing package '${dependency}'`,
         );
   orderManifestPackages(parsedPackages);
-  return {
+  const manifest = {
     schemaVersion: 1,
     name: item.name.trim(),
     scope: item.scope,
@@ -212,6 +213,12 @@ export function parseManifest(value: unknown): LoadoutManifest {
       ? { policy: item.policy as LoadoutManifest["policy"] }
       : {}),
   };
+  const schema = loadoutManifestSchema.safeParse(manifest);
+  if (!schema.success)
+    throw new Error(
+      `Manifest schema is invalid: ${formatSchemaError(schema.error)}`,
+    );
+  return schema.data;
 }
 
 export function orderManifestPackages(

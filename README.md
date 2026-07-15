@@ -178,6 +178,7 @@ node dist/src/cli.js catalog --history superpowers
 ```bash
 # Public Hacker News API only; finds current front-page stories that link to GitHub.
 node dist/src/cli.js discover --source hacker-news --min-score 20
+node dist/src/cli.js discover --source hacker-news --query codex,mcp,agent
 node dist/src/cli.js discover --source hacker-news --json
 ```
 

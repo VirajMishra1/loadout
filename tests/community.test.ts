@@ -89,4 +89,27 @@ describe("Hacker News community discovery", () => {
       }),
     ).rejects.toThrow("Hacker News top stories request failed (503)");
   });
+
+  it("can narrow broad community traffic with user-provided words", async () => {
+    const result = await discoverHackerNewsRepositories({
+      limit: 1,
+      minScore: 0,
+      keywords: ["mcp", "codex"],
+      fetcher: async (input) => {
+        if (String(input).endsWith("/topstories.json"))
+          return new Response(JSON.stringify([1]));
+        return new Response(
+          JSON.stringify({
+            id: 1,
+            type: "story",
+            title: "Show HN: an MCP server for Codex",
+            url: "https://github.com/acme/mcp",
+            score: 1,
+            time: 1_700_000_000,
+          }),
+        );
+      },
+    });
+    expect(result.candidates).toHaveLength(1);
+  });
 });

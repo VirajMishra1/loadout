@@ -887,12 +887,17 @@ program
   .option("--source <source>", "community source", "hacker-news")
   .option("--limit <count>", "front-page stories to inspect", "50")
   .option("--min-score <count>", "minimum Hacker News score", "20")
+  .option(
+    "--query <words>",
+    "comma-separated words that must appear in a story (for example: codex,mcp,agent)",
+  )
   .option("--json", "emit source evidence as JSON")
   .action(
     async (options: {
       source: string;
       limit: string;
       minScore: string;
+      query?: string;
       json?: boolean;
     }) => {
       if (options.source !== "hacker-news")
@@ -908,6 +913,7 @@ program
       const result = await discoverHackerNewsRepositories({
         limit,
         minScore,
+        keywords: options.query?.split(",") ?? [],
       });
       if (options.json) return console.log(JSON.stringify(result, null, 2));
       console.log(

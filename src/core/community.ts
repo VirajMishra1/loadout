@@ -35,6 +35,8 @@ export interface HackerNewsDiscoveryOptions {
   limit?: number;
   /** Ignore low-signal stories without hiding their source evidence. */
   minScore?: number;
+  /** Optional case-insensitive words; a story needs to match at least one. */
+  keywords?: string[];
   fetcher?: typeof fetch;
 }
 
@@ -55,6 +57,7 @@ function repositoryFromText(value: string): string | undefined {
 function storyCandidate(
   story: HackerNewsStory,
   minScore: number,
+  keywords: string[],
 ): CommunityRepositoryCandidate | undefined {
   if (
     story.type !== "story" ||
@@ -65,9 +68,13 @@ function storyCandidate(
     (story.score ?? 0) < minScore
   )
     return undefined;
-  const repository = repositoryFromText(
-    `${story.url ?? ""}\n${story.text ?? ""}`,
-  );
+  const searchable = `${story.title}\n${story.url ?? ""}\n${story.text ?? ""}`;
+  if (
+    keywords.length &&
+    !keywords.some((keyword) => searchable.toLowerCase().includes(keyword))
+  )
+    return undefined;
+  const repository = repositoryFromText(searchable);
   if (!repository) return undefined;
   return {
     source: "hacker-news",
@@ -93,6 +100,9 @@ export async function discoverHackerNewsRepositories(
   const fetcher = options.fetcher ?? fetch;
   const limit = Math.max(1, Math.min(options.limit ?? 50, 100));
   const minScore = Math.max(0, options.minScore ?? 20);
+  const keywords = (options.keywords ?? [])
+    .map((keyword) => keyword.trim().toLowerCase())
+    .filter(Boolean);
   const idsResponse = await fetcher(`${API_BASE}/topstories.json`);
   if (!idsResponse.ok)
     throw new Error(
@@ -117,7 +127,7 @@ export async function discoverHackerNewsRepositories(
   const deduplicated = new Map<string, CommunityRepositoryCandidate>();
   for (const story of stories) {
     if (!story) continue;
-    const candidate = storyCandidate(story, minScore);
+    const candidate = storyCandidate(story, minScore, keywords);
     if (!candidate) continue;
     const current = deduplicated.get(candidate.repository.toLowerCase());
     if (!current || candidate.score > current.score) {

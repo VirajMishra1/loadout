@@ -4,10 +4,50 @@ on:
   push:
     branches: [main, develop, "dev/**"]
   pull_request:
+  workflow_dispatch:
+
+# One current run per ref is enough; cancel stale work before it consumes paid minutes.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   verify:
-    name: Node ${{ matrix.node }} on ${{ matrix.os }}
+    name: Fast verification (Ubuntu, Node 22)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run format:check
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test -- --run
+      - run: npm run build
+
+  dashboard-e2e:
+    name: Dashboard first-run browser flow
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium-headless-shell
+      - run: npm run test:e2e
+
+  cross-platform:
+    name: Native install (Node ${{ matrix.node }}, ${{ matrix.os }})
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -27,18 +67,3 @@ jobs:
       - run: npm run typecheck
       - run: npm test -- --run
       - run: npm run build
-
-  dashboard-e2e:
-    name: Dashboard first-run browser flow
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-
-    steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 22
-          cache: npm
-      - run: npm ci
-      - run: npx playwright install --with-deps chromium-headless-shell
-      - run: npm run test:e2e

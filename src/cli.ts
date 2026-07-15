@@ -125,6 +125,13 @@ import {
   formatInstalledSkillInventory,
   scanInstalledSkills,
 } from "./core/skill-inventory.js";
+import {
+  enrichInventoryWithProvenance,
+  formatProvenanceSummary,
+  resolveCatalogSkillIndex,
+  type CatalogSkillIndexProgress,
+} from "./core/provenance.js";
+import { compareSkill, formatSkillComparison } from "./core/skill-compare.js";
 
 const collectOption = (value: string, previous: string[] = []): string[] => [
   ...previous,
@@ -160,6 +167,18 @@ function printSetupProgress(progress: CatalogInstallProgress): void {
     progress.status === "ready"
       ? "✓"
       : progress.status === "skipped"
+        ? "○"
+        : "↓";
+  console.error(
+    `${marker} [${progress.completed}/${progress.total}] ${progress.message}`,
+  );
+}
+
+function printProvenanceProgress(progress: CatalogSkillIndexProgress): void {
+  const marker =
+    progress.status === "ready"
+      ? "✓"
+      : progress.status === "failed"
         ? "○"
         : "↓";
   console.error(
@@ -917,29 +936,132 @@ program
     "--agents <ids>",
     "comma-separated agent ids; defaults to detected agents",
   )
+  .option(
+    "--refresh-provenance",
+    "fetch exact reviewed commits and rebuild the local catalog skill index",
+  )
   .option("--json", "emit the complete machine-readable inventory")
-  .action(async (options: { agents?: string; json?: boolean }) => {
-    const detected = await detectAgents();
-    const requested = options.agents
-      ?.split(",")
-      .map((value) => value.trim())
-      .filter(Boolean);
-    const known = new Set(detected.map((agent) => agent.id));
-    const unknown = (requested ?? []).filter((id) => !known.has(id as AgentId));
-    if (unknown.length)
-      throw new Error(`Unknown agent id(s): ${unknown.join(", ")}`);
-    const selected = requested?.length
-      ? detected.filter((agent) => requested.includes(agent.id))
-      : detected.filter((agent) => agent.installed);
-    if (!selected.length)
-      throw new Error("No detected agent profile is available to scan");
-    const report = await scanInstalledSkills(selected);
-    console.log(
-      options.json
-        ? JSON.stringify(report, null, 2)
-        : formatInstalledSkillInventory(report),
-    );
-  });
+  .action(
+    async (options: {
+      agents?: string;
+      refreshProvenance?: boolean;
+      json?: boolean;
+    }) => {
+      const detected = await detectAgents();
+      const requested = options.agents
+        ?.split(",")
+        .map((value) => value.trim())
+        .filter(Boolean);
+      const known = new Set(detected.map((agent) => agent.id));
+      const unknown = (requested ?? []).filter(
+        (id) => !known.has(id as AgentId),
+      );
+      if (unknown.length)
+        throw new Error(`Unknown agent id(s): ${unknown.join(", ")}`);
+      const selected = requested?.length
+        ? detected.filter((agent) => requested.includes(agent.id))
+        : detected.filter((agent) => agent.installed);
+      if (!selected.length)
+        throw new Error("No detected agent profile is available to scan");
+      const report = await scanInstalledSkills(selected);
+      const catalog = await loadEffectiveCatalog();
+      const resolved = await resolveCatalogSkillIndex({
+        refresh: options.refreshProvenance,
+        offline: !options.refreshProvenance,
+        build: {
+          catalog,
+          onProgress: options.refreshProvenance
+            ? printProvenanceProgress
+            : undefined,
+        },
+      });
+      const enriched = enrichInventoryWithProvenance(
+        report,
+        resolved.index,
+        resolved.source,
+      );
+      console.log(
+        options.json
+          ? JSON.stringify(enriched, null, 2)
+          : `${formatInstalledSkillInventory(enriched)}\n${formatProvenanceSummary(enriched)}`,
+      );
+    },
+  );
+
+program
+  .command("compare")
+  .description(
+    "Compare an installed or reviewed skill with evidence-related catalog alternatives without changing anything",
+  )
+  .argument(
+    "<skill>",
+    "installed skill name, directory name, or catalog package id",
+  )
+  .option("--agent <id>", "select one installed agent when names are ambiguous")
+  .option("--refresh", "rebuild the reviewed catalog skill index")
+  .option("--offline", "never fetch; use the existing local index only")
+  .option("--limit <count>", "maximum alternatives to show", "10")
+  .option("--json", "emit the complete machine-readable comparison")
+  .action(
+    async (
+      skill: string,
+      options: {
+        agent?: string;
+        refresh?: boolean;
+        offline?: boolean;
+        limit: string;
+        json?: boolean;
+      },
+    ) => {
+      if (options.refresh && options.offline)
+        throw new Error("--refresh and --offline cannot be used together");
+      const limit = Number(options.limit);
+      if (!Number.isInteger(limit) || limit < 1 || limit > 50)
+        throw new Error("--limit must be an integer from 1 to 50");
+      const detected = await detectAgents();
+      const agent = options.agent as AgentId | undefined;
+      if (agent && !detected.some((item) => item.id === agent))
+        throw new Error(`Unknown agent id: ${options.agent}`);
+      const selected = detected.filter((item) => item.installed);
+      if (!selected.length)
+        throw new Error("No detected agent profile is available to compare");
+      const catalog = await loadEffectiveCatalog();
+      const resolved = await resolveCatalogSkillIndex({
+        refresh: options.refresh,
+        offline: options.offline,
+        build: {
+          catalog,
+          onProgress: options.offline ? undefined : printProvenanceProgress,
+        },
+      });
+      if (!resolved.index)
+        throw new Error(
+          "No local catalog skill index exists. Re-run without --offline or use --refresh.",
+        );
+      const inventory = enrichInventoryWithProvenance(
+        await scanInstalledSkills(selected),
+        resolved.index,
+        resolved.source,
+      );
+      const comparison = compareSkill(
+        skill,
+        inventory,
+        resolved.index.records,
+        catalog,
+        {
+          ...(agent ? { agent } : {}),
+          limit,
+          indexGeneratedAt: resolved.index.generatedAt,
+          failures: resolved.index.failures,
+        },
+      );
+      console.log(
+        options.json
+          ? JSON.stringify(comparison, null, 2)
+          : formatSkillComparison(comparison),
+      );
+    },
+  );
 
 program
   .command("status")

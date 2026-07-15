@@ -16,6 +16,8 @@ export interface InstalledSkillInventoryEntry {
   fingerprint: string;
   managed: boolean;
   packageId?: string;
+  /** Repository identifiers mentioned by the skill text; evidence, not proof. */
+  sourceHints?: string[];
 }
 
 export interface SkillDuplicateGroup {
@@ -115,6 +117,15 @@ async function scanAgentSkills(
         const path = join(directory, "SKILL.md");
         const content = await readFile(path, "utf8");
         const packageId = owningPackage(directory, records);
+        const sourceHints = [
+          ...new Set(
+            [
+              ...content.matchAll(
+                /https?:\/\/github\.com\/([A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]*[A-Za-z0-9_-])/g,
+              ),
+            ].map((match) => match[1].replace(/\.git$/, "")),
+          ),
+        ].sort();
         skills.push({
           agent: agent.id,
           agentDisplayName: agent.displayName,
@@ -135,6 +146,7 @@ async function scanAgentSkills(
           fingerprint: createHash("sha256").update(content).digest("hex"),
           managed: Boolean(packageId),
           ...(packageId ? { packageId } : {}),
+          ...(sourceHints.length ? { sourceHints } : {}),
         });
       } catch (error) {
         warnings.push(

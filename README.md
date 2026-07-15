@@ -49,6 +49,8 @@ Daily use remains CLI-first:
 ```bash
 loadout status
 loadout scan
+loadout scan --refresh-provenance
+loadout compare <skill-name>
 loadout health
 loadout update
 loadout rollback
@@ -93,6 +95,8 @@ from native Windows if you want to manage the Windows-side agent profile.
 ```bash
 # Audit existing agents, then install the small reviewed default.
 node dist/src/cli.js scan
+node dist/src/cli.js scan --refresh-provenance
+node dist/src/cli.js compare <skill-name>
 node dist/src/cli.js setup --mode stable
 node dist/src/cli.js setup --mode stable --yes --approve-risk
 
@@ -188,6 +192,10 @@ The [catalog policy](./docs/CATALOG_POLICY.md) explains ranking, anti-gaming lim
 and Stable/Maximum/Custom conflict handling. The [compatibility policy](./docs/COMPATIBILITY_POLICY.md)
 defines exactly what native, adapted, and unsupported mean on Windows, macOS, Linux,
 and WSL.
+
+The [provenance and comparison contract](./docs/PROVENANCE_AND_COMPARISON.md) defines
+exact fingerprints, embedded-source and name-only confidence, semantic relationships,
+comparison evidence, privacy, and why Loadout does not claim a universal “best.”
 
 ## Try the real install path
 

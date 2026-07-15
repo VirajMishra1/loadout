@@ -848,18 +848,18 @@ universal or permanent truth.
 - [x] `P12-04 [TERRA]` Warn when a prepared loadout exceeds 30 active skill
       directories per agent.
   - The warning is a capacity heuristic, not a claim that the agent cannot load more.
-- [ ] `P12-05 [SOL]` Define the provenance confidence model for existing unmanaged
+- [x] `P12-05 [SOL]` Define the provenance confidence model for existing unmanaged
       content.
   - Levels: exact Loadout record, exact catalog hash, embedded repository/commit,
     heuristic source match, and unknown. Never invent provenance from a folder name.
-- [ ] `P12-06 [TERRA]` Implement catalog-hash and embedded-metadata provenance
+- [x] `P12-06 [TERRA]` Implement catalog-hash and embedded-metadata provenance
       matching in `loadout scan`.
   - Acceptance: every match includes evidence and confidence; network access is
     optional; unknown remains a first-class result.
-- [ ] `P12-07 [SOL]` Define semantic duplicate and capability-family rules.
+- [x] `P12-07 [SOL]` Define semantic duplicate and capability-family rules.
   - Separate exact duplicate, same-name divergent content, cross-agent mirror,
     overlapping workflow, complementary capability, and verified hard conflict.
-- [ ] `P12-08 [TERRA]` Implement `loadout compare <skill-or-package>`.
+- [x] `P12-08 [TERRA]` Implement `loadout compare <skill-or-package>`.
   - Show installed candidate, reviewed alternatives, provenance, maintenance,
     adoption velocity, permissions, compatibility, evaluation evidence, uncertainty,
     and a plain-language recommendation. No mutation.
@@ -1099,9 +1099,9 @@ small PRs, no long-lived branches.
 
 ## 25. Immediate next tasks
 
-1. Complete P12-05 through P12-14: provenance, duplicate semantics, comparison,
-   reviewed-library state, safe enable/disable/adoption, project activation, and the
-   guided optimize workflow.
+1. Complete P12-09 through P12-14: reviewed-library state, safe
+   enable/disable/adoption, active-set policy, project activation, and the guided
+   optimize workflow.
 2. Complete P12-15 through P12-20 in parallel: category-specific evaluations, daily
    review queues, freshness alerts, and privacy-preserving human outcomes.
 3. Fix and regression-test every issue found by real Claude/Codex founder testing

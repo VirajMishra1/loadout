@@ -25,6 +25,18 @@ npx . scan
 It reports actual `SKILL.md` capabilities, Loadout ownership, duplicates, and capacity
 warnings. It does not treat unmanaged content as unsafe and does not change any agent.
 
+To build the local reviewed provenance index from exact catalog commits and compare a
+reported skill:
+
+```bash
+npx . scan --refresh-provenance
+npx . compare <skill-name>
+```
+
+The first command writes only Loadout's local cache. `compare` is read-only and uses
+`--offline` when a test must forbid network fallback. A same-name match is a candidate,
+not proof of provenance or quality.
+
 ## 2. Create a completely disposable agent profile
 
 macOS or Linux:

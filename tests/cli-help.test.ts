@@ -39,6 +39,7 @@ describe("CLI contract", () => {
     );
     expect(result.stdout).toContain("status");
     expect(result.stdout).toContain("scan");
+    expect(result.stdout).toContain("compare");
     expect(result.stdout).toContain("setup");
     expect(result.stdout).toContain("doctor");
     expect(result.stdout).toContain("demo");

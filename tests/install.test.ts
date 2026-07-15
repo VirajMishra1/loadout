@@ -177,7 +177,11 @@ describe("skill installation transaction", () => {
       "---\nname: outside\ndescription: Outside\n---\n",
     );
     await import("node:fs/promises").then(({ symlink }) =>
-      symlink(outside, join(source, "linked"), "dir"),
+      symlink(
+        outside,
+        join(source, "linked"),
+        process.platform === "win32" ? "junction" : "dir",
+      ),
     );
     await expect(planSkillInstall(source, [target], "unsafe")).rejects.toThrow(
       /symlink/,

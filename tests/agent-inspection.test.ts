@@ -104,9 +104,15 @@ describe("agent-managed component inspection", () => {
     root = await mkdtemp(join(tmpdir(), "loadout-agent-symlink-"));
     const codex = agent("codex", "Codex", root);
     const skillRoot = agentComponentDirectory(codex, "skill")!;
+    const outside = join(root, "outside");
     await mkdir(skillRoot, { recursive: true });
+    await mkdir(outside, { recursive: true });
     await writeFile(join(skillRoot, "regular.md"), "safe");
-    await symlink("/tmp", join(skillRoot, "outside"));
+    await symlink(
+      outside,
+      join(skillRoot, "outside"),
+      process.platform === "win32" ? "junction" : "dir",
+    );
 
     const inspected = await inspectAgents([codex]);
     const skills = inspected[0].components.find(

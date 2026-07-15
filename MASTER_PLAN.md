@@ -711,7 +711,8 @@ modes.
 - [x] `P7-11 [TERRA]` Updates and diff screen.
 - [x] `P7-12 [LUNA]` Empty, loading, and error states.
 - [x] `P7-13 [LUNA]` Keyboard and accessible-label pass.
-- [ ] `P7-14 [TERRA]` Playwright first-run happy-path test.
+- [x] `P7-14 [TERRA]` Playwright first-run happy-path test.
+  - Runs Chromium against the real loopback dashboard with an empty disposable Loadout home; it previews and applies a safe first-run manifest without touching user configuration.
 - [x] `P7-15 [SOL]` Product and security review of complete flow.
   - Reviewed 2026-07-15; see `docs/RELEASE_REVIEW.md` for boundaries, fixes, and release conditions.
 

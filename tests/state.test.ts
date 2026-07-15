@@ -38,6 +38,15 @@ describe("install state", () => {
     expect(state.installs[0].files[0].sha256).toBe(
       "359b365773dbfb3e21cc1196062f477ad27f83bc04aa9dcd4178d924127a5f17",
     );
+    expect(state.activations?.[0]).toMatchObject({
+      packageId: "demo",
+      agent: "codex",
+      cacheState: "missing",
+      reviewState: "unreviewed",
+      installationState: "installed",
+      activationState: "active",
+      targets: [{ activePath: target, libraryRelativePath: "demo" }],
+    });
     expect(
       JSON.parse(
         await readFile(join(process.env.LOADOUT_HOME, "state.json"), "utf8"),

@@ -78,7 +78,11 @@ export async function buildSkillPlan(
 
 export async function applySkillInstall(
   plan: InstallPlan,
-  metadata?: { repository?: string; resolvedCommit?: string },
+  metadata?: {
+    repository?: string;
+    resolvedCommit?: string;
+    reviewed?: boolean;
+  },
 ): Promise<string> {
   const blocking = (plan.conflicts ?? []).filter(
     (conflict) => conflict.severity === "blocking",
@@ -108,7 +112,11 @@ export async function applySkillInstall(
 
 export interface InstallBatchEntry {
   plan: InstallPlan;
-  metadata?: { repository?: string; resolvedCommit?: string };
+  metadata?: {
+    repository?: string;
+    resolvedCommit?: string;
+    reviewed?: boolean;
+  };
 }
 
 /** Apply all selected packages as one filesystem transaction and one state update. */

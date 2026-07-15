@@ -186,6 +186,7 @@ export const plannedFileSchema = z
   .object({
     source: text,
     target: text,
+    targetAgent: agentIdSchema.optional(),
     componentType: componentTypeSchema.optional(),
     compatibility: componentCompatibilitySchema.optional(),
     skillName: optionalText,
@@ -301,11 +302,38 @@ export const mcpInstallRecordSchema = z
   })
   .passthrough();
 
+export const managedActivationRecordSchema = z
+  .object({
+    packageId: text,
+    agent: agentIdSchema,
+    cacheState: z.enum(["missing", "downloaded"]),
+    reviewState: z.enum(["unreviewed", "reviewed", "quarantined"]),
+    installationState: z.enum(["installed", "removed"]),
+    activationState: z.enum(["active", "disabled"]),
+    libraryPath: text,
+    targets: z.array(
+      z
+        .object({
+          activePath: text,
+          libraryRelativePath: text.refine(
+            (value) => value !== "." && value !== ".." && !/[\\/]/.test(value),
+            "must be a single safe path segment",
+          ),
+        })
+        .passthrough(),
+    ),
+    libraryFiles: z.array(fileHashSchema),
+    updatedAt: text,
+    snapshotId: optionalText,
+  })
+  .passthrough();
+
 export const installStateSchema = z
   .object({
     version: z.literal(1),
     installs: z.array(installRecordSchema),
     mcpInstalls: z.array(mcpInstallRecordSchema).default([]),
+    activations: z.array(managedActivationRecordSchema).default([]),
   })
   .passthrough();
 

@@ -78,6 +78,8 @@ export interface DetectedAgent {
 export interface PlannedFile {
   source: string;
   target: string;
+  /** Agent owning this target; required for reversible active-set changes. */
+  targetAgent?: AgentId;
   componentType?: ComponentType;
   compatibility?: ComponentCompatibility;
   /** Frontmatter name when available, used for conflict diagnostics. */
@@ -180,6 +182,32 @@ export interface InstallState {
   version: 1;
   installs: InstallRecord[];
   mcpInstalls?: McpInstallRecord[];
+  activations?: ManagedActivationRecord[];
+}
+
+export type LibraryCacheState = "missing" | "downloaded";
+export type LibraryReviewState = "unreviewed" | "reviewed" | "quarantined";
+export type LibraryInstallationState = "installed" | "removed";
+export type LibraryActivationState = "active" | "disabled";
+
+export interface ManagedActivationTarget {
+  activePath: string;
+  libraryRelativePath: string;
+}
+
+/** Per-agent state: the same reviewed package may be active in one agent only. */
+export interface ManagedActivationRecord {
+  packageId: string;
+  agent: AgentId;
+  cacheState: LibraryCacheState;
+  reviewState: LibraryReviewState;
+  installationState: LibraryInstallationState;
+  activationState: LibraryActivationState;
+  libraryPath: string;
+  targets: ManagedActivationTarget[];
+  libraryFiles: Array<{ path: string; sha256: string }>;
+  updatedAt: string;
+  snapshotId?: string;
 }
 
 export interface McpInstallRecord {

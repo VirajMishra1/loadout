@@ -5,6 +5,7 @@ import type { LoadoutLockfile, LoadoutManifest } from "../shared/types.js";
 import { formatSchemaError, loadoutLockfileSchema } from "../shared/schemas.js";
 import { readManifest } from "./manifest.js";
 import { readInstallState } from "./state.js";
+import { managedFileReadPath } from "./active-set.js";
 
 export interface AuditFinding {
   level: "error" | "warning" | "ok";
@@ -131,7 +132,15 @@ export async function auditLoadout(
         });
       try {
         const digest = createHash("sha256")
-          .update(await readFile(file.path))
+          .update(
+            await readFile(
+              managedFileReadPath(
+                installed.packageId,
+                file.path,
+                state.activations ?? [],
+              ),
+            ),
+          )
           .digest("hex");
         if (digest !== file.sha256)
           findings.push({

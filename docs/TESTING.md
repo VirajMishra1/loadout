@@ -37,6 +37,21 @@ The first command writes only Loadout's local cache. `compare` is read-only and 
 `--offline` when a test must forbid network fallback. A same-name match is a candidate,
 not proof of provenance or quality.
 
+To inspect and exercise the managed active set after installing a package:
+
+```bash
+npx . library
+npx . disable <managed-package>             # dry-run
+npx . disable <managed-package> --yes       # cache, verify, deactivate
+npx . enable <managed-package>               # dry-run
+npx . enable <managed-package> --yes         # verify and reactivate
+```
+
+Copy the snapshot id printed by either applied command to test
+`npx . rollback --snapshot <id>`. These commands refuse unmanaged packages, drifted
+managed content, incomplete library copies, quarantined entries, and occupied enable
+targets.
+
 ## 2. Create a completely disposable agent profile
 
 macOS or Linux:

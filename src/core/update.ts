@@ -24,6 +24,7 @@ export interface UpdatePlan {
   installedCommit?: string;
   availableCommit?: string;
   targetAgents: string[];
+  disabledAgents?: string[];
   status: UpdateStatus;
   action: string;
   /** Safe file-level summary when both revisions are cached locally. */
@@ -76,11 +77,20 @@ export async function buildUpdatePlan(
   const state = await readInstallState();
   return Promise.all(
     state.installs.map(async (record): Promise<UpdatePlan> => {
+      const disabledAgents = (state.activations ?? [])
+        .filter(
+          (activation) =>
+            activation.packageId === record.packageId &&
+            activation.installationState === "installed" &&
+            activation.activationState === "disabled",
+        )
+        .map((activation) => activation.agent);
       const base = {
         packageId: record.packageId,
         repository: record.repository,
         installedCommit: record.resolvedCommit,
         targetAgents: record.targetAgents,
+        ...(disabledAgents.length ? { disabledAgents } : {}),
       };
       if (!record.repository || !record.resolvedCommit) {
         return {
@@ -113,9 +123,11 @@ export async function buildUpdatePlan(
           status: same ? "up-to-date" : "update-available",
           action: same
             ? "No action required."
-            : approvalRequired
-              ? `Approval required: review safety warnings before updating ${record.packageId}.`
-              : `Run loadout update --package ${record.packageId} after review.`,
+            : disabledAgents.length
+              ? `Enable ${record.packageId} for ${disabledAgents.join(", ")} before applying an update; planning remains read-only.`
+              : approvalRequired
+                ? `Approval required: review safety warnings before updating ${record.packageId}.`
+                : `Run loadout update --package ${record.packageId} after review.`,
           ...(approvalRequired ? { approvalRequired: true } : {}),
           ...(safetyFindings?.length ? { safetyFindings } : {}),
           ...(diff ? { diff } : {}),
@@ -226,11 +238,22 @@ export async function applyPackageUpdate(
   options: { approveRisk?: boolean; quarantineOnBlock?: boolean } = {},
   runtime: UpdateRuntime = {},
 ): Promise<{ snapshotId: string; commit: string }> {
-  const record = (await readInstallState()).installs.find(
-    (item) => item.packageId === packageId,
-  );
+  const state = await readInstallState();
+  const record = state.installs.find((item) => item.packageId === packageId);
   if (!record)
     throw new Error(`Package is not managed by Loadout: ${packageId}`);
+  const disabledAgents = (state.activations ?? [])
+    .filter(
+      (activation) =>
+        activation.packageId === packageId &&
+        activation.installationState === "installed" &&
+        activation.activationState === "disabled",
+    )
+    .map((activation) => activation.agent);
+  if (disabledAgents.length)
+    throw new Error(
+      `Package '${packageId}' is disabled for ${disabledAgents.join(", ")}. Enable it before updating so an update cannot silently reactivate agent-visible files.`,
+    );
   if (!record.repository || !record.resolvedCommit)
     throw new Error(`Package '${packageId}' has no tracked GitHub source`);
   const current = await (runtime.fetchSnapshot ?? fetchRepositorySnapshot)(

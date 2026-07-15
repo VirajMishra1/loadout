@@ -51,6 +51,9 @@ loadout status
 loadout scan
 loadout scan --refresh-provenance
 loadout compare <skill-name>
+loadout library
+loadout disable <managed-package>
+loadout enable <managed-package>
 loadout health
 loadout update
 loadout rollback
@@ -196,6 +199,9 @@ and WSL.
 The [provenance and comparison contract](./docs/PROVENANCE_AND_COMPARISON.md) defines
 exact fingerprints, embedded-source and name-only confidence, semantic relationships,
 comparison evidence, privacy, and why Loadout does not claim a universal “best.”
+The [active-set contract](./docs/ACTIVE_SET.md) defines separate cache, review,
+installation, and per-agent activation state plus transactional enable/disable and
+rollback behavior.
 
 ## Try the real install path
 

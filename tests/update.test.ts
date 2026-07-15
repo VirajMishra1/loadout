@@ -3,6 +3,7 @@ import { mkdtemp, readFile, rm, writeFile, mkdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
+  applyPackageUpdate,
   buildUpdatePlan,
   formatUpdatePlan,
   quarantineUpdate,
@@ -245,5 +246,65 @@ describe("update planning", () => {
     expect(await readFile(join(oldPath, "skills", "SKILL.md"), "utf8")).toBe(
       "old",
     );
+  });
+
+  it("does not silently reactivate a disabled package during update", async () => {
+    const root = await mkdtemp(join(tmpdir(), "loadout-disabled-update-"));
+    roots.push(root);
+    process.env.LOADOUT_HOME = join(root, ".loadout");
+    await mkdir(process.env.LOADOUT_HOME, { recursive: true });
+    await writeFile(
+      join(process.env.LOADOUT_HOME, "state.json"),
+      JSON.stringify({
+        version: 1,
+        installs: [
+          {
+            packageId: "demo",
+            repository: "owner/repo",
+            resolvedCommit: "aaa",
+            targetAgents: ["codex"],
+            files: [],
+            snapshotId: "s",
+            installedAt: "2026-07-15T00:00:00Z",
+          },
+        ],
+        activations: [
+          {
+            packageId: "demo",
+            agent: "codex",
+            cacheState: "downloaded",
+            reviewState: "reviewed",
+            installationState: "installed",
+            activationState: "disabled",
+            libraryPath: join(process.env.LOADOUT_HOME, "library", "demo"),
+            targets: [
+              {
+                activePath: join(root, "skills", "demo"),
+                libraryRelativePath: "demo",
+              },
+            ],
+            libraryFiles: [],
+            updatedAt: "2026-07-15T00:00:00Z",
+          },
+        ],
+      }),
+    );
+    let fetched = false;
+    const plans = await buildUpdatePlan(async () => ({ commit: "bbb" }));
+    expect(plans[0]).toMatchObject({ disabledAgents: ["codex"] });
+    expect(plans[0].action).toMatch(/Enable demo for codex/);
+    await expect(
+      applyPackageUpdate(
+        "demo",
+        {},
+        {
+          fetchSnapshot: async () => {
+            fetched = true;
+            throw new Error("must not fetch");
+          },
+        },
+      ),
+    ).rejects.toThrow(/disabled.*Enable it before updating/);
+    expect(fetched).toBe(false);
   });
 });

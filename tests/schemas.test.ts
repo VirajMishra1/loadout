@@ -82,6 +82,41 @@ describe("runtime data schemas", () => {
     );
   });
 
+  it("rejects path traversal in persisted activation state", async () => {
+    root = await mkdtemp(join(tmpdir(), "loadout-schema-activation-"));
+    process.env.LOADOUT_HOME = join(root, ".loadout");
+    await mkdir(process.env.LOADOUT_HOME);
+    await writeFile(
+      join(process.env.LOADOUT_HOME, "state.json"),
+      JSON.stringify({
+        version: 1,
+        installs: [],
+        activations: [
+          {
+            packageId: "docs",
+            agent: "codex",
+            cacheState: "downloaded",
+            reviewState: "reviewed",
+            installationState: "installed",
+            activationState: "disabled",
+            libraryPath: "/tmp/library",
+            targets: [
+              {
+                activePath: "/tmp/skills/docs",
+                libraryRelativePath: "../outside",
+              },
+            ],
+            libraryFiles: [],
+            updatedAt: "2026-07-15T00:00:00Z",
+          },
+        ],
+      }),
+    );
+    await expect(readInstallState()).rejects.toThrow(
+      /activations\.0\.targets\.0\.libraryRelativePath/,
+    );
+  });
+
   it("rejects malformed manifest policy values without accepting secret fields", () => {
     expect(() =>
       parseManifest({

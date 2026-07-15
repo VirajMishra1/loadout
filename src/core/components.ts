@@ -115,6 +115,7 @@ export async function buildUniversalPackagePlan(
       files.push({
         source: safeSource(root, resource.path),
         target: join(directory, packageId, resource.path.split("/").at(-1)!),
+        targetAgent: agent.id,
         componentType: resource.type,
         compatibility,
       });

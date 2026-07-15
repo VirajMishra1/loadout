@@ -132,6 +132,14 @@ import {
   type CatalogSkillIndexProgress,
 } from "./core/provenance.js";
 import { compareSkill, formatSkillComparison } from "./core/skill-compare.js";
+import {
+  applyActivationChange,
+  buildLibraryStateReport,
+  formatActivationPlan,
+  formatLibraryStateReport,
+  planActivationChange,
+  type ActivationAction,
+} from "./core/active-set.js";
 
 const collectOption = (value: string, previous: string[] = []): string[] => [
   ...previous,
@@ -714,6 +722,72 @@ program
         `${item.packageId} — ${item.targetAgents.join(", ")} — ${item.resolvedCommit?.slice(0, 12) ?? "local"} — ${item.files.length} file(s)`,
       );
   });
+
+program
+  .command("library")
+  .description(
+    "Show separate cache, review, installation, and per-agent activation state",
+  )
+  .option("--json", "emit machine-readable JSON")
+  .action(async (options: { json?: boolean }) => {
+    const report = await buildLibraryStateReport();
+    console.log(
+      options.json
+        ? JSON.stringify(report, null, 2)
+        : formatLibraryStateReport(report),
+    );
+  });
+
+for (const action of [
+  "enable",
+  "disable",
+] as const satisfies ActivationAction[]) {
+  program
+    .command(action)
+    .description(
+      `${action === "enable" ? "Activate" : "Deactivate"} Loadout-managed skills without deleting the reviewed-library copy`,
+    )
+    .argument("<packages...>", "one or more managed package ids")
+    .option("--agents <ids>", "comma-separated agent ids")
+    .option("--yes", "apply the transaction; otherwise show a plan")
+    .option("--json", "emit machine-readable JSON")
+    .action(
+      async (
+        packageIds: string[],
+        options: { agents?: string; yes?: boolean; json?: boolean },
+      ) => {
+        const agents = options.agents
+          ?.split(",")
+          .map((value) => value.trim())
+          .filter(Boolean) as AgentId[] | undefined;
+        if (agents?.length) {
+          const known = new Set(
+            (await detectAgents()).map((agent) => agent.id),
+          );
+          const unknown = agents.filter((agent) => !known.has(agent));
+          if (unknown.length)
+            throw new Error(`Unknown agent id(s): ${unknown.join(", ")}`);
+        }
+        const plan = await planActivationChange(action, packageIds, {
+          ...(agents?.length ? { agents } : {}),
+        });
+        if (!options.yes) {
+          console.log(
+            options.json
+              ? JSON.stringify(plan, null, 2)
+              : `${formatActivationPlan(plan)}\nDry run only. Re-run with --yes to apply this exact transaction.`,
+          );
+          return;
+        }
+        const snapshotId = await applyActivationChange(plan);
+        console.log(
+          options.json
+            ? JSON.stringify({ plan, snapshotId }, null, 2)
+            : `${formatActivationPlan(plan)}\nApplied. Snapshot: ${snapshotId}`,
+        );
+      },
+    );
+}
 
 program
   .command("health")

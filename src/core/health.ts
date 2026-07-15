@@ -4,17 +4,26 @@ import type {
   HealthFinding,
   HealthReport,
   InstallRecord,
+  ManagedActivationRecord,
 } from "../shared/types.js";
+import { managedFileReadPath } from "./active-set.js";
 import { detectAgents } from "./paths.js";
 import { readInstallState } from "./state.js";
 import { buildUpdatePlan, type UpdatePlan } from "./update.js";
 
-async function drift(record: InstallRecord): Promise<string[]> {
+async function drift(
+  record: InstallRecord,
+  activations: ManagedActivationRecord[],
+): Promise<string[]> {
   const changed: string[] = [];
   for (const file of record.files) {
     try {
       const digest = createHash("sha256")
-        .update(await readFile(file.path))
+        .update(
+          await readFile(
+            managedFileReadPath(record.packageId, file.path, activations),
+          ),
+        )
         .digest("hex");
       if (digest !== file.sha256) changed.push(file.path);
     } catch {
@@ -58,7 +67,11 @@ export async function buildHealthReport(
         ? buildUpdatePlan()
         : Promise.resolve([]),
   ]);
-  const drifted = (await Promise.all(state.installs.map(drift))).flat();
+  const drifted = (
+    await Promise.all(
+      state.installs.map((record) => drift(record, state.activations ?? [])),
+    )
+  ).flat();
   const driftedMcpServers = (
     await Promise.all(
       (state.mcpInstalls ?? []).map((entry) =>

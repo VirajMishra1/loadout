@@ -863,11 +863,11 @@ universal or permanent truth.
   - Show installed candidate, reviewed alternatives, provenance, maintenance,
     adoption velocity, permissions, compatibility, evaluation evidence, uncertainty,
     and a plain-language recommendation. No mutation.
-- [ ] `P12-09 [SOL]` Define the reviewed-library versus active-set state model and
+- [x] `P12-09 [SOL]` Define the reviewed-library versus active-set state model and
       migration boundary.
   - Downloaded/cached, reviewed, installed, active, disabled, quarantined, and removed
     are distinct states. Existing user files are never silently adopted or deleted.
-- [ ] `P12-10 [TERRA]` Implement transactional `loadout enable` and `loadout disable`.
+- [x] `P12-10 [TERRA]` Implement transactional `loadout enable` and `loadout disable`.
   - Acceptance: only Loadout-managed links/files change; one snapshot covers a batch;
     disabling preserves the library copy; rollback restores byte-identical state.
 - [ ] `P12-11 [TERRA]` Implement `loadout adopt` for explicitly selected unmanaged
@@ -1099,9 +1099,8 @@ small PRs, no long-lived branches.
 
 ## 25. Immediate next tasks
 
-1. Complete P12-09 through P12-14: reviewed-library state, safe
-   enable/disable/adoption, active-set policy, project activation, and the guided
-   optimize workflow.
+1. Complete P12-11 through P12-14: safe adoption, active-set policy, project
+   activation, and the guided optimize workflow.
 2. Complete P12-15 through P12-20 in parallel: category-specific evaluations, daily
    review queues, freshness alerts, and privacy-preserving human outcomes.
 3. Fix and regression-test every issue found by real Claude/Codex founder testing

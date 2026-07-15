@@ -162,6 +162,7 @@ export async function prepareCatalogInstall(
           metadata: {
             repository: fetched.repository,
             resolvedCommit: fetched.commit,
+            reviewed: true,
           },
           safety,
         };

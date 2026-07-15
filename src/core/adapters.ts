@@ -149,6 +149,7 @@ export async function planAdapterSkillInstall(
     ...plan,
     files: plan.files.map((file) => ({
       ...file,
+      targetAgent: agent.id,
       componentType: "skill" as const,
       compatibility: capability,
     })),

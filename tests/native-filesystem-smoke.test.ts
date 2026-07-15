@@ -10,6 +10,10 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { ADAPTER_CAPABILITIES } from "../src/core/adapters.js";
+import {
+  applyActivationChange,
+  planActivationChange,
+} from "../src/core/active-set.js";
 import { applySkillInstall, buildSkillPlan } from "../src/core/install.js";
 import { agentSkillsDirectory } from "../src/core/paths.js";
 import { applyRemove, planRemove } from "../src/core/remove.js";
@@ -76,6 +80,28 @@ describe("native filesystem skill install smoke test", () => {
       ).toEqual(skill);
     expect(await readFile(join(source, "SKILL.md"))).toEqual(skill);
     expect((await readInstallState()).installs).toHaveLength(1);
+
+    const disable = await planActivationChange("disable", [packageId]);
+    expect(disable.blocked).toBe(false);
+    expect(disable.changes).toHaveLength(agents.length);
+    await applyActivationChange(disable);
+    for (const agent of agents)
+      await expect(
+        access(join(agent.skillsDirectory, packageId, "SKILL.md")),
+      ).rejects.toThrow();
+    expect(
+      (await readInstallState()).activations?.every(
+        (activation) => activation.activationState === "disabled",
+      ),
+    ).toBe(true);
+
+    const enable = await planActivationChange("enable", [packageId]);
+    expect(enable.blocked).toBe(false);
+    await applyActivationChange(enable);
+    for (const agent of agents)
+      expect(
+        await readFile(join(agent.skillsDirectory, packageId, "SKILL.md")),
+      ).toEqual(skill);
 
     const removal = await planRemove(packageId);
     expect(removal.blocked).toBe(false);

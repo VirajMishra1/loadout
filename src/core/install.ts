@@ -6,6 +6,7 @@ import { planAdapterSkillInstall } from "./adapters.js";
 import { createSnapshot, restoreSnapshot } from "./snapshot.js";
 import { applySkillPlan, detectInstallConflicts, validateSkillDirectory } from "./skills.js";
 import { installStatePath, recordInstall, recordInstallBatch } from "./state.js";
+import { beginTransaction, completeTransaction, markTransactionCommitting, recoverPendingTransactions, rollbackTransaction } from "./transaction.js";
 
 export function installedAgents(agents: DetectedAgent[], requested?: AgentId[]): DetectedAgent[] {
   const available = agents.filter((agent) => agent.installed);
@@ -42,12 +43,17 @@ export async function buildSkillPlan(source: string, packageId: string, agents: 
 export async function applySkillInstall(plan: InstallPlan, metadata?: { repository?: string; resolvedCommit?: string }): Promise<string> {
   const blocking = (plan.conflicts ?? []).filter((conflict) => conflict.severity === "blocking");
   if (blocking.length > 0) throw new Error(`Installation blocked by conflicts: ${blocking.map((conflict) => conflict.message).join("; ")}`);
-  const snapshot = await createSnapshot([...plan.files.map((file) => file.target), installStatePath()]);
+  await recoverPendingTransactions();
+  const targets = [...plan.files.map((file) => file.target), installStatePath()];
+  const snapshot = await createSnapshot(targets);
+  const transaction = await beginTransaction(snapshot, targets);
   try {
+    await markTransactionCommitting(transaction);
     await applySkillPlan(plan);
     await recordInstall(plan, snapshot.id, metadata);
+    await completeTransaction(transaction);
   } catch (error) {
-    await restoreSnapshot(snapshot);
+    await rollbackTransaction(transaction);
     throw error;
   }
   return snapshot.id;
@@ -68,12 +74,17 @@ export async function applySkillInstallBatch(entries: InstallBatchEntry[], extra
     entry.plan.conflicts = [...(entry.plan.conflicts ?? []), ...conflicts.filter((conflict) => conflict.packageIds.includes(entry.plan.packageId))];
     entry.plan.warnings = [...new Set([...entry.plan.warnings, ...conflicts.filter((conflict) => conflict.severity === "warning" && conflict.packageIds.includes(entry.plan.packageId)).map((conflict) => conflict.message)])];
   }
-  const snapshot = await createSnapshot([...entries.flatMap((entry) => entry.plan.files.map((file) => file.target)), installStatePath(), ...extraSnapshotPaths]);
+  await recoverPendingTransactions();
+  const targets = [...entries.flatMap((entry) => entry.plan.files.map((file) => file.target)), installStatePath(), ...extraSnapshotPaths];
+  const snapshot = await createSnapshot(targets);
+  const transaction = await beginTransaction(snapshot, targets);
   try {
+    await markTransactionCommitting(transaction);
     for (const entry of entries) await applySkillPlan(entry.plan);
     await recordInstallBatch(entries, snapshot.id);
+    await completeTransaction(transaction);
   } catch (error) {
-    await restoreSnapshot(snapshot);
+    await rollbackTransaction(transaction);
     throw error;
   }
   return snapshot.id;

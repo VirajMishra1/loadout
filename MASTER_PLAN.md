@@ -661,9 +661,10 @@ modes.
 - [x] `P4-06 [TERRA]` Implement path traversal and escaping-symlink rejection.
 - [x] `P4-07 [TERRA]` Implement plan collision detection.
 - [ ] `P4-08 [SOL]` Review atomic commit behavior across all three operating systems.
+  - Release review on 2026-07-15 is conditional: persisted state, lockfiles, manifests, and MCP configs use sibling-temp plus rename, but native OS verification remains required before this can be checked.
 - [x] `P4-09 [TERRA]` Implement commit with automatic restore on failure.
 - [x] `P4-10 [TERRA]` Implement `loadout rollback`.
-- [ ] `P4-11 [LUNA]` Add interrupted-write and corrupted-stage fixtures.
+- [x] `P4-11 [LUNA]` Add interrupted-write and corrupted-stage fixtures.
 - [x] `P4-12 [TERRA]` Verify rollback restores byte-identical files.
 
 ### Phase 5: Agent adapters
@@ -711,7 +712,8 @@ modes.
 - [x] `P7-12 [LUNA]` Empty, loading, and error states.
 - [x] `P7-13 [LUNA]` Keyboard and accessible-label pass.
 - [ ] `P7-14 [TERRA]` Playwright first-run happy-path test.
-- [ ] `P7-15 [SOL]` Product and security review of complete flow.
+- [x] `P7-15 [SOL]` Product and security review of complete flow.
+  - Reviewed 2026-07-15; see `docs/RELEASE_REVIEW.md` for boundaries, fixes, and release conditions.
 
 ### Phase 8: Updates and safety demo
 
@@ -734,6 +736,7 @@ modes.
 - [x] `P9-05 [LUNA]` CRLF/LF fixture coverage.
 - [x] `P9-06 [LUNA]` `.cmd` executable-resolution fixture coverage.
 - [ ] `P9-07 [SOL]` Cross-platform go/no-go review.
+  - Reviewed 2026-07-15: no-go for a universal-install claim until P9-01, P9-03, and P9-04 have real native installation evidence.
 
 ### Phase 10: Submission
 

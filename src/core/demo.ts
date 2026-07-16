@@ -2,7 +2,9 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve, sep } from "node:path";
 import type { AgentId, DetectedAgent } from "../shared/types.js";
+import type { CatalogPackage } from "../shared/types.js";
 import { buildSkillPlan, applySkillInstall } from "./install.js";
+import { loadEffectiveCatalog } from "./catalog.js";
 import { agentSkillsDirectory } from "./paths.js";
 import { fetchRepositorySnapshot } from "./source.js";
 import { readInstallState } from "./state.js";
@@ -16,6 +18,10 @@ export interface DemoOptions {
   repository?: string;
   /** Only intended for deterministic automated tests and local development. */
   source?: string;
+  /** Only intended for deterministic automated tests. */
+  catalog?: CatalogPackage[];
+  /** Only intended for deterministic automated tests. */
+  fetchSnapshot?: typeof fetchRepositorySnapshot;
   packageId?: string;
   agents?: AgentId[];
   /** Preserve the isolated profile after a successful install for inspection. */
@@ -28,6 +34,7 @@ export interface DemoResult {
   packageId: string;
   repository: string;
   resolvedCommit?: string;
+  reviewed: boolean;
   targetAgents: AgentId[];
   plannedFiles: number;
   installedFiles: number;
@@ -71,9 +78,35 @@ export async function runIsolatedDemo(
   process.env.LOADOUT_USER_HOME = profile;
   process.env.LOADOUT_HOME = demoLoadoutHome;
   try {
+    const requestedRepository = options.repository ?? DEFAULT_REPOSITORY;
+    const catalog = options.source
+      ? []
+      : (options.catalog ?? (await loadEffectiveCatalog()));
+    const reviewedPackage = catalog.find(
+      (pkg) =>
+        pkg.repository.toLowerCase() === requestedRepository.toLowerCase() &&
+        Boolean(pkg.source?.commit),
+    );
+    if (!options.source && !options.repository && !reviewedPackage)
+      throw new Error(
+        `The default demo repository ${DEFAULT_REPOSITORY} is missing its reviewed catalog commit`,
+      );
     const fetched = options.source
       ? undefined
-      : await fetchRepositorySnapshot(options.repository ?? DEFAULT_REPOSITORY);
+      : await (options.fetchSnapshot ?? fetchRepositorySnapshot)(
+          requestedRepository,
+          reviewedPackage?.source?.commit
+            ? { ref: reviewedPackage.source.commit }
+            : undefined,
+        );
+    if (
+      reviewedPackage?.source?.commit &&
+      fetched!.commit.toLowerCase() !==
+        reviewedPackage.source.commit.toLowerCase()
+    )
+      throw new Error(
+        `Demo resolved ${fetched!.commit}, expected reviewed commit ${reviewedPackage.source.commit}`,
+      );
     const source = options.source ?? fetched!.path;
     const repository =
       fetched?.repository ?? `local source: ${resolve(source)}`;
@@ -128,6 +161,7 @@ export async function runIsolatedDemo(
       packageId,
       repository,
       resolvedCommit: fetched?.commit,
+      reviewed: Boolean(reviewedPackage),
       targetAgents: agentIds,
       plannedFiles: plan.files.length,
       installedFiles: record.files.length,
@@ -156,7 +190,7 @@ export function formatDemoResult(result: DemoResult): string {
     : `Isolated profile retained at ${result.profile}. Delete it when finished.`;
   return [
     "Loadout safe demo complete.",
-    `Source: ${source}`,
+    `${result.reviewed ? "Reviewed source" : "Source"}: ${source}`,
     `Virtual targets: ${result.targetAgents.join(", ")}`,
     `Installed ${result.plannedFiles} planned skill directory(ies); tracking ${result.installedFiles} file(s).`,
     `Snapshot: ${result.snapshotId}`,

@@ -9,16 +9,19 @@ import {
   refreshCatalog,
   type InstallSelectionMode,
 } from "./core/catalog.js";
-import { detectAgents, loadoutHome } from "./core/paths.js";
+import { detectAgents, parseAgentSelection } from "./core/paths.js";
 import { readFile } from "node:fs/promises";
-import { readdir } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { resolve } from "node:path";
 import {
   buildSkillPlan,
   applySkillInstall,
   installedAgents,
 } from "./core/install.js";
-import { restoreSnapshot } from "./core/snapshot.js";
+import {
+  listSnapshotIds,
+  readSnapshot,
+  restoreSnapshot,
+} from "./core/snapshot.js";
 import type { AgentId } from "./shared/types.js";
 import { fetchRepositorySnapshot } from "./core/source.js";
 import {
@@ -107,7 +110,7 @@ import { resolveCatalogProfile } from "./core/profiles.js";
 import { discoverHackerNewsRepositories } from "./core/community.js";
 import { discoverPrivateRepositories } from "./core/private-discovery.js";
 import {
-  defaultGitHubDiscoveryQuery,
+  defaultGitHubDiscoveryQueries,
   discoverGitHubRepositories,
 } from "./core/github-discovery.js";
 import {
@@ -350,7 +353,7 @@ async function runSetup(options: SetupOptions): Promise<void> {
     const selection = setupSelection(mode, packageIds);
     console.log("\nPreparing a read-only install plan from reviewed commits…");
     const prepared = await prepareCatalogInstall(selection, {
-      requestedAgents: options.agents?.split(",") as AgentId[] | undefined,
+      requestedAgents: parseAgentSelection(options.agents),
       onProgress: printSetupProgress,
     });
     console.log(`\n${formatPreparedCatalogInstall(prepared)}\n`);
@@ -462,7 +465,7 @@ program
     }) => {
       const manifest = await initManifest(options.path, {
         name: options.name,
-        agents: options.agents.split(",") as AgentId[],
+        agents: parseAgentSelection(options.agents)!,
         scope: options.scope as "project" | "global",
       });
       console.log(`Created ${options.path} for ${manifest.agents.join(", ")}.`);
@@ -847,7 +850,7 @@ program
         id,
         source,
         ...(options.agents
-          ? { agents: options.agents.split(",") as AgentId[] }
+          ? { agents: parseAgentSelection(options.agents)! }
           : {}),
         ...(options.dependsOn
           ? { dependsOn: options.dependsOn.split(",") }
@@ -1426,16 +1429,7 @@ program
       json?: boolean;
     }) => {
       const detected = await detectAgents();
-      const requested = options.agents
-        ?.split(",")
-        .map((value) => value.trim())
-        .filter(Boolean);
-      const known = new Set(detected.map((agent) => agent.id));
-      const unknown = (requested ?? []).filter(
-        (id) => !known.has(id as AgentId),
-      );
-      if (unknown.length)
-        throw new Error(`Unknown agent id(s): ${unknown.join(", ")}`);
+      const requested = parseAgentSelection(options.agents);
       const selected = requested?.length
         ? detected.filter((agent) => requested.includes(agent.id))
         : detected.filter((agent) => agent.installed);
@@ -1612,8 +1606,9 @@ program
 
 program
   .command("demo")
+  .alias("test-drive")
   .description(
-    "Run a real install + rollback in a disposable profile; never touches local agent config",
+    "Test-drive a reviewed install + rollback in a disposable profile; never touches local agent config",
   )
   .option(
     "--repository <owner/repo>",
@@ -1635,7 +1630,7 @@ program
       const result = await runIsolatedDemo({
         repository: options.repository,
         packageId: options.package,
-        agents: options.agents.split(",").filter(Boolean) as AgentId[],
+        agents: parseAgentSelection(options.agents)!,
         keep: options.keep,
       });
       console.log(
@@ -1858,7 +1853,9 @@ program
           throw new Error("--min-score must be a non-negative number");
         const [github, hackerNews] = await Promise.allSettled([
           discoverGitHubRepositories({
-            query: options.query ?? defaultGitHubDiscoveryQuery(),
+            ...(options.query
+              ? { query: options.query }
+              : { queries: defaultGitHubDiscoveryQueries() }),
             limit,
           }),
           discoverHackerNewsRepositories({
@@ -1914,7 +1911,9 @@ program
       }
       if (options.source === "github") {
         const repositories = await discoverGitHubRepositories({
-          query: options.query ?? defaultGitHubDiscoveryQuery(),
+          ...(options.query
+            ? { query: options.query }
+            : { queries: defaultGitHubDiscoveryQueries() }),
           limit,
         });
         if (options.queue) {
@@ -2180,7 +2179,7 @@ models
           endpoint: options.endpoint,
           credential,
           ...(options.agents
-            ? { targetAgents: options.agents.split(",") as AgentId[] }
+            ? { targetAgents: parseAgentSelection(options.agents)! }
             : {}),
         },
         options.config ?? defaultModelConfigurationPath(),
@@ -2887,8 +2886,7 @@ program
         const prepared = await prepareCatalogInstall(
           setupSelection(options.mode!, packageIds),
           {
-            requestedAgents: options.agents?.split(",") as
-              AgentId[] | undefined,
+            requestedAgents: parseAgentSelection(options.agents),
             onProgress: printSetupProgress,
           },
         );
@@ -2927,7 +2925,7 @@ program
         : resolution!.packages;
       const agents = installedAgents(
         await detectAgents(),
-        options.agents?.split(",") as AgentId[] | undefined,
+        parseAgentSelection(options.agents),
       );
       const plans = [];
       const skipped: Array<{ packageId: string; reason: string }> = [];
@@ -3036,8 +3034,7 @@ program
         const prepared = await prepareCatalogInstall(
           setupSelection(options.mode!, packageIds),
           {
-            requestedAgents: options.agents?.split(",") as
-              AgentId[] | undefined,
+            requestedAgents: parseAgentSelection(options.agents),
             onProgress: printSetupProgress,
           },
         );
@@ -3067,7 +3064,7 @@ program
         : resolution!.packages;
       const agents = installedAgents(
         await detectAgents(),
-        options.agents?.split(",") as AgentId[] | undefined,
+        parseAgentSelection(options.agents),
       );
       const plans: Array<{
         plan: Awaited<ReturnType<typeof buildSkillPlan>>;
@@ -3137,20 +3134,20 @@ program
   .command("rollback")
   .description("Restore the most recent Loadout snapshot")
   .option("--snapshot <id>", "specific snapshot id")
-  .action(async (options: { snapshot?: string }) => {
-    const snapshotsDirectory = join(loadoutHome(), "snapshots");
-    const snapshotFiles = (await readdir(snapshotsDirectory))
-      .filter((file) => file.endsWith(".json"))
-      .sort();
-    const selected = options.snapshot
-      ? `${options.snapshot}.json`
-      : snapshotFiles.at(-1);
+  .option("--list", "list snapshot ids without restoring anything")
+  .action(async (options: { snapshot?: string; list?: boolean }) => {
+    const snapshotIds = await listSnapshotIds();
+    if (options.list) {
+      if (!snapshotIds.length)
+        return console.log("No Loadout snapshots found.");
+      for (const id of snapshotIds) console.log(id);
+      return;
+    }
+    const selected = options.snapshot ?? snapshotIds.at(-1);
     if (!selected) throw new Error("No Loadout snapshots found");
-    const snapshot = JSON.parse(
-      await readFile(join(snapshotsDirectory, selected), "utf8"),
-    );
+    const snapshot = await readSnapshot(selected);
     await restoreSnapshot(snapshot);
-    console.log(`Restored snapshot ${selected.replace(/\.json$/, "")}`);
+    console.log(`Restored snapshot ${selected}`);
   });
 
 program

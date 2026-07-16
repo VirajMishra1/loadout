@@ -1029,12 +1029,51 @@ universal or permanent truth.
     success on all supported platforms; p95 local scan under five seconds for 1,000
     skills; actionable failure messages; npm provenance and attribution complete.
   - Partial evidence: seven real CLI runs over 1,000 on-disk skills measured a local
-    p95 of 1.04 seconds on 2026-07-16. A disposable real Maximum flow also prepared all
+    p95 of 0.97 seconds on 2026-07-16. A disposable real Maximum flow also prepared all
     31 skill-bearing repositories, exposed 1,219 skill directories, resolved 48
     overlaps, exercised optimization/apply/rollback, and left no test profile behind.
     Transaction, rollback, package-tarball, and CLI product-flow gates pass locally;
     hosted OS/Node release evidence and attribution approval remain required before
     go-live.
+
+### Phase 13: Pre-testing hardening and continuous discovery
+
+- [x] `P13-01 [TERRA]` Repair default GitHub discovery against the live API.
+  - Replace the ineffective parenthesized topic query with three valid rolling topic
+    searches, merge case-insensitive duplicates, rank deterministically, preserve
+    exact custom-query semantics, and test rate-limit and malformed-response failures.
+- [x] `P13-02 [TERRA]` Publish a bounded daily discovery evidence feed.
+  - One five-minute GitHub Actions job performs eight real GitHub searches, records
+    current and retained candidates in `catalog/discovered.json`, and regenerates
+    `docs/DISCOVERED.md` without installing or promoting a repository.
+  - Day-one ordering uses an explicitly labelled lifetime star average; after one
+    complete day, real observed star velocity takes precedence. Empty or malformed
+    runs cannot replace the last healthy artifact, and CI validates every generated
+    record.
+- [x] `P13-03 [LUNA]` Rebuild the README and credit every reviewed upstream source.
+  - The README is CLI-first, accurately distinguishes preview/network/mutation
+    boundaries, links the daily candidate feed, and avoids claiming npm publication.
+  - `docs/CATALOG.md` links all 50 repositories and all 50 immutable reviewed commits;
+    CI prevents silent attribution drift and identifies six `NOASSERTION` records for
+    human legal review.
+- [x] `P13-04 [TERRA]` Harden beginner test-drive and rollback recovery.
+  - Catalog-backed demos fetch the exact reviewed commit, `test-drive` aliases the
+    isolated install/rollback exercise, and all `--agents` arguments use one validated
+    parser.
+  - Rollback lists snapshots read-only and rejects traversal, malformed bytes,
+    filesystem/home/state roots, overlapping roots, escaping paths, duplicates, and
+    inconsistent persisted records before mutation.
+- [x] `P13-05 [SOL]` Document an executable full-feature founder test matrix.
+  - `docs/FEATURE_TEST_MATRIX.md` covers every top-level command, authority boundary,
+    network/process/credit side effect, expected result, platform integration, and
+    cleanup path using disposable profiles wherever possible.
+- [x] `P13-06 [TERRA]` Pass the integrated pre-testing gate and repeat the real live
+      discovery plus immutable isolated test-drive after all Phase 13 changes.
+  - `npm run verify` passes 73 test files/270 tests, CLI E2E, installed-tarball
+    smoke, generated-evidence validation, and a 1,000-skill p95 of 0.97 seconds.
+    Playwright passes independently; live discovery returns real leads; the reviewed
+    two-agent test-drive installs at the pinned Superpowers commit and rolls back its
+    temporary profile.
 
 ## 19. Seven-day schedule
 

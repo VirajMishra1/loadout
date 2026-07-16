@@ -1,452 +1,365 @@
 # Loadout
 
-Loadout is a universal upgrade manager for AI coding agents. It discovers, installs,
-synchronizes, and updates trusted skills and MCP tools across Claude Code, Codex,
-Cursor, Gemini CLI, OpenCode, Hermes, Windsurf, Cline, GitHub Copilot, Roo Code,
-Kiro CLI, and Junie.
+**One safe CLI to discover, compare, install, update, and roll back capabilities across AI coding agents.**
 
-The project is being built for the OpenAI Build Week **Developer Tools** category.
+Loadout turns the fragmented world of Agent Skills, MCP servers, plugins, and agent-specific directories into one reviewed workflow. It detects the agents on your computer, inventories what you already have, prepares capabilities from immutable Git commits, explains conflicts before writing, and snapshots every managed change.
 
-## Install your loadout
+It supports Codex, Claude Code, Cursor, Gemini CLI, OpenCode, Hermes, Windsurf, Cline, GitHub Copilot, Roo Code, Kiro CLI, and Junie on macOS, Linux, and Windows.
 
-After the npm package is published, the normal product experience is one CLI command:
+> Loadout is in open-source beta and **has not been published to npm yet**. Use `npx .` from a clone today. The intended post-publication command is `npx loadout-ai`; the installed executable will be `loadout`.
 
-```bash
-npx loadout-ai
-```
+## Why Loadout exists
 
-Loadout detects supported agents and offers three honest levels: Stable is the tiny
-18-skill foundation, Power is the broad daily driver, and Maximum downloads every
-reviewed skill into a disabled library. Project-aware activation then exposes only the
-useful subset to Codex, Claude Code, or another detected agent. Reviewed pinned sources,
-conflicts, capacity, and safety findings are shown before mutation. The product is
-CLI-first; the dashboard is optional diagnostics.
+Useful agent extensions appear across dozens of repositories, social feeds, and incompatible marketplaces. A star count alone cannot tell you whether two collections overlap, whether a repository still works, what it will write, or how to undo the installation.
 
-From a cloned checkout, use the identical package entry point:
+Loadout gives you:
 
-```bash
-npm ci
-npm run build
-npx .
-```
+- one inventory across supported agents;
+- a 50-repository reviewed catalog pinned to exact commits;
+- Stable, Power, Maximum, and Custom selection modes;
+- project-aware activation instead of exposing an enormous library to every prompt;
+- evidence-based comparison and replacement alerts;
+- daily read-only discovery and update checks;
+- explicit MCP configuration with native credential-store references;
+- transactional installs, integrity checks, snapshots, and rollback;
+- no execution of third-party repository install or lifecycle scripts.
 
-For automation after reviewing the preview:
+Loadout does not claim there is one universally “best” configuration. It makes the evidence, trade-offs, and exact filesystem plan visible so the user can decide.
+
+## Run it locally
+
+Requirements: Git and Node.js 20 or newer.
 
 ```bash
-npx loadout-ai scan                                 # read-only existing setup
-npx loadout-ai setup --mode power                   # broad daily-use preview
-npx loadout-ai setup --mode power --yes --approve-risk
-npx loadout-ai setup --mode maximum                 # preview the full disabled library
-npx loadout-ai setup --mode maximum --yes --approve-risk
-npx loadout-ai optimize --project .                 # project-aware dry run
-```
-
-The current 50-repository reviewed catalog contains 31 skill-bearing repositories and
-19 MCP-only repositories across 37 capability categories. Every record has an immutable
-commit and component evidence; `loadout catalog --coverage` exposes license, overlap,
-install-shape, platform-inspection, activity, and evaluation-readiness metrics. Maximum
-keeps the broad library disabled until project-aware optimization chooses a bounded
-active set. Loadout warns above 30 active skills per agent and never runs repository
-install scripts.
-
-Daily use remains CLI-first:
-
-```bash
-loadout status
-loadout scan
-loadout scan --refresh-provenance
-loadout compare <skill-name>
-loadout adopt <skill-name> --agent codex
-loadout library
-loadout optimize --project .
-loadout activate --project . --limit 40
-loadout disable <package-or-package/skill>
-loadout enable <package-or-package/skill>
-loadout health
-loadout update
-loadout rollback
-loadout discover --source github
-loadout recommend --project .
-loadout models set --id coding --model openai/gpt-5
-loadout models status
-loadout credentials status
-loadout schedule --time 09:00
-loadout unschedule
-loadout outcome openai-skills/playwright --agent codex --task testing --result success
-loadout report
-loadout share loadout-report.json
-```
-
-Native secrets are stdin-only and never echoed:
-
-```bash
-printf '%s' "$OPENROUTER_API_KEY" | loadout credentials set loadout.openrouter --stdin
-loadout models set --id coding --model openai/gpt-5 --credential-keychain loadout.openrouter --yes
-loadout models verify coding
-```
-
-MCP configuration verification remains non-executing. Real connection verification is
-separate, opt-in, bounded, and launches only the exact reviewed artifact:
-
-```bash
-loadout mcp-recipe playwright --config ./mcp.json       # dry-run configuration
-loadout mcp-recipe playwright --config ./mcp.json --verify
-loadout mcp-recipe playwright --connect --approve-risk
-loadout mcp-recipe github-readonly --connect --approve-risk \
-  --credential GITHUB_PERSONAL_ACCESS_TOKEN=keychain:loadout.github
-```
-
-## Status
-
-The working product path detects installed agents, inventories actual `SKILL.md`
-capabilities and ownership, prepares reviewed catalog sources at pinned commits,
-resolves exact overlaps, previews every target and safety finding, installs the approved
-loadout transactionally, tracks updates, and rolls back cleanly. Exact provenance,
-comparison, reviewed-library state, per-skill activation, safe adoption, signed
-head-to-head evidence, evaluation-backed replacement alerts, scheduled multi-source
-discovery, native credential references, and deterministic project optimization now
-work. Publication, upstream license review, and real multi-user beta validation remain
-explicit release work.
-
-See [MASTER_PLAN.md](./MASTER_PLAN.md) for the canonical, current implementation plan
-and [SIMPLE_PLAN.md](./SIMPLE_PLAN.md) for the short plain-language version. New users
-can follow [docs/TESTING.md](./docs/TESTING.md) for a disposable end-to-end product
-test before touching a real agent profile.
-
-## Supported platforms
-
-| Platform | Detection                                                       | Skill adapters               | Verification                            |
-| -------- | --------------------------------------------------------------- | ---------------------------- | --------------------------------------- |
-| macOS    | `PATH` executable or existing documented agent directory        | All twelve adapters          | Native install/remove CI smoke test     |
-| Linux    | `PATH` executable or existing documented agent directory        | All twelve adapters          | Native install/remove CI smoke test     |
-| Windows  | `PATH` executable/`.cmd` resolution or existing agent directory | All twelve adapters          | Native install/remove CI smoke test     |
-| WSL      | Linux executable and POSIX `$HOME` only                         | Linux-side agent directories | Deterministic boundary tests + Linux CI |
-
-The six additional adapters intentionally manage Agent Skills only: Windsurf
-`~/.codeium/windsurf/skills`, Cline `~/.cline/skills`, GitHub Copilot
-`~/.copilot/skills`, Roo Code `~/.roo/skills`, Kiro CLI `~/.kiro/skills`, and
-Junie `~/.junie/skills`. OpenCode uses its documented
-`~/.config/opencode/skills` root. Rules, commands, custom agents, MCP, and plugins
-remain unsupported for these six until their formats have separate documented and
-tested adapters.
-
-Loadout writes to the detected agent's documented user directory and supports
-`LOADOUT_USER_HOME` for an isolated test or demo profile. It does not claim that every
-agent supports every component: `loadout capabilities` reports each adapter as native,
-adapted, or unsupported before installation.
-
-WSL is deliberately treated as Linux: when a Linux-side CLI runs under WSL, Loadout
-uses its POSIX `$HOME` and never translates `USERPROFILE` into `/mnt/c`. Run Loadout
-from native Windows if you want to manage the Windows-side agent profile.
-
-## Core commands
-
-```bash
-# Audit existing agents, then preview or install the broad daily driver.
-node dist/src/cli.js scan
-node dist/src/cli.js scan --refresh-provenance
-node dist/src/cli.js compare <skill-name>
-node dist/src/cli.js setup --mode power
-node dist/src/cli.js setup --mode power --yes --approve-risk
-
-# Download the full reviewed library without activating all of it.
-node dist/src/cli.js setup --mode maximum
-node dist/src/cli.js setup --mode maximum --yes --approve-risk
-node dist/src/cli.js optimize --project .
-node dist/src/cli.js optimize --project . --yes
-
-# Create and validate a shareable desired-state file.
-node dist/src/cli.js init --name my-team
-node dist/src/cli.js sync --manifest loadout.json       # dry run
-node dist/src/cli.js sync --manifest loadout.json --yes # apply as one transaction
-
-# Understand and maintain the current setup.
-node dist/src/cli.js list
-node dist/src/cli.js health
-node dist/src/cli.js capabilities
-node dist/src/cli.js recommend --project .
-node dist/src/cli.js profiles
-node dist/src/cli.js improve
-node dist/src/cli.js improve --write
-node dist/src/cli.js improve-feedback --id <cycle-id> --outcome partial --note "What remains"
-node dist/src/cli.js search playwright
-node dist/src/cli.js audit --manifest loadout.json --lock loadout.lock
-node dist/src/cli.js keygen --private-key ~/.loadout/signing-private.pem --public-key ./loadout-public.pem
-node dist/src/cli.js catalog-sign --catalog catalog/packages.json --private-key ~/.loadout/signing-private.pem --output catalog.signed.json
-node dist/src/cli.js catalog-verify --snapshot catalog.signed.json --public-key ./loadout-public.pem
-node dist/src/cli.js export team.loadout.json --manifest loadout.json --lock loadout.lock
-node dist/src/cli.js import team.loadout.json                         # dry run
-node dist/src/cli.js import team.loadout.json --yes                  # refuses existing files
-node dist/src/cli.js import team.loadout.json --yes --overwrite      # snapshots first
-
-# Create and publish an immutable package to the local registry.
-node dist/src/cli.js create ./my-package --name my-package
-node dist/src/cli.js pack ./my-package
-node dist/src/cli.js publish ./my-package --local
-node dist/src/cli.js add my-package --registry my-package@0.1.0
-
-# Run the same immutable protocol locally, then publish/fetch remotely.
-LOADOUT_REGISTRY_TOKEN='<secret>' node dist/src/cli.js registry-serve --port 7331
-LOADOUT_REGISTRY_TOKEN='<secret>' node dist/src/cli.js publish ./my-package --registry-url http://127.0.0.1:7331
-node dist/src/cli.js add my-package --registry my-package@0.1.0 --remote-registry http://127.0.0.1:7331
-
-# Safe package lifecycle.
-node dist/src/cli.js remove <package-id>                # dry run
-node dist/src/cli.js remove <package-id> --yes
-node dist/src/cli.js update
-node dist/src/cli.js update --package <package-id> --apply
-node dist/src/cli.js lock
-```
-
-`improve` is deliberately read-only. It selects the next improvement from health
-evidence and produces acceptance tests; it never edits, installs, publishes, merges,
-or grants permissions autonomously. `--write` stores an owner-only JSON record and
-reusable Markdown loop prompt. Human-reviewed success, partial, or failure outcomes can
-be recorded locally and are summarized into later cycles; secret-like notes are refused.
-
-MCP packages are configured explicitly in `loadout.json`; Loadout never guesses a
-configuration path. A package can select all discovered servers or a named subset:
-
-```json
-{
-  "id": "docs-mcp",
-  "source": { "type": "github", "repository": "owner/docs-mcp" },
-  "mcp": {
-    "config": "/absolute/path/to/agent-mcp.json",
-    "servers": ["docs"]
-  }
-}
-```
-
-`sync --yes` still refuses MCP changes until `--approve-risk` is also provided. MCP
-ownership is recorded by fingerprint, health/audit detect drift, removal preserves
-unrelated keys and servers, and rollback restores both configuration and Loadout state.
-
-Project or global root files also require explicit scoped exports. Relative source and
-target paths cannot escape the package or allowed project/home scope:
-
-```json
-"rootFiles": [
-  { "source": "AGENTS.md", "target": "AGENTS.md" }
-]
-```
-
-Claude plugin manifests are detected during inspection. Their skills, rules, commands,
-and agents are normalized through the ordinary compatibility planner; Loadout does not
-claim that copying a native plugin manifest itself converts plugin-only behavior.
-
-`loadout capabilities` is the source of truth for every agent/component claim. Each
-cell is `native`, `adapted`, or `unsupported`; the planner consults the same matrix, so
-the documentation cannot quietly claim more than the installer enables. Detection uses
-either an executable on `PATH` or an existing agent configuration directory.
-
-The [catalog policy](./docs/CATALOG_POLICY.md) explains ranking, anti-gaming limits,
-and Stable/Power/Maximum/Custom conflict handling. The [compatibility policy](./docs/COMPATIBILITY_POLICY.md)
-defines exactly what native, adapted, and unsupported mean on Windows, macOS, Linux,
-and WSL.
-
-The [provenance and comparison contract](./docs/PROVENANCE_AND_COMPARISON.md) defines
-exact fingerprints, embedded-source and name-only confidence, semantic relationships,
-comparison evidence, privacy, and why Loadout does not claim a universal “best.”
-The [active-set contract](./docs/ACTIVE_SET.md) defines separate cache, review,
-installation, and per-agent activation state plus transactional enable/disable and
-rollback behavior.
-
-## Try the real install path
-
-```bash
+git clone https://github.com/VirajMishra1/loadout.git
+cd loadout
 npm ci
 npm run build
 npx . --help
-npx . scan                 # real read-only existing-skill inventory
-npx . setup --mode power   # broad read-only catalog preview
-node dist/src/cli.js status
-node dist/src/cli.js doctor
-node dist/src/cli.js catalog
-node dist/src/cli.js mcp --repository upstash/context7
-node dist/src/cli.js plan --repository obra/superpowers --package obra-superpowers --agents codex
-node dist/src/cli.js install --repository obra/superpowers --package obra-superpowers --agents codex --yes
-node dist/src/cli.js rollback
 ```
 
-The publishable npm package is named `loadout-ai` because the unscoped `loadout`
-name is already owned by an unrelated package. After the owner publishes this
-project, the judge-facing commands will be `npx loadout-ai --help` and
-`npx loadout-ai`; the installed executable remains `loadout`. Until then, `npx .`
-exercises the same package entry point from a clone.
-
-Tests are hermetic: Vitest gives each test file disposable `LOADOUT_HOME` and
-`LOADOUT_USER_HOME` directories, so the suite cannot create records in a developer's
-real `~/.loadout` or agent configuration.
-
-Repository installs are currently public GitHub repositories only. Loadout clones a
-shallow snapshot, records the resolved commit, never runs repository lifecycle scripts,
-and copies only discovered `SKILL.md` directories into the selected agent roots.
-
-## Catalog provenance and attribution
-
-The bundled catalog contains 50 public repositories selected for inspectable skills,
-plugins, or MCP tooling. Every record pins the GitHub HEAD commit observed on
-2026-07-14 and records the exact repository-relative paths used as component evidence.
-It also records the SPDX identifier GitHub returned; `NOASSERTION` means GitHub did
-not report an SPDX license, not that Loadout inferred one. The catalog is a discovery
-index, not a redistribution of any upstream package: the source, license, and current
-upstream terms always remain authoritative.
-
-`loadout catalog --refresh` refreshes mutable metadata such as stars and topics, but
-does not rewrite the reviewed commit evidence. A future catalog-review update must
-verify a new commit and its paths before changing those fields.
-
-Every refresh also stores one local observation per catalog repository for that UTC
-date: stars, latest release tag/date, and the summed download count of its release
-assets. Re-running a refresh on the same day replaces that day's observation rather
-than manufacturing a velocity signal. Use the terminal chart after at least two days:
+Start with the two read-only commands:
 
 ```bash
-node dist/src/cli.js catalog --refresh
-node dist/src/cli.js catalog --history superpowers
-node dist/src/cli.js catalog --coverage
-```
-
-## Early discovery without blind installation
-
-```bash
-# Public Hacker News API only; finds current front-page stories that link to GitHub.
-node dist/src/cli.js discover --source hacker-news --min-score 20
-node dist/src/cli.js discover --source hacker-news --query codex,mcp,agent
-node dist/src/cli.js discover --source github # defaults to a rolling 180-day window
-node dist/src/cli.js discover --source hacker-news --json
-```
-
-Discovery returns a scored lead with the exact HN discussion URL and repository URL.
-It never adds a package to the catalog, fetches a repository, or installs anything.
-Review a lead first; then use the normal `plan` command to inspect a pinned snapshot.
-
-## CLI-first demo
-
-The judge-facing product path is entirely terminal based. The dashboard is an optional
-diagnostics surface and is not needed for scan, compare, optimize, update, or rollback.
-
-```bash
-# 1. See the actual skills already present. This does not mutate agent files.
 npx . scan
+npx . setup --mode power
+```
 
-# 2. Compare a discovered or installed skill with the reviewed catalog.
-npx . compare <skill-name>
+`scan` inventories existing `SKILL.md` capabilities, ownership, duplicates, provenance confidence, and capacity without changing an agent profile. `setup` is also a preview unless `--yes` is supplied.
 
-# 3. Preview a small project-aware active set, then apply only after review.
+## The core journey
+
+```bash
+# 1. See what is already installed. Read-only.
+npx . scan --refresh-provenance
+
+# 2. Preview a reviewed loadout. Read-only.
+npx . setup --mode power
+
+# 3. Apply exactly the displayed plan.
+npx . setup --mode power --yes --approve-risk
+
+# 4. Inspect and optimize the active set for this project.
+npx . library
 npx . optimize --project .
 npx . optimize --project . --yes
 
-# 4. Inspect the snapshot id and recover in one command if needed.
-npx . rollback --snapshot <snapshot-id>
+# 5. Check health or undo the most recent managed change.
+npx . health
+npx . rollback
 ```
 
-For a fully disposable presentation, follow [docs/TESTING.md](./docs/TESTING.md): it
-creates temporary agent and Loadout homes, demonstrates the same scan/compare/optimize
-flow, and leaves the real profile untouched.
+`--approve-risk` acknowledges findings that were already printed during preview; it does not disable safety validation. The applied operation is transactional and produces a snapshot identifier.
 
-Run `npm run test:e2e:cli` to execute that core journey automatically against the
-built CLI. It is the required product-flow CI gate; dashboard browser automation is
-kept as an optional diagnostic job.
-
-### Optional dashboard diagnostics
-
-The local dashboard is useful for visual inspection only:
+For a real install-and-rollback exercise that cannot touch your profile:
 
 ```bash
-npm run build
-npx . dashboard
+npx . demo
 ```
 
-Open the loopback URL printed by the command. It never replaces the CLI workflow, and
-risky mutations remain CLI-only.
+The demo creates a temporary virtual Codex profile, fetches the pinned public Superpowers source, installs discovered skills, verifies managed state, rolls back, and deletes the temporary directory.
 
-### One-command safe demo
+## Choose a loadout
 
-For a presentation or first look, the same real install path is available as one
-command. It fetches the verified public `obra/superpowers` repository, installs it into
-an isolated temporary **virtual Codex profile**, records a snapshot, verifies the
-managed files, rolls everything back, and deletes that temporary profile. It never
-reads from or writes to your actual agent configuration, even if Codex is installed.
+| Mode        | Intended use                        | What it selects                                                         | Installation behavior                                                                                              |
+| ----------- | ----------------------------------- | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| **Stable**  | Small, low-noise foundation         | The reviewed Superpowers and Context7 packages                          | Installs the selected skills into detected agents                                                                  |
+| **Power**   | Broad daily driver                  | A maintained skill-level allowlist from eight cross-project collections | Installs only the selected skills, not every skill in each collection                                              |
+| **Maximum** | Exploration and maximum optionality | Every non-archived reviewed catalog record                              | Stores all discovered skill components in Loadout's disabled library; MCP-only records remain explicit setup steps |
+| **Custom**  | Precise control                     | Only package IDs supplied by the user                                   | Uses the same preview, safety, conflict, and transaction pipeline                                                  |
+
+Maximum is a library, not an instruction to activate everything. Use `optimize`, `activate`, `enable`, and `disable` to keep each agent's active set bounded and relevant to the current project. Loadout warns when an active set exceeds 30 skills per agent.
 
 ```bash
-node dist/src/cli.js demo
+npx . setup --mode maximum
+npx . setup --mode maximum --yes --approve-risk
+npx . optimize --project . --limit 30
+npx . optimize --project . --limit 30 --yes
 ```
 
-Use `--keep` only when you want to inspect the isolated result; the command prints its
-temporary path. Delete that directory afterwards. You can choose a different public
-repository or virtual targets, but the same safety boundary applies:
+## What Loadout manages
+
+The bundled catalog currently contains **50 credited public repositories** across **37 categories**: **31 have reviewed skill components** and **19 are MCP-only**. See the complete linked source, license status, component type, and pinned commit for every entry in **[Catalog and upstream credits](./docs/CATALOG.md)**.
 
 ```bash
-node dist/src/cli.js demo --repository obra/superpowers --package obra-superpowers --agents codex,claude-code --keep
+npx . catalog
+npx . catalog --coverage
+npx . catalog --history superpowers
+npx . search playwright
 ```
 
-On Windows PowerShell, use these equivalent setup commands before running the same
-`node dist/src/cli.js` commands:
+Catalog admission is evidence-based. Every bundled record has an exact GitHub commit and repository-relative component evidence. Stars are one bounded ranking input, not an installation threshold or a substitute for source review. Missing evidence receives no score, archived projects are not auto-selected, and unrelated categories are never presented as head-to-head alternatives.
 
-```powershell
-$env:LOADOUT_USER_HOME = Join-Path $env:TEMP ("loadout-demo-" + [guid]::NewGuid())
-$env:LOADOUT_HOME = Join-Path $env:LOADOUT_USER_HOME ".loadout"
-New-Item -ItemType Directory -Force $env:LOADOUT_USER_HOME | Out-Null
+`NOASSERTION` in the catalog means GitHub did not report an SPDX license identifier. It is a review flag—not a license grant and not an accusation. Upstream repositories and their current terms remain authoritative.
+
+## Find what is new
+
+Discovery is deliberately separate from installation. It gathers leads and explains their evidence, but a newly popular repository cannot silently enter the trusted catalog or modify an agent.
+
+**[Today's generated discovery report](./docs/DISCOVERED.md)** lists the latest candidates with direct repository links and supporting signals. Automation refreshes that page and its machine-readable companion at `catalog/discovered.json`; the reviewed 50-repository catalog remains separate.
+
+<!-- loadout:daily-discovery:start -->
+
+**Discovery snapshot (generated 2026-07-16):** [242 repositories observed](./docs/DISCOVERED.md), including 219 uncataloged review candidates and 23 repositories already in the reviewed catalog.
+<!-- loadout:daily-discovery:end -->
+
+```bash
+# GitHub defaults to a rolling 180-day discovery window.
+npx . discover --source github
+
+# Public Hacker News API: current stories that link to GitHub.
+npx . discover --source hacker-news --min-score 20
+npx . discover --source hacker-news --query codex,mcp,agent
+
+# Inspect the deduplicated review queue.
+npx . review-queue
+```
+
+Daily scheduled checks are read-only:
+
+```bash
+npx . schedule --job discovery --time 09:00       # preview
+npx . schedule --job discovery --time 09:00 --yes # install native schedule
+npx . unschedule --job discovery --yes
+```
+
+Candidates stay in the review queue until a human decision. Shortlisting is not promotion, and promotion is not installation. Discovery state records observations over time so momentum can be measured without manufacturing a signal from a single snapshot.
+
+## Know what is already installed
+
+```bash
+npx . status
+npx . doctor
+npx . health
+npx . capabilities
+npx . compare <skill-name>
+npx . adopt <skill-name> --agent codex
+```
+
+`compare` uses fingerprints, embedded source evidence, names, capability relationships, and catalog evidence. A same-name result is a candidate match, never proof that two skills are identical. `adopt` takes Loadout ownership of one explicitly selected existing skill without changing its bytes.
+
+## Project-aware activation
+
+The cache, reviewed library, installed state, and active agent directories are separate states. Loadout can therefore retain a broad reviewed library while exposing only a small working set.
+
+```bash
+npx . recommend --project .
+npx . activate --project . --limit 30
+npx . optimize --project .
+npx . optimize --project . --yes
+npx . disable <package-or-package/skill>
+npx . disable <package-or-package/skill> --yes
+npx . enable <package-or-package/skill>
+npx . enable <package-or-package/skill> --yes
+```
+
+Dry-run is the default for mutations. Activation refuses unmanaged packages, drifted files, incomplete library copies, quarantined entries, and occupied targets.
+
+## MCP without hidden execution
+
+Loadout separates four actions that other installers often blur together:
+
+1. inspect MCP evidence;
+2. preview a configuration change;
+3. apply that exact configuration with explicit risk approval;
+4. optionally launch one exact reviewed artifact for a bounded JSON-RPC connection check.
+
+```bash
+npx . mcp --repository upstash/context7
+npx . mcp-recipe playwright --config ./mcp.json
+npx . mcp-recipe playwright --config ./mcp.json --verify
+npx . mcp-recipe playwright --connect --approve-risk
+```
+
+Credential-bearing recipes can reference the native OS credential store. Secrets are accepted through stdin, never written into Loadout JSON state, and injected only into the approved child process:
+
+```bash
+printf '%s' "$GITHUB_PERSONAL_ACCESS_TOKEN" \
+  | npx . credentials set loadout.github --stdin
+
+npx . mcp-recipe github-readonly --connect --approve-risk \
+  --credential GITHUB_PERSONAL_ACCESS_TOKEN=keychain:loadout.github
+```
+
+Native backends are macOS Keychain, Linux Secret Service, and Windows Credential Manager. `mcp-recipe --connect` is opt-in, time-bounded, signal-cleaned, and restricted to the recipe's exact reviewed pin. General repository setup never launches third-party processes.
+
+## Reproducible team loadouts
+
+```bash
+npx . init --name my-team
+npx . add superpowers
+npx . lock
+npx . sync --manifest loadout.json       # preview
+npx . sync --manifest loadout.json --yes # apply transactionally
+npx . audit --manifest loadout.json --lock loadout.lock
+npx . export team.loadout.json --manifest loadout.json --lock loadout.lock
+npx . import team.loadout.json            # preview
+```
+
+Manifests resolve catalog packages, Git repositories, local sources, and exact registry descriptors. Dependency cycles, incompatible versions, missing requirements, unsafe paths, and portable exports containing absolute local package paths are rejected. Imports do not silently replace files and snapshot destinations before an approved overwrite.
+
+## Updates, evidence, and recovery
+
+```bash
+npx . alerts
+npx . update
+npx . update --package <package-id> --apply
+npx . watch
+npx . rollback
+npx . audit --manifest loadout.json --lock loadout.lock
+```
+
+Updates are planned before they are applied. Loadout checks managed hashes, reviewed commits, archive status, staleness evidence, permission changes, and replacement evidence. It will not treat a newer commit or a faster-growing repository as automatically safer or better.
+
+`rollback` restores the most recent snapshot by default, or a specific snapshot with `--snapshot <id>`. Removal and configuration changes preserve unrelated files and unrelated MCP keys.
+
+## Supported agents and platforms
+
+| Agent          | Skill management                       | Additional native/adapted components                                                           |
+| -------------- | -------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| Codex          | Native                                 | Agents and scoped root files are native; commands, MCP, and plugin contents are adapted        |
+| Claude Code    | Native                                 | Commands, agents, and scoped root files are native; MCP and plugin contents are adapted        |
+| Cursor         | Native                                 | Rules, commands, agents, and scoped root files are native; MCP and plugin contents are adapted |
+| Gemini CLI     | Native                                 | Commands and scoped root files are native; plugin contents are adapted                         |
+| OpenCode       | Native, at `~/.config/opencode/skills` | Commands, agents, and scoped root files are native; plugin contents are adapted                |
+| Hermes         | Native                                 | Skills are the currently claimed automatic install path                                        |
+| Windsurf       | Yes, at `~/.codeium/windsurf/skills`   | Skills only                                                                                    |
+| Cline          | Yes, at `~/.cline/skills`              | Skills only                                                                                    |
+| GitHub Copilot | Yes, at `~/.copilot/skills`            | Skills only                                                                                    |
+| Roo Code       | Yes, at `~/.roo/skills`                | Skills only                                                                                    |
+| Kiro CLI       | Yes, at `~/.kiro/skills`               | Skills only                                                                                    |
+| Junie          | Yes, at `~/.junie/skills`              | Skills only                                                                                    |
+
+Run `npx . capabilities` for the authoritative `native`, `adapted`, or `unsupported` matrix used by the planner itself. Unsupported components are skipped rather than falsely converted.
+
+macOS, Linux, and native Windows paths are supported. WSL is intentionally treated as Linux and uses its POSIX `$HOME`; Loadout never silently crosses into the Windows profile under `/mnt/c`. `LOADOUT_USER_HOME` and `LOADOUT_HOME` provide isolated roots for testing.
+
+## Safety model
+
+- **Preview first:** mutating commands are dry-run by default.
+- **Immutable input:** reviewed sources are fetched at exact commits and verified.
+- **Narrow copying:** setup copies discovered component directories; it does not run repository installers.
+- **Transactional writes:** a failed multi-package operation restores prior state.
+- **Owned-file boundaries:** remove and rollback touch only recorded managed targets.
+- **Integrity checks:** drift blocks unsafe enable, update, and removal operations.
+- **Conflict handling:** exact target collisions are resolved deterministically and reported; evidenced hard conflicts block the operation.
+- **Secret boundaries:** credential values stay in the native OS store and out of manifests, lockfiles, reports, and logs.
+- **Honest adapters:** the installer and capability report share the same compatibility matrix.
+- **Explicit execution:** sandbox commands and real MCP connection checks require separate approval.
+
+Read [Compatibility policy](./docs/COMPATIBILITY_POLICY.md), [Active-set contract](./docs/ACTIVE_SET.md), [Provenance and comparison](./docs/PROVENANCE_AND_COMPARISON.md), and [Credential and update policy](./docs/CREDENTIAL_AND_UPDATE_POLICY.md) for the precise contracts.
+
+## Command map
+
+| Goal                   | Commands                                                                |
+| ---------------------- | ----------------------------------------------------------------------- |
+| Onboard                | `setup`, `scan`, `status`, `doctor`, `capabilities`, `demo`             |
+| Find and compare       | `catalog`, `search`, `discover`, `review-queue`, `compare`, `recommend` |
+| Manage active skills   | `library`, `activate`, `optimize`, `enable`, `disable`, `adopt`         |
+| Maintain safely        | `health`, `alerts`, `update`, `watch`, `remove`, `rollback`, `audit`    |
+| Share desired state    | `init`, `add`, `unadd`, `lock`, `sync`, `export`, `import`              |
+| Configure MCP          | `mcp`, `mcp-config`, `codex-mcp-config`, `mcp-recipe`                   |
+| Credentials and models | `credentials`, `models`                                                 |
+| Evaluate evidence      | `inspect`, `evaluate`, `head-to-head`, `canary`, `outcome`, `report`    |
+| Package and registry   | `create`, `pack`, `publish`, `registry-serve`                           |
+| Operate                | `completion`, `schedule`, `unschedule`, `dashboard`, `serve`            |
+
+Use `npx . <command> --help` for exact options. Shell completion is available for Bash, Zsh, Fish, and PowerShell:
+
+```bash
+npx . completion zsh > ~/.zfunc/_loadout
 ```
 
 ## How it works
 
 ```mermaid
 flowchart LR
-  A[CLI or dashboard] --> B[Detect installed agents]
-  B --> C[Curated catalog]
-  C --> D[GitHub shallow snapshot]
-  D --> E[Resolve SKILL.md and MCP manifests]
-  E --> F[Plan files and configuration]
-  F --> G{User confirmation}
-  G -->|yes| H[Transactional install + hash state]
-  H --> I[Update check and rollback snapshot]
-  G -->|no| J[Dry-run output]
+  A["Detect and scan agents"] --> B["Select reviewed sources"]
+  B --> C["Fetch exact Git commits"]
+  C --> D["Inspect skills and MCP evidence"]
+  D --> E["Resolve overlaps and safety findings"]
+  E --> F["Preview exact targets"]
+  F --> G{"Explicit approval?"}
+  G -->|No| H["No profile mutation"]
+  G -->|Yes| I["Snapshot and transactional apply"]
+  I --> J["Hash verification, health, rollback"]
 ```
 
-Discovery and planning are read-only. Installation writes only the selected package's
-managed directories, and the current implementation never executes third-party
-repository lifecycle scripts. The loopback API and dashboard expose status, health,
-catalog, updates, recommendations, and authenticated safe sync/rollback actions.
+Loadout state lives outside the repository under `~/.loadout` by default. Agent content is written only to the detected agent's documented user directory. The optional dashboard is a loopback diagnostics surface; the full product journey remains available through the CLI.
 
-## Current demo boundaries
+## Test everything before touching a real profile
 
-- Public GitHub repositories are supported. Private discovery is opt-in through an
-  environment or native OS credential reference; Loadout never stores repository tokens
-  in its JSON state.
-- The install path currently handles skill directories containing `SKILL.md`.
-- MCP manifests can be inspected and MCP JSON configuration changes can be planned or
-  applied, but MCP processes are not launched by Loadout.
-- The catalog is curated rather than an index of every repository on the internet.
-- Updates are reported, a read-only watcher is available, and synchronization uses
-  snapshots plus durable interruption journals. Policy-gated automatic promotion and
-  owner-signed catalog release publishing are not yet enabled; signing and verification
-  commands exist for a future release process.
-- The manifest currently resolves catalog, public GitHub refs/subpaths, generic HTTPS
-  or SSH Git sources, and local sources. Manifest dependencies are ordered and missing,
-  disabled, or cyclic dependencies are rejected. Registry package descriptors resolve
-  exact transitive production dependencies; development dependencies require explicit
-  `includeDevDependencies: true`. Cycles and incompatible versions are blocked, and the
-  expanded dependency graph is recorded in the lockfile. Skills, conventional rule directories,
-  command directories, and agent directories are normalized; unsupported targets are
-  skipped rather than falsely converted. Plugin/root-file application, automated MCP
-  targeting for non-JSON agent formats and native plugin-only behavior remain planned.
-  Loadout now includes a small authenticated
-  registry protocol: exact versions are immutable, downloaded files and package digests
-  are verified, publishing uses `LOADOUT_REGISTRY_TOKEN`, and non-loopback clients require
-  HTTPS. The included server is suitable for local development or self-hosting; no public
-  Loadout hosting service is claimed or deployed yet.
+The automated tests use disposable Loadout and user homes.
 
-Portable exports contain the validated manifest and, when requested, its exact lockfile.
-Absolute local package paths are refused because another machine cannot reproduce them.
-Import is a dry run by default, will not silently replace files, snapshots destinations
-before writing, and can be undone with the reported snapshot id.
+```bash
+npm run verify
+```
 
-## Core promise
+`verify` runs formatting, lint, typechecking, catalog/discovery evidence checks, all
+unit and integration tests, the real CLI product flow, an installed npm-tarball smoke
+test, and the 1,000-skill performance gate. Use `npm run verify:full` to include the
+optional Playwright dashboard check.
 
-Run one command, let Loadout detect the agents on your computer, and choose Stable,
-Power, or Maximum Library. Loadout handles platform-specific skill paths, keeps a
-record of every change, activates reviewed skills per project, and can roll back to
-the last working configuration.
+Then follow **[the complete feature test matrix](./docs/FEATURE_TEST_MATRIX.md)** to
+exercise every CLI command and authority boundary, or the shorter **[disposable
+end-to-end guide](./docs/TESTING.md)** for Power/Maximum, optimization, lifecycle, and
+rollback on virtual Codex and Claude Code profiles.
+
+## Current limits
+
+- The npm package is prepared but not yet published.
+- The bundled catalog is reviewed and finite; discovery leads do not auto-promote themselves.
+- Public GitHub is the default source. Private GitHub discovery requires explicit authorization through an environment or native credential reference.
+- Skill components are the only components installed automatically by broad setup. MCP-only records require an explicit recipe or configuration target.
+- Six catalog records currently have `NOASSERTION` license status and need upstream-license review before a public release decision.
+- Additional component types are installed only where the adapter reports tested support. Loadout does not promise perfect conversion of arbitrary hooks, subagents, plugins, or proprietary formats.
+- The included registry server is for local development or self-hosting. No public Loadout registry service is deployed.
+- Ranking and evaluation explain bounded evidence; they do not scientifically prove that one configuration is best for every person or task.
+
+## Contributing
+
+Catalog additions need more than popularity. A proposal should include an immutable commit, inspectable component evidence, license status, supported platforms, category/overlap analysis, and a reason it improves the existing catalog. Discovery candidates should pass review before promotion.
+
+Before opening a pull request:
+
+```bash
+npm run verify
+```
+
+Useful references:
+
+- [Catalog and all upstream credits](./docs/CATALOG.md)
+- [Daily generated discovery report](./docs/DISCOVERED.md)
+- [Catalog ranking and conflict policy](./docs/CATALOG_POLICY.md)
+- [Testing guide](./docs/TESTING.md)
+- [Complete CLI feature test matrix](./docs/FEATURE_TEST_MATRIX.md)
+- [Evaluation protocol](./docs/EVALUATION_PROTOCOL.md)
+- [Community discovery policy](./docs/COMMUNITY_DISCOVERY.md)
+- [Security policy](./SECURITY.md)
+- [Canonical engineering plan](./MASTER_PLAN.md)
+
+## License
+
+Loadout itself is licensed under the [MIT License](./LICENSE). Catalog entries remain governed by their respective upstream licenses and terms; inclusion is attribution and discovery metadata, not relicensing.
+
+Built for the OpenAI Build Week **Developer Tools** category.

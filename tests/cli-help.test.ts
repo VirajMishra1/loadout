@@ -46,6 +46,7 @@ describe("CLI contract", () => {
     expect(result.stdout).toContain("setup");
     expect(result.stdout).toContain("doctor");
     expect(result.stdout).toContain("demo");
+    expect(result.stdout).toContain("test-drive");
     expect(result.stdout).toContain("plan");
     expect(result.stdout).toContain("rollback");
     expect(result.stdout).toContain("discover");

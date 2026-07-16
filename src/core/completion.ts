@@ -15,6 +15,8 @@ const commands = [
   "add",
   "unadd",
   "list",
+  "demo",
+  "test-drive",
   "scan",
   "status",
   "doctor",

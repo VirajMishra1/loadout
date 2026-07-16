@@ -26,6 +26,8 @@ jobs:
       - run: npm run format:check
       - run: npm run lint
       - run: npm run typecheck
+      - run: node scripts/check-catalog-attribution.mjs
+      - run: node scripts/check-discovery-artifacts.mjs
       - run: npm test -- --run
       # The shipped CLI is the product gate: isolated profile, real state, no network.
       - run: npm run test:e2e:cli

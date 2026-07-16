@@ -90,6 +90,26 @@ export const AGENT_DEFINITIONS: ReadonlyArray<{
   },
 ];
 
+/** Parse one CLI agent selection consistently across every command. */
+export function parseAgentSelection(input?: string): AgentId[] | undefined {
+  if (input === undefined) return undefined;
+  const values = input
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+  if (!values.length)
+    throw new Error("--agents requires at least one supported agent id");
+  const known = new Set(AGENT_DEFINITIONS.map((definition) => definition.id));
+  const unknown = [
+    ...new Set(values.filter((id) => !known.has(id as AgentId))),
+  ];
+  if (unknown.length)
+    throw new Error(
+      `Unknown agent id(s): ${unknown.join(", ")}. Supported ids: ${[...known].join(", ")}`,
+    );
+  return [...new Set(values)] as AgentId[];
+}
+
 type PathEnvironment = NodeJS.ProcessEnv;
 
 export type RuntimeBoundary = "windows" | "wsl" | "posix";

@@ -9,6 +9,7 @@ import {
   executableCandidates,
   executableLookup,
   loadoutHome,
+  parseAgentSelection,
   runtimeBoundary,
   userHome,
 } from "../src/core/paths.js";
@@ -130,6 +131,19 @@ describe("platform paths", () => {
       "kiro-cli",
       "junie",
     ]);
+  });
+
+  it("normalizes CLI agent lists and rejects unknown ids early", () => {
+    expect(parseAgentSelection(" codex,claude-code,codex ")).toEqual([
+      "codex",
+      "claude-code",
+    ]);
+    expect(() => parseAgentSelection("codex,not-an-agent")).toThrow(
+      /Unknown agent id.*not-an-agent.*Supported ids/,
+    );
+    expect(() => parseAgentSelection(" , ")).toThrow(
+      /requires at least one supported agent/,
+    );
   });
 
   it("detects an existing agent configuration even when its binary is not on PATH", async () => {

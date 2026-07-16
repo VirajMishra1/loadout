@@ -7,15 +7,16 @@ import {
   rm,
   lstat,
 } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve, sep } from "node:path";
 import type { Snapshot } from "../shared/types.js";
-import { loadoutHome, ensureDirectory } from "./paths.js";
+import { loadoutHome, ensureDirectory, userHome } from "./paths.js";
 
 export async function createSnapshot(paths: string[]): Promise<Snapshot> {
+  const normalizedRoots = [...new Set(paths.map((path) => resolve(path)))];
   const snapshot: Snapshot = {
-    id: `${Date.now()}-${createHash("sha256").update(paths.join("\n")).digest("hex").slice(0, 12)}`,
+    id: `${Date.now()}-${createHash("sha256").update(normalizedRoots.join("\n")).digest("hex").slice(0, 12)}`,
     createdAt: new Date().toISOString(),
-    roots: [...new Set(paths)],
+    roots: normalizedRoots,
     files: [],
   };
   async function capture(path: string): Promise<void> {
@@ -63,6 +64,7 @@ export async function createSnapshot(paths: string[]): Promise<Snapshot> {
     }
   }
   for (const path of snapshot.roots) await capture(path);
+  validateSnapshot(snapshot);
   const directory = join(loadoutHome(), "snapshots");
   await ensureDirectory(directory);
   await writeFile(
@@ -74,6 +76,7 @@ export async function createSnapshot(paths: string[]): Promise<Snapshot> {
 }
 
 export async function restoreSnapshot(snapshot: Snapshot): Promise<void> {
+  validateSnapshot(snapshot);
   for (const root of snapshot.roots)
     await rm(root, { recursive: true, force: true });
   for (const directory of snapshot.files
@@ -93,7 +96,156 @@ export async function restoreSnapshot(snapshot: Snapshot): Promise<void> {
 }
 
 export async function readSnapshot(id: string): Promise<Snapshot> {
-  return JSON.parse(
-    await readFile(join(loadoutHome(), "snapshots", `${id}.json`), "utf8"),
-  ) as Snapshot;
+  if (!isSnapshotId(id)) throw new Error(`Invalid snapshot id: ${id}`);
+  let value: unknown;
+  try {
+    value = JSON.parse(
+      await readFile(join(loadoutHome(), "snapshots", `${id}.json`), "utf8"),
+    );
+  } catch (error) {
+    if (isFileError(error, "ENOENT"))
+      throw new Error(`Snapshot not found: ${id}`);
+    if (error instanceof SyntaxError)
+      throw new Error(`Snapshot is not valid JSON: ${id}`);
+    throw error;
+  }
+  const snapshot = validateSnapshot(value);
+  if (snapshot.id !== id)
+    throw new Error(`Snapshot id does not match its filename: ${id}`);
+  return snapshot;
+}
+
+export async function listSnapshotIds(): Promise<string[]> {
+  try {
+    return (await readdir(join(loadoutHome(), "snapshots")))
+      .filter((file) => file.endsWith(".json"))
+      .map((file) => file.slice(0, -5))
+      .filter(isSnapshotId)
+      .sort();
+  } catch (error) {
+    if (isFileError(error, "ENOENT")) return [];
+    throw error;
+  }
+}
+
+const SNAPSHOT_ID = /^\d{10,}-[a-f0-9]{12}$/;
+
+function isSnapshotId(value: string): boolean {
+  return SNAPSHOT_ID.test(value);
+}
+
+function isFileError(error: unknown, code: string): boolean {
+  return Boolean(
+    error &&
+    typeof error === "object" &&
+    "code" in error &&
+    (error as { code?: string }).code === code,
+  );
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value));
+}
+
+function isInside(root: string, path: string): boolean {
+  const resolvedRoot = resolve(root);
+  const resolvedPath = resolve(path);
+  return (
+    resolvedPath === resolvedRoot ||
+    resolvedPath.startsWith(`${resolvedRoot}${sep}`)
+  );
+}
+
+/**
+ * Reject structurally unsafe or internally inconsistent persisted rollback
+ * data before it can delete or write. This is corruption/tampering hardening,
+ * not an authorization boundary for an attacker who controls the user account.
+ */
+export function validateSnapshot(value: unknown): Snapshot {
+  if (!isRecord(value)) throw new Error("Snapshot must be an object");
+  if (typeof value.id !== "string" || !isSnapshotId(value.id))
+    throw new Error("Snapshot id is invalid");
+  if (
+    typeof value.createdAt !== "string" ||
+    !Number.isFinite(Date.parse(value.createdAt))
+  )
+    throw new Error("Snapshot creation time is invalid");
+  if (
+    !Array.isArray(value.roots) ||
+    value.roots.length === 0 ||
+    !value.roots.every((root) => typeof root === "string" && root.length > 0)
+  )
+    throw new Error("Snapshot roots are invalid");
+  if (!Array.isArray(value.files))
+    throw new Error("Snapshot files are invalid");
+  const roots = value.roots as string[];
+  const forbiddenRoots = new Set([resolve(userHome()), resolve(loadoutHome())]);
+  for (const [index, root] of roots.entries()) {
+    if (resolve(root) !== root)
+      throw new Error(
+        `Snapshot root ${index} must be an absolute normalized path`,
+      );
+    if (dirname(root) === root)
+      throw new Error(`Snapshot root ${index} must not be a filesystem root`);
+    if (forbiddenRoots.has(root))
+      throw new Error(`Snapshot root ${index} is too broad to restore safely`);
+    if (
+      roots.some(
+        (candidate, candidateIndex) =>
+          candidateIndex !== index && isInside(candidate, root),
+      )
+    )
+      throw new Error("Snapshot roots must be unique and non-overlapping");
+  }
+  const paths = new Set<string>();
+  for (const [index, file] of value.files.entries()) {
+    if (
+      !isRecord(file) ||
+      typeof file.path !== "string" ||
+      typeof file.existed !== "boolean" ||
+      (file.directory !== undefined && typeof file.directory !== "boolean") ||
+      (file.content !== undefined && typeof file.content !== "string") ||
+      (file.encoding !== undefined && file.encoding !== "base64")
+    )
+      throw new Error(`Snapshot file ${index} is invalid`);
+    const filePath = file.path;
+    if (resolve(filePath) !== filePath)
+      throw new Error(
+        `Snapshot file ${index} path must be absolute and normalized`,
+      );
+    if (paths.has(filePath))
+      throw new Error(`Snapshot file ${index} duplicates another path`);
+    paths.add(filePath);
+    if (!roots.some((root) => isInside(root, filePath)))
+      throw new Error(`Snapshot file ${index} escapes its declared roots`);
+    if (!file.existed) {
+      if (
+        file.directory !== undefined ||
+        file.content !== undefined ||
+        file.encoding !== undefined
+      )
+        throw new Error(`Missing snapshot file ${index} must not contain data`);
+    } else if (file.directory) {
+      if (file.content !== undefined || file.encoding !== undefined)
+        throw new Error(`Snapshot directory ${index} must not contain bytes`);
+    } else if (
+      typeof file.content !== "string" ||
+      file.encoding !== "base64" ||
+      !isCanonicalBase64(file.content)
+    )
+      throw new Error(`Snapshot file ${index} bytes are invalid`);
+  }
+  for (const [index, root] of roots.entries())
+    if (!paths.has(root))
+      throw new Error(`Snapshot root ${index} has no matching file record`);
+  return value as unknown as Snapshot;
+}
+
+function isCanonicalBase64(value: string): boolean {
+  return (
+    value.length % 4 === 0 &&
+    /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(
+      value,
+    )
+  );
 }

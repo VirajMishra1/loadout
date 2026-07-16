@@ -11,6 +11,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   createSnapshot,
+  listSnapshotIds,
   readSnapshot,
   restoreSnapshot,
 } from "../src/core/snapshot.js";
@@ -44,5 +45,77 @@ describe("rollback snapshots", () => {
     expect(await readFile(binary)).toEqual(original);
     expect(await readdir(empty)).toEqual([]);
     await expect(readFile(join(target, "new.txt"))).rejects.toThrow();
+  });
+
+  it("rejects path traversal and malformed rollback data before mutation", async () => {
+    root = await mkdtemp(join(tmpdir(), "loadout-snapshot-guard-"));
+    process.env.LOADOUT_HOME = join(root, ".loadout");
+    const target = join(root, "target.txt");
+    await writeFile(target, "keep me");
+
+    await expect(readSnapshot("../../outside")).rejects.toThrow(
+      /Invalid snapshot id/,
+    );
+    await expect(
+      restoreSnapshot({
+        id: `${Date.now()}-${"a".repeat(12)}`,
+        createdAt: new Date().toISOString(),
+        roots: [target],
+        files: [
+          {
+            path: target,
+            existed: true,
+            content: "a2VlcCBtZQ==",
+            encoding: "base64",
+          },
+          { path: join(root, "outside.txt"), existed: false },
+        ],
+      }),
+    ).rejects.toThrow(/escapes its declared roots/);
+    expect(await readFile(target, "utf8")).toBe("keep me");
+  });
+
+  it("rejects dangerously broad, overlapping, and inconsistent roots", async () => {
+    root = await mkdtemp(join(tmpdir(), "loadout-snapshot-hostile-"));
+    process.env.LOADOUT_HOME = join(root, ".loadout");
+    const id = `${Date.now()}-${"b".repeat(12)}`;
+    const base = { id, createdAt: new Date().toISOString() };
+    await expect(
+      restoreSnapshot({
+        ...base,
+        roots: ["/"],
+        files: [{ path: "/", existed: false }],
+      }),
+    ).rejects.toThrow(/filesystem root/);
+    await expect(
+      restoreSnapshot({
+        ...base,
+        roots: [root, join(root, "nested")],
+        files: [
+          { path: root, existed: false },
+          { path: join(root, "nested"), existed: false },
+        ],
+      }),
+    ).rejects.toThrow(/non-overlapping/);
+    await expect(
+      restoreSnapshot({
+        ...base,
+        roots: [join(root, "target")],
+        files: [
+          {
+            path: join(root, "target"),
+            existed: false,
+            content: "dGFtcGVyZWQ=",
+            encoding: "base64",
+          },
+        ],
+      }),
+    ).rejects.toThrow(/must not contain data/);
+  });
+
+  it("lists no snapshots cleanly on first run", async () => {
+    root = await mkdtemp(join(tmpdir(), "loadout-snapshot-empty-"));
+    process.env.LOADOUT_HOME = join(root, ".loadout");
+    expect(await listSnapshotIds()).toEqual([]);
   });
 });

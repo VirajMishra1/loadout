@@ -9,6 +9,7 @@ describe("CLI completion", () => {
     for (const shell of ["bash", "zsh", "fish", "powershell"] as const) {
       expect(renderShellCompletion(shell)).toContain("loadout");
       expect(renderShellCompletion(shell)).toContain("optimize");
+      expect(renderShellCompletion(shell)).toContain("test-drive");
     }
   });
 

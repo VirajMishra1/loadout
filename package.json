@@ -57,7 +57,10 @@
     "test:package": "node scripts/package-smoke.mjs",
     "pretest:performance": "npm run build",
     "test:performance": "node scripts/scan-benchmark.mjs",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "check:evidence": "node scripts/check-catalog-attribution.mjs && node scripts/check-discovery-artifacts.mjs",
+    "verify": "npm run format:check && npm run lint && npm run typecheck && npm run check:evidence && npm test -- --run && npm run test:e2e:cli && npm run test:package && npm run test:performance",
+    "verify:full": "npm run verify && npm run test:e2e:dashboard"
   },
   "dependencies": {
     "commander": "^12.1.0",

@@ -10,6 +10,7 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { formatDemoResult, runIsolatedDemo } from "../src/core/demo.js";
+import type { CatalogPackage } from "../src/shared/types.js";
 
 async function pathExists(path: string): Promise<boolean> {
   try {
@@ -60,6 +61,7 @@ describe("isolated demo mode", () => {
     });
 
     expect(result.repository).toContain("local source:");
+    expect(result.reviewed).toBe(false);
     expect(result.rolledBack).toBe(true);
     expect(result.cleanedUp).toBe(true);
     expect(await pathExists(result.profile)).toBe(false);
@@ -75,6 +77,41 @@ describe("isolated demo mode", () => {
     expect(formatDemoResult(result)).toContain(
       "Installed 1 planned skill directory(ies); tracking 1 file(s).",
     );
+  });
+
+  it("fetches a catalog repository at its immutable reviewed commit", async () => {
+    const source = await createSkillSource();
+    const commit = "a".repeat(40);
+    const catalog: CatalogPackage[] = [
+      {
+        id: "obra-superpowers",
+        displayName: "Superpowers",
+        repository: "obra/superpowers",
+        description: "Reviewed demo",
+        category: "workflow",
+        tier: "stable",
+        components: ["skill"],
+        source: {
+          type: "github",
+          url: "https://github.com/obra/superpowers",
+          defaultBranch: "main",
+          commit,
+          evidencePaths: ["SKILL.md"],
+          verifiedAt: "2026-07-16T00:00:00Z",
+        },
+      },
+    ];
+    const requests: Array<{ repository: string; ref?: string }> = [];
+    const result = await runIsolatedDemo({
+      catalog,
+      fetchSnapshot: async (repository, options) => {
+        requests.push({ repository, ref: options?.ref });
+        return { repository, commit, path: source };
+      },
+    });
+    expect(requests).toEqual([{ repository: "obra/superpowers", ref: commit }]);
+    expect(result.reviewed).toBe(true);
+    expect(formatDemoResult(result)).toContain("Reviewed source:");
   });
 
   it("can retain a still-isolated profile for a presenter to inspect", async () => {

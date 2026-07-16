@@ -1,0 +1,49 @@
+name: Daily repository discovery
+
+on:
+  schedule:
+    # A single off-peak run keeps Actions usage bounded while producing a daily feed.
+    - cron: "17 2 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: daily-repository-discovery
+  cancel-in-progress: true
+
+jobs:
+  discover:
+    name: Record bounded GitHub candidates
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - name: Verify reviewed catalog attribution
+        run: node scripts/check-catalog-attribution.mjs
+      - name: Query GitHub and generate review artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/daily-discovery.mjs --date "$(date -u +%F)"
+      - name: Validate generated evidence
+        run: node scripts/check-discovery-artifacts.mjs
+      - name: Summarize discovery
+        run: cat docs/DISCOVERED.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Commit changed evidence only
+        run: |
+          if git diff --quiet -- catalog/discovered.json docs/DISCOVERED.md README.md; then
+            echo "Discovery evidence is already current."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add catalog/discovered.json docs/DISCOVERED.md README.md
+          git commit -m "chore(discovery): refresh daily repository evidence [skip ci]"
+          git push origin HEAD:main

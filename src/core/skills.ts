@@ -6,9 +6,17 @@ import type {
   PlannedFile,
 } from "../shared/types.js";
 import { ensureDirectory } from "./paths.js";
+import { assertSkillSecurity, scanSkillSecurity } from "./skill-security.js";
 
 export async function discoverSkillDirectories(
   root: string,
+  options: {
+    include?: (skill: {
+      path: string;
+      name?: string;
+      targetName: string;
+    }) => boolean;
+  } = {},
 ): Promise<string[]> {
   const result: string[] = [];
   async function visit(directory: string, depth: number): Promise<void> {
@@ -33,8 +41,31 @@ export async function discoverSkillDirectories(
       return;
     }
     if (entries.includes("SKILL.md")) {
+      const skillPath = join(directory, "SKILL.md");
+      let name: string | undefined;
+      try {
+        const skillStat = await lstat(skillPath);
+        if (skillStat.isFile() && !skillStat.isSymbolicLink()) {
+          const frontmatter = await readFile(skillPath, "utf8");
+          name = frontmatter.match(/^name:\s*(\S+)/m)?.[1];
+        }
+      } catch {
+        // Selected invalid skills are rejected by validateSkillDirectory below.
+      }
+      if (
+        options.include &&
+        !options.include({
+          path: directory,
+          ...(name ? { name } : {}),
+          targetName: directory.split(sep).at(-1) ?? "skill",
+        })
+      )
+        return;
       await validateSkillDirectory(directory);
       result.push(directory);
+      // A SKILL.md directory is one atomic skill package. Resources beneath it
+      // are validated as content, not recursively treated as additional skills.
+      return;
     }
     for (const entry of entries) {
       if (entry === ".git" || entry === "node_modules") continue;
@@ -72,8 +103,9 @@ export async function planSkillInstall(
   sourceRoot: string,
   targetDirectories: string[],
   packageId: string,
+  options: Parameters<typeof discoverSkillDirectories>[1] = {},
 ): Promise<InstallPlan> {
-  const skills = await discoverSkillDirectories(sourceRoot);
+  const skills = await discoverSkillDirectories(sourceRoot, options);
   if (skills.length === 0)
     throw new Error(`No SKILL.md found under ${sourceRoot}`);
   const files: PlannedFile[] = [];
@@ -210,4 +242,8 @@ export async function validateSkillDirectory(path: string): Promise<void> {
       `SKILL.md is missing required name/description frontmatter: ${relative(process.cwd(), path)}`,
     );
   }
+  // Deeper validation stays read-only. Only deterministic critical findings fail
+  // closed here; scripts, domains and dependencies continue through the explicit
+  // risk-approval flow rather than being silently treated as safe.
+  assertSkillSecurity(await scanSkillSecurity(path));
 }

@@ -152,7 +152,20 @@ export async function prepareCatalogInstall(
           throw new Error(
             `resolved ${fetched.commit}, expected reviewed commit ${pkg.source.commit}`,
           );
-        const plan = await buildSkillPlan(fetched.path, pkg.id, agents);
+        const include =
+          selection.mode === "stable"
+            ? (skill: { name?: string; targetName: string }) =>
+                isStableSkillSelected(pkg.id, skill.name, skill.targetName)
+            : selection.mode === "power"
+              ? (skill: { name?: string; targetName: string }) =>
+                  isPowerSkillSelected(pkg.id, skill.name, skill.targetName)
+              : undefined;
+        const plan = await buildSkillPlan(
+          fetched.path,
+          pkg.id,
+          agents,
+          include ? { include } : {},
+        );
         if (selection.mode === "stable")
           plan.files = plan.files.filter((file) =>
             isStableSkillSelected(

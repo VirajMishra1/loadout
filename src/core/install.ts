@@ -97,6 +97,7 @@ export async function buildSkillPlan(
   source: string,
   packageId: string,
   agents: DetectedAgent[],
+  options: Parameters<typeof planAdapterSkillInstall>[3] = {},
 ): Promise<InstallPlan> {
   if (!existsSync(source))
     throw new Error(`Package source does not exist: ${source}`);
@@ -106,10 +107,19 @@ export async function buildSkillPlan(
   }
   // A repository may contain one skill at its root or several nested skills.
   // Validate the root when present; planSkillInstall validates every nested skill.
-  if (existsSync(join(source, "SKILL.md")))
+  if (
+    existsSync(join(source, "SKILL.md")) &&
+    (!options.include ||
+      options.include({
+        path: source,
+        targetName: basename(source),
+      }))
+  )
     await validateSkillDirectory(source);
   const plans = await Promise.all(
-    agents.map((agent) => planAdapterSkillInstall(source, packageId, agent)),
+    agents.map((agent) =>
+      planAdapterSkillInstall(source, packageId, agent, options),
+    ),
   );
   const files = plans.flatMap((plan) => plan.files);
   const conflicts = detectInstallConflicts([

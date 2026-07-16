@@ -11,6 +11,8 @@ describe("agent version intelligence", () => {
     expect(parseAgentVersion("codex-cli 1.2.3\n")).toBe("1.2.3");
     expect(parseAgentVersion("Claude Code v2.0.1-beta.2")).toBe("2.0.1-beta.2");
     expect(parseAgentVersion("cursor 0.48")).toBe("0.48");
+    expect(parseAgentVersion("cursor 0.48-beta.1")).toBe("0.48-beta.1");
+    expect(parseAgentVersion("ambiguous 1.2.3.4")).toBeUndefined();
     expect(parseAgentVersion("development build")).toBeUndefined();
   });
 
@@ -80,6 +82,61 @@ describe("agent version intelligence", () => {
       }),
     });
     expect(evidence[0]).toMatchObject({ status: "error" });
+    expect(evidence[0]).toMatchObject({ errorKind: "timeout" });
     expect(evidence[0].version).toBeUndefined();
+  });
+
+  it("resolves Windows npm command shims without starting an agent session", async () => {
+    const calls: string[] = [];
+    const evidence = await inspectAgentVersions({
+      platform: "win32",
+      agents: [
+        {
+          id: "codex",
+          displayName: "Codex",
+          installed: true,
+          binary: "codex",
+          skillsDirectory: "C:\\Users\\test\\.agents\\skills",
+        },
+      ],
+      runner: async (command, args) => {
+        calls.push(command);
+        expect(args).toEqual(["--version"]);
+        return command === "codex.cmd"
+          ? { stdout: "codex 6.0.0-beta.1", stderr: "", exitCode: 0 }
+          : { stdout: "", stderr: "not found", exitCode: 1 };
+      },
+    });
+    expect(calls).toEqual(["codex", "codex.cmd"]);
+    expect(evidence[0]).toMatchObject({
+      status: "detected",
+      binary: "codex.cmd",
+      version: "6.0.0-beta.1",
+      releaseChannel: "prerelease",
+      command: ["codex.cmd", "--version"],
+    });
+  });
+
+  it("classifies successful malformed output separately from process failure", async () => {
+    const evidence = await inspectAgentVersions({
+      agents: [
+        {
+          id: "codex",
+          displayName: "Codex",
+          installed: true,
+          binary: "codex",
+          skillsDirectory: "/tmp/codex",
+        },
+      ],
+      runner: async () => ({
+        stdout: "development snapshot",
+        stderr: "",
+        exitCode: 0,
+      }),
+    });
+    expect(evidence[0]).toMatchObject({
+      status: "error",
+      errorKind: "malformed-output",
+    });
   });
 });

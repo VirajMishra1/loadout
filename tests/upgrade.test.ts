@@ -72,6 +72,24 @@ describe("unified upgrade journey", () => {
       installed: true,
       skillsDirectory: target,
     };
+    const mcpOnly: CatalogPackage = {
+      id: "mcp-only",
+      displayName: "MCP only",
+      repository: "example/mcp-only",
+      description: "Explicit MCP setup",
+      category: "mcp",
+      tier: "stable",
+      license: "MIT",
+      components: ["mcp"],
+      source: {
+        type: "github",
+        url: "https://github.com/example/mcp-only",
+        defaultBranch: "main",
+        commit,
+        evidencePaths: ["server.json"],
+        verifiedAt: "2026-07-16T00:00:00.000Z",
+      },
+    };
     const health: HealthReport = {
       status: "healthy",
       generatedAt: "2026-07-16T00:00:00.000Z",
@@ -84,10 +102,10 @@ describe("unified upgrade journey", () => {
       findings: [],
     };
     const plan = await planUpgrade(
-      { mode: "custom", packageIds: ["useful"] },
+      { mode: "custom", packageIds: ["useful", "mcp-only"] },
       {
         projectPath: project,
-        catalog: [pkg],
+        catalog: [pkg, mcpOnly],
         detectedAgents: [agent],
         health: async () => health,
         healthScores: async () => [],
@@ -103,10 +121,31 @@ describe("unified upgrade journey", () => {
     await expect(access(join(target, "skill", "SKILL.md"))).rejects.toThrow();
     expect(plan.project.frameworks).toContain("react");
     expect(plan.riskApprovalRequired).toBe(false);
+    expect(plan.personalizedRecommendations).toHaveLength(1);
+    expect(plan.localOutcomeEventsConsidered).toBe(0);
+    expect(plan.activeSet).toMatchObject({
+      policy: "bounded-active",
+      recommendedLimit: 30,
+      plannedDirectoriesPerAgent: 1,
+      exceedsRecommendedLimit: false,
+    });
+    expect(plan.capabilityGaps).toEqual(
+      expect.arrayContaining([expect.objectContaining({ agent: "codex" })]),
+    );
+    expect(plan.deferredActions).toEqual([
+      expect.objectContaining({
+        packageId: "mcp-only",
+        components: ["mcp"],
+        nextCommand: "loadout mcp --repository example/mcp-only",
+        automatic: false,
+      }),
+    ]);
     expect(formatUpgradePlan(plan)).toContain("Loadout upgrade preview");
+    expect(formatUpgradePlan(plan)).toContain("Deferred explicit action");
     expect(summarizeUpgradePlan(plan)).toMatchObject({
       mode: "custom",
       install: { repositoryCount: 1, targetDirectoryCount: 1 },
+      activeSet: { policy: "bounded-active" },
     });
 
     const result = await applyUpgrade(plan, {

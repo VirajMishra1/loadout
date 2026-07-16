@@ -10,6 +10,10 @@ describe("CLI completion", () => {
       expect(renderShellCompletion(shell)).toContain("loadout");
       expect(renderShellCompletion(shell)).toContain("upgrade");
       expect(renderShellCompletion(shell)).toContain("benchmark");
+      expect(renderShellCompletion(shell)).toContain("intelligence");
+      expect(renderShellCompletion(shell)).toContain("compatibility");
+      expect(renderShellCompletion(shell)).toContain("skill-audit");
+      expect(renderShellCompletion(shell)).toContain("interop");
       expect(renderShellCompletion(shell)).toContain("optimize");
       expect(renderShellCompletion(shell)).toContain("test-drive");
       expect(renderShellCompletion(shell)).toContain("catalog-update");
@@ -19,6 +23,8 @@ describe("CLI completion", () => {
       expect(renderShellCompletion(shell)).toContain("tool");
       expect(renderShellCompletion(shell)).toContain("card");
       expect(renderShellCompletion(shell)).toContain("compare-loadouts");
+      expect(renderShellCompletion(shell)).toContain("badge");
+      expect(renderShellCompletion(shell)).toContain("claims");
     }
   });
 

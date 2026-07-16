@@ -172,6 +172,7 @@ export async function planAdapterSkillInstall(
   source: string,
   packageId: string,
   agent: DetectedAgent,
+  options: Parameters<typeof planSkillInstall>[3] = {},
 ): Promise<InstallPlan> {
   const capability = adapterCapabilities(agent.id).components.skill;
   if (capability !== "native") {
@@ -183,6 +184,7 @@ export async function planAdapterSkillInstall(
     source,
     [agent.skillsDirectory],
     packageId,
+    options,
   );
   return {
     ...plan,

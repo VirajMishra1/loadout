@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { Command, CommanderError } from "commander";
+import { existsSync } from "node:fs";
 import { createInterface } from "node:readline/promises";
 import {
   explainCatalogScore,
@@ -281,6 +282,31 @@ import {
   formatLoadoutCard,
   formatLoadoutComparison,
 } from "./core/loadout-card.js";
+import {
+  buildLoadoutBadge,
+  formatLoadoutBadgeUsage,
+  parseLoadoutBadgeMetric,
+} from "./core/loadout-badge.js";
+import {
+  auditReleaseClaims,
+  formatReleaseEvidenceIndex,
+  releaseEvidenceRoot,
+} from "./core/release-claims.js";
+import {
+  applyIntelligenceFeed,
+  previewIntelligenceFeed,
+  readCachedIntelligenceFeed,
+} from "./core/intelligence-feed.js";
+import { scanSkillSecurity } from "./core/skill-security.js";
+import {
+  planApmImportFiles,
+  planOpenPackageImportFiles,
+  type EcosystemImportFiles,
+} from "./core/ecosystem-import.js";
+import {
+  buildCompatibilityIntelligence,
+  parseCompatibilityNoticeSet,
+} from "./core/compatibility-intelligence.js";
 
 const collectOption = (value: string, previous: string[] = []): string[] => [
   ...previous,
@@ -1330,6 +1356,52 @@ program
   );
 
 program
+  .command("badge")
+  .description(
+    "Generate telemetry-free Shields endpoint JSON from the local privacy-safe card",
+  )
+  .option(
+    "--metric <metric>",
+    "evidence, active-skills, managed-packages, or mcp",
+    "evidence",
+  )
+  .option("--output <path>", "write endpoint JSON to this path")
+  .action(async (options: { metric: string; output?: string }) => {
+    const badge = buildLoadoutBadge(
+      await buildLoadoutCard(),
+      parseLoadoutBadgeMetric(options.metric),
+    );
+    if (!options.output) return console.log(JSON.stringify(badge, null, 2));
+    const output = resolve(options.output);
+    await writeFileAtomically(output, `${JSON.stringify(badge, null, 2)}\n`);
+    console.log(formatLoadoutBadgeUsage(output));
+  });
+
+program
+  .command("claims")
+  .description(
+    "Audit public product claims against current repository evidence and boundaries",
+  )
+  .option("--json", "emit the machine-readable release evidence index")
+  .action(async (options: { json?: boolean }) => {
+    const root = releaseEvidenceRoot();
+    const catalog = await loadEffectiveCatalog();
+    const readme = await readFile(resolve(root, "README.md"), "utf8");
+    const index = await auditReleaseClaims({
+      root,
+      readme,
+      catalogCount: catalog.length,
+      verifyEvidenceFiles: existsSync(join(root, "tests")),
+    });
+    console.log(
+      options.json
+        ? JSON.stringify(index, null, 2)
+        : formatReleaseEvidenceIndex(index),
+    );
+    if (index.releaseBlocked) process.exitCode = 1;
+  });
+
+program
   .command("tool")
   .description(
     "Preview, install, or remove an explicitly reviewed runtime-tool recipe",
@@ -1978,6 +2050,220 @@ program
         : formatAgentVersions(evidence),
     );
   });
+
+program
+  .command("intelligence")
+  .description(
+    "Verify and optionally cache a signed read-only discovery and compatibility feed",
+  )
+  .requiredOption("--source <path-or-url>", "signed feed file or HTTPS URL")
+  .requiredOption("--public-key <path>", "trusted Ed25519 public key")
+  .option("--state <path>", "alternate replay-protection state path")
+  .option("--cache <path>", "alternate verified feed cache path")
+  .option(
+    "--yes",
+    "cache this exact verified feed and advance replay protection",
+  )
+  .option("--json", "emit the machine-readable preview or result")
+  .action(
+    async (options: {
+      source: string;
+      publicKey: string;
+      state?: string;
+      cache?: string;
+      yes?: boolean;
+      json?: boolean;
+    }) => {
+      const preview = await previewIntelligenceFeed({
+        source: options.source,
+        publicKeyPath: options.publicKey,
+        ...(options.state ? { statePath: options.state } : {}),
+        ...(options.cache ? { cachePath: options.cache } : {}),
+      });
+      const applied = options.yes
+        ? await applyIntelligenceFeed(preview)
+        : undefined;
+      if (options.json) {
+        console.log(
+          JSON.stringify(
+            {
+              source: preview.source,
+              fingerprint: preview.fingerprint,
+              sequence: preview.payload.sequence,
+              createdAt: preview.payload.createdAt,
+              expiresAt: preview.payload.expiresAt,
+              summary: preview.summary,
+              firstPin: preview.firstPin,
+              keyRotation: preview.keyRotation,
+              boundary: preview.boundary,
+              applied: Boolean(applied),
+              ...(applied ? { cachePath: applied.cachePath } : {}),
+            },
+            null,
+            2,
+          ),
+        );
+        return;
+      }
+      console.log(
+        [
+          `Signed intelligence sequence ${preview.payload.sequence} (${preview.payload.createdAt})`,
+          `Signer: ${preview.fingerprint}${preview.firstPin ? " (first pin on apply)" : preview.keyRotation ? " (authorized rotation)" : " (pinned)"}`,
+          `Public observations: ${preview.summary.discoveryObservations}; compatibility notices: ${preview.summary.compatibilityNotices}; candidate summaries: ${preview.summary.candidateSummaries}; benchmark changes: ${preview.summary.benchmarkChanges}`,
+          "Boundary: read-only intelligence; this cannot install, promote, update, or execute a candidate.",
+          applied
+            ? `Verified feed cached at ${applied.cachePath}.`
+            : "Preview only; nothing changed. Re-run with --yes to cache this exact verified feed.",
+        ].join("\n"),
+      );
+    },
+  );
+
+program
+  .command("compatibility")
+  .description(
+    "Match signed compatibility notices to local agent versions and managed content",
+  )
+  .requiredOption("--public-key <path>", "trusted intelligence-feed public key")
+  .option(
+    "--source <path-or-url>",
+    "preview a fresh feed instead of the applied cache",
+  )
+  .option("--state <path>", "alternate replay-protection state path")
+  .option("--cache <path>", "alternate verified feed cache path")
+  .option("--json", "emit the full evidence and migration preview")
+  .action(
+    async (options: {
+      publicKey: string;
+      source?: string;
+      state?: string;
+      cache?: string;
+      json?: boolean;
+    }) => {
+      const paths = {
+        publicKeyPath: options.publicKey,
+        ...(options.state ? { statePath: options.state } : {}),
+        ...(options.cache ? { cachePath: options.cache } : {}),
+      };
+      const loaded = options.source
+        ? await previewIntelligenceFeed({ source: options.source, ...paths })
+        : await readCachedIntelligenceFeed(paths);
+      const payload = loaded.payload;
+      const report = buildCompatibilityIntelligence({
+        versions: await inspectAgentVersions(),
+        state: await readInstallState(),
+        feed: parseCompatibilityNoticeSet({
+          schemaVersion: 1,
+          generatedAt: payload.createdAt,
+          expiresAt: payload.expiresAt,
+          notices: payload.compatibilityNotices,
+        }),
+        sourceStatus: options.source ? "verified" : "offline-cache",
+      });
+      console.log(
+        options.json
+          ? JSON.stringify(report, null, 2)
+          : [
+              `Compatibility intelligence: ${report.freshness.status} (${report.freshness.sourceStatus})`,
+              `Notices: ${report.assessments.length}; applicable/potential: ${report.assessments.filter((item) => item.applicability !== "not-applicable").length}`,
+              `Affected managed components: ${report.affectedManagedContent.length}; migration steps: ${report.migrationPreview.length}`,
+              ...report.assessments.map(
+                (item) =>
+                  `${item.applicability === "applies" ? "!" : item.applicability === "potential" ? "?" : "○"} ${item.notice.id}: ${item.applicability} — ${item.reason}`,
+              ),
+              "Migration output is preview-only and always requires explicit approval; no files were changed.",
+            ].join("\n"),
+      );
+    },
+  );
+
+program
+  .command("skill-audit")
+  .description(
+    "Statically inspect one Agent Skill and emit its security/capability inventory",
+  )
+  .argument("<directory>", "skill directory containing SKILL.md")
+  .option("--json", "emit the complete machine-readable report")
+  .action(async (directory: string, options: { json?: boolean }) => {
+    const report = await scanSkillSecurity(resolve(directory));
+    console.log(
+      options.json
+        ? JSON.stringify(report, null, 2)
+        : [
+            `Skill audit: ${report.specification.name ?? report.rootName}`,
+            `Verdict: ${report.verdict}`,
+            `Inventory: ${report.inventory.totalFiles} files, ${report.inventory.totalBytes} bytes, sha256:${report.inventory.treeHash}`,
+            `Capabilities: ${report.capabilities.executableFiles.length} executable/script files, ${report.capabilities.dependencyNames.length} named dependencies, ${report.capabilities.domains.length} domains, ${report.capabilities.environmentNames.length} environment names`,
+            ...report.deterministicFindings.map(
+              (item) =>
+                `${item.severity === "critical" ? "✗" : "!"} ${item.severity}/${item.category}: ${item.message} (${item.paths.join(", ")})`,
+            ),
+            ...(!report.deterministicFindings.length
+              ? ["No deterministic findings within the bounded static policy."]
+              : []),
+            "Static inspection cannot prove runtime safety or task quality.",
+          ].join("\n"),
+    );
+    if (report.verdict === "blocked") process.exitCode = 2;
+  });
+
+function formatEcosystemImport(result: EcosystemImportFiles): string {
+  const plans = [result.manifest, result.lockEvidence].filter(
+    (item): item is NonNullable<typeof item> => Boolean(item),
+  );
+  return [
+    `Interoperability preview: ${result.manifest.format}`,
+    ...plans.flatMap((plan) => [
+      `${plan.artifact}: ${plan.source.filename} (sha256:${plan.source.sha256})`,
+      `  ${plan.candidates.length} candidate declarations; ${plan.unsupported.length} loss-reported fields; trust ${plan.trust.level}`,
+      ...plan.candidates.map(
+        (candidate) =>
+          `  - ${candidate.id}: ${candidate.dependencyKind}, ${candidate.disposition}`,
+      ),
+    ]),
+    "Read-only boundary: no external CLI, network request, file write, install, or registry claim occurred.",
+  ].join("\n");
+}
+
+const interop = program
+  .command("interop")
+  .description(
+    "Loss-reportingly inspect Microsoft APM or OpenPackage manifests without invoking them",
+  );
+
+interop
+  .command("apm")
+  .description("Inspect an OpenAPM manifest and optional lock evidence")
+  .argument("<manifest>", "apm.yml path")
+  .option("--lock <path>", "optional apm.lock.yaml path")
+  .option("--json", "emit the complete read-only plan")
+  .action(
+    async (manifest: string, options: { lock?: string; json?: boolean }) => {
+      const result = await planApmImportFiles(manifest, options.lock);
+      console.log(
+        options.json
+          ? JSON.stringify(result, null, 2)
+          : formatEcosystemImport(result),
+      );
+    },
+  );
+
+interop
+  .command("openpackage")
+  .description("Inspect an OpenPackage manifest and optional workspace index")
+  .argument("<manifest>", "openpackage.yml path")
+  .option("--index <path>", "optional workspace index path")
+  .option("--json", "emit the complete read-only plan")
+  .action(
+    async (manifest: string, options: { index?: string; json?: boolean }) => {
+      const result = await planOpenPackageImportFiles(manifest, options.index);
+      console.log(
+        options.json
+          ? JSON.stringify(result, null, 2)
+          : formatEcosystemImport(result),
+      );
+    },
+  );
 
 const benchmark = program
   .command("benchmark")

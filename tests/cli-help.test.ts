@@ -39,6 +39,10 @@ describe("CLI contract", () => {
     );
     expect(result.stdout).toContain("status");
     expect(result.stdout).toContain("versions");
+    expect(result.stdout).toContain("intelligence");
+    expect(result.stdout).toContain("compatibility");
+    expect(result.stdout).toContain("skill-audit");
+    expect(result.stdout).toContain("interop");
     expect(result.stdout).toContain("benchmark");
     expect(result.stdout).toContain("scan");
     expect(result.stdout).toContain("compare");
@@ -65,6 +69,8 @@ describe("CLI contract", () => {
     expect(result.stdout).toContain("tool");
     expect(result.stdout).toContain("card");
     expect(result.stdout).toContain("compare-loadouts");
+    expect(result.stdout).toContain("badge");
+    expect(result.stdout).toContain("claims");
   });
 
   it("lists reviewed runtime tools without changing the profile", async () => {

@@ -58,17 +58,24 @@ export async function evaluatePackage(
     ...invalidMcp.map((server) => `${server.name}: no usable transport`),
     ...sharedSafety,
   ];
+  const invalidSkillEvidence = inspection.warnings.some((warning) =>
+    /skill (?:security validation failed|package|path|SKILL\.md)/i.test(
+      warning,
+    ),
+  );
+  const hasSkillEvidence = inspection.skills.length > 0 || invalidSkillEvidence;
   return {
     evaluatorVersion: 1,
     root: inspection.root,
     categories: [
       {
         category: "skills",
-        status:
-          inspection.skills.length === 0
-            ? "not-applicable"
-            : statusFor(safety.findings),
-        findings: inspection.skills.length ? skillFindings : [],
+        status: invalidSkillEvidence
+          ? "blocked"
+          : hasSkillEvidence
+            ? statusFor(safety.findings)
+            : "not-applicable",
+        findings: hasSkillEvidence ? skillFindings : [],
       },
       {
         category: "mcp",

@@ -1,0 +1,20 @@
+packages:
+  github-skill:
+    path: ~/.openpackage/packages/github-skill/2.0.0/
+    version: 2.0.0
+    files:
+      skills/frontend/SKILL.md:
+        - .codex/skills/frontend/SKILL.md
+      mcp.jsonc:
+        - target: .cursor/mcp.json
+          merge: deep
+          keys:
+            - mcp.fixture
+          hash: abc123
+          sourceHash: def456
+    platforms:
+      - codex
+  local-pack:
+    path: ../local-pack
+    files: {}
+x-index-note: preserve-me

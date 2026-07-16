@@ -1,0 +1,22 @@
+lockfile_version: "1"
+generated_at: "2026-07-16T10:55:54.310339+00:00"
+apm_version: 0.25.0
+dependencies:
+  - repo_url: https://github.com/anthropics/skills.git
+    name: anthropics-skills
+    resolved_ref: main
+    resolved_commit: 0123456789abcdef0123456789abcdef01234567
+    tree_sha256: sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+    virtual_path: skills/frontend-design
+    deployed_files:
+      - .agents/skills/frontend-design/SKILL.md
+    source: registry
+  - repo_url: _local/local-skill
+    name: local-skill
+    source: local
+    local_path: ./local-skill
+    content_hash: sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+mcp_servers: []
+attestations:
+  x-future-proof: preserved
+x-lock-note: preserve-me

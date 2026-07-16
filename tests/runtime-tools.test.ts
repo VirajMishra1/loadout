@@ -95,6 +95,9 @@ describe("reviewed runtime tool recipes", () => {
     expect(await readFile(join(target, "SKILL.md"), "utf8")).toContain(
       GRAPHIFY_RECIPE.artifactSha256,
     );
+    expect(await readFile(join(target, "SKILL.md"), "utf8")).toBe(
+      `uv tool run --from 'graphifyy @ ${GRAPHIFY_RECIPE.artifactUrl}#sha256=${GRAPHIFY_RECIPE.artifactSha256}' python -m graphify\n`,
+    );
     expect(await readFile(join(target, "SKILL.md"), "utf8")).not.toContain(
       "--from graphifyy ",
     );
@@ -111,5 +114,25 @@ describe("reviewed runtime tool recipes", () => {
     expect(await readFile(join(target, "existing.txt"), "utf8")).toBe("keep");
     await expect(access(join(target, "SKILL.md"))).rejects.toThrow();
     await expect(access(plan.runtimeRoot)).rejects.toThrow();
+  });
+
+  it("refuses a mutated plan before running any external command", async () => {
+    const { agent } = await fixture();
+    const plan = await planRuntimeTool("graphify", {
+      requestedAgents: ["codex"],
+      detectedAgents: [agent],
+    });
+    plan.commands[0].command = "bash";
+    let called = false;
+    await expect(
+      applyRuntimeToolPlan(plan, {
+        approveRisk: true,
+        runner: async () => {
+          called = true;
+          return { stdout: "", stderr: "", exitCode: 0 };
+        },
+      }),
+    ).rejects.toThrow(/commands do not match the reviewed recipe/);
+    expect(called).toBe(false);
   });
 });

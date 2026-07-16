@@ -1,0 +1,22 @@
+name: interoperable-agent
+version: 1.2.3
+description: Fixture based on the OpenAPM v0.1 manifest shape
+default_host: github.com
+target: [codex, claude]
+dependencies:
+  apm:
+    - anthropics/skills/skills/frontend-design#v1.0.0
+    - git: https://github.com/example/review-pack.git
+      ref: 0123456789abcdef0123456789abcdef01234567
+      path: skills/review
+    - ./local-skill
+  mcp:
+    - io.github.github/github-mcp-server
+  x-loadout-fixture: preserved
+devDependencies:
+  apm:
+    - id: github/awesome-copilot/skills/review-and-refactor
+  mcp: []
+scripts:
+  lint: ./scripts/lint.sh
+x-owner-note: preserve-me

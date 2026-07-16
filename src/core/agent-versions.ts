@@ -1,7 +1,7 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import type { AgentId, DetectedAgent } from "../shared/types.js";
-import { detectAgents, userHome } from "./paths.js";
+import { detectAgents, executableCandidates, userHome } from "./paths.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -12,7 +12,9 @@ export interface AgentVersionEvidence {
   binary?: string;
   status: "not-installed" | "no-version-command" | "detected" | "error";
   version?: string;
+  releaseChannel?: "stable" | "prerelease";
   command?: string[];
+  errorKind?: "timeout" | "command-failed" | "malformed-output";
   message: string;
 }
 
@@ -73,12 +75,10 @@ const defaultRunner: AgentVersionRunner = async (command, args, options) => {
 
 export function parseAgentVersion(output: string): string | undefined {
   const bounded = output.trim().slice(0, 1024);
-  const semantic = bounded.match(
-    /(?:^|[^0-9])v?(\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?)(?:$|[^0-9A-Za-z.-])/,
+  const version = bounded.match(
+    /(?:^|[^0-9A-Za-z.])v?(\d+\.\d+(?:\.\d+)?(?:-[0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?)(?:$|[^0-9A-Za-z.-])/,
   );
-  if (semantic) return semantic[1];
-  const short = bounded.match(/(?:^|[^0-9])(\d+\.\d+)(?:$|[^0-9])/);
-  return short?.[1];
+  return version?.[1];
 }
 
 export async function inspectAgentVersions(
@@ -86,6 +86,7 @@ export async function inspectAgentVersions(
     agents?: DetectedAgent[];
     runner?: AgentVersionRunner;
     timeoutMs?: number;
+    platform?: NodeJS.Platform;
   } = {},
 ): Promise<AgentVersionEvidence[]> {
   const agents = options.agents ?? (await detectAgents());
@@ -111,36 +112,65 @@ export async function inspectAgentVersions(
           message:
             "Agent is detected from local configuration, but no reviewed CLI version command is available.",
         };
-      const command = [agent.binary, "--version"];
-      const result = await runner(agent.binary, ["--version"], {
-        env,
-        timeoutMs: options.timeoutMs ?? 5_000,
-      });
-      const output = `${result.stdout}\n${result.stderr}`;
-      const version = parseAgentVersion(output);
-      if (result.exitCode !== 0 || !version)
-        return {
-          agent: agent.id,
-          displayName: agent.displayName,
-          installed: true,
-          binary: agent.binary,
-          status: "error",
-          command,
-          message:
-            result.exitCode !== 0
-              ? `Version command failed with exit code ${result.exitCode}.`
-              : "Version command returned no recognized version.",
-        };
+      const candidates = executableCandidates(
+        agent.binary,
+        options.platform ?? process.platform,
+      );
+      const attempts: Array<{
+        command: string;
+        stdout: string;
+        stderr: string;
+        exitCode: number;
+      }> = [];
+      for (const candidate of candidates) {
+        const result = await runner(candidate, ["--version"], {
+          env,
+          timeoutMs: options.timeoutMs ?? 5_000,
+        });
+        attempts.push({ command: candidate, ...result });
+        const output = `${result.stdout}\n${result.stderr}`;
+        const version = parseAgentVersion(output);
+        if (result.exitCode === 0 && version) {
+          const prerelease = version.includes("-");
+          return {
+            agent: agent.id,
+            displayName: agent.displayName,
+            installed: true,
+            binary: candidate,
+            status: "detected",
+            version,
+            releaseChannel: prerelease ? "prerelease" : "stable",
+            command: [candidate, "--version"],
+            message: prerelease
+              ? "Local prerelease detected. Compatibility notices may be incomplete unless they explicitly include prereleases."
+              : "Local version detected. No latest-version or compatibility claim is made without a signed compatibility feed.",
+          };
+        }
+      }
+      const timedOut = attempts.find((attempt) =>
+        /timed out|timeout/i.test(attempt.stderr),
+      );
+      const failed = attempts.find((attempt) => attempt.exitCode !== 0);
+      const last = attempts.at(-1)!;
+      const errorKind = timedOut
+        ? "timeout"
+        : failed
+          ? "command-failed"
+          : "malformed-output";
       return {
         agent: agent.id,
         displayName: agent.displayName,
         installed: true,
-        binary: agent.binary,
-        status: "detected",
-        version,
-        command,
+        binary: last.command,
+        status: "error",
+        command: [last.command, "--version"],
+        errorKind,
         message:
-          "Local version detected. No latest-version or compatibility claim is made without a signed compatibility feed.",
+          errorKind === "timeout"
+            ? `Version command timed out after ${options.timeoutMs ?? 5_000}ms.`
+            : errorKind === "command-failed"
+              ? `Version command failed with exit code ${failed!.exitCode}.`
+              : "Version command returned no recognized version.",
       };
     }),
   );

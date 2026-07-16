@@ -114,6 +114,12 @@ describe("catalog profile conflict resolution", () => {
       Object.keys(STABLE_SKILL_ALLOWLIST),
     );
     expect(
+      Object.values(STABLE_SKILL_ALLOWLIST).reduce(
+        (total, skills) => total + skills.length,
+        0,
+      ),
+    ).toBe(30);
+    expect(
       isStableSkillSelected(
         "wshobson-agents",
         "code-review-excellence",

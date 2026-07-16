@@ -56,6 +56,13 @@ or use `--output` as above for a shell- and platform-independent path. Loadout d
 run install scripts, package lifecycle commands, hooks, MCP servers, candidate models,
 or arbitrary repository executables.
 
+An `explicit-runtime-setup` or `unsupported-source-shape` result is not a dead end and
+does not authorize execution. A maintainer may create a separately reviewed runtime
+recipe with an immutable executable artifact, bounded commands, isolated state,
+credential stripping, preview, verification, rollback, and removal. Graphify 0.9.17
+is the first such recipe and is invoked with `loadout tool graphify`; it is not part
+of broad `setup`.
+
 Candidate fetches use a two-minute timeout and an isolated Git environment: system
 and global config, templates, hooks, credential helpers, inherited `GIT_*` overrides,
 and LFS smudging cannot affect provenance or execute during checkout. Before blob

@@ -1125,7 +1125,7 @@ universal or permanent truth.
 ### Phase 15: Stable release candidate and daily autopilot
 
 - [x] `P15-01 [TERRA]` Make Stable the strongest low-risk default, not a minimal demo.
-  - Stable now selects 17 high-value engineering, documentation, frontend,
+  - Stable now selects 30 high-value engineering, documentation, frontend,
     observability, performance, planning, testing, review, Git, architecture, and
     current-documentation skills from four immutable SPDX-identified sources.
   - A live Codex-targeted preparation found zero static-risk approvals, collisions,
@@ -1150,7 +1150,7 @@ universal or permanent truth.
     tooling, full `npm run verify`, tag/version consistency, public provenance, and a
     first-publish token fallback.
 - [x] `P15-05A [TERRA]` Pass the complete local release-candidate gate.
-  - `npm run verify` passes 78 test files/314 tests, catalog/discovery attribution,
+  - `npm run verify` passes 79 test files/317 tests, catalog/discovery attribution,
     the real CLI product flow, installed npm-tarball smoke, and seven real scans of
     1,000 on-disk skills at a 1.29-second p95 on macOS/Node 23.
 - [ ] `P15-06 [HUMAN]` Approve public repository visibility, complete the six
@@ -1162,10 +1162,18 @@ universal or permanent truth.
     the portable regression fix passes on both Windows versions.
 - [ ] `P15-07B [HUMAN]` After npm publication, verify a clean external
       `npx loadout-ai` installation on Windows, macOS, and Linux.
-- [ ] `P15-08 [SOL]` Design sandboxed explicit recipes for runtime tools that are not
-      portable skills or declarative MCP servers. Require immutable artifacts,
-      bounded commands, no inherited secrets, preview, health checks, and rollback;
-      never execute arbitrary repository installers.
+- [x] `P15-08 [SOL]` Implement the first bounded explicit runtime-tool recipe.
+  - `loadout tool graphify` previews and installs Graphify 0.9.17 from an exact
+    SHA-256-pinned PyPI wheel linked to a reviewed Git commit. It uses an isolated
+    `uv` tool directory, fixed commands, a five-minute timeout, a credential-stripped
+    subprocess environment, exact agent targets, version verification, generated
+    runtime pinning, snapshots, rollback on failure, and reversible removal.
+  - A real disposable Codex-profile exercise installed the pinned wheel, generated
+    the skill, verified version 0.9.17 and the pinned lookup, removed it, restored the
+    prior profile, and left no runtime or active-profile residue.
+- [ ] `P15-09 [SOL]` Generalize the reviewed runtime-recipe schema only as new tools
+      earn admission. Add OS sandbox backends where available; never execute an
+      arbitrary candidate repository installer or inherit provider credentials.
 
 ## 19. Seven-day schedule
 

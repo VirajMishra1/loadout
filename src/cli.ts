@@ -190,6 +190,12 @@ import {
   type SchedulerAction,
 } from "./core/scheduler.js";
 import {
+  REVIEWED_RUNTIME_TOOLS,
+  applyRuntimeToolPlan,
+  formatRuntimeToolPlan,
+  planRuntimeTool,
+} from "./core/runtime-tools.js";
+import {
   buildPrivacySafeReport,
   formatPrivacySafeReport,
   writePrivacySafeReport,
@@ -1180,6 +1186,78 @@ program
         options.json
           ? JSON.stringify({ action, plans, snapshotId }, null, 2)
           : `Loadout Autopilot ${options.remove ? "removed" : "enabled"}: daily update radar + multi-source candidate discovery.\nNo scheduled command can install, promote, or execute a candidate. Snapshot: ${snapshotId}`,
+      );
+    },
+  );
+
+program
+  .command("tool")
+  .description(
+    "Preview, install, or remove an explicitly reviewed runtime-tool recipe",
+  )
+  .argument("[id]", "runtime tool id; omit to list reviewed recipes")
+  .option("--agents <ids>", "comma-separated target agent ids")
+  .option("--remove", "restore pre-install agent state and remove the runtime")
+  .option("--yes", "apply the exact displayed plan")
+  .option(
+    "--approve-risk",
+    "approve installing and running the exact reviewed external artifact",
+  )
+  .option("--json", "emit machine-readable JSON")
+  .action(
+    async (
+      id: string | undefined,
+      options: {
+        agents?: string;
+        remove?: boolean;
+        yes?: boolean;
+        approveRisk?: boolean;
+        json?: boolean;
+      },
+    ) => {
+      if (!id) {
+        if (options.remove || options.yes || options.approveRisk)
+          throw new Error("Select a runtime tool id for this operation");
+        const listed = REVIEWED_RUNTIME_TOOLS.map((recipe) => ({
+          id: recipe.id,
+          displayName: recipe.displayName,
+          version: recipe.version,
+          source: recipe.source,
+          artifactSha256: recipe.artifactSha256,
+        }));
+        console.log(
+          options.json
+            ? JSON.stringify(listed, null, 2)
+            : listed
+                .map(
+                  (recipe) =>
+                    `${recipe.id} — ${recipe.displayName} ${recipe.version} — ${recipe.source}`,
+                )
+                .join("\n"),
+        );
+        return;
+      }
+      const plan = await planRuntimeTool(id, {
+        action: options.remove ? "remove" : "install",
+        requestedAgents: parseAgentSelection(options.agents),
+      });
+      if (!options.yes) {
+        console.log(
+          options.json
+            ? JSON.stringify(plan, null, 2)
+            : `${formatRuntimeToolPlan(plan)}\n\nDry run only. Re-run with --yes --approve-risk to apply this exact runtime recipe.`,
+        );
+        return;
+      }
+      if (!options.approveRisk)
+        throw new Error(
+          "Runtime tool changes require --approve-risk after reviewing the preview",
+        );
+      const result = await applyRuntimeToolPlan(plan, { approveRisk: true });
+      console.log(
+        options.json
+          ? JSON.stringify({ plan, result }, null, 2)
+          : `${plan.recipe.displayName} ${result.action === "install" ? "installed and registered" : "removed and prior agent state restored"}. Snapshot: ${result.snapshotId}`,
       );
     },
   );

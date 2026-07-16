@@ -47,6 +47,7 @@ const commands = [
   "schedule",
   "unschedule",
   "autopilot",
+  "tool",
   "report",
   "share",
   "head-to-head",

@@ -506,6 +506,25 @@ test: it performs a real public Git clone and writes a static immutable dossier 
 disposable Loadout state. Review that output before exercising `candidate propose`;
 proposal preview and approved proposal output never mutate the catalog.
 
+Graphify is an explicit executable recipe rather than a broad-setup component. With
+`uv` installed, exercise it only inside the disposable profile:
+
+```bash
+loadout tool
+loadout tool graphify --agents codex
+loadout tool graphify --agents codex --yes --approve-risk
+"$LOADOUT_HOME/runtime/graphify/bin/graphify" --version
+test -f "$LOADOUT_USER_HOME/.codex/skills/graphify/SKILL.md"
+loadout tool graphify --remove
+loadout tool graphify --remove --yes --approve-risk
+test ! -e "$LOADOUT_USER_HOME/.codex/skills/graphify"
+test ! -e "$LOADOUT_HOME/runtime/graphify"
+```
+
+Expected: preview identifies the exact wheel hash and all commands; apply reports
+Graphify 0.9.17, writes only the disposable target and isolated runtime, and removal
+restores the original target. The installer subprocess must not inherit API keys.
+
 Create a deterministic workflow fixture and five declared trials per candidate. This
 is harness input, not model-generated evidence, and it executes no candidate content:
 

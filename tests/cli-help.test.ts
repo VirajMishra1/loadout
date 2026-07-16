@@ -59,6 +59,14 @@ describe("CLI contract", () => {
     expect(result.stdout).toContain("credentials");
     expect(result.stdout).toContain("schedule");
     expect(result.stdout).toContain("autopilot");
+    expect(result.stdout).toContain("tool");
+  });
+
+  it("lists reviewed runtime tools without changing the profile", async () => {
+    const result = await runCli("tool");
+    expect(result.code).toBe(0);
+    expect(result.stdout).toContain("graphify");
+    expect(result.stdout).toContain("Graphify 0.9.17");
   });
 
   it("makes the CLI setup flow the non-interactive default without mutating", async () => {

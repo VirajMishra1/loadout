@@ -9,7 +9,7 @@ Trust and ranking are deliberately separate. Every package is labelled as
 `discovered`, `inspected`, `human-reviewed`, `benchmarked`, or `recommended`.
 The bundled 50-repository release is technically screened and pinned, but that
 does not mean all 50 are universal winners or have received human review. The
-current Stable recommendation is narrower: 17 selected skills from four
+current Stable recommendation is narrower: 30 selected skills from four
 immutable, SPDX-identified sources whose prepared plan needs no additional
 static-risk approval.
 

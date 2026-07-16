@@ -200,7 +200,7 @@ export const TESTED_PROFILES: Record<
 > = {
   stable: {
     description:
-      "Recommended 17-skill daily driver from four pinned, SPDX-identified sources with no extra static-risk approvals.",
+      "Recommended 30-skill daily driver from four pinned, SPDX-identified sources with no extra static-risk approvals.",
     packages: [...STABLE_BOOST_PACKAGE_IDS],
   },
   web: {

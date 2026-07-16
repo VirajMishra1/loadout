@@ -14,6 +14,7 @@ describe("CLI completion", () => {
       expect(renderShellCompletion(shell)).toContain("candidate");
       expect(renderShellCompletion(shell)).toContain("propose");
       expect(renderShellCompletion(shell)).toContain("autopilot");
+      expect(renderShellCompletion(shell)).toContain("tool");
     }
   });
 

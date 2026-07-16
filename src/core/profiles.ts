@@ -36,23 +36,39 @@ export const STABLE_SKILL_ALLOWLIST: Readonly<
   Record<string, readonly string[]>
 > = {
   superpowers: [
+    "dispatching-parallel-agents",
     "executing-plans",
     "receiving-code-review",
     "requesting-code-review",
     "test-driven-development",
+    "using-superpowers",
     "verification-before-completion",
     "writing-plans",
   ],
   context7: ["context7-cli", "context7-mcp", "find-docs"],
   "addyosmani-agent-skills": [
+    "api-and-interface-design",
+    "code-review-and-quality",
     "context-engineering",
+    "debugging-and-error-recovery",
+    "deprecation-and-migration",
     "documentation-and-adrs",
     "frontend-ui-engineering",
     "git-workflow-and-versioning",
     "observability-and-instrumentation",
     "performance-optimization",
+    "planning-and-task-breakdown",
+    "shipping-and-launch",
+    "spec-driven-development",
   ],
-  "wshobson-agents": ["architecture-patterns", "code-review-excellence"],
+  "wshobson-agents": [
+    "architecture-patterns",
+    "code-review-excellence",
+    "error-handling-patterns",
+    "modern-javascript-patterns",
+    "postmortem-writing",
+    "python-type-safety",
+  ],
 } as const;
 
 export const STABLE_BOOST_PACKAGE_IDS = Object.freeze(

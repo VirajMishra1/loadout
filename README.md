@@ -83,7 +83,7 @@ The demo creates a temporary virtual Codex profile, fetches the pinned public Su
 
 | Mode        | Intended use                        | What it selects                                                         | Installation behavior                                                                                              |
 | ----------- | ----------------------------------- | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| **Stable**  | Recommended daily driver            | 17 selected skills from four pinned, SPDX-identified sources            | Installs the selected skills into detected agents with no extra static-risk approval                               |
+| **Stable**  | Recommended daily driver            | 30 selected skills from four pinned, SPDX-identified sources            | Installs the selected skills into detected agents with no extra static-risk approval                               |
 | **Power**   | Broad daily driver                  | A maintained skill-level allowlist from eight cross-project collections | Installs only the selected skills, not every skill in each collection                                              |
 | **Maximum** | Exploration and maximum optionality | Every non-archived technically screened catalog record                  | Stores all discovered skill components in Loadout's disabled library; MCP-only records remain explicit setup steps |
 | **Custom**  | Precise control                     | Only package IDs supplied by the user                                   | Uses the same preview, safety, conflict, and transaction pipeline                                                  |
@@ -96,6 +96,29 @@ npx . setup --mode maximum --yes --approve-risk
 npx . optimize --project . --limit 30
 npx . optimize --project . --limit 30 --yes
 ```
+
+## Install a reviewed runtime tool: Graphify
+
+Graphify is not one of Stable's 30 portable skills. It is an executable codebase-intelligence tool, so Loadout gives it a separate, explicit recipe instead of silently running its repository installer. The recipe pins Graphify 0.9.17 to its reviewed Git commit and exact PyPI wheel SHA-256, isolates its Python runtime under Loadout state, strips provider credentials from installer subprocesses, snapshots every target, verifies the installed version, pins the generated runtime lookup, and supports removal.
+
+Install [`uv`](https://docs.astral.sh/uv/getting-started/installation/) first, then preview before applying:
+
+```bash
+# See every reviewed executable recipe.
+npx . tool
+
+# Preview the exact artifact, commands, permissions, and Codex target.
+npx . tool graphify --agents codex
+
+# Apply only after reviewing the preview.
+npx . tool graphify --agents codex --yes --approve-risk
+
+# Preview and then remove it, restoring the pre-install snapshot.
+npx . tool graphify --remove
+npx . tool graphify --remove --yes --approve-risk
+```
+
+The same recipe has reviewed registration targets for Claude Code, Cursor, Gemini CLI, OpenCode, Hermes, GitHub Copilot, and Kiro CLI. Pass a comma-separated list such as `--agents codex,claude-code`; Loadout refuses requested agents it cannot detect.
 
 ## What Loadout manages
 
@@ -308,7 +331,7 @@ Read [Compatibility policy](./docs/COMPATIBILITY_POLICY.md), [Active-set contrac
 | Credentials and models | `credentials`, `models`                                                              |
 | Evaluate evidence      | `inspect`, `evaluate`, `candidate`, `head-to-head`, `canary`, `outcome`, `report`    |
 | Package and registry   | `create`, `pack`, `publish`, `registry-serve`                                        |
-| Operate                | `completion`, `autopilot`, `schedule`, `unschedule`, `dashboard`, `serve`            |
+| Operate                | `completion`, `autopilot`, `schedule`, `unschedule`, `tool`, `dashboard`, `serve`    |
 
 Use `npx . <command> --help` for exact options. Shell completion is available for Bash, Zsh, Fish, and PowerShell:
 
@@ -357,6 +380,7 @@ rollback on virtual Codex and Claude Code profiles.
 - The bundled catalog is technically screened and finite; only the stricter Stable subset is currently marked recommended, and discovery leads do not auto-promote themselves.
 - Public GitHub is the default source. Private GitHub discovery requires explicit authorization through an environment or native credential reference.
 - Skill components are the only components installed automatically by broad setup. MCP-only records require an explicit recipe or configuration target.
+- Executable tools are never smuggled into broad setup. Graphify has a separately previewed, pinned, credential-isolated, reversible runtime recipe; additional runtime tools still require the same reviewed-recipe treatment.
 - Six catalog records currently have `NOASSERTION` license status and need upstream-license review before a public release decision.
 - Additional component types are installed only where the adapter reports tested support. Loadout does not promise perfect conversion of arbitrary hooks, subagents, plugins, or proprietary formats.
 - The included registry server is for local development or self-hosting. No public Loadout registry service is deployed.

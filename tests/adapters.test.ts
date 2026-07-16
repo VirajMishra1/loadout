@@ -3,6 +3,7 @@ import {
   ADAPTER_CAPABILITIES,
   COMPATIBILITY_RULES,
   adapterCapabilities,
+  buildAdapterCapabilityGaps,
   compatibilityRule,
   formatCapabilityMatrix,
 } from "../src/core/adapters.js";
@@ -47,6 +48,22 @@ describe("adapter conformance declarations", () => {
     expect(formatCapabilityMatrix()).toMatch(
       /Codex\s+\| native \| unsupported \| adapted/,
     );
+  });
+
+  it("turns unsupported combinations into an evidence-gated backlog", () => {
+    const gaps = buildAdapterCapabilityGaps();
+    expect(gaps.length).toBeGreaterThan(0);
+    expect(gaps.every((gap) => gap.requirement.includes("Official"))).toBe(
+      true,
+    );
+    expect(
+      gaps.some(
+        (gap) => gap.agent === "windsurf" && gap.component === "command",
+      ),
+    ).toBe(true);
+    expect(
+      gaps.some((gap) => gap.agent === "codex" && gap.component === "command"),
+    ).toBe(false);
   });
 
   it("claims only the bounded Codex TOML MCP mutation it supports", () => {

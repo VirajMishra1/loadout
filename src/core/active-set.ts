@@ -13,14 +13,7 @@ import {
   readInstallState,
   writeInstallState,
 } from "./state.js";
-import { createSnapshot } from "./snapshot.js";
-import {
-  beginTransaction,
-  completeTransaction,
-  markTransactionCommitting,
-  recoverPendingTransactions,
-  rollbackTransaction,
-} from "./transaction.js";
+import { runMutationTransaction } from "./transaction.js";
 
 export type ActivationAction = "enable" | "disable";
 
@@ -470,109 +463,115 @@ function activationKey(
 export async function applyActivationChange(
   plan: ActivationPlan,
 ): Promise<string> {
-  const fresh = await planActivationChange(plan.action, plan.packages, {
-    ...(plan.requestedAgents ? { agents: plan.requestedAgents } : {}),
-  });
-  if (fresh.blocked) throw new Error(fresh.warnings.join("; "));
-  if (!fresh.changes.length)
-    throw new Error(
-      `Nothing to ${plan.action}; every selected activation is already ${plan.action === "enable" ? "active" : "disabled"}`,
-    );
-  await recoverPendingTransactions();
-  const state = await readInstallState();
-  const records = allActivationRecords(state.installs, state.activations ?? []);
-  const targets = [
-    ...fresh.changes.flatMap((change) =>
-      change.targets.map((target) => target.activePath),
-    ),
-    ...(fresh.action === "disable"
-      ? fresh.changes.map((change) => change.libraryPath)
-      : []),
-    installStatePath(),
-  ];
-  const snapshot = await createSnapshot(targets);
-  const transaction = await beginTransaction(snapshot, targets);
-  try {
-    await markTransactionCommitting(transaction);
-    const replacements = new Map<string, ManagedActivationRecord>();
-    const installs = new Map(
-      state.installs.map((install) => [install.packageId, install]),
-    );
-    for (const change of fresh.changes) {
-      const current = records.find(
-        (record) => activationKey(record) === activationKey(change),
-      )!;
-      if (fresh.action === "disable") {
-        await rm(change.libraryPath, { recursive: true, force: true });
-        await ensureDirectory(change.libraryPath);
-        for (const target of change.targets) {
-          const destination = join(
-            change.libraryPath,
-            target.libraryRelativePath,
+  const applied = await runMutationTransaction(
+    async () => {
+      const fresh = await planActivationChange(plan.action, plan.packages, {
+        ...(plan.requestedAgents ? { agents: plan.requestedAgents } : {}),
+      });
+      if (fresh.blocked) throw new Error(fresh.warnings.join("; "));
+      if (!fresh.changes.length)
+        throw new Error(
+          `Nothing to ${plan.action}; every selected activation is already ${plan.action === "enable" ? "active" : "disabled"}`,
+        );
+      const state = await readInstallState();
+      const records = allActivationRecords(
+        state.installs,
+        state.activations ?? [],
+      );
+      const targets = [
+        ...fresh.changes.flatMap((change) =>
+          change.targets.map((target) => target.activePath),
+        ),
+        ...(fresh.action === "disable"
+          ? fresh.changes.map((change) => change.libraryPath)
+          : []),
+        installStatePath(),
+      ];
+      return { targets, value: { fresh, state, records } };
+    },
+    async ({ fresh, state, records }, snapshot) => {
+      const replacements = new Map<string, ManagedActivationRecord>();
+      const installs = new Map(
+        state.installs.map((install) => [install.packageId, install]),
+      );
+      for (const change of fresh.changes) {
+        const current = records.find(
+          (record) => activationKey(record) === activationKey(change),
+        )!;
+        if (fresh.action === "disable") {
+          await rm(change.libraryPath, { recursive: true, force: true });
+          await ensureDirectory(change.libraryPath);
+          for (const target of change.targets) {
+            const destination = join(
+              change.libraryPath,
+              target.libraryRelativePath,
+            );
+            await mkdir(dirname(destination), { recursive: true });
+            await cp(target.activePath, destination, {
+              recursive: true,
+              errorOnExist: true,
+              force: false,
+            });
+          }
+          const libraryFiles = await hashTree(change.libraryPath);
+          const copyDifferences = exactTreeDifferences(
+            expectedLibraryFiles(
+              installs.get(change.packageId)!,
+              change.targets,
+            ),
+            libraryFiles,
           );
-          await mkdir(dirname(destination), { recursive: true });
-          await cp(target.activePath, destination, {
-            recursive: true,
-            errorOnExist: true,
-            force: false,
+          if (copyDifferences.length)
+            throw new Error(
+              `${change.packageId}/${change.agent}: copied library verification failed: ${copyDifferences.join("; ")}`,
+            );
+          for (const target of change.targets)
+            await rm(target.activePath, { recursive: true, force: true });
+          replacements.set(activationKey(change), {
+            ...current,
+            cacheState: "downloaded",
+            activationState: "disabled",
+            libraryFiles,
+            updatedAt: new Date().toISOString(),
+            snapshotId: snapshot.id,
+          });
+        } else {
+          for (const target of change.targets) {
+            const source = join(change.libraryPath, target.libraryRelativePath);
+            await mkdir(dirname(target.activePath), { recursive: true });
+            await cp(source, target.activePath, {
+              recursive: true,
+              errorOnExist: true,
+              force: false,
+            });
+          }
+          const activeFiles = await activeTreeFiles(change.targets);
+          const copyDifferences = exactTreeDifferences(
+            expectedActiveFiles(
+              installs.get(change.packageId)!,
+              change.targets,
+            ),
+            activeFiles,
+          );
+          if (copyDifferences.length)
+            throw new Error(
+              `${change.packageId}/${change.agent}: activated copy verification failed: ${copyDifferences.join("; ")}`,
+            );
+          replacements.set(activationKey(change), {
+            ...current,
+            activationState: "active",
+            updatedAt: new Date().toISOString(),
+            snapshotId: snapshot.id,
           });
         }
-        const libraryFiles = await hashTree(change.libraryPath);
-        const copyDifferences = exactTreeDifferences(
-          expectedLibraryFiles(installs.get(change.packageId)!, change.targets),
-          libraryFiles,
-        );
-        if (copyDifferences.length)
-          throw new Error(
-            `${change.packageId}/${change.agent}: copied library verification failed: ${copyDifferences.join("; ")}`,
-          );
-        for (const target of change.targets)
-          await rm(target.activePath, { recursive: true, force: true });
-        replacements.set(activationKey(change), {
-          ...current,
-          cacheState: "downloaded",
-          activationState: "disabled",
-          libraryFiles,
-          updatedAt: new Date().toISOString(),
-          snapshotId: snapshot.id,
-        });
-      } else {
-        for (const target of change.targets) {
-          const source = join(change.libraryPath, target.libraryRelativePath);
-          await mkdir(dirname(target.activePath), { recursive: true });
-          await cp(source, target.activePath, {
-            recursive: true,
-            errorOnExist: true,
-            force: false,
-          });
-        }
-        const activeFiles = await activeTreeFiles(change.targets);
-        const copyDifferences = exactTreeDifferences(
-          expectedActiveFiles(installs.get(change.packageId)!, change.targets),
-          activeFiles,
-        );
-        if (copyDifferences.length)
-          throw new Error(
-            `${change.packageId}/${change.agent}: activated copy verification failed: ${copyDifferences.join("; ")}`,
-          );
-        replacements.set(activationKey(change), {
-          ...current,
-          activationState: "active",
-          updatedAt: new Date().toISOString(),
-          snapshotId: snapshot.id,
-        });
       }
-    }
-    state.activations = records.map(
-      (record) => replacements.get(activationKey(record)) ?? record,
-    );
-    await writeInstallState(state);
-    await completeTransaction(transaction);
-  } catch (error) {
-    await rollbackTransaction(transaction);
-    throw error;
-  }
-  return snapshot.id;
+      state.activations = records.map(
+        (record) => replacements.get(activationKey(record)) ?? record,
+      );
+      await writeInstallState(state);
+    },
+  );
+  return applied.snapshotId;
 }
 
 export function formatLibraryStateReport(report: LibraryStateReport): string {

@@ -256,3 +256,69 @@ export function compatibilityRule(
 ): string {
   return COMPATIBILITY_RULES[compatibility];
 }
+
+export interface AdapterCapabilityGap {
+  agent: AgentId;
+  displayName: string;
+  component: Exclude<ComponentType, "root">;
+  priority: number;
+  requirement: string;
+}
+
+/**
+ * Expose unsupported combinations as an engineering backlog. This report does
+ * not infer a filesystem path or imply that popularity is adapter evidence.
+ */
+export function buildAdapterCapabilityGaps(): AdapterCapabilityGap[] {
+  const demand: Record<Exclude<ComponentType, "root">, number> = {
+    skill: 6,
+    mcp: 5,
+    command: 4,
+    agent: 3,
+    rule: 2,
+    plugin: 1,
+  };
+  return ADAPTER_CAPABILITIES.flatMap((entry) =>
+    (
+      Object.entries(entry.components) as Array<
+        [ComponentType, ComponentCompatibility]
+      >
+    )
+      .filter(
+        (item): item is [Exclude<ComponentType, "root">, "unsupported"] =>
+          item[0] !== "root" && item[1] === "unsupported",
+      )
+      .map(([component]) => ({
+        agent: entry.agent,
+        displayName: entry.displayName,
+        component,
+        priority: demand[component],
+        requirement:
+          "Official path/config documentation, a non-mutating planner, preservation fixtures, transaction tests, and a real disposable smoke test are required before support is claimed.",
+      })),
+  ).sort(
+    (left, right) =>
+      right.priority - left.priority ||
+      left.displayName.localeCompare(right.displayName) ||
+      left.component.localeCompare(right.component),
+  );
+}
+
+export function formatAdapterCapabilityGaps(): string {
+  const gaps = buildAdapterCapabilityGaps();
+  const counts = new Map<string, number>();
+  for (const gap of gaps)
+    counts.set(gap.component, (counts.get(gap.component) ?? 0) + 1);
+  return [
+    `Unsupported adapter combinations: ${gaps.length}`,
+    `By component: ${[...counts.entries()]
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([component, count]) => `${component} ${count}`)
+      .join(", ")}`,
+    "",
+    ...gaps.map(
+      (gap) =>
+        `${gap.displayName} / ${gap.component} — priority ${gap.priority} — documentation and conformance evidence required`,
+    ),
+  ].join("\n");
+}

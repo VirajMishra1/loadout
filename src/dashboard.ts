@@ -21,6 +21,7 @@ import {
 import { searchLocalRegistry } from "./core/registry.js";
 import { randomBytes, timingSafeEqual } from "node:crypto";
 import { applySyncPlan, buildSyncPlan, type SyncPlan } from "./core/sync.js";
+import { withMutationLock } from "./core/transaction.js";
 import { readSnapshot, restoreSnapshot } from "./core/snapshot.js";
 import { readInstallState } from "./core/state.js";
 import { adapterCapabilities } from "./core/adapters.js";
@@ -434,7 +435,10 @@ export function createDashboardServer(options: DashboardOptions = {}) {
     applySync: options.applySync ?? applySyncPlan,
     rollback:
       options.rollback ??
-      (async (snapshotId) => restoreSnapshot(await readSnapshot(snapshotId))),
+      (async (snapshotId) =>
+        withMutationLock(async () =>
+          restoreSnapshot(await readSnapshot(snapshotId)),
+        )),
     token: randomBytes(32).toString("hex"),
   };
   return createServer((request, response) => {

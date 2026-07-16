@@ -476,6 +476,35 @@ loadout catalog-verify --snapshot "$TEST_ROOT/catalog.signed.json" \
 Expected: the private key is owner-only and outside the repository; verification
 succeeds; changing any byte in the signed payload makes verification fail.
 
+Preview and apply the same signed catalog inside the disposable profile:
+
+```bash
+loadout catalog-update --source "$TEST_ROOT/catalog.signed.json" \
+  --public-key "$TEST_ROOT/public.pem"
+loadout catalog-update --source "$TEST_ROOT/catalog.signed.json" \
+  --public-key "$TEST_ROOT/public.pem" --yes
+loadout catalog --coverage --json
+```
+
+Expected: preview prints an exact signed diff without mutation; apply creates a
+snapshot and trusted state; the effective catalog re-verifies the stored envelope.
+Repeating `--yes` refuses a replay. Test removal only in the disposable profile and
+only with the separate `--allow-removals` acknowledgement.
+
+The repository's generated feed can be triaged without network access:
+
+```bash
+loadout candidate list --limit 5 --json
+loadout candidate list --query "codex skills"
+loadout capabilities --gaps --json
+loadout recommend --project "$TEST_PROJECT" --agent codex --json
+```
+
+`candidate inspect owner/repository --output ./candidate-dossier.json` is a networked
+test: it performs a real public Git clone and writes a static immutable dossier to
+disposable Loadout state. Review that output before exercising `candidate propose`;
+proposal preview and approved proposal output never mutate the catalog.
+
 Create a deterministic workflow fixture and five declared trials per candidate. This
 is harness input, not model-generated evidence, and it executes no candidate content:
 
@@ -668,8 +697,9 @@ The product is ready for real-profile testing only when:
 
 1. every automated release gate passes;
 2. dry runs and applied operations differ exactly at the documented authority flags;
-3. every applied filesystem operation prints a usable snapshot and rollback restores
-   byte-identical pre-existing content;
+3. every managed profile or Loadout-state mutation prints a usable snapshot and
+   rollback restores byte-identical pre-existing content; explicit user-selected
+   output artifacts such as reports, dossiers, and proposals are exempt;
 4. network failures and rate limits produce actionable errors without partial agent
    mutation;
 5. outputs and stored state contain no credential values;
@@ -694,11 +724,12 @@ sections. Parenthesized numbers identify the track above.
   (4, 5, 10).
 - Evidence/freshness: `compare`, `adopt`, `alerts`, `alert-ignore`, `alert-pin`,
   `alert-unpin`, `alert-pins`, `canary`, `head-to-head` (5, 7, 8).
-- Discovery/review: `catalog`, `discover`, `review-queue`, `review` (2, 6).
+- Discovery/review: `catalog`, `catalog-update`, `candidate`, `discover`,
+  `review-queue`, `review` (2, 6, 8).
 - Privacy/outcomes/improvement: `report`, `share`, `outcomes`, `outcome`, `improve`,
   `improve-feedback` (2, 4, 11).
 - Credentials/providers/signing: `credentials`, `models`, `keygen`, `catalog-sign`,
-  `catalog-verify` (8, 9).
+  `catalog-verify`, `catalog-update` (8, 9).
 - MCP/conversion/sandbox: `mcp`, `inspect`, `evaluate`, `mcp-recipe`, `mcp-config`,
   `codex-mcp-config`, `convert`, `sandbox-run` (7).
 - Host/secondary surfaces: `completion`, `schedule`, `unschedule`, `serve`,

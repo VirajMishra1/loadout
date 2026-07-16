@@ -1,13 +1,15 @@
 import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { basename, dirname, join, resolve } from "node:path";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import type { McpConfigSnapshot, McpServer } from "../shared/types.js";
 import { loadoutHome, userHome } from "./paths.js";
+import { runMutationTransaction } from "./transaction.js";
 
 export interface CodexMcpConfigPlan {
   path: string;
   serverName: string;
   summary: string;
+  baseSha256: string;
   /** The proposed TOML is internal because it can contain secret values. */
   proposed: string;
 }
@@ -49,10 +51,12 @@ export async function planCodexMcpConfig(
     throw new Error("Codex MCP server requires exactly one command or URL");
   const target = resolve(path);
   let current = "";
+  let existed = true;
   try {
     current = await readFile(target, "utf8");
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") existed = false;
+    else throw error;
   }
   const header = tableHeader(name);
   if (
@@ -84,6 +88,9 @@ export async function planCodexMcpConfig(
     path: target,
     serverName: name,
     summary: `Add Codex MCP server '${name}' (${server.url ? "URL" : "command"}; ${Object.keys(server.env).length} environment variable(s))`,
+    baseSha256: createHash("sha256")
+      .update(existed ? current : "loadout:codex-mcp:missing")
+      .digest("hex"),
     proposed: `${current}${separator}${lines.join("\n")}\n`,
   };
 }
@@ -95,35 +102,53 @@ async function snapshotPath(id: string): Promise<string> {
 export async function applyCodexMcpConfigPlan(
   plan: CodexMcpConfigPlan,
 ): Promise<McpConfigSnapshot> {
-  let existed = true;
-  let content: string | undefined;
-  try {
-    content = await readFile(plan.path, "utf8");
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") existed = false;
-    else throw error;
-  }
-  const snapshot: McpConfigSnapshot = {
-    id: randomUUID(),
-    path: plan.path,
-    existed,
-    content,
-    createdAt: new Date().toISOString(),
-  };
-  const stored = await snapshotPath(snapshot.id);
-  await mkdir(dirname(stored), { recursive: true });
-  await writeFile(stored, JSON.stringify(snapshot), { mode: 0o600 });
-  await mkdir(dirname(plan.path), { recursive: true });
-  const temporary = join(
-    dirname(plan.path),
-    `.${basename(plan.path)}.loadout-${randomUUID()}.tmp`,
+  const applied = await runMutationTransaction(
+    async () => {
+      let content = "";
+      let existed = true;
+      try {
+        content = await readFile(plan.path, "utf8");
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === "ENOENT") existed = false;
+        else throw error;
+      }
+      const current = createHash("sha256")
+        .update(existed ? content : "loadout:codex-mcp:missing")
+        .digest("hex");
+      if (current !== plan.baseSha256)
+        throw new Error(
+          "Codex MCP configuration changed after preview; prepare the plan again.",
+        );
+      const snapshot: McpConfigSnapshot = {
+        id: randomUUID(),
+        path: plan.path,
+        existed,
+        ...(existed ? { content } : {}),
+        createdAt: new Date().toISOString(),
+      };
+      const stored = await snapshotPath(snapshot.id);
+      return {
+        targets: [plan.path, stored],
+        value: { plan, snapshot, stored },
+      };
+    },
+    async ({ plan: freshPlan, snapshot, stored }) => {
+      await mkdir(dirname(freshPlan.path), { recursive: true });
+      const temporary = join(
+        dirname(freshPlan.path),
+        `.${basename(freshPlan.path)}.loadout-${randomUUID()}.tmp`,
+      );
+      try {
+        await writeFile(temporary, freshPlan.proposed, { mode: 0o600 });
+        await rename(temporary, freshPlan.path);
+        await mkdir(dirname(stored), { recursive: true });
+        await writeFile(stored, JSON.stringify(snapshot), { mode: 0o600 });
+      } catch (error) {
+        await rm(temporary, { force: true });
+        throw error;
+      }
+      return snapshot;
+    },
   );
-  try {
-    await writeFile(temporary, plan.proposed, { mode: 0o600 });
-    await rename(temporary, plan.path);
-  } catch (error) {
-    await rm(temporary, { force: true });
-    throw error;
-  }
-  return snapshot;
+  return applied.result;
 }

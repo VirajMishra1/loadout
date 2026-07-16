@@ -60,3 +60,14 @@ it("rejects malformed server names", async () => {
     planMcpConfig(join(root, "x.json"), server, "bad/name"),
   ).rejects.toThrow();
 });
+
+it("refuses to overwrite MCP config changed after preview", async () => {
+  const path = join(root, "concurrent.json");
+  await writeFile(path, JSON.stringify({ preserved: 1 }));
+  const plan = await planMcpConfig(path, server);
+  await writeFile(path, JSON.stringify({ preserved: 2 }));
+  await expect(applyMcpConfigPlan(plan)).rejects.toThrow(
+    /changed after preview/,
+  );
+  expect(JSON.parse(await readFile(path, "utf8"))).toEqual({ preserved: 2 });
+});

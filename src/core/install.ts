@@ -1,10 +1,9 @@
 import { existsSync } from "node:fs";
 import { cp, lstat, rm } from "node:fs/promises";
-import { basename, dirname, join, posix, win32 } from "node:path";
+import { basename, dirname, join, posix, relative, win32 } from "node:path";
 import type { AgentId, DetectedAgent, InstallPlan } from "../shared/types.js";
 import { ensureDirectory, loadoutHome } from "./paths.js";
 import { planAdapterSkillInstall } from "./adapters.js";
-import { createSnapshot } from "./snapshot.js";
 import {
   applySkillPlan,
   detectInstallConflicts,
@@ -17,14 +16,9 @@ import {
   recordInstallBatch,
   recordLibraryInstallBatch,
   readInstallState,
+  hashDirectory,
 } from "./state.js";
-import {
-  beginTransaction,
-  completeTransaction,
-  markTransactionCommitting,
-  recoverPendingTransactions,
-  rollbackTransaction,
-} from "./transaction.js";
+import { runMutationTransaction } from "./transaction.js";
 
 export function installedAgents(
   agents: DetectedAgent[],
@@ -144,7 +138,12 @@ export async function applySkillInstall(
     resolvedCommit?: string;
     reviewed?: boolean;
   },
-  options: { allowManagedReplacement?: boolean } = {},
+  options: {
+    allowManagedReplacement?: boolean;
+    replaceManagedTargets?: boolean;
+    validateCurrentState?: () => Promise<void>;
+    verifyBeforeCommit?: (snapshotId: string) => Promise<void>;
+  } = {},
 ): Promise<string> {
   const blocking = (plan.conflicts ?? []).filter(
     (conflict) => conflict.severity === "blocking",
@@ -153,24 +152,46 @@ export async function applySkillInstall(
     throw new Error(
       `Installation blocked by conflicts: ${blocking.map((conflict) => conflict.message).join("; ")}`,
     );
-  await assertActiveTargetsUnoccupied([plan], options);
-  await recoverPendingTransactions();
-  const targets = [
-    ...plan.files.map((file) => file.target),
-    installStatePath(),
-  ];
-  const snapshot = await createSnapshot(targets);
-  const transaction = await beginTransaction(snapshot, targets);
-  try {
-    await markTransactionCommitting(transaction);
-    await applySkillPlan(plan);
-    await recordInstall(plan, snapshot.id, metadata);
-    await completeTransaction(transaction);
-  } catch (error) {
-    await rollbackTransaction(transaction);
-    throw error;
-  }
-  return snapshot.id;
+  const applied = await runMutationTransaction(
+    async () => {
+      await options.validateCurrentState?.();
+      await assertActiveTargetsUnoccupied([plan], options);
+      return {
+        targets: [...plan.files.map((file) => file.target), installStatePath()],
+        value: plan,
+      };
+    },
+    async (freshPlan, snapshot) => {
+      if (options.replaceManagedTargets)
+        for (const target of [
+          ...new Set(freshPlan.files.map((file) => file.target)),
+        ])
+          await rm(target, { recursive: true, force: true });
+      await applySkillPlan(freshPlan);
+      if (options.replaceManagedTargets)
+        for (const file of freshPlan.files) {
+          const expected = (await hashDirectory(file.source))
+            .map((entry) => ({
+              path: relative(file.source, entry.path),
+              sha256: entry.sha256,
+            }))
+            .sort((left, right) => left.path.localeCompare(right.path));
+          const actual = (await hashDirectory(file.target))
+            .map((entry) => ({
+              path: relative(file.target, entry.path),
+              sha256: entry.sha256,
+            }))
+            .sort((left, right) => left.path.localeCompare(right.path));
+          if (JSON.stringify(actual) !== JSON.stringify(expected))
+            throw new Error(
+              `Exact update copy verification failed for ${file.target}`,
+            );
+        }
+      await recordInstall(freshPlan, snapshot.id, metadata);
+      await options.verifyBeforeCommit?.(snapshot.id);
+    },
+  );
+  return applied.snapshotId;
 }
 
 export interface InstallBatchEntry {
@@ -196,45 +217,46 @@ export async function applySkillInstallBatch(
     throw new Error(
       `Installation blocked by conflicts: ${blocking.map((item) => item.message).join("; ")}`,
     );
-  await assertActiveTargetsUnoccupied(entries.map((entry) => entry.plan));
-  for (const entry of entries) {
-    entry.plan.conflicts = [
-      ...(entry.plan.conflicts ?? []),
-      ...conflicts.filter((conflict) =>
-        conflict.packageIds.includes(entry.plan.packageId),
-      ),
-    ];
-    entry.plan.warnings = [
-      ...new Set([
-        ...entry.plan.warnings,
-        ...conflicts
-          .filter(
-            (conflict) =>
-              conflict.severity === "warning" &&
-              conflict.packageIds.includes(entry.plan.packageId),
-          )
-          .map((conflict) => conflict.message),
-      ]),
-    ];
-  }
-  await recoverPendingTransactions();
-  const targets = [
-    ...entries.flatMap((entry) => entry.plan.files.map((file) => file.target)),
-    installStatePath(),
-    ...extraSnapshotPaths,
-  ];
-  const snapshot = await createSnapshot(targets);
-  const transaction = await beginTransaction(snapshot, targets);
-  try {
-    await markTransactionCommitting(transaction);
-    for (const entry of entries) await applySkillPlan(entry.plan);
-    await recordInstallBatch(entries, snapshot.id);
-    await completeTransaction(transaction);
-  } catch (error) {
-    await rollbackTransaction(transaction);
-    throw error;
-  }
-  return snapshot.id;
+  const applied = await runMutationTransaction(
+    async () => {
+      await assertActiveTargetsUnoccupied(entries.map((entry) => entry.plan));
+      for (const entry of entries) {
+        entry.plan.conflicts = [
+          ...(entry.plan.conflicts ?? []),
+          ...conflicts.filter((conflict) =>
+            conflict.packageIds.includes(entry.plan.packageId),
+          ),
+        ];
+        entry.plan.warnings = [
+          ...new Set([
+            ...entry.plan.warnings,
+            ...conflicts
+              .filter(
+                (conflict) =>
+                  conflict.severity === "warning" &&
+                  conflict.packageIds.includes(entry.plan.packageId),
+              )
+              .map((conflict) => conflict.message),
+          ]),
+        ];
+      }
+      return {
+        targets: [
+          ...entries.flatMap((entry) =>
+            entry.plan.files.map((file) => file.target),
+          ),
+          installStatePath(),
+          ...extraSnapshotPaths,
+        ],
+        value: entries,
+      };
+    },
+    async (freshEntries, snapshot) => {
+      for (const entry of freshEntries) await applySkillPlan(entry.plan);
+      await recordInstallBatch(freshEntries, snapshot.id);
+    },
+  );
+  return applied.snapshotId;
 }
 
 /**
@@ -253,19 +275,6 @@ export async function applySkillLibraryBatch(
     throw new Error(
       `Library installation blocked by conflicts: ${blocking.map((item) => item.message).join("; ")}`,
     );
-  const state = await readInstallState();
-  const selected = new Set(entries.map((entry) => entry.plan.packageId));
-  const active = (state.activations ?? []).filter(
-    (record) =>
-      selected.has(record.packageId) &&
-      record.installationState === "installed" &&
-      record.activationState === "active",
-  );
-  if (active.length)
-    throw new Error(
-      `Maximum Library will not relabel ${active.length} active managed skill(s) as disabled. Disable the selected packages first, then retry.`,
-    );
-  await recoverPendingTransactions();
   const libraryPaths = [
     ...new Set(
       entries.flatMap((entry) =>
@@ -275,46 +284,58 @@ export async function applySkillLibraryBatch(
       ),
     ),
   ];
-  const targets = [...libraryPaths, installStatePath()];
-  const snapshot = await createSnapshot(targets);
-  const transaction = await beginTransaction(snapshot, targets);
-  try {
-    await markTransactionCommitting(transaction);
-    for (const path of libraryPaths)
-      await rm(path, { recursive: true, force: true });
-    for (const entry of entries) {
-      for (const file of entry.plan.files) {
-        const agent =
-          file.targetAgent ??
-          (entry.plan.targetAgents.length === 1
-            ? entry.plan.targetAgents[0]
-            : undefined);
-        if (!agent)
-          throw new Error(
-            `Cannot place ${entry.plan.packageId} in the library: target agent is ambiguous`,
-          );
-        const unitId = basename(file.target);
-        const unitLibraryPath = activationLibraryPath(
-          entry.plan.packageId,
-          agent,
-          unitId,
+  const applied = await runMutationTransaction(
+    async () => {
+      const state = await readInstallState();
+      const selected = new Set(entries.map((entry) => entry.plan.packageId));
+      const active = (state.activations ?? []).filter(
+        (record) =>
+          selected.has(record.packageId) &&
+          record.installationState === "installed" &&
+          record.activationState === "active",
+      );
+      if (active.length)
+        throw new Error(
+          `Maximum Library will not relabel ${active.length} active managed skill(s) as disabled. Disable the selected packages first, then retry.`,
         );
-        await ensureDirectory(unitLibraryPath);
-        const destination = join(unitLibraryPath, basename(file.target));
-        await cp(file.source, destination, {
-          recursive: true,
-          errorOnExist: true,
-          force: false,
-        });
+      return {
+        targets: [...libraryPaths, installStatePath()],
+        value: entries,
+      };
+    },
+    async (freshEntries, snapshot) => {
+      for (const path of libraryPaths)
+        await rm(path, { recursive: true, force: true });
+      for (const entry of freshEntries) {
+        for (const file of entry.plan.files) {
+          const agent =
+            file.targetAgent ??
+            (entry.plan.targetAgents.length === 1
+              ? entry.plan.targetAgents[0]
+              : undefined);
+          if (!agent)
+            throw new Error(
+              `Cannot place ${entry.plan.packageId} in the library: target agent is ambiguous`,
+            );
+          const unitId = basename(file.target);
+          const unitLibraryPath = activationLibraryPath(
+            entry.plan.packageId,
+            agent,
+            unitId,
+          );
+          await ensureDirectory(unitLibraryPath);
+          const destination = join(unitLibraryPath, basename(file.target));
+          await cp(file.source, destination, {
+            recursive: true,
+            errorOnExist: true,
+            force: false,
+          });
+        }
       }
-    }
-    await recordLibraryInstallBatch(entries, snapshot.id);
-    await completeTransaction(transaction);
-  } catch (error) {
-    await rollbackTransaction(transaction);
-    throw error;
-  }
-  return snapshot.id;
+      await recordLibraryInstallBatch(freshEntries, snapshot.id);
+    },
+  );
+  return applied.snapshotId;
 }
 
 export function snapshotPath(

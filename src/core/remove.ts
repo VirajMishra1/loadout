@@ -1,8 +1,8 @@
 import { createHash } from "node:crypto";
 import { readFile, rm } from "node:fs/promises";
-import { createSnapshot, restoreSnapshot } from "./snapshot.js";
 import { forgetInstall, installStatePath, readInstallState } from "./state.js";
 import { writeMcpConfigPlan } from "./mcp.js";
+import { runMutationTransaction } from "./transaction.js";
 
 export interface RemovePlan {
   packageId: string;
@@ -102,51 +102,54 @@ export async function applyRemove(
   plan: RemovePlan,
   options: { force?: boolean } = {},
 ): Promise<string> {
-  const fresh = await planRemove(plan.packageId);
-  if (fresh.blocked && !options.force)
-    throw new Error(fresh.warnings.join(" "));
-  const existing = fresh.files
-    .filter((file) => file.status !== "missing")
-    .map((file) => file.path);
-  const configPaths = [
-    ...new Set(fresh.mcpServers.map((entry) => entry.configPath)),
-  ];
-  const snapshot = await createSnapshot([
-    ...existing,
-    ...configPaths,
-    installStatePath(),
-  ]);
-  try {
-    for (const file of existing) await rm(file, { force: true });
-    for (const configPath of configPaths) {
-      const current = JSON.parse(await readFile(configPath, "utf8")) as Record<
-        string,
-        unknown
-      >;
-      const servers = {
-        ...((current.mcpServers ?? {}) as Record<string, unknown>),
+  const applied = await runMutationTransaction(
+    async () => {
+      const fresh = await planRemove(plan.packageId);
+      if (fresh.blocked && !options.force)
+        throw new Error(fresh.warnings.join(" "));
+      const existing = fresh.files
+        .filter((file) => file.status !== "missing")
+        .map((file) => file.path);
+      const configPaths = [
+        ...new Set(
+          fresh.mcpServers
+            .filter((entry) => entry.status !== "missing")
+            .map((entry) => entry.configPath),
+        ),
+      ];
+      return {
+        targets: [...existing, ...configPaths, installStatePath()],
+        value: { fresh, existing, configPaths },
       };
-      const removals = fresh.mcpServers.filter(
-        (entry) =>
-          entry.configPath === configPath && entry.status !== "missing",
-      );
-      for (const entry of removals) delete servers[entry.serverName];
-      await writeMcpConfigPlan({
-        path: configPath,
-        serverName: removals[0]?.serverName ?? "removed",
-        changes: removals.map((entry) => ({
-          serverName: entry.serverName,
-          action: "replace",
-          summary: `Remove MCP server '${entry.serverName}'`,
-        })),
-        warnings: [],
-        proposed: { ...current, mcpServers: servers },
-      });
-    }
-    await forgetInstall(plan.packageId);
-  } catch (error) {
-    await restoreSnapshot(snapshot);
-    throw error;
-  }
-  return snapshot.id;
+    },
+    async ({ fresh, existing, configPaths }) => {
+      for (const file of existing) await rm(file, { force: true });
+      for (const configPath of configPaths) {
+        const current = JSON.parse(
+          await readFile(configPath, "utf8"),
+        ) as Record<string, unknown>;
+        const servers = {
+          ...((current.mcpServers ?? {}) as Record<string, unknown>),
+        };
+        const removals = fresh.mcpServers.filter(
+          (entry) =>
+            entry.configPath === configPath && entry.status !== "missing",
+        );
+        for (const entry of removals) delete servers[entry.serverName];
+        await writeMcpConfigPlan({
+          path: configPath,
+          serverName: removals[0]?.serverName ?? "removed",
+          changes: removals.map((entry) => ({
+            serverName: entry.serverName,
+            action: "replace",
+            summary: `Remove MCP server '${entry.serverName}'`,
+          })),
+          warnings: [],
+          proposed: { ...current, mcpServers: servers },
+        });
+      }
+      await forgetInstall(plan.packageId);
+    },
+  );
+  return applied.snapshotId;
 }

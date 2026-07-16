@@ -133,6 +133,12 @@ npx . discover --source hacker-news --query codex,mcp,agent
 
 # Inspect the deduplicated review queue.
 npx . review-queue
+
+# Triage today's generated feed with disclosed evidence.
+npx . candidate list --limit 20
+
+# Clone one lead, pin its commit, and statically inspect its real contents.
+npx . candidate inspect owner/repository --output ./candidate-dossier.json
 ```
 
 Daily scheduled checks are read-only:
@@ -144,6 +150,24 @@ npx . unschedule --job discovery --yes
 ```
 
 Candidates stay in the review queue until a human decision. Shortlisting is not promotion, and promotion is not installation. Discovery state records observations over time so momentum can be measured without manufacturing a signal from a single snapshot.
+
+`candidate inspect` is the missing bridge between “this repository is moving” and “this belongs in the catalog.” It creates a path-portable dossier containing the immutable Git commit, discovered skills/rules/commands/agents/plugins/MCP declarations, static safety findings, license status, and possible overlap with reviewed packages. It never runs repository scripts, hooks, MCP servers, lifecycle commands, or models.
+
+After a human reviews that dossier, Loadout can create a catalog-record proposal without editing the catalog:
+
+```bash
+npx . candidate propose ./candidate-dossier.json \
+  --id reviewed-id --category workflow \
+  --platforms windows,macos,linux
+
+# Persist only after human review; this still does not mutate the catalog.
+npx . candidate propose ./candidate-dossier.json \
+  --id reviewed-id --category workflow \
+  --platforms windows,macos,linux \
+  --approve --output ./reviewed-id.proposal.json
+```
+
+See [Candidate intelligence and catalog trust](./docs/CANDIDATE_INTELLIGENCE.md) for the full admission and signed-release workflow.
 
 ## Know what is already installed
 
@@ -250,7 +274,7 @@ Updates are planned before they are applied. Loadout checks managed hashes, revi
 | Kiro CLI       | Yes, at `~/.kiro/skills`               | Skills only                                                                                    |
 | Junie          | Yes, at `~/.junie/skills`              | Skills only                                                                                    |
 
-Run `npx . capabilities` for the authoritative `native`, `adapted`, or `unsupported` matrix used by the planner itself. Unsupported components are skipped rather than falsely converted.
+Run `npx . capabilities` for the authoritative `native`, `adapted`, or `unsupported` matrix used by the planner itself. `npx . capabilities --gaps` turns every unsupported combination into an evidence-gated engineering backlog; unsupported components are skipped rather than falsely converted.
 
 macOS, Linux, and native Windows paths are supported. WSL is intentionally treated as Linux and uses its POSIX `$HOME`; Loadout never silently crosses into the Windows profile under `/mnt/c`. `LOADOUT_USER_HOME` and `LOADOUT_HOME` provide isolated roots for testing.
 
@@ -271,18 +295,18 @@ Read [Compatibility policy](./docs/COMPATIBILITY_POLICY.md), [Active-set contrac
 
 ## Command map
 
-| Goal                   | Commands                                                                |
-| ---------------------- | ----------------------------------------------------------------------- |
-| Onboard                | `setup`, `scan`, `status`, `doctor`, `capabilities`, `demo`             |
-| Find and compare       | `catalog`, `search`, `discover`, `review-queue`, `compare`, `recommend` |
-| Manage active skills   | `library`, `activate`, `optimize`, `enable`, `disable`, `adopt`         |
-| Maintain safely        | `health`, `alerts`, `update`, `watch`, `remove`, `rollback`, `audit`    |
-| Share desired state    | `init`, `add`, `unadd`, `lock`, `sync`, `export`, `import`              |
-| Configure MCP          | `mcp`, `mcp-config`, `codex-mcp-config`, `mcp-recipe`                   |
-| Credentials and models | `credentials`, `models`                                                 |
-| Evaluate evidence      | `inspect`, `evaluate`, `head-to-head`, `canary`, `outcome`, `report`    |
-| Package and registry   | `create`, `pack`, `publish`, `registry-serve`                           |
-| Operate                | `completion`, `schedule`, `unschedule`, `dashboard`, `serve`            |
+| Goal                   | Commands                                                                             |
+| ---------------------- | ------------------------------------------------------------------------------------ |
+| Onboard                | `setup`, `scan`, `status`, `doctor`, `capabilities`, `demo`                          |
+| Find and compare       | `catalog`, `search`, `discover`, `candidate`, `review-queue`, `compare`, `recommend` |
+| Manage active skills   | `library`, `activate`, `optimize`, `enable`, `disable`, `adopt`                      |
+| Maintain safely        | `health`, `alerts`, `update`, `watch`, `remove`, `rollback`, `audit`                 |
+| Share desired state    | `init`, `add`, `unadd`, `lock`, `sync`, `export`, `import`                           |
+| Configure MCP          | `mcp`, `mcp-config`, `codex-mcp-config`, `mcp-recipe`                                |
+| Credentials and models | `credentials`, `models`                                                              |
+| Evaluate evidence      | `inspect`, `evaluate`, `candidate`, `head-to-head`, `canary`, `outcome`, `report`    |
+| Package and registry   | `create`, `pack`, `publish`, `registry-serve`                                        |
+| Operate                | `completion`, `schedule`, `unschedule`, `dashboard`, `serve`                         |
 
 Use `npx . <command> --help` for exact options. Shell completion is available for Bash, Zsh, Fish, and PowerShell:
 
@@ -355,6 +379,7 @@ Useful references:
 - [Complete CLI feature test matrix](./docs/FEATURE_TEST_MATRIX.md)
 - [Evaluation protocol](./docs/EVALUATION_PROTOCOL.md)
 - [Community discovery policy](./docs/COMMUNITY_DISCOVERY.md)
+- [Candidate intelligence and signed catalog trust](./docs/CANDIDATE_INTELLIGENCE.md)
 - [Security policy](./SECURITY.md)
 - [Canonical engineering plan](./MASTER_PLAN.md)
 

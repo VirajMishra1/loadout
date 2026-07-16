@@ -7,7 +7,7 @@ import {
   rm,
 } from "node:fs/promises";
 import { join, resolve, dirname, basename } from "node:path";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import type {
   McpConfigPlan,
   McpConfigSnapshot,
@@ -15,6 +15,21 @@ import type {
   McpServer,
 } from "../shared/types.js";
 import { loadoutHome } from "./paths.js";
+import { runMutationTransaction, withMutationLock } from "./transaction.js";
+
+const missingConfigMarker = "loadout:mcp-config:missing";
+
+async function configFingerprint(path: string): Promise<string> {
+  let content: string;
+  try {
+    content = await readFile(path, "utf8");
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT")
+      content = missingConfigMarker;
+    else throw error;
+  }
+  return createHash("sha256").update(content).digest("hex");
+}
 
 const MANIFEST_NAMES = new Set([
   "mcp.json",
@@ -184,13 +199,20 @@ export async function planMcpConfigBatch(
   for (const entry of entries) safeName(entry.name ?? entry.server.name);
   const target = resolve(path);
   let current: Record<string, unknown> = {};
+  let baseSha256: string;
   try {
-    const parsed: unknown = JSON.parse(await readFile(target, "utf8"));
+    const content = await readFile(target, "utf8");
+    baseSha256 = createHash("sha256").update(content).digest("hex");
+    const parsed: unknown = JSON.parse(content);
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed))
       throw new Error("config root must be an object");
     current = parsed as Record<string, unknown>;
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== "ENOENT")
+    if ((error as NodeJS.ErrnoException).code === "ENOENT")
+      baseSha256 = createHash("sha256")
+        .update(missingConfigMarker)
+        .digest("hex");
+    else
       throw new Error(
         `Cannot read MCP config ${target}: ${error instanceof Error ? error.message : String(error)}`,
       );
@@ -230,6 +252,7 @@ export async function planMcpConfigBatch(
   const proposed = { ...current, mcpServers: servers };
   return {
     path: target,
+    baseSha256,
     serverName: changes[0].serverName,
     changes,
     warnings: [...new Set(warnings)],
@@ -252,39 +275,51 @@ async function snapshotPath(id: string): Promise<string> {
 export async function applyMcpConfigPlan(
   plan: McpConfigPlan,
 ): Promise<McpConfigSnapshot> {
-  await mkdir(dirname(plan.path), { recursive: true });
-  try {
-    const s = await readFile(plan.path, "utf8");
-    if (s.length > 10_000_000)
-      throw new Error("MCP config is unexpectedly large");
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
-  }
-  let existed = true;
-  let content: string | undefined;
-  try {
-    content = await readFile(plan.path, "utf8");
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
-      existed = false;
-    } else throw error;
-  }
-  const snapshot: McpConfigSnapshot = {
-    id: randomUUID(),
-    path: plan.path,
-    existed,
-    content,
-    createdAt: new Date().toISOString(),
-  };
-  const snap = await snapshotPath(snapshot.id);
-  await mkdir(dirname(snap), { recursive: true });
-  await writeFile(snap, JSON.stringify(snapshot), { mode: 0o600 });
-  await writeMcpConfigPlan(plan);
-  return snapshot;
+  const applied = await runMutationTransaction(
+    async () => {
+      await mkdir(dirname(plan.path), { recursive: true });
+      let existed = true;
+      let content: string | undefined;
+      try {
+        content = await readFile(plan.path, "utf8");
+        if (content.length > 10_000_000)
+          throw new Error("MCP config is unexpectedly large");
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === "ENOENT") existed = false;
+        else throw error;
+      }
+      const snapshot: McpConfigSnapshot = {
+        id: randomUUID(),
+        path: plan.path,
+        existed,
+        content,
+        createdAt: new Date().toISOString(),
+      };
+      const stored = await snapshotPath(snapshot.id);
+      return {
+        targets: [plan.path, stored],
+        value: { plan, snapshot, stored },
+      };
+    },
+    async ({ plan: freshPlan, snapshot, stored }) => {
+      await writeMcpConfigPlan(freshPlan);
+      await mkdir(dirname(stored), { recursive: true });
+      await writeFile(stored, JSON.stringify(snapshot), { mode: 0o600 });
+      return snapshot;
+    },
+  );
+  return applied.result;
 }
 
 /** Write an already-reviewed plan atomically; transaction callers own snapshot/rollback. */
 export async function writeMcpConfigPlan(plan: McpConfigPlan): Promise<void> {
+  if (
+    plan.baseSha256 &&
+    (await configFingerprint(plan.path)) !== plan.baseSha256
+  )
+    throw new Error(
+      `MCP configuration changed after preview; prepare the plan again: ${plan.path}`,
+    );
   await mkdir(dirname(plan.path), { recursive: true });
   const temporary = join(
     dirname(plan.path),
@@ -304,8 +339,10 @@ export async function writeMcpConfigPlan(plan: McpConfigPlan): Promise<void> {
 export async function restoreMcpConfig(
   snapshot: McpConfigSnapshot,
 ): Promise<void> {
-  if (snapshot.existed) {
-    await mkdir(dirname(snapshot.path), { recursive: true });
-    await writeFile(snapshot.path, snapshot.content ?? "", { mode: 0o600 });
-  } else await rm(snapshot.path, { force: true });
+  await withMutationLock(async () => {
+    if (snapshot.existed) {
+      await mkdir(dirname(snapshot.path), { recursive: true });
+      await writeFile(snapshot.path, snapshot.content ?? "", { mode: 0o600 });
+    } else await rm(snapshot.path, { force: true });
+  });
 }

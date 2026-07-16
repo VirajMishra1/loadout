@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { fetchRepositorySnapshot } from "./source.js";
 import { repositoryCachePath } from "./source.js";
 import { diffRepositorySnapshots, type ChangedFileDiff } from "./diff.js";
-import { readInstallState } from "./state.js";
+import { hashDirectory, readInstallState } from "./state.js";
 import { analyzeUpdateSafety, type SafetyFinding } from "./safety.js";
 import { detectAgents, loadoutHome } from "./paths.js";
 import {
@@ -11,7 +11,6 @@ import {
   buildSkillPlan,
   installedAgents,
 } from "./install.js";
-import { readSnapshot, restoreSnapshot } from "./snapshot.js";
 import { validateSkillDirectory } from "./skills.js";
 import type { DetectedAgent, InstallPlan } from "../shared/types.js";
 
@@ -62,11 +61,6 @@ export interface UpdateRuntime {
     packageId: string,
     agents: DetectedAgent[],
   ) => Promise<InstallPlan>;
-  applyPlan?: (
-    plan: InstallPlan,
-    metadata: { repository: string; resolvedCommit: string },
-    options?: { allowManagedReplacement?: boolean },
-  ) => Promise<string>;
   verify?: (context: UpdateSmokeTestContext) => Promise<void>;
 }
 
@@ -247,6 +241,16 @@ export async function applyPackageUpdate(
         activation.activationState === "disabled",
     )
     .map((activation) => activation.agent);
+  const expectedRecord = JSON.stringify(record);
+  const expectedActivations = JSON.stringify(
+    (state.activations ?? [])
+      .filter((activation) => activation.packageId === packageId)
+      .sort((left, right) =>
+        `${left.agent}\0${left.unitId ?? ""}`.localeCompare(
+          `${right.agent}\0${right.unitId ?? ""}`,
+        ),
+      ),
+  );
   if (disabledAgents.length)
     throw new Error(
       `Package '${packageId}' is disabled for ${disabledAgents.join(", ")}. Enable it before updating so an update cannot silently reactivate agent-visible files.`,
@@ -286,39 +290,83 @@ export async function applyPackageUpdate(
     record.packageId,
     agents,
   );
-  const snapshotId = await (runtime.applyPlan ?? applySkillInstall)(
-    plan,
-    {
-      repository: current.repository,
-      resolvedCommit: current.commit,
-    },
-    { allowManagedReplacement: true },
-  );
+  const verifier = runtime.verify ?? verifyInstalledSkills;
+  let verificationFailure: unknown;
+  let verificationSnapshotId: string | undefined;
   try {
-    await (runtime.verify ?? verifyInstalledSkills)({
-      packageId,
-      commit: current.commit,
+    const snapshotId = await applySkillInstall(
       plan,
-      snapshotId,
-    });
+      {
+        repository: current.repository,
+        resolvedCommit: current.commit,
+      },
+      {
+        allowManagedReplacement: true,
+        replaceManagedTargets: true,
+        validateCurrentState: async () => {
+          const freshState = await readInstallState();
+          const freshRecord = freshState.installs.find(
+            (entry) => entry.packageId === packageId,
+          );
+          const freshActivations = (freshState.activations ?? [])
+            .filter((activation) => activation.packageId === packageId)
+            .sort((left, right) =>
+              `${left.agent}\0${left.unitId ?? ""}`.localeCompare(
+                `${right.agent}\0${right.unitId ?? ""}`,
+              ),
+            );
+          if (
+            JSON.stringify(freshRecord) !== expectedRecord ||
+            JSON.stringify(freshActivations) !== expectedActivations
+          )
+            throw new Error(
+              `Package '${packageId}' changed while its update was prepared; build the update plan again`,
+            );
+          const liveFiles = (
+            await Promise.all(
+              [...new Set(plan.files.map((file) => file.target))].map(
+                hashDirectory,
+              ),
+            )
+          )
+            .flat()
+            .sort((left, right) => left.path.localeCompare(right.path));
+          const expectedFiles = [...record.files].sort((left, right) =>
+            left.path.localeCompare(right.path),
+          );
+          if (JSON.stringify(liveFiles) !== JSON.stringify(expectedFiles))
+            throw new Error(
+              `Package '${packageId}' files changed while its update was prepared; review local changes before updating`,
+            );
+        },
+        verifyBeforeCommit: async (pendingSnapshotId) => {
+          verificationSnapshotId = pendingSnapshotId;
+          try {
+            await verifier({
+              packageId,
+              commit: current.commit,
+              plan,
+              snapshotId: pendingSnapshotId,
+            });
+          } catch (error) {
+            verificationFailure = error;
+            throw error;
+          }
+        },
+      },
+    );
+    return { snapshotId, commit: current.commit };
   } catch (error) {
-    try {
-      await restoreSnapshot(await readSnapshot(snapshotId));
-    } catch (rollbackError) {
+    if (verificationFailure !== undefined) {
       const detail =
-        rollbackError instanceof Error
-          ? rollbackError.message
-          : String(rollbackError);
+        verificationFailure instanceof Error
+          ? verificationFailure.message
+          : String(verificationFailure);
       throw new Error(
-        `Update verification failed and automatic rollback also failed for snapshot ${snapshotId}: ${detail}`,
-        { cause: error },
+        `Update verification failed; restored snapshot ${verificationSnapshotId}: ${detail}`,
+        { cause: verificationFailure },
       );
     }
-    const detail = error instanceof Error ? error.message : String(error);
-    throw new Error(
-      `Update verification failed; restored snapshot ${snapshotId}: ${detail}`,
-      { cause: error },
-    );
+    throw error;
   }
-  return { snapshotId, commit: current.commit };
 }

@@ -10,6 +10,9 @@ describe("CLI completion", () => {
       expect(renderShellCompletion(shell)).toContain("loadout");
       expect(renderShellCompletion(shell)).toContain("optimize");
       expect(renderShellCompletion(shell)).toContain("test-drive");
+      expect(renderShellCompletion(shell)).toContain("catalog-update");
+      expect(renderShellCompletion(shell)).toContain("candidate");
+      expect(renderShellCompletion(shell)).toContain("propose");
     }
   });
 
@@ -32,5 +35,7 @@ describe("CLI completion", () => {
     expect(script).toContain("status set verify");
     expect(script).toContain("catalog-sign");
     expect(script).toContain("sandbox-run");
+    expect(script).toContain('COMP_WORDS[1]}" == "candidate"');
+    expect(script).toContain("list inspect propose");
   });
 });

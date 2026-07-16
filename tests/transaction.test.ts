@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { createSnapshot } from "../src/core/snapshot.js";
 import {
   beginTransaction,
+  completeTransaction,
   markTransactionCommitting,
   recoverPendingTransactions,
   transactionRoot,
@@ -27,11 +28,12 @@ describe("durable transaction recovery", () => {
     await mkdir(join(root, "agent"), { recursive: true });
     await writeFile(first, "before-first");
     await writeFile(second, "before-second");
-    const snapshot = await createSnapshot([first, second]);
+    const snapshot = await createSnapshot([first, second], { persist: false });
     const transaction = await beginTransaction(snapshot, [first, second]);
     await markTransactionCommitting(transaction);
     // Simulate a process terminating after only the first write committed.
     await writeFile(first, "partially-committed");
+    await transaction.mutationLock.release();
 
     expect(await recoverPendingTransactions()).toEqual([transaction.id]);
     expect(await readFile(first, "utf8")).toBe("before-first");
@@ -52,5 +54,32 @@ describe("durable transaction recovery", () => {
     expect(await readFile(join(stage, "transaction.json"), "utf8")).toBe(
       "{not-json",
     );
+  });
+
+  it("recovers an abandoned journal inside the next locked begin boundary", async () => {
+    root = await mkdtemp(join(tmpdir(), "loadout-serialized-begin-"));
+    process.env.LOADOUT_HOME = join(root, ".loadout");
+    const target = join(root, "agent", "state.txt");
+    await mkdir(join(root, "agent"), { recursive: true });
+    await writeFile(target, "original");
+
+    const abandonedDraft = await createSnapshot([target], { persist: false });
+    const abandoned = await beginTransaction(abandonedDraft, [target]);
+    await markTransactionCommitting(abandoned);
+    await writeFile(target, "partial");
+    await abandoned.mutationLock.release();
+
+    const nextDraft = await createSnapshot([target], { persist: false });
+    const next = await beginTransaction(nextDraft, [target]);
+    expect(await readFile(target, "utf8")).toBe("original");
+    expect(
+      (await readFile(join(next.directory, "transaction.json"), "utf8")).length,
+    ).toBeGreaterThan(0);
+    await markTransactionCommitting(next);
+    await writeFile(target, "next-commit");
+    await completeTransaction(next);
+
+    expect(await recoverPendingTransactions()).toEqual([]);
+    expect(await readFile(target, "utf8")).toBe("next-commit");
   });
 });

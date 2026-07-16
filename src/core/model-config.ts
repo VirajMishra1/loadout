@@ -11,14 +11,7 @@ import type {
 } from "../shared/types.js";
 import { writeFileAtomically } from "./atomic-file.js";
 import { ensureDirectory, loadoutHome } from "./paths.js";
-import { createSnapshot } from "./snapshot.js";
-import {
-  beginTransaction,
-  completeTransaction,
-  markTransactionCommitting,
-  recoverPendingTransactions,
-  rollbackTransaction,
-} from "./transaction.js";
+import { runMutationTransaction } from "./transaction.js";
 
 export const defaultModelConfigurationPath = (): string =>
   join(loadoutHome(), "models.json");
@@ -104,29 +97,27 @@ export async function planProviderModelSelection(
 export async function applyProviderModelSelection(
   plan: ModelConfigurationPlan,
 ): Promise<string> {
-  const fresh = await planProviderModelSelection(plan.selection, plan.path);
-  if (
-    JSON.stringify(fresh.configuration) !== JSON.stringify(plan.configuration)
-  )
-    throw new Error(
-      "Model configuration changed after preview; prepare the plan again.",
-    );
-  await recoverPendingTransactions();
-  const snapshot = await createSnapshot([plan.path]);
-  const transaction = await beginTransaction(snapshot, [plan.path]);
-  try {
-    await markTransactionCommitting(transaction);
-    await ensureDirectory(dirname(plan.path));
-    await writeFileAtomically(
-      plan.path,
-      `${JSON.stringify(plan.configuration, null, 2)}\n`,
-    );
-    await completeTransaction(transaction);
-  } catch (error) {
-    await rollbackTransaction(transaction);
-    throw error;
-  }
-  return snapshot.id;
+  const applied = await runMutationTransaction(
+    async () => {
+      const fresh = await planProviderModelSelection(plan.selection, plan.path);
+      if (
+        JSON.stringify(fresh.configuration) !==
+        JSON.stringify(plan.configuration)
+      )
+        throw new Error(
+          "Model configuration changed after preview; prepare the plan again.",
+        );
+      return { targets: [plan.path], value: fresh.configuration };
+    },
+    async (configuration) => {
+      await ensureDirectory(dirname(plan.path));
+      await writeFileAtomically(
+        plan.path,
+        `${JSON.stringify(configuration, null, 2)}\n`,
+      );
+    },
+  );
+  return applied.snapshotId;
 }
 
 export function formatProviderModelConfiguration(

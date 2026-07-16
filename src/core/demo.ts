@@ -9,6 +9,7 @@ import { agentSkillsDirectory } from "./paths.js";
 import { fetchRepositorySnapshot } from "./source.js";
 import { readInstallState } from "./state.js";
 import { restoreSnapshot } from "./snapshot.js";
+import { withMutationLock } from "./transaction.js";
 
 const DEFAULT_REPOSITORY = "obra/superpowers";
 const DEFAULT_PACKAGE_ID = "obra-superpowers";
@@ -151,7 +152,7 @@ export async function runIsolatedDemo(
         `${snapshotId}.json`,
       );
       const snapshot = JSON.parse(await readFile(snapshotPath, "utf8"));
-      await restoreSnapshot(snapshot);
+      await withMutationLock(() => restoreSnapshot(snapshot));
       rolledBack = true;
     }
     completed = true;

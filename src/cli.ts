@@ -61,6 +61,7 @@ import { readInstallState } from "./core/state.js";
 import { applyRemove, planRemove } from "./core/remove.js";
 import {
   formatRecommendations,
+  personalizeRecommendations,
   profileManifestPackages,
   recommendPackages,
   scanProject,
@@ -84,6 +85,8 @@ import { startRegistryServer } from "./core/registry-api.js";
 import { auditLoadout, formatAuditReport } from "./core/audit.js";
 import {
   ADAPTER_CAPABILITIES,
+  buildAdapterCapabilityGaps,
+  formatAdapterCapabilityGaps,
   formatCapabilityMatrix,
 } from "./core/adapters.js";
 import {
@@ -223,6 +226,26 @@ import {
   createCredentialResolver,
   createOsCredentialStore,
 } from "./core/credentials.js";
+import {
+  buildCandidateDossier,
+  buildCatalogProposal,
+  formatCandidateDossier,
+  formatCandidateSummaries,
+  listDiscoveryCandidates,
+  readCandidateDossier,
+  verifyCandidateDossierSource,
+  writeCandidateDossier,
+} from "./core/candidate-intelligence.js";
+import {
+  applyCatalogRelease,
+  formatCatalogReleasePreview,
+  previewCatalogRelease,
+} from "./core/catalog-release.js";
+import type { OperatingSystem, PackageTier } from "./shared/types.js";
+import {
+  recoverPendingTransactions,
+  withMutationLock,
+} from "./core/transaction.js";
 
 const collectOption = (value: string, previous: string[] = []): string[] => [
   ...previous,
@@ -432,7 +455,11 @@ program
   // or version output. Large top-level help can then be truncated to one pipe
   // buffer when Loadout is invoked by another process. Keep control in this
   // module so Node has time to flush stdout before exiting naturally.
-  .exitOverride();
+  .exitOverride()
+  // The catch block below is the single error renderer. Commander otherwise
+  // writes its own parse error first, producing two stderr documents and
+  // breaking --json-errors consumers.
+  .configureOutput({ writeErr: () => undefined });
 
 program
   .command("setup")
@@ -1233,19 +1260,49 @@ program
   .command("recommend")
   .description("Recommend catalog packages from local project signals")
   .option("--project <path>", "project directory", process.cwd())
+  .option(
+    "--agent <id>",
+    "personalize with local-only outcomes recorded for one supported agent",
+  )
   .option("--json", "emit machine-readable JSON")
-  .action(async (options: { project: string; json?: boolean }) => {
-    const signals = await scanProject(options.project);
-    const recommendations = recommendPackages(
-      signals,
-      await loadEffectiveCatalog(),
-    );
-    console.log(
-      options.json
-        ? JSON.stringify({ signals, recommendations }, null, 2)
-        : formatRecommendations(signals, recommendations),
-    );
-  });
+  .action(
+    async (options: { project: string; agent?: string; json?: boolean }) => {
+      const signals = await scanProject(options.project);
+      let recommendations = recommendPackages(
+        signals,
+        await loadEffectiveCatalog(),
+      );
+      if (options.agent) {
+        const agents = parseAgentSelection(options.agent)!;
+        if (agents.length !== 1)
+          throw new Error("--agent accepts exactly one id");
+        recommendations = personalizeRecommendations(
+          recommendations,
+          signals,
+          await readLocalOutcomes(),
+          agents[0],
+        );
+      }
+      console.log(
+        options.json
+          ? JSON.stringify(
+              {
+                signals,
+                recommendations,
+                personalization: options.agent
+                  ? {
+                      agent: options.agent,
+                      privacy: "local-only-no-project-or-content",
+                    }
+                  : undefined,
+              },
+              null,
+              2,
+            )
+          : formatRecommendations(signals, recommendations),
+      );
+    },
+  );
 
 program
   .command("profiles")
@@ -1651,27 +1708,43 @@ program
     "--inspect",
     "also inspect managed component directories on this machine",
   )
-  .action(async (options: { json?: boolean; inspect?: boolean }) => {
-    if (!options.inspect)
-      return console.log(
-        options.json
-          ? JSON.stringify(ADAPTER_CAPABILITIES, null, 2)
-          : formatCapabilityMatrix(),
+  .option(
+    "--gaps",
+    "show the evidence-gated backlog for unsupported adapter combinations",
+  )
+  .action(
+    async (options: { json?: boolean; inspect?: boolean; gaps?: boolean }) => {
+      if (options.gaps) {
+        if (options.inspect)
+          throw new Error("Choose either --inspect or --gaps");
+        const gaps = buildAdapterCapabilityGaps();
+        return console.log(
+          options.json
+            ? JSON.stringify(gaps, null, 2)
+            : formatAdapterCapabilityGaps(),
+        );
+      }
+      if (!options.inspect)
+        return console.log(
+          options.json
+            ? JSON.stringify(ADAPTER_CAPABILITIES, null, 2)
+            : formatCapabilityMatrix(),
+        );
+      const inventory = await inspectAgents(await detectAgents());
+      if (options.json)
+        return console.log(
+          JSON.stringify(
+            { capabilities: ADAPTER_CAPABILITIES, inventory },
+            null,
+            2,
+          ),
+        );
+      console.log(
+        `${formatCapabilityMatrix()}\n\nLocal managed-component inventory:`,
       );
-    const inventory = await inspectAgents(await detectAgents());
-    if (options.json)
-      return console.log(
-        JSON.stringify(
-          { capabilities: ADAPTER_CAPABILITIES, inventory },
-          null,
-          2,
-        ),
-      );
-    console.log(
-      `${formatCapabilityMatrix()}\n\nLocal managed-component inventory:`,
-    );
-    for (const item of inventory) console.log(formatAgentInventory(item));
-  });
+      for (const item of inventory) console.log(formatAgentInventory(item));
+    },
+  );
 
 program
   .command("doctor")
@@ -1778,6 +1851,263 @@ program
       for (const failure of result.observationFailures)
         console.error(
           `Warning: could not record release observation for ${failure.repository}: ${failure.error}`,
+        );
+    },
+  );
+
+const candidate = program
+  .command("candidate")
+  .description(
+    "Triage and statically inspect daily discovery candidates; never auto-promotes",
+  );
+
+candidate
+  .command("list")
+  .allowExcessArguments(false)
+  .description(
+    "Rank discovery leads for human triage, not as universal quality",
+  )
+  .option("--limit <count>", "maximum candidates", "20")
+  .option("--query <words>", "require all search words")
+  .option("--include-reviewed", "include repositories already in the catalog")
+  .option("--feed <path>", "alternate discovered.json evidence feed")
+  .option("--json", "emit machine-readable JSON")
+  .action(
+    async (options: {
+      limit: string;
+      query?: string;
+      includeReviewed?: boolean;
+      feed?: string;
+      json?: boolean;
+    }) => {
+      const limit = Number(options.limit);
+      if (!Number.isInteger(limit) || limit < 1 || limit > 500)
+        throw new Error("--limit must be an integer from 1 to 500");
+      const result = await listDiscoveryCandidates({
+        limit,
+        query: options.query,
+        includeReviewed: options.includeReviewed,
+        path: options.feed,
+      });
+      console.log(
+        options.json
+          ? JSON.stringify(result, null, 2)
+          : formatCandidateSummaries(result),
+      );
+    },
+  );
+
+candidate
+  .command("inspect")
+  .allowExcessArguments(false)
+  .description(
+    "Clone one lead at an immutable commit and build a static evidence dossier",
+  )
+  .argument("<repository>", "owner/repository present in the discovery feed")
+  .option("--feed <path>", "alternate discovered.json evidence feed")
+  .option("--write", "persist the dossier in private Loadout state")
+  .option("--output <path>", "persist at an explicit path (implies --write)")
+  .option("--json", "emit the complete dossier as JSON")
+  .action(
+    async (
+      repository: string,
+      options: {
+        feed?: string;
+        write?: boolean;
+        output?: string;
+        json?: boolean;
+      },
+    ) => {
+      const dossier = await buildCandidateDossier(repository, {
+        discoveryPath: options.feed,
+      });
+      const path =
+        options.write || options.output
+          ? await writeCandidateDossier(dossier, options.output)
+          : undefined;
+      if (options.json)
+        return console.log(
+          JSON.stringify(
+            {
+              dossier,
+              persisted: Boolean(path),
+              ...(path ? { path } : {}),
+            },
+            null,
+            2,
+          ),
+        );
+      console.log(formatCandidateDossier(dossier));
+      if (path) console.log(`Dossier: ${path}`);
+      else {
+        console.log(
+          "Preview only. Re-run with --write to persist this dossier.",
+        );
+      }
+    },
+  );
+
+candidate
+  .command("propose")
+  .allowExcessArguments(false)
+  .description(
+    "Convert a reviewed dossier into a catalog-record proposal; never edits the catalog",
+  )
+  .argument("<dossier>", "persisted candidate dossier JSON")
+  .requiredOption("--id <id>", "lowercase kebab-case catalog id")
+  .requiredOption("--category <category>", "reviewed catalog category")
+  .requiredOption(
+    "--platforms <ids>",
+    "explicitly reviewed comma-separated platforms: windows,macos,linux",
+  )
+  .option("--display-name <name>", "reviewed display name")
+  .option("--description <text>", "reviewed description")
+  .option("--license <spdx>", "human-reviewed license override")
+  .option(
+    "--tier <tier>",
+    "official, stable, trending, or community",
+    "community",
+  )
+  .option("--approve", "confirm human review and write the proposal")
+  .option(
+    "--output <path>",
+    "proposal JSON output path; required with --approve",
+  )
+  .option("--json", "emit machine-readable JSON")
+  .action(
+    async (
+      dossierPath: string,
+      options: {
+        id: string;
+        category: string;
+        platforms: string;
+        displayName?: string;
+        description?: string;
+        license?: string;
+        tier: string;
+        approve?: boolean;
+        output?: string;
+        json?: boolean;
+      },
+    ) => {
+      const platforms = options.platforms
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean);
+      const knownPlatforms = new Set(["windows", "macos", "linux"]);
+      if (platforms.some((item) => !knownPlatforms.has(item)))
+        throw new Error("--platforms supports only windows, macos, and linux");
+      const knownTiers = new Set([
+        "official",
+        "stable",
+        "trending",
+        "community",
+      ]);
+      if (!knownTiers.has(options.tier)) throw new Error("--tier is invalid");
+      if (options.approve && !options.output)
+        throw new Error(
+          "--approve requires --output so catalog mutation stays separate",
+        );
+      const proposal = buildCatalogProposal(
+        await verifyCandidateDossierSource(
+          await readCandidateDossier(dossierPath),
+        ),
+        {
+          id: options.id,
+          category: options.category,
+          operatingSystems: platforms as OperatingSystem[],
+          tier: options.tier as PackageTier,
+          displayName: options.displayName,
+          description: options.description,
+          license: options.license,
+        },
+        await loadEffectiveCatalog(),
+      );
+      const output = options.approve ? resolve(options.output!) : undefined;
+      if (output)
+        await writeFileAtomically(
+          output,
+          `${JSON.stringify(proposal, null, 2)}\n`,
+        );
+      if (options.json)
+        return console.log(
+          JSON.stringify(
+            {
+              proposal,
+              approved: Boolean(output),
+              catalogMutated: false,
+              ...(output ? { output } : {}),
+            },
+            null,
+            2,
+          ),
+        );
+      console.log(JSON.stringify(proposal, null, 2));
+      if (!output)
+        console.log(
+          "Proposal preview only. Human review is still required; use --approve --output <path> to persist it.",
+        );
+      else console.log(`Approved proposal written to ${output}.`);
+    },
+  );
+
+program
+  .command("catalog-update")
+  .allowExcessArguments(false)
+  .description(
+    "Verify, diff, and explicitly apply a signed catalog release from a file or HTTPS",
+  )
+  .requiredOption("--source <path-or-url>", "signed catalog envelope")
+  .requiredOption("--public-key <path>", "trusted Ed25519 public key")
+  .option("--yes", "atomically apply after signature and evidence validation")
+  .option(
+    "--allow-removals",
+    "explicitly allow reviewed packages to be removed by this release",
+  )
+  .option("--json", "emit machine-readable preview")
+  .action(
+    async (options: {
+      source: string;
+      publicKey: string;
+      yes?: boolean;
+      allowRemovals?: boolean;
+      json?: boolean;
+    }) => {
+      const preview = await previewCatalogRelease({
+        source: options.source,
+        publicKeyPath: options.publicKey,
+        currentCatalog: await loadEffectiveCatalog(),
+      });
+      const result = options.yes
+        ? await applyCatalogRelease(preview, {
+            allowRemovals: options.allowRemovals,
+          })
+        : undefined;
+      if (options.json)
+        return console.log(
+          JSON.stringify(
+            {
+              source: preview.source,
+              createdAt: preview.createdAt,
+              fingerprint: preview.fingerprint,
+              packageCount: preview.packageCount,
+              diff: result?.diff ?? preview.diff,
+              replay: preview.replay,
+              applied: Boolean(result),
+              ...(result
+                ? { path: result.path, snapshotId: result.snapshotId }
+                : {}),
+            },
+            null,
+            2,
+          ),
+        );
+      console.log(formatCatalogReleasePreview(preview));
+      if (!result)
+        console.log("Preview only. Re-run with --yes to trust this release.");
+      else
+        console.log(
+          `Applied signed catalog atomically. Snapshot: ${result.snapshotId}\nState: ${result.path}`,
         );
     },
   );
@@ -3136,17 +3466,20 @@ program
   .option("--snapshot <id>", "specific snapshot id")
   .option("--list", "list snapshot ids without restoring anything")
   .action(async (options: { snapshot?: string; list?: boolean }) => {
-    const snapshotIds = await listSnapshotIds();
     if (options.list) {
+      const snapshotIds = await listSnapshotIds();
       if (!snapshotIds.length)
         return console.log("No Loadout snapshots found.");
       for (const id of snapshotIds) console.log(id);
       return;
     }
-    const selected = options.snapshot ?? snapshotIds.at(-1);
-    if (!selected) throw new Error("No Loadout snapshots found");
-    const snapshot = await readSnapshot(selected);
-    await restoreSnapshot(snapshot);
+    const selected = await withMutationLock(async () => {
+      const snapshotIds = await listSnapshotIds();
+      const chosen = options.snapshot ?? snapshotIds.at(-1);
+      if (!chosen) throw new Error("No Loadout snapshots found");
+      await restoreSnapshot(await readSnapshot(chosen));
+      return chosen;
+    });
     console.log(`Restored snapshot ${selected}`);
   });
 
@@ -3334,6 +3667,7 @@ program
 program.action(() => runSetup({ package: [] }));
 
 try {
+  await recoverPendingTransactions();
   await program.parseAsync();
 } catch (error) {
   if (

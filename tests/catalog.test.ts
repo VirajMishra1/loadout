@@ -295,6 +295,19 @@ describe("catalog refresh", () => {
     );
   });
 
+  it("never lets unsigned refresh metadata unarchive a signed or bundled package", async () => {
+    home = await mkdtemp(`${tmpdir()}/loadout-catalog-archive-`);
+    process.env.LOADOUT_HOME = home;
+    const bundled = await loadCatalog();
+    const path = join(home, "base.json");
+    await writeFile(path, JSON.stringify([{ ...bundled[0], archived: true }]));
+    await writeFile(
+      join(home, "catalog.json"),
+      JSON.stringify([{ ...bundled[0], archived: false }]),
+    );
+    expect((await loadEffectiveCatalog(path))[0].archived).toBe(true);
+  });
+
   it("keeps the known package when GitHub refresh fails", async () => {
     home = await mkdtemp(`${tmpdir()}/loadout-catalog-`);
     process.env.LOADOUT_HOME = home;

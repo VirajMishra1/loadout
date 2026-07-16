@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+import { readFile } from "node:fs/promises";
 import { dirname, resolve, sep } from "node:path";
 import type {
   AgentId,
@@ -24,24 +26,23 @@ import {
   packPackage,
   resolveRegistryPackage,
 } from "./registry.js";
-import { createSnapshot } from "./snapshot.js";
 import {
   discoverMcpManifests,
   planMcpConfigBatch,
   writeMcpConfigPlan,
 } from "./mcp.js";
 import { applySkillPlan, detectInstallConflicts } from "./skills.js";
-import { installStatePath, recordInstallTransaction } from "./state.js";
 import {
-  beginTransaction,
-  completeTransaction,
-  markTransactionCommitting,
-  recoverPendingTransactions,
-  rollbackTransaction,
-} from "./transaction.js";
+  installStatePath,
+  readInstallState,
+  recordInstallTransaction,
+} from "./state.js";
+import { runMutationTransaction } from "./transaction.js";
 
 export interface SyncPlan {
   manifest: string;
+  manifestSha256?: string;
+  installStateSha256?: string;
   resolvedManifest?: LoadoutManifest;
   packages: Array<InstallBatchEntry & { safety: UpdateSafetyAnalysis }>;
   mcpPlans: Array<{ packageId: string; plan: McpConfigPlan }>;
@@ -303,6 +304,9 @@ async function resolvePackage(
 export async function buildSyncPlan(
   manifestPath = "loadout.json",
 ): Promise<SyncPlan> {
+  const manifestSha256 = createHash("sha256")
+    .update(await readFile(resolve(manifestPath)))
+    .digest("hex");
   const manifest = await expandRegistryDependencies(
     await readManifest(manifestPath),
   );
@@ -420,8 +424,13 @@ export async function buildSyncPlan(
       safety,
     });
   }
+  const installStateSha256 = createHash("sha256")
+    .update(JSON.stringify(await readInstallState()))
+    .digest("hex");
   return {
     manifest: manifestPath,
+    manifestSha256,
+    installStateSha256,
     resolvedManifest: manifest,
     packages,
     mcpPlans,
@@ -460,41 +469,52 @@ export async function applySyncPlan(
     throw new Error(
       `Synchronization has blocking target conflicts: ${blockingConflicts.map((conflict) => conflict.message).join("; ")}`,
     );
-  // Recovery must also run for an otherwise empty synchronization. A process
-  // may have died after the previous transaction began but before it was able
-  // to remove its journal.
-  await recoverPendingTransactions();
-  if (!plan.packages.length && !plan.mcpPlans.length) {
-    await writeLockfile(
-      plan.resolvedManifest ?? (await readManifest(plan.manifest)),
-      lockPath,
-    );
-    return { lockfile: lockPath };
-  }
-  const targets = [
-    ...plan.packages.flatMap((entry) =>
-      entry.plan.files.map((file) => file.target),
-    ),
-    ...plan.mcpPlans.map((entry) => entry.plan.path),
-    installStatePath(),
-    resolve(lockPath),
-  ];
-  const snapshot = await createSnapshot(targets);
-  const transaction = await beginTransaction(snapshot, targets);
-  try {
-    await markTransactionCommitting(transaction);
-    for (const entry of plan.packages)
-      if (entry.plan.files.length) await applySkillPlan(entry.plan);
-    for (const entry of plan.mcpPlans) await writeMcpConfigPlan(entry.plan);
-    await recordInstallTransaction(plan.packages, plan.mcpPlans, snapshot.id);
-    await writeLockfile(
-      plan.resolvedManifest ?? (await readManifest(plan.manifest)),
-      lockPath,
-    );
-    await completeTransaction(transaction);
-  } catch (error) {
-    await rollbackTransaction(transaction);
-    throw error;
-  }
-  return { snapshotId: snapshot.id, lockfile: lockPath };
+  const applied = await runMutationTransaction(
+    async () => {
+      const currentManifestSha256 = createHash("sha256")
+        .update(await readFile(resolve(plan.manifest)))
+        .digest("hex");
+      if (plan.manifestSha256 && currentManifestSha256 !== plan.manifestSha256)
+        throw new Error(
+          "Manifest changed after synchronization preview; build the plan again.",
+        );
+      const currentStateSha256 = createHash("sha256")
+        .update(JSON.stringify(await readInstallState()))
+        .digest("hex");
+      if (
+        plan.installStateSha256 &&
+        currentStateSha256 !== plan.installStateSha256
+      )
+        throw new Error(
+          "Installed state changed after synchronization preview; build the plan again.",
+        );
+      return {
+        targets: [
+          ...plan.packages.flatMap((entry) =>
+            entry.plan.files.map((file) => file.target),
+          ),
+          ...plan.mcpPlans.map((entry) => entry.plan.path),
+          installStatePath(),
+          resolve(lockPath),
+        ],
+        value: plan,
+      };
+    },
+    async (freshPlan, snapshot) => {
+      for (const entry of freshPlan.packages)
+        if (entry.plan.files.length) await applySkillPlan(entry.plan);
+      for (const entry of freshPlan.mcpPlans)
+        await writeMcpConfigPlan(entry.plan);
+      await recordInstallTransaction(
+        freshPlan.packages,
+        freshPlan.mcpPlans,
+        snapshot.id,
+      );
+      await writeLockfile(
+        freshPlan.resolvedManifest ?? (await readManifest(freshPlan.manifest)),
+        lockPath,
+      );
+    },
+  );
+  return { snapshotId: applied.snapshotId, lockfile: lockPath };
 }

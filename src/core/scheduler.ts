@@ -283,7 +283,7 @@ export async function applyNativeScheduler(
 ): Promise<string> {
   await recoverPendingTransactions();
   const paths = plan.files.map((file) => file.path);
-  const snapshot = await createSnapshot(paths);
+  const snapshot = await createSnapshot(paths, { persist: false });
   const transaction = await beginTransaction(snapshot, paths);
   try {
     await markTransactionCommitting(transaction);

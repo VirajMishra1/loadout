@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { formatTerminalTable, terminalWidth } from "../src/core/terminal.js";
+import {
+  formatTerminalTable,
+  safeTerminalText,
+  terminalWidth,
+} from "../src/core/terminal.js";
 
 describe("terminal output policy", () => {
   it("clamps supported terminal widths from 80 through 200", () => {
@@ -31,5 +35,13 @@ describe("terminal output policy", () => {
       expect(output).not.toContain("\u001b[");
       expect(output).toContain("…");
     }
+  });
+
+  it("strips ANSI, OSC clipboard, and multiline control sequences", () => {
+    expect(
+      safeTerminalText(
+        "safe\u001b[31mred\u001b[0m\u001b]52;c;payload\u0007\nnext",
+      ),
+    ).toBe("safered next");
   });
 });

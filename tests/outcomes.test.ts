@@ -37,7 +37,9 @@ describe("privacy-safe local outcomes", () => {
     );
     const store = await readLocalOutcomes();
     expect(store.events[0]).toEqual({
-      id: expect.stringMatching(/-1$/),
+      id: expect.stringMatching(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+      ),
       recordedAt: "2026-07-15T00:00:00.000Z",
       selector: "collection/test-skill",
       agent: "codex",
@@ -57,6 +59,24 @@ describe("privacy-safe local outcomes", () => {
       outcomeAdjustment(store, "collection/test-skill", "codex", ["python"])
         .score,
     ).toBe(0);
+  });
+
+  it("serializes concurrent outcome writes without losing events", async () => {
+    root = await mkdtemp(join(tmpdir(), "loadout-outcomes-concurrent-"));
+    process.env.LOADOUT_HOME = root;
+    await Promise.all(
+      Array.from({ length: 12 }, (_, index) =>
+        recordLocalOutcome({
+          selector: `collection/skill-${index}`,
+          agent: "codex",
+          taskFamily: "general",
+          result: "success",
+        }),
+      ),
+    );
+    const store = await readLocalOutcomes();
+    expect(store.events).toHaveLength(12);
+    expect(new Set(store.events.map((event) => event.id)).size).toBe(12);
   });
 
   it("rejects paths instead of storing them as selectors", async () => {

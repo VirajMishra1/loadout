@@ -1,8 +1,19 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { mkdtemp, readFile, rm, mkdir, writeFile } from "node:fs/promises";
+import {
+  mkdtemp,
+  readFile,
+  rm,
+  mkdir,
+  symlink,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { recordInstall, readInstallState } from "../src/core/state.js";
+import {
+  hashDirectory,
+  recordInstall,
+  readInstallState,
+} from "../src/core/state.js";
 import type { InstallPlan } from "../src/shared/types.js";
 
 describe("install state", () => {
@@ -52,5 +63,18 @@ describe("install state", () => {
         await readFile(join(process.env.LOADOUT_HOME, "state.json"), "utf8"),
       ).version,
     ).toBe(1);
+  });
+
+  it("rejects symlinks instead of treating traversal failures as an empty tree", async () => {
+    root = await mkdtemp(join(tmpdir(), "loadout-state-symlink-"));
+    const target = join(root, "skills", "demo");
+    const outside = join(root, "outside.md");
+    await mkdir(target, { recursive: true });
+    await writeFile(outside, "outside content");
+    await symlink(outside, join(target, "linked.md"));
+
+    await expect(hashDirectory(target)).rejects.toThrow(
+      /Refusing symlink while hashing installed files/,
+    );
   });
 });

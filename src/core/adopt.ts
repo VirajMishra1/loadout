@@ -6,14 +6,7 @@ import type { CatalogSkillIndex, SkillProvenance } from "./provenance.js";
 import { enrichInventoryWithProvenance } from "./provenance.js";
 import { scanInstalledSkills } from "./skill-inventory.js";
 import { installStatePath, recordInstall } from "./state.js";
-import { createSnapshot } from "./snapshot.js";
-import {
-  beginTransaction,
-  completeTransaction,
-  markTransactionCommitting,
-  recoverPendingTransactions,
-  rollbackTransaction,
-} from "./transaction.js";
+import { runMutationTransaction } from "./transaction.js";
 
 export interface AdoptionPlan {
   packageId: string;
@@ -107,30 +100,28 @@ export async function planSkillAdoption(
 }
 
 export async function applySkillAdoption(plan: AdoptionPlan): Promise<string> {
-  const current = createHash("sha256")
-    .update(await readFile(join(plan.path, "SKILL.md")))
-    .digest("hex");
-  if (current !== plan.fingerprint)
-    throw new Error(
-      "The skill changed after preview; scan again before adopting it.",
-    );
-  await recoverPendingTransactions();
-  const targets = [installStatePath()];
-  const snapshot = await createSnapshot(targets);
-  const transaction = await beginTransaction(snapshot, targets);
-  try {
-    await markTransactionCommitting(transaction);
-    await recordInstall(plan.installPlan, snapshot.id, {
-      ...(plan.repository ? { repository: plan.repository } : {}),
-      ...(plan.resolvedCommit ? { resolvedCommit: plan.resolvedCommit } : {}),
-      reviewed: plan.reviewed,
-    });
-    await completeTransaction(transaction);
-  } catch (error) {
-    await rollbackTransaction(transaction);
-    throw error;
-  }
-  return snapshot.id;
+  const applied = await runMutationTransaction(
+    async () => {
+      const current = createHash("sha256")
+        .update(await readFile(join(plan.path, "SKILL.md")))
+        .digest("hex");
+      if (current !== plan.fingerprint)
+        throw new Error(
+          "The skill changed after preview; scan again before adopting it.",
+        );
+      return { targets: [installStatePath()], value: plan };
+    },
+    async (freshPlan, snapshot) => {
+      await recordInstall(freshPlan.installPlan, snapshot.id, {
+        ...(freshPlan.repository ? { repository: freshPlan.repository } : {}),
+        ...(freshPlan.resolvedCommit
+          ? { resolvedCommit: freshPlan.resolvedCommit }
+          : {}),
+        reviewed: freshPlan.reviewed,
+      });
+    },
+  );
+  return applied.snapshotId;
 }
 
 export function formatAdoptionPlan(plan: AdoptionPlan): string {

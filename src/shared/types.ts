@@ -343,6 +343,9 @@ export interface PackageRecommendation {
   packageId: string;
   reason: string;
   confidence: "high" | "medium" | "low";
+  /** Local-only evidence adjustment; never presented as universal quality. */
+  localOutcomeAdjustment?: number;
+  evidence?: string[];
 }
 
 /** A read-only, normalized MCP server definition. Secrets are retained only in memory. */
@@ -371,6 +374,8 @@ export interface McpConfigChange {
 
 export interface McpConfigPlan {
   path: string;
+  /** Hash of the exact pre-plan bytes, or the canonical missing marker. */
+  baseSha256?: string;
   serverName: string;
   changes: McpConfigChange[];
   warnings: string[];

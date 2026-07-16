@@ -9,6 +9,7 @@ import {
   fetchRepositorySnapshot,
   normalizeRepository,
   repositoryCachePath,
+  validateGitHubTreeBounds,
 } from "../src/core/source.js";
 
 const exec = promisify(execFile);
@@ -87,6 +88,14 @@ describe("repository sources", () => {
         commit,
         path: cached,
       });
+      await expect(
+        fetchRepositorySnapshot("example/unpublished-fixture", {
+          ref: commit,
+          maxBytes: 1,
+          maxFiles: 10,
+          timeoutMs: 5_000,
+        }),
+      ).rejects.toThrow(/byte inspection limit/);
     } finally {
       if (previous === undefined) delete process.env.LOADOUT_HOME;
       else process.env.LOADOUT_HOME = previous;
@@ -104,6 +113,9 @@ describe("repository sources", () => {
     await expect(fetchGitSnapshot("--upload-pack=bad")).rejects.toThrow(
       /Invalid Git URL/,
     );
+    await expect(
+      fetchGitSnapshot("https://example.com/repo.git", { maxBytes: 1 }),
+    ).rejects.toThrow(/refusing an unbounded generic Git clone/);
   });
 
   it("rejects credential-bearing generic Git URLs before invoking Git", async () => {
@@ -113,5 +125,38 @@ describe("repository sources", () => {
     await expect(
       fetchGitSnapshot("https://token@example.com/team/repo.git"),
     ).rejects.toThrow(/must not embed credentials/);
+  });
+
+  it("rejects oversized or truncated GitHub trees before checkout", () => {
+    expect(() =>
+      validateGitHubTreeBounds(
+        {
+          truncated: false,
+          tree: [
+            { type: "blob", path: "one", size: 6 },
+            { type: "blob", path: "two", size: 6 },
+          ],
+        },
+        { maxBytes: 10, maxFiles: 10 },
+      ),
+    ).toThrow(/byte inspection limit/);
+    expect(() =>
+      validateGitHubTreeBounds(
+        {
+          truncated: false,
+          tree: [
+            { type: "blob", path: "one", size: 1 },
+            { type: "blob", path: "two", size: 1 },
+          ],
+        },
+        { maxBytes: 10, maxFiles: 1 },
+      ),
+    ).toThrow(/file inspection limit/);
+    expect(() =>
+      validateGitHubTreeBounds(
+        { truncated: true, tree: [] },
+        { maxBytes: 10, maxFiles: 1 },
+      ),
+    ).toThrow(/truncated/);
   });
 });

@@ -42,6 +42,13 @@ function fingerprint(publicKey: ReturnType<typeof createPublicKey>): string {
     .digest("hex")}`;
 }
 
+export function publicKeyFingerprint(publicKeyPem: string): string {
+  const publicKey = createPublicKey(publicKeyPem);
+  if (publicKey.asymmetricKeyType !== "ed25519")
+    throw new Error("Signing public key must be Ed25519");
+  return fingerprint(publicKey);
+}
+
 export function signPayload<T>(
   payload: T,
   privateKeyPem: string,

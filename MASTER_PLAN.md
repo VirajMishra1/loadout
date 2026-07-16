@@ -1075,6 +1075,53 @@ universal or permanent truth.
     two-agent test-drive installs at the pinned Superpowers commit and rolls back its
     temporary profile.
 
+### Phase 14: Candidate intelligence and trusted catalog delivery
+
+- [x] `P14-01 [TERRA]` Turn the generated discovery feed into an explainable candidate
+      triage CLI.
+  - `candidate list` validates the feed, supports bounded search/limits, distinguishes
+    measured velocity from lifetime averages, and discloses that adoption evidence is
+    not quality or safety evidence.
+- [x] `P14-02 [TERRA]` Build immutable static candidate dossiers.
+  - `candidate inspect` resolves a real public repository to a full commit and records
+    portable component paths, static evaluation, license, growth, catalog overlap,
+    uncertainty, and human-review blockers without executing candidate content.
+  - Git fetch is time-bounded; system/global Git config, templates, hooks, credential
+    helpers, inherited `GIT_*` overrides, and LFS smudging are isolated. A bounded
+    GitHub tree-API preflight must prove every blob size and a total below 100 MiB and
+    20,000 files before checkout.
+- [x] `P14-03 [TERRA]` Add a human-gated catalog proposal boundary.
+  - Blocked dossiers cannot produce proposals; platform/category/id claims are
+    explicit; the pinned source inspection and evaluation are recomputed before
+    admission; preview is default; approved output remains an isolated record and
+    never mutates the catalog or installs the source.
+- [x] `P14-04 [TERRA]` Make signed remote catalog releases operational.
+  - `catalog-update` accepts local files or bounded HTTPS, verifies Ed25519 signatures
+    and complete immutable evidence, previews exact additions/updates/removals, blocks
+    replay and implicit removals, then snapshots and atomically applies trusted state.
+  - Apply revalidates and recomputes under an exclusive lock, pins the first signing
+    key, preserves replay high-water across catalog rollback, and never lets unsigned
+    cached metadata clear a signed archive decision.
+  - Effective catalog loads re-verify the persisted envelope and merge only mutable
+    GitHub refresh metadata over the trusted signed base.
+- [x] `P14-05 [TERRA]` Connect local outcomes to normal recommendations and expose
+      adapter expansion gaps honestly.
+  - `recommend --agent` applies capped agent/task-scoped local evidence without adding
+    unreviewed candidates. `capabilities --gaps` lists unsupported combinations and
+    the documentation, preservation, transaction, and smoke evidence required before
+    support can be claimed.
+- [x] `P14-06 [TERRA]` Pass the full integrated gate and a live candidate dossier flow.
+  - Required: full verify, package smoke, CLI product flow, real current-feed list, one
+    live immutable candidate inspection, no source execution, and clean git state.
+  - `npm run verify:full` passes 77 test files/310 tests, evidence validation, CLI
+    product flow, package smoke, a 1,000-skill p95 of 1.54 seconds, and Playwright;
+    the catalog carries 50 credited immutable records and the current discovery feed
+    contains 242 validated leads. A disposable live inspection pinned
+    `Leonxlnx/taste-skill` at commit
+    `b17742737e796305d829b3ad39eda3add0d79060`, found 13 skills and one plugin,
+    surfaced script/network/environment review findings and five catalog overlaps,
+    and executed or installed none of the source.
+
 ## 19. Seven-day schedule
 
 ### Day 1: Foundation
@@ -1224,27 +1271,25 @@ small PRs, no long-lived branches.
 
 ## 25. Immediate next tasks
 
-1. Complete P12-15 through P12-18: category-specific signed evaluations, daily
-   multi-source queue refresh, star-velocity prioritization, and evaluation-backed
-   replacement alerts.
-2. Complete P12-22 and P12-23: reviewed MCP recipes, connection verification, and
-   selected native keychain backends.
-3. Finish P12-26, P12-27, and P12-29: CLI polish, CLI-first demo, at least 50
-   reviewed catalog records, and capability coverage metrics.
-4. Fix and regression-test every issue found by real Claude/Codex founder testing
-   before expanding the default catalog or enabling scheduled work.
-5. Complete P10-05 through P10-10: license review, demo recording, Codex usage
-   explanation, feedback session ID, Devpost fields, and submission.
-6. Have the repository owner choose npm publishing credentials, publish
-   `loadout-ai`, and immediately verify the interactive `npx loadout-ai` setup from
-   outside the repository on clean machines.
-7. Resolve P0-05 when repository visibility or the GitHub plan permits branch
-   protection.
-8. Implement P11-17 only after selecting and threat-modeling real macOS, Windows,
-   and Linux keychain integrations.
-9. Design and add the six P11-21 adapters from official path/config documentation;
-   do not infer support from repository popularity.
-10. Expand P1-11 with reviewed skill and MCP sources, measuring unique capabilities and
-    overlap rather than treating GitHub stars or raw repository count as quality.
-11. Run real user testing from disposable profiles, record every failure, and feed
-    reproducible defects into `loadout improve` and the regression suite.
+1. Run P12-32 founder testing from disposable profiles first, then on the owner's real
+   Codex and Claude installations with a recorded pre-test snapshot and rollback
+   checkpoint. Exercise every track in `docs/FEATURE_TEST_MATRIX.md`.
+2. Turn every reproducible founder-test failure into a regression test and fix it
+   before catalog expansion, npm publication, or scheduled automation is enabled.
+3. Complete P12-30: review the six `NOASSERTION` records and all attribution/license
+   presentation with a human authorized to make the release decision.
+4. Trigger the hosted macOS/Windows/Linux Node 20/22 matrix and resolve platform-only
+   failures. Local macOS Node 23 evidence does not replace that release gate.
+5. Have the repository owner publish `loadout-ai` with npm provenance, then run the
+   clean external `npx loadout-ai` flow immediately on all three operating systems.
+6. Run P12-33 external user tests across beginners, power users, one/many agents, and
+   all supported platforms; prioritize comprehension and rollback as well as success.
+7. Use `candidate list -> inspect -> propose` to review only candidates that close an
+   evidenced capability gap. Do not expand the catalog to maximize its raw count.
+8. Use `capabilities --gaps` to select adapter work only after official path/config
+   documentation exists; require preservation fixtures, transaction tests, and a real
+   disposable smoke test for every newly claimed component.
+9. Complete P10-05 through P10-10: demo recording, Codex usage explanation, feedback
+   session ID, Devpost fields, screenshots, and final submission review.
+10. Resolve P0-05 branch protection when repository visibility or the GitHub plan
+    permits it, and require teammate review for trust, transaction, and release code.

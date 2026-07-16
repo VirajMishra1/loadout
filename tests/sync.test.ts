@@ -240,10 +240,11 @@ describe("manifest synchronization", () => {
         packages: [],
       }),
     );
-    const snapshot = await createSnapshot([target]);
+    const snapshot = await createSnapshot([target], { persist: false });
     const transaction = await beginTransaction(snapshot, [target]);
     await markTransactionCommitting(transaction);
     await writeFile(target, "interrupted\n");
+    await transaction.mutationLock.release();
 
     await applySyncPlan(
       {

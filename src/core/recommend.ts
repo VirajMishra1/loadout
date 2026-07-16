@@ -1,11 +1,17 @@
 import { readFile, readdir } from "node:fs/promises";
 import { basename, resolve } from "node:path";
 import type {
+  AgentId,
   CatalogPackage,
   PackageRecommendation,
   ProjectSignals,
 } from "../shared/types.js";
 import { STABLE_BOOST_PACKAGE_IDS } from "./profiles.js";
+import {
+  packageOutcomeAdjustment,
+  projectTaskFamilies,
+  type LocalOutcomeStore,
+} from "./outcomes.js";
 
 const SIGNAL_FILES = new Set([
   "package.json",
@@ -123,6 +129,69 @@ export function recommendPackages(
       "medium",
     );
   return result;
+}
+
+function confidenceRank(
+  confidence: PackageRecommendation["confidence"],
+): number {
+  return { low: 0, medium: 1, high: 2 }[confidence];
+}
+
+function confidenceAt(rank: number): PackageRecommendation["confidence"] {
+  return (["low", "medium", "high"] as const)[Math.max(0, Math.min(2, rank))];
+}
+
+/**
+ * Personalize the explainable baseline with local outcomes only. A negative
+ * outcome can lower or reorder a recommendation, but it cannot introduce an
+ * unreviewed discovery candidate into the catalog.
+ */
+export function personalizeRecommendations(
+  recommendations: PackageRecommendation[],
+  signals: ProjectSignals,
+  outcomes: LocalOutcomeStore,
+  agent: AgentId,
+): PackageRecommendation[] {
+  const taskFamilies = projectTaskFamilies(signals);
+  return recommendations
+    .map((recommendation, originalIndex) => {
+      const adjustment = packageOutcomeAdjustment(
+        outcomes,
+        recommendation.packageId,
+        agent,
+        taskFamilies,
+      );
+      const confidenceShift =
+        adjustment.score >= 20 ? 1 : adjustment.score <= -20 ? -1 : 0;
+      return {
+        ...recommendation,
+        confidence: confidenceAt(
+          confidenceRank(recommendation.confidence) + confidenceShift,
+        ),
+        ...(adjustment.evidence.length
+          ? {
+              localOutcomeAdjustment: adjustment.score,
+              evidence: adjustment.evidence,
+              reason: `${recommendation.reason} Local outcomes adjusted confidence for ${agent}; they are not global quality evidence.`,
+            }
+          : {}),
+        _order: originalIndex,
+        _adjustment: adjustment.score,
+      };
+    })
+    .sort(
+      (left, right) =>
+        right._adjustment - left._adjustment || left._order - right._order,
+    )
+    .map((item) => ({
+      packageId: item.packageId,
+      reason: item.reason,
+      confidence: item.confidence,
+      ...(item.localOutcomeAdjustment !== undefined
+        ? { localOutcomeAdjustment: item.localOutcomeAdjustment }
+        : {}),
+      ...(item.evidence ? { evidence: item.evidence } : {}),
+    }));
 }
 
 export const TESTED_PROFILES: Record<

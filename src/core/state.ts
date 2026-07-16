@@ -134,7 +134,7 @@ function mergeActivationRecords(
   );
 }
 
-async function hashDirectory(
+export async function hashDirectory(
   root: string,
 ): Promise<Array<{ path: string; sha256: string }>> {
   const files: Array<{ path: string; sha256: string }> = [];
@@ -155,11 +155,24 @@ async function hashDirectory(
       }
     }
   }
+
+  let rootInfo;
   try {
-    if ((await stat(root)).isDirectory()) await visit(root);
-  } catch {
-    /* target may not exist after an empty plan */
+    rootInfo = await stat(root);
+  } catch (error) {
+    if (
+      error &&
+      typeof error === "object" &&
+      "code" in error &&
+      (error as { code?: string }).code === "ENOENT"
+    ) {
+      return [];
+    }
+    throw error;
   }
+
+  if (!rootInfo.isDirectory()) return [];
+  await visit(root);
   return files;
 }
 

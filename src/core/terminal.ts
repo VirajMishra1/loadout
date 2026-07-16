@@ -1,6 +1,21 @@
 const MIN_WIDTH = 80;
 const MAX_WIDTH = 200;
 
+/** Strip terminal control/escape sequences from untrusted human-readable text. */
+export function safeTerminalText(value: string): string {
+  return (
+    value
+      // eslint-disable-next-line no-control-regex
+      .replace(/\u001b\][^\u0007]*(?:\u0007|\u001b\\)/g, "")
+      // eslint-disable-next-line no-control-regex
+      .replace(/\u001b(?:\[[0-?]*[ -/]*[@-~]|[@-_])/g, "")
+      // eslint-disable-next-line no-control-regex
+      .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f]/g, "")
+      .replace(/[\r\n\t]+/g, " ")
+      .trim()
+  );
+}
+
 export function terminalWidth(value = process.stdout.columns): number {
   if (!Number.isFinite(value)) return 120;
   return Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, Math.floor(value!)));

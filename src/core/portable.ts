@@ -10,7 +10,7 @@ import { dirname, isAbsolute, resolve } from "node:path";
 import type { LoadoutLockfile, LoadoutManifest } from "../shared/types.js";
 import { parseLockfile, readLockfile } from "./audit.js";
 import { parseManifest, readManifest } from "./manifest.js";
-import { createSnapshot, restoreSnapshot } from "./snapshot.js";
+import { runMutationTransaction } from "./transaction.js";
 import { detectSecretKinds } from "./safety.js";
 
 export interface PortableLoadout {
@@ -131,59 +131,59 @@ export async function applyPortableImport(
   lockPath = "loadout.lock",
   options: { overwrite?: boolean } = {},
 ): Promise<{ plan: ImportPlan; snapshotId: string }> {
-  const { plan, bundle } = await planPortableImport(
-    source,
-    manifestPath,
-    lockPath,
-  );
-  const targets = [
-    plan.manifestPath,
-    ...(plan.lockPath ? [plan.lockPath] : []),
-  ];
-  if (!options.overwrite) {
-    for (const target of targets) {
-      try {
-        await lstat(target);
-        throw new Error(
-          `Refusing to overwrite existing file without --overwrite: ${target}`,
-        );
-      } catch (error) {
-        if (!(
-          error &&
-          typeof error === "object" &&
-          "code" in error &&
-          (error as { code?: string }).code === "ENOENT"
-        ))
-          throw error;
+  const applied = await runMutationTransaction(
+    async () => {
+      const prepared = await planPortableImport(source, manifestPath, lockPath);
+      const targets = [
+        prepared.plan.manifestPath,
+        ...(prepared.plan.lockPath ? [prepared.plan.lockPath] : []),
+      ];
+      if (!options.overwrite) {
+        for (const target of targets) {
+          try {
+            await lstat(target);
+            throw new Error(
+              `Refusing to overwrite existing file without --overwrite: ${target}`,
+            );
+          } catch (error) {
+            if (!(
+              error &&
+              typeof error === "object" &&
+              "code" in error &&
+              (error as { code?: string }).code === "ENOENT"
+            ))
+              throw error;
+          }
+        }
       }
-    }
-  }
-  const snapshot = await createSnapshot(targets);
-  const writes = [
-    { path: plan.manifestPath, value: bundle.manifest },
-    ...(plan.lockPath && bundle.lockfile
-      ? [{ path: plan.lockPath, value: bundle.lockfile }]
-      : []),
-  ];
-  const temporary: string[] = [];
-  try {
-    for (const entry of writes) {
-      await mkdir(dirname(entry.path), { recursive: true });
-      const temp = `${entry.path}.loadout-import-${process.pid}-${Date.now()}`;
-      temporary.push(temp);
-      await writeFile(temp, `${JSON.stringify(entry.value, null, 2)}\n`, {
-        flag: "wx",
-      });
-    }
-    for (let index = 0; index < writes.length; index += 1) {
-      if (options.overwrite) await rm(writes[index].path, { force: true });
-      await rename(temporary[index], writes[index].path);
-    }
-    return { plan, snapshotId: snapshot.id };
-  } catch (error) {
-    await restoreSnapshot(snapshot);
-    throw error;
-  } finally {
-    await Promise.all(temporary.map((path) => rm(path, { force: true })));
-  }
+      return { targets, value: prepared };
+    },
+    async ({ plan, bundle }) => {
+      const writes = [
+        { path: plan.manifestPath, value: bundle.manifest },
+        ...(plan.lockPath && bundle.lockfile
+          ? [{ path: plan.lockPath, value: bundle.lockfile }]
+          : []),
+      ];
+      const temporary: string[] = [];
+      try {
+        for (const entry of writes) {
+          await mkdir(dirname(entry.path), { recursive: true });
+          const temp = `${entry.path}.loadout-import-${process.pid}-${Date.now()}`;
+          temporary.push(temp);
+          await writeFile(temp, `${JSON.stringify(entry.value, null, 2)}\n`, {
+            flag: "wx",
+          });
+        }
+        for (let index = 0; index < writes.length; index += 1) {
+          if (options.overwrite) await rm(writes[index].path, { force: true });
+          await rename(temporary[index], writes[index].path);
+        }
+      } finally {
+        await Promise.all(temporary.map((path) => rm(path, { force: true })));
+      }
+      return plan;
+    },
+  );
+  return { plan: applied.result, snapshotId: applied.snapshotId };
 }

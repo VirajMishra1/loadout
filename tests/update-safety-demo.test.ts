@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
+import { createHash } from "node:crypto";
 import {
   access,
   cp,
@@ -11,7 +12,7 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { applyPackageUpdate } from "../src/core/update.js";
-import { readInstallState } from "../src/core/state.js";
+import { readInstallState, writeInstallState } from "../src/core/state.js";
 import type { DetectedAgent } from "../src/shared/types.js";
 
 const fixtureRoot = join(process.cwd(), "tests", "fixtures", "update-safety");
@@ -65,6 +66,10 @@ describe("safe update demo fixtures", () => {
     await cp(join(fixtureRoot, "benign-v1"), join(target, "ponytail-demo"), {
       recursive: true,
     });
+    const installedSkill = join(target, "ponytail-demo", "SKILL.md");
+    const installedSha256 = createHash("sha256")
+      .update(await readFile(installedSkill))
+      .digest("hex");
     await mkdir(process.env.LOADOUT_HOME, { recursive: true });
     await writeFile(
       join(process.env.LOADOUT_HOME, "state.json"),
@@ -76,7 +81,7 @@ describe("safe update demo fixtures", () => {
             repository: "owner/ponytail",
             resolvedCommit: oldCommit,
             targetAgents: ["codex"],
-            files: [],
+            files: [{ path: installedSkill, sha256: installedSha256 }],
             snapshotId: "initial",
             installedAt: "2026-07-14T00:00:00.000Z",
           },
@@ -176,5 +181,72 @@ describe("safe update demo fixtures", () => {
     expect((await readInstallState()).installs[0].resolvedCommit).toBe(
       oldCommit,
     );
+  });
+
+  it("refuses to resurrect a package removed while its update downloads", async () => {
+    const demo = await setup("benign-v2");
+    await expect(
+      applyPackageUpdate(
+        "ponytail-demo",
+        {},
+        {
+          ...demo.runtime,
+          fetchSnapshot: async () => {
+            await writeFile(
+              join(process.env.LOADOUT_HOME!, "state.json"),
+              JSON.stringify({ version: 1, installs: [] }),
+            );
+            return {
+              repository: "owner/ponytail",
+              commit: newCommit,
+              path: demo.source,
+            };
+          },
+        },
+      ),
+    ).rejects.toThrow(/changed while its update was prepared/);
+    expect((await readInstallState()).installs).toEqual([]);
+  });
+
+  it("preserves a local edit made while its update downloads", async () => {
+    const demo = await setup("benign-v2");
+    const skill = join(demo.target, "ponytail-demo", "SKILL.md");
+    await expect(
+      applyPackageUpdate(
+        "ponytail-demo",
+        {},
+        {
+          ...demo.runtime,
+          fetchSnapshot: async () => {
+            await writeFile(skill, "local edit during download\n");
+            return {
+              repository: "owner/ponytail",
+              commit: newCommit,
+              path: demo.source,
+            };
+          },
+        },
+      ),
+    ).rejects.toThrow(/files changed while its update was prepared/);
+    expect(await readFile(skill, "utf8")).toBe("local edit during download\n");
+  });
+
+  it("removes files deleted by the exact upstream revision", async () => {
+    const demo = await setup("benign-v2");
+    const deletedUpstream = join(
+      demo.target,
+      "ponytail-demo",
+      "removed-upstream.txt",
+    );
+    await writeFile(deletedUpstream, "old revision only\n");
+    const state = await readInstallState();
+    state.installs[0].files.push({
+      path: deletedUpstream,
+      sha256: createHash("sha256").update("old revision only\n").digest("hex"),
+    });
+    await writeInstallState(state);
+
+    await applyPackageUpdate("ponytail-demo", {}, demo.runtime);
+    expect(await exists(deletedUpstream)).toBe(false);
   });
 });

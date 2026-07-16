@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import {
   readFile,
   writeFile,
@@ -11,10 +11,16 @@ import { dirname, join, resolve, sep } from "node:path";
 import type { Snapshot } from "../shared/types.js";
 import { loadoutHome, ensureDirectory, userHome } from "./paths.js";
 
-export async function createSnapshot(paths: string[]): Promise<Snapshot> {
+export async function createSnapshot(
+  paths: string[],
+  options: { persist?: boolean } = {},
+): Promise<Snapshot> {
   const normalizedRoots = [...new Set(paths.map((path) => resolve(path)))];
   const snapshot: Snapshot = {
-    id: `${Date.now()}-${createHash("sha256").update(normalizedRoots.join("\n")).digest("hex").slice(0, 12)}`,
+    id: `${Date.now()}-${createHash("sha256")
+      .update(`${normalizedRoots.join("\n")}\0${randomUUID()}`)
+      .digest("hex")
+      .slice(0, 12)}`,
     createdAt: new Date().toISOString(),
     roots: normalizedRoots,
     files: [],
@@ -65,13 +71,15 @@ export async function createSnapshot(paths: string[]): Promise<Snapshot> {
   }
   for (const path of snapshot.roots) await capture(path);
   validateSnapshot(snapshot);
-  const directory = join(loadoutHome(), "snapshots");
-  await ensureDirectory(directory);
-  await writeFile(
-    join(directory, `${snapshot.id}.json`),
-    JSON.stringify(snapshot, null, 2),
-    { mode: 0o600 },
-  );
+  if (options.persist !== false) {
+    const directory = join(loadoutHome(), "snapshots");
+    await ensureDirectory(directory);
+    await writeFile(
+      join(directory, `${snapshot.id}.json`),
+      JSON.stringify(snapshot, null, 2),
+      { mode: 0o600 },
+    );
+  }
   return snapshot;
 }
 

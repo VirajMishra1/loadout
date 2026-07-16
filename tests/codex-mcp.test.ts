@@ -48,4 +48,15 @@ describe("Codex TOML MCP configuration", () => {
       "already exists",
     );
   });
+
+  it("refuses to overwrite TOML changed after preview", async () => {
+    const path = join(root, "config.toml");
+    await writeFile(path, 'model = "gpt-5"\n');
+    const plan = await planCodexMcpConfig(path, server);
+    await writeFile(path, 'model = "newer"\n');
+    await expect(applyCodexMcpConfigPlan(plan)).rejects.toThrow(
+      /changed after preview/,
+    );
+    expect(await readFile(path, "utf8")).toBe('model = "newer"\n');
+  });
 });

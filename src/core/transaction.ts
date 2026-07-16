@@ -7,10 +7,16 @@ import {
   rm,
   writeFile,
 } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import type { Snapshot } from "../shared/types.js";
 import { ensureDirectory, loadoutHome } from "./paths.js";
-import { readSnapshot, restoreSnapshot } from "./snapshot.js";
+import { createSnapshot, readSnapshot, restoreSnapshot } from "./snapshot.js";
+import {
+  acquireFileLock,
+  withFileLock,
+  type FileLockHandle,
+} from "./file-lock.js";
 
 /**
  * A small durable journal around filesystem mutations.  A directory rename is
@@ -22,6 +28,7 @@ export interface TransactionHandle {
   id: string;
   directory: string;
   snapshotId: string;
+  mutationLock: FileLockHandle;
 }
 
 interface TransactionJournal {
@@ -34,6 +41,10 @@ interface TransactionJournal {
 }
 
 export const transactionRoot = (): string => join(loadoutHome(), "staging");
+const transactionPreparingRoot = (): string =>
+  join(loadoutHome(), "staging-preparing");
+export const mutationLockPath = (): string =>
+  join(loadoutHome(), "mutation.lock");
 const journalPath = (directory: string): string =>
   join(directory, "transaction.json");
 const validId = (id: string): boolean => /^\d+-[a-f0-9]{12}$/.test(id);
@@ -93,21 +104,106 @@ async function readJournal(directory: string): Promise<TransactionJournal> {
 export async function beginTransaction(
   snapshot: Snapshot,
   targets: string[],
+  options: { mutationLock?: FileLockHandle } = {},
 ): Promise<TransactionHandle> {
+  const mutationLock = options.mutationLock ?? (await acquireMutationLock());
   const root = transactionRoot();
-  await ensureDirectory(root);
-  const directory = join(root, snapshot.id);
-  await mkdir(directory, { recursive: false });
-  const handle = { id: snapshot.id, directory, snapshotId: snapshot.id };
-  await writeJournal(directory, {
-    version: 1,
-    id: handle.id,
-    snapshotId: handle.snapshotId,
-    targets: [...new Set(targets)],
-    createdAt: new Date().toISOString(),
-    status: "prepared",
+  const preparingRoot = transactionPreparingRoot();
+  let preparingDirectory: string | undefined;
+  try {
+    // Callers build a preview snapshot before this boundary. Refresh it while
+    // holding the global mutation lock so a concurrent completed mutation can
+    // never be rolled back by stale pre-lock bytes.
+    const freshSnapshot = await createSnapshot(targets);
+    Object.assign(snapshot, freshSnapshot);
+    await Promise.all([ensureDirectory(root), ensureDirectory(preparingRoot)]);
+    const directory = join(root, snapshot.id);
+    preparingDirectory = join(preparingRoot, `${snapshot.id}-${randomUUID()}`);
+    await mkdir(preparingDirectory, { recursive: false });
+    const handle = {
+      id: snapshot.id,
+      directory,
+      snapshotId: snapshot.id,
+      mutationLock,
+    };
+    await writeJournal(preparingDirectory, {
+      version: 1,
+      id: handle.id,
+      snapshotId: handle.snapshotId,
+      targets: [...new Set(targets)],
+      createdAt: new Date().toISOString(),
+      status: "prepared",
+    });
+    await rename(preparingDirectory, directory);
+    preparingDirectory = undefined;
+    return handle;
+  } catch (error) {
+    if (preparingDirectory)
+      await rm(preparingDirectory, { recursive: true, force: true });
+    await mutationLock.release();
+    throw error;
+  }
+}
+
+/** Acquire the global mutation boundary and recover abandoned work before use. */
+export async function acquireMutationLock(): Promise<FileLockHandle> {
+  const mutationLock = await acquireFileLock(mutationLockPath(), {
+    timeoutMs: 30_000,
   });
-  return handle;
+  try {
+    // No live transaction can be preparing while this lock is held. Any
+    // unpublished directory is crash debris and was never visible to recovery.
+    await rm(transactionPreparingRoot(), { recursive: true, force: true });
+    // Recovery and the next mutation share one acquisition. Otherwise a
+    // process could die between a caller's recovery pass and its state checks.
+    await recoverPendingTransactionsUnlocked();
+    return mutationLock;
+  } catch (error) {
+    await mutationLock.release();
+    throw error;
+  }
+}
+
+/** Serialize a direct mutation or restore that does not need a new journal. */
+export async function withMutationLock<T>(
+  operation: () => Promise<T>,
+): Promise<T> {
+  const mutationLock = await acquireMutationLock();
+  try {
+    return await operation();
+  } finally {
+    await mutationLock.release();
+  }
+}
+
+/**
+ * Prepare from current state, snapshot, journal, mutate, and commit under one
+ * global lock. Network/source preparation should happen before this boundary;
+ * every state-dependent precondition belongs in `prepare`.
+ */
+export async function runMutationTransaction<Prepared, Result>(
+  prepare: () => Promise<{ targets: string[]; value: Prepared }>,
+  mutate: (value: Prepared, snapshot: Snapshot) => Promise<Result>,
+): Promise<{ snapshotId: string; result: Result }> {
+  const mutationLock = await acquireMutationLock();
+  let transaction: TransactionHandle | undefined;
+  try {
+    const prepared = await prepare();
+    const snapshot = await createSnapshot(prepared.targets, {
+      persist: false,
+    });
+    transaction = await beginTransaction(snapshot, prepared.targets, {
+      mutationLock,
+    });
+    await markTransactionCommitting(transaction);
+    const result = await mutate(prepared.value, snapshot);
+    await completeTransaction(transaction);
+    return { snapshotId: snapshot.id, result };
+  } catch (error) {
+    if (transaction) await rollbackTransaction(transaction);
+    else await mutationLock.release();
+    throw error;
+  }
 }
 
 export async function markTransactionCommitting(
@@ -119,14 +215,26 @@ export async function markTransactionCommitting(
 
 export async function completeTransaction(
   handle: TransactionHandle,
+  options: { releaseLock?: boolean } = {},
 ): Promise<void> {
-  await rm(handle.directory, { recursive: true, force: true });
+  try {
+    await rm(handle.directory, { recursive: true, force: true });
+  } finally {
+    if (options.releaseLock !== false) await handle.mutationLock.release();
+  }
 }
 
 export async function rollbackTransaction(
   handle: TransactionHandle,
 ): Promise<void> {
-  await restoreSnapshot(await readSnapshot(handle.snapshotId));
+  try {
+    await restoreSnapshot(await readSnapshot(handle.snapshotId));
+  } catch (error) {
+    // Preserve the journal for a later recovery attempt, but never strand the
+    // process-global mutation lock when restoration itself fails.
+    await handle.mutationLock.release();
+    throw error;
+  }
   await completeTransaction(handle);
 }
 
@@ -136,6 +244,12 @@ export async function rollbackTransaction(
  * paths to delete or restore.
  */
 export async function recoverPendingTransactions(): Promise<string[]> {
+  return withFileLock(mutationLockPath(), recoverPendingTransactionsUnlocked, {
+    timeoutMs: 30_000,
+  });
+}
+
+async function recoverPendingTransactionsUnlocked(): Promise<string[]> {
   const root = transactionRoot();
   let entries: string[];
   try {

@@ -1,8 +1,10 @@
 import { readFile } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
 import { dirname, join } from "node:path";
 import type { AgentId, ProjectSignals } from "../shared/types.js";
 import { writeFileAtomically } from "./atomic-file.js";
 import { ensureDirectory, loadoutHome } from "./paths.js";
+import { withFileLock } from "./file-lock.js";
 
 export type OutcomeResult =
   | "accept"
@@ -39,6 +41,7 @@ export interface LocalOutcomeStore {
 }
 
 const outcomePath = (): string => join(loadoutHome(), "outcomes.json");
+const outcomeLockPath = (): string => join(loadoutHome(), "outcomes.lock");
 const RESULTS = new Set<OutcomeResult>([
   "accept",
   "reject",
@@ -131,19 +134,21 @@ export async function recordLocalOutcome(
     throw new Error(`Unknown task family: ${event.taskFamily}`);
   if (!RESULTS.has(event.result))
     throw new Error(`Unknown outcome result: ${event.result}`);
-  const store = await readLocalOutcomes();
-  const recorded: LocalOutcomeEvent = {
-    ...event,
-    id: `${now.getTime()}-${store.events.length + 1}`,
-    recordedAt: now.toISOString(),
-  };
-  store.events = [...store.events.slice(-999), recorded];
-  await ensureDirectory(dirname(outcomePath()));
-  await writeFileAtomically(
-    outcomePath(),
-    `${JSON.stringify(store, null, 2)}\n`,
-  );
-  return recorded;
+  return withFileLock(outcomeLockPath(), async () => {
+    const store = await readLocalOutcomes();
+    const recorded: LocalOutcomeEvent = {
+      ...event,
+      id: randomUUID(),
+      recordedAt: now.toISOString(),
+    };
+    store.events = [...store.events.slice(-999), recorded];
+    await ensureDirectory(dirname(outcomePath()));
+    await writeFileAtomically(
+      outcomePath(),
+      `${JSON.stringify(store, null, 2)}\n`,
+    );
+    return recorded;
+  });
 }
 
 export function projectTaskFamilies(
@@ -196,6 +201,46 @@ export function outcomeAdjustment(
     evidence: relevant.length
       ? [
           `${relevant.length} local outcome(s) in the same agent/task scope: ${score >= 0 ? "+" : ""}${score}`,
+        ]
+      : [],
+  };
+}
+
+/** Aggregate package/skill outcomes without retaining project paths or content. */
+export function packageOutcomeAdjustment(
+  store: LocalOutcomeStore,
+  packageId: string,
+  agent: AgentId,
+  taskFamilies: OutcomeTaskFamily[],
+): { score: number; evidence: string[] } {
+  const events = store.events.filter(
+    (event) =>
+      event.selector.startsWith(`${packageId}/`) &&
+      event.agent === agent &&
+      (event.taskFamily === "general" ||
+        taskFamilies.includes(event.taskFamily)),
+  );
+  const weights: Record<OutcomeResult, number> = {
+    accept: 18,
+    reject: -30,
+    success: 15,
+    failure: -25,
+    activation: 2,
+    disable: -8,
+    rollback: -35,
+  };
+  const score = Math.max(
+    -60,
+    Math.min(
+      60,
+      events.reduce((total, event) => total + weights[event.result], 0),
+    ),
+  );
+  return {
+    score,
+    evidence: events.length
+      ? [
+          `${events.length} local-only package outcome(s) for ${agent} in the same task scope: ${score >= 0 ? "+" : ""}${score}`,
         ]
       : [],
   };

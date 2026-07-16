@@ -17,4 +17,19 @@ describe("CLI completion", () => {
       /bash, zsh, fish, powershell/,
     );
   });
+
+  it("uses valid zsh declarations", () => {
+    const script = renderShellCompletion("zsh");
+    expect(script).toContain("typeset -a commands");
+    expect(script).not.toContain("_typeset");
+  });
+
+  it("completes the current Bash word and nested model commands", () => {
+    const script = renderShellCompletion("bash");
+    expect(script).toContain("COMP_WORDS[COMP_CWORD]");
+    expect(script).toContain('COMP_WORDS[1]}" == "models"');
+    expect(script).toContain("status set verify");
+    expect(script).toContain("catalog-sign");
+    expect(script).toContain("sandbox-run");
+  });
 });

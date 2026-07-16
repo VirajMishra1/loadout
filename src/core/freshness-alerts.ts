@@ -270,9 +270,32 @@ function validPackageId(value: string): void {
 export async function pinReplacement(
   packageId: string,
   replacementPackageId: string,
+  options: { catalog?: CatalogPackage[]; state?: InstallState } = {},
 ): Promise<void> {
   validPackageId(packageId);
   validPackageId(replacementPackageId);
+  if (packageId === replacementPackageId)
+    throw new Error("A package cannot replace itself");
+  const [catalog, state] = await Promise.all([
+    options.catalog ?? loadEffectiveCatalog(),
+    options.state ?? readInstallState(),
+  ]);
+  if (!state.installs.some((install) => install.packageId === packageId))
+    throw new Error(`Package '${packageId}' is not installed`);
+  const current = catalog.find((pkg) => pkg.id === packageId);
+  const replacement = catalog.find((pkg) => pkg.id === replacementPackageId);
+  if (!current)
+    throw new Error(
+      `Installed package '${packageId}' is not in the reviewed catalog`,
+    );
+  if (!replacement)
+    throw new Error(
+      `Replacement '${replacementPackageId}' is not in the reviewed catalog`,
+    );
+  if (current.category !== replacement.category)
+    throw new Error(
+      `Replacement categories differ (${current.category} vs ${replacement.category}); compare related capabilities only`,
+    );
   const decisions = await readDecisions();
   decisions.replacementPins = [
     ...decisions.replacementPins.filter((item) => item.packageId !== packageId),

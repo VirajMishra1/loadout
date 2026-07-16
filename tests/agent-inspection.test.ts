@@ -14,6 +14,12 @@ const definitions: Array<{ id: AgentId; displayName: string }> = [
   { id: "gemini-cli", displayName: "Gemini CLI" },
   { id: "opencode", displayName: "OpenCode" },
   { id: "hermes", displayName: "Hermes" },
+  { id: "windsurf", displayName: "Windsurf" },
+  { id: "cline", displayName: "Cline" },
+  { id: "github-copilot", displayName: "GitHub Copilot" },
+  { id: "roo-code", displayName: "Roo Code" },
+  { id: "kiro-cli", displayName: "Kiro CLI" },
+  { id: "junie", displayName: "Junie" },
 ];
 
 function agent(id: AgentId, displayName: string, home: string): DetectedAgent {
@@ -31,7 +37,7 @@ describe("agent-managed component inspection", () => {
     if (root) await rm(root, { recursive: true, force: true });
   });
 
-  it("inspects only declared local directories for all six adapters", async () => {
+  it("inspects only declared local directories for all twelve adapters", async () => {
     root = await mkdtemp(join(tmpdir(), "loadout-agent-inventory-"));
     const agents = definitions.map((item) =>
       agent(item.id, item.displayName, root!),
@@ -56,7 +62,7 @@ describe("agent-managed component inspection", () => {
     }
 
     const inventory = await inspectAgents(agents);
-    expect(inventory).toHaveLength(6);
+    expect(inventory).toHaveLength(12);
     for (const entry of inventory) {
       const skill = entry.components.find(
         (component) => component.type === "skill",

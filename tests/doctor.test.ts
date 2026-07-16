@@ -17,7 +17,7 @@ describe("doctor", () => {
     const report = await runDoctor();
     expect(report.platform).toBe(process.platform);
     expect(report.userHome).toBe("/tmp/loadout-doctor-home");
-    expect(report.agents).toHaveLength(6);
+    expect(report.agents).toHaveLength(12);
     expect(report.agents[0].inventory.components).toHaveLength(7);
     expect(
       report.agents[0].inventory.components.find(

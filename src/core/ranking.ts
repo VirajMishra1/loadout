@@ -94,24 +94,30 @@ export function explainCatalogScore(
         };
 
   const platforms = pkg.operatingSystems?.length ?? 0;
-  const compatibilityPoints =
-    (pkg.components?.length ? 5 : 0) + (Math.min(platforms, 3) / 3) * 10;
+  // Catalog operatingSystems describe where Loadout can inspect the Git
+  // source, not where every component has been proven installable. Until a
+  // record carries agent-specific compatibility evidence, do not award those
+  // ten points.
+  const compatibilityPoints = pkg.components?.length ? 5 : 0;
   const compatibility = {
     factor: "compatibility" as const,
     points: Number(compatibilityPoints.toFixed(2)),
     maximum: 15,
-    evidence: `${pkg.components?.length ?? 0} evidenced component kind(s) and ${platforms} supported platform(s); no inferred adapter support is counted.`,
+    evidence: `${pkg.components?.length ?? 0} evidenced component kind(s) and ${platforms} source-inspection platform(s); no package or adapter compatibility is inferred.`,
   };
 
+  const assertedLicense = Boolean(
+    pkg.license && pkg.license.toUpperCase() !== "NOASSERTION",
+  );
   const trustPoints =
     (pkg.source ? 6 : 0) +
-    (pkg.license ? 4 : 0) +
+    (assertedLicense ? 4 : 0) +
     (pkg.tier === "official" ? 5 : 0);
   const trust = {
     factor: "trust" as const,
     points: trustPoints,
     maximum: 15,
-    evidence: `${pkg.source ? "Immutable source evidence" : "No immutable source evidence"}, ${pkg.license ? "license metadata" : "no license metadata"}${pkg.tier === "official" ? ", and a reviewed official publisher tier" : ""}.`,
+    evidence: `${pkg.source ? "Immutable source evidence" : "No immutable source evidence"}, ${assertedLicense ? `asserted ${pkg.license} license metadata` : pkg.license === "NOASSERTION" ? "license is unknown (NOASSERTION)" : "no license metadata"}${pkg.tier === "official" ? ", and a reviewed official publisher tier" : ""}.`,
   };
 
   const contributions = [adoption, momentum, maintenance, compatibility, trust];

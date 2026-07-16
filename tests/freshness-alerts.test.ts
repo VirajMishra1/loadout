@@ -161,8 +161,22 @@ describe("freshness and replacement alerts", () => {
         expect.objectContaining({ kind: "outperformed", packageId: "old" }),
       ]),
     );
-    await pinReplacement("old", "new");
-    await pinReplacement("old", "newer");
+    await pinReplacement("old", "new", { catalog, state });
+    const expandedCatalog = [
+      ...catalog,
+      {
+        id: "newer",
+        displayName: "newer",
+        repository: "owner/newer",
+        description: "newer",
+        category: "review",
+        tier: "stable" as const,
+      },
+    ];
+    await pinReplacement("old", "newer", {
+      catalog: expandedCatalog,
+      state,
+    });
     expect(await readReplacementPins()).toEqual([
       expect.objectContaining({
         packageId: "old",
@@ -170,5 +184,11 @@ describe("freshness and replacement alerts", () => {
       }),
     ]);
     await expect(unpinReplacement("old")).resolves.toBe(true);
+    await expect(
+      pinReplacement("old", "missing", { catalog, state }),
+    ).rejects.toThrow(/reviewed catalog/);
+    await expect(
+      pinReplacement("old", "old", { catalog, state }),
+    ).rejects.toThrow(/replace itself/);
   });
 });

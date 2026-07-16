@@ -55,6 +55,7 @@ describe("CLI contract", () => {
     expect(result.stdout).toContain("convert");
     expect(result.stdout).toContain("optimize");
     expect(result.stdout).toContain("models");
+    expect(result.stdout).toContain("credentials");
     expect(result.stdout).toContain("schedule");
   });
 
@@ -90,5 +91,53 @@ describe("CLI contract", () => {
     const result = await runCli("update", "--apply");
     expect(result.code).not.toBe(0);
     expect(result.stderr).toContain("--apply requires --package <id>");
+  });
+
+  it("can emit structured color-free errors for automation", async () => {
+    const result = await runCli("--json-errors", "setup", "--mode", "unknown");
+    expect(result.code).not.toBe(0);
+    expect(JSON.parse(result.stderr)).toMatchObject({
+      error: {
+        code: "loadout.error",
+        message: expect.stringContaining("--mode must be"),
+      },
+    });
+    expect(result.stderr).not.toContain("\u001b[");
+  });
+
+  it("plans a keychain-backed model without resolving or printing a secret", async () => {
+    const result = await runCli(
+      "models",
+      "set",
+      "--id",
+      "coding",
+      "--model",
+      "openai/gpt-5",
+      "--credential-keychain",
+      "loadout.openrouter",
+      "--credential-account",
+      "viraj",
+    );
+    expect(result.code).toBe(0);
+    expect(result.stdout).toContain("os-keychain:loadout.openrouter");
+    expect(result.stdout).toContain("Dry run only");
+    expect(result.stdout).not.toMatch(/sk-or-|Bearer /);
+  });
+
+  it("rejects ambiguous model credential references", async () => {
+    const result = await runCli(
+      "models",
+      "set",
+      "--id",
+      "coding",
+      "--model",
+      "openai/gpt-5",
+      "--credential-env",
+      "OPENROUTER_API_KEY",
+      "--credential-keychain",
+      "loadout.openrouter",
+    );
+    expect(result.code).not.toBe(0);
+    expect(result.stderr).toContain("Choose either");
   });
 });

@@ -70,9 +70,15 @@ Loadout wins through:
   - Gemini CLI
   - OpenCode
   - Hermes
-- Skill installation for all six agents where their supported layout is known.
+  - Windsurf
+  - Cline
+  - GitHub Copilot
+  - Roo Code
+  - Kiro CLI
+  - Junie
+- Skill installation for all twelve agents where their documented layout is known.
 - MCP configuration for Claude Code, Codex, and Cursor.
-- Curated catalog containing 20 pinned real repositories.
+- Curated catalog containing 50 pinned real repositories.
 - Stable, Trending, Official, and Community tier support; the current bundled review
   set contains Official and Stable records.
 - Stable Boost, Maximum Boost, and Custom modes.
@@ -641,9 +647,12 @@ modes.
 - [x] `P1-10 [TERRA]` Implement conflict-family resolver.
   - Acceptance: Stable picks one default; hard conflicts block; Custom can override
     soft conflicts.
-- [ ] `P1-11 [TERRA]` Expand from 20 to at least 50 fully reviewed catalog records.
+- [x] `P1-11 [TERRA]` Expand from 20 to at least 50 fully reviewed catalog records.
   - Every record needs immutable commit, license review, component evidence, platform
     evidence, and an install/config path; popularity alone is insufficient.
+  - Fifty evidence-complete records now pin immutable commits. All new skill-bearing
+    repositories passed real Loadout discovery/frontmatter inspection; unsafe symlinked
+    collections were rejected rather than weakened into the catalog.
 
 ### Phase 2: Agent detection
 
@@ -808,7 +817,10 @@ modes.
 - [x] `P11-15 [TERRA]` Implement disposable sandbox runner with no host secrets.
   - `loadout sandbox-run` uses explicit approval, a reviewed image, read-only source mount, no network, dropped capabilities, resource limits, and a scrubbed environment; Docker remains an explicit local prerequisite.
 - [x] `P11-16 [SOL]` Design OS-keychain-backed credential interface.
-- [ ] `P11-17 [TERRA]` Implement macOS, Windows, and Linux credential backends.
+- [x] `P11-17 [TERRA]` Implement macOS, Windows, and Linux credential backends.
+  - `credentials` uses macOS Keychain, Linux Secret Service, or Windows Credential
+    Manager through bounded no-shell processes. Writes use stdin, errors are redacted,
+    and secret values never enter plans, arguments, snapshots, or JSON output.
 - [x] `P11-18 [SOL]` Define autonomous-update permission policies and recovery rules.
 - [x] `P11-19 [TERRA]` Implement a policy-gated canary planning pipeline.
   - `loadout canary` performs a non-mutating static gate; promotion requires explicit approval plus injected verification and transaction callbacks, so it cannot silently update agent files.
@@ -816,7 +828,10 @@ modes.
   - `src/core/adapters.ts`, the shared capability matrix, compatibility policy, and
     conformance tests are the implemented contract. A separately versioned public SDK
     package and community registry are not yet published.
-- [ ] `P11-21 [TERRA]` Add the next six agent adapters through the SDK.
+- [x] `P11-21 [TERRA]` Add the next six agent adapters through the SDK.
+  - Windsurf, Cline, GitHub Copilot, Roo Code, Kiro CLI, and Junie use documented
+    vendor-specific Agent Skills roots. Only native skill support is claimed; all
+    unverified component types remain explicitly unsupported.
 - [x] `P11-22 [TERRA]` Add compliant Hacker News and community-source connectors.
   - Hacker News Firebase and GitHub REST repository search are read-only connectors; neither mutates the catalog or installs a lead.
 - [x] `P11-23 [SOL]` Design team/enterprise policy and audit schemas.
@@ -944,16 +959,22 @@ universal or permanent truth.
     any real-key test.
   - `loadout models set/status/verify` stores only validated metadata and credential
     references; apply is snapshotted, output is redacted, and provider requests resolve
-    the environment credential only at the explicit verification boundary.
+    an environment or native OS credential only at the explicit verification boundary.
 - [x] `P12-22 [TERRA]` Add reviewed MCP setup recipes and connection verification.
-  - `mcp-recipe` provides source-linked Playwright and GitHub read-only recipes,
+  - `mcp-recipe` provides immutable, source-linked Playwright and GitHub read-only recipes,
     previews commands, permissions, environment names, and target config without
     printing values, and separates authorization from configuration. It preserves
-    unrelated JSON keys and verifies the configured transport/references without
-    launching a server; the existing Codex MCP planner remains the TOML-preserving
-    path.
-- [ ] `P12-23 [TERRA]` Complete P11-17 keychain backends and connect them to provider,
+    unrelated JSON keys and verifies configured references without launching. An
+    explicitly approved `--connect` path starts only the exact reviewed npm version or
+    OCI digest, resolves credentials just-in-time, performs a bounded MCP initialize
+    handshake, redacts failures, and cleans up the process; the existing Codex MCP
+    planner remains the TOML-preserving path.
+- [x] `P12-23 [TERRA]` Complete P11-17 keychain backends and connect them to provider,
       private-discovery, registry, and MCP workflows.
+  - Provider verification, private GitHub discovery, remote registry publishing/
+    serving, and explicit MCP connection checks share environment/native-keychain
+    references. MCP secrets enter only the short-lived verified subprocess environment
+    and are never written into agent configuration or Loadout state.
 - [x] `P12-24 [SOL]` Design a cross-platform daily scheduler that invokes read-only
       discovery/update checks.
   - macOS LaunchAgent, Windows Task Scheduler, and Linux systemd/cron implementations
@@ -964,13 +985,15 @@ universal or permanent truth.
       disposable/configuration tests.
   - macOS LaunchAgent, Linux systemd user timer, and Windows Task Scheduler XML are
     generated natively, snapshotted, installed only with `--yes`, and removable.
-- [ ] `P12-26 [TERRA]` Polish the CLI as the sole required product surface.
+- [x] `P12-26 [TERRA]` Polish the CLI as the sole required product surface.
   - Consistent progress, compact tables, accessible color/no-color output, actionable
     errors, interruption handling, shell completion, noninteractive JSON, and terminal
     widths from 80 to 200 columns.
-  - Partial: the primary workflows are CLI-only, dry-run first, JSON-capable, and
-    actionable. Shell completion, width-aware tables, signal cleanup, and explicit
-    color policy remain.
+  - Bash, Zsh, Fish, and PowerShell completion cover top-level and nested credential/
+    model commands. Help flushes fully through pipes; automation can request structured
+    JSON errors; capability tables are deterministic, ANSI-free, and bounded at 80,
+    120, and 200 columns. Long-running services clean up signals, and mutations retain
+    transactional interruption recovery.
 - [x] `P12-27 [LUNA]` Reframe README, testing, and demo around scan/compare/optimize;
       move dashboard instructions to an optional diagnostics section.
   - README and disposable testing now lead with the scan -> compare -> optimize ->
@@ -981,14 +1004,21 @@ universal or permanent truth.
   - The artifact contains package ids, commits, agent compatibility, aggregate
     activation/review counts, and MCP package ids; repository names, server names,
     paths, filenames, projects, prompts, code, and credential data are excluded.
-- [ ] `P12-29 [TERRA]` Complete P1-11 with at least 50 reviewed records and capability
+- [x] `P12-29 [TERRA]` Complete P1-11 with at least 50 reviewed records and capability
       coverage metrics.
   - Measure unique capabilities, overlap, licenses, immutable commits, install shape,
     platforms, activity, and evaluation readiness rather than raw repository count.
+  - `catalog --coverage [--json]` reports 50 immutable records across 37 categories,
+    including component/install shapes, overlaps, licenses, source-inspection platforms,
+    activity observations, and evaluation readiness.
 - [ ] `P12-30 [HUMAN]` Complete legal/license attribution review, including all current
       `NOASSERTION` records, before distribution.
 - [ ] `P12-31 [TERRA]` Publish `loadout-ai` to npm and run clean-machine package tests
       from outside the repository on macOS, Windows, Linux, and Node 20/22.
+  - Partial: a real tarball is packed, installed outside the repository, executed,
+    catalog-checked, used for install, and rolled back. CI contains an opt-in OS/Node
+    matrix and an owner-controlled OIDC/provenance release workflow; actual npm
+    publication and the hosted matrix run remain release-owner actions.
 - [ ] `P12-32 [HUMAN]` Run moderated founder testing on the real Claude and Codex
       profiles with snapshots and explicit rollback checkpoints.
 - [ ] `P12-33 [HUMAN]` Run at least ten external user tests spanning new users, power
@@ -998,6 +1028,13 @@ universal or permanent truth.
     recoverable; no false “best” or compatibility claims; install/optimize/rollback
     success on all supported platforms; p95 local scan under five seconds for 1,000
     skills; actionable failure messages; npm provenance and attribution complete.
+  - Partial evidence: seven real CLI runs over 1,000 on-disk skills measured a local
+    p95 of 1.04 seconds on 2026-07-16. A disposable real Maximum flow also prepared all
+    31 skill-bearing repositories, exposed 1,219 skill directories, resolved 48
+    overlaps, exercised optimization/apply/rollback, and left no test profile behind.
+    Transaction, rollback, package-tarball, and CLI product-flow gates pass locally;
+    hosted OS/Node release evidence and attribution approval remain required before
+    go-live.
 
 ## 19. Seven-day schedule
 

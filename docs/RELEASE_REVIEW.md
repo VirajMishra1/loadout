@@ -110,8 +110,8 @@ Catalog setup now:
 - installs all remaining packages through one transaction and one restore point;
 - keeps local health checks network-free unless `--updates` is explicitly requested.
 
-A disposable real Maximum Boost run detected virtual Claude Code and Codex profiles,
-prepared 13 skill repositories from the 20-record catalog, deferred seven explicit MCP
-setups, resolved 32 duplicate target directories, and installed 1,368 skill directories
-(684 per agent). `status` observed the installed content, and rollback returned managed
-install state to zero. No real user agent directory was used.
+A disposable real Maximum Boost run prepared all 31 skill-bearing repositories from the
+50-record catalog, deferred 19 explicit MCP-only setups, exposed 1,219 skill directories,
+and resolved 48 duplicate target directories. The same isolated flow exercised library
+inspection, project optimization, apply, and rollback successfully before removing its
+test home. No real user agent directory was used.

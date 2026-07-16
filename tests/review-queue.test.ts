@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import {
+  formatReviewQueue,
   mergeReviewQueue,
   readReviewQueue,
   setReviewDecision,
@@ -92,7 +93,7 @@ describe("candidate review queue", () => {
     ).toMatchObject({ alreadyCataloged: true });
   });
 
-  it("uses a measured GitHub-star velocity only after a prior daily observation", async () => {
+  it("uses an auditable GitHub-star velocity only after a full-day interval", async () => {
     root = await mkdtemp(join(tmpdir(), "loadout-review-velocity-"));
     process.env.LOADOUT_HOME = root;
     await mergeReviewQueue(
@@ -113,6 +114,30 @@ describe("candidate review queue", () => {
       [],
       new Date("2026-07-15T00:00:00Z"),
     );
+    const subDay = await mergeReviewQueue(
+      [
+        {
+          source: "github-search",
+          repository: "owner/fast",
+          title: "fast",
+          description: "",
+          url: "https://github.com/owner/fast",
+          stars: 112,
+          forks: 0,
+          createdAt: "",
+          updatedAt: "",
+          query: "skills",
+        },
+      ],
+      [],
+      new Date("2026-07-15T12:00:00Z"),
+    );
+    expect(subDay.items[0]).toMatchObject({
+      stars: 112,
+      starVelocityBaselineStars: 100,
+      starVelocityBaselineAt: "2026-07-15T00:00:00.000Z",
+    });
+    expect(subDay.items[0].starVelocity).toBeUndefined();
     const queue = await mergeReviewQueue(
       [
         {
@@ -131,6 +156,49 @@ describe("candidate review queue", () => {
       [],
       new Date("2026-07-17T00:00:00Z"),
     );
-    expect(queue.items[0]).toMatchObject({ stars: 124, starVelocity: 12 });
+    expect(queue.items[0]).toMatchObject({
+      stars: 124,
+      starVelocity: 12,
+      starVelocityWindowDays: 2,
+      starVelocityMeasuredAt: "2026-07-17T00:00:00.000Z",
+      starVelocityBaselineStars: 124,
+      starVelocityBaselineAt: "2026-07-17T00:00:00.000Z",
+    });
+    expect(formatReviewQueue(queue)).toContain("+12.0/day over 2.00 days");
+  });
+
+  it("sorts ignored candidates behind pending candidates even when they are faster", async () => {
+    root = await mkdtemp(join(tmpdir(), "loadout-review-decisions-"));
+    process.env.LOADOUT_HOME = root;
+    const lead = (repository: string, stars: number) => ({
+      source: "github-search" as const,
+      repository,
+      title: repository,
+      description: "",
+      url: `https://github.com/${repository}`,
+      stars,
+      forks: 0,
+      createdAt: "",
+      updatedAt: "",
+      query: "skills",
+    });
+    await mergeReviewQueue(
+      [lead("owner/fast", 100), lead("owner/pending", 10)],
+      [],
+      new Date("2026-07-15T00:00:00Z"),
+    );
+    await setReviewDecision("owner/fast", "ignored");
+    expect(
+      (await readReviewQueue()).items.map((item) => item.repository),
+    ).toEqual(["owner/pending", "owner/fast"]);
+    const queue = await mergeReviewQueue(
+      [lead("owner/fast", 300), lead("owner/pending", 11)],
+      [],
+      new Date("2026-07-17T00:00:00Z"),
+    );
+    expect(queue.items.map((item) => item.repository)).toEqual([
+      "owner/pending",
+      "owner/fast",
+    ]);
   });
 });

@@ -39,6 +39,25 @@ describe("runtime data schemas", () => {
       expect(formatSchemaError(result.error)).toMatch(/targetAgents\.0/);
   });
 
+  it("accepts every additional reviewed adapter id at runtime boundaries", () => {
+    for (const agent of [
+      "windsurf",
+      "cline",
+      "github-copilot",
+      "roo-code",
+      "kiro-cli",
+      "junie",
+    ])
+      expect(
+        installPlanSchema.parse({
+          packageId: "adapter-smoke",
+          files: [],
+          targetAgents: [agent],
+          warnings: [],
+        }).targetAgents,
+      ).toEqual([agent]);
+  });
+
   it("rejects malformed lockfile hashes before reproducibility audit", () => {
     expect(() =>
       parseLockfile({

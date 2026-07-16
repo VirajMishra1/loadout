@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { Command } from "commander";
+import { Command, CommanderError } from "commander";
 import { createInterface } from "node:readline/promises";
 import {
   explainCatalogScore,
@@ -9,10 +9,10 @@ import {
   refreshCatalog,
   type InstallSelectionMode,
 } from "./core/catalog.js";
-import { detectAgents } from "./core/paths.js";
+import { detectAgents, loadoutHome } from "./core/paths.js";
 import { readFile } from "node:fs/promises";
 import { readdir } from "node:fs/promises";
-import { resolve } from "node:path";
+import { join, resolve } from "node:path";
 import {
   buildSkillPlan,
   applySkillInstall,
@@ -30,9 +30,11 @@ import {
 } from "./core/mcp.js";
 import {
   REVIEWED_MCP_RECIPES,
+  findMcpRecipe,
   formatMcpRecipePlan,
   planMcpRecipe,
   verifyMcpRecipe,
+  verifyMcpRecipeConnection,
 } from "./core/mcp-recipes.js";
 import type { McpServer } from "./shared/types.js";
 import { runDoctor, formatDoctorReport } from "./core/doctor.js";
@@ -104,7 +106,10 @@ import { formatDemoResult, runIsolatedDemo } from "./core/demo.js";
 import { resolveCatalogProfile } from "./core/profiles.js";
 import { discoverHackerNewsRepositories } from "./core/community.js";
 import { discoverPrivateRepositories } from "./core/private-discovery.js";
-import { discoverGitHubRepositories } from "./core/github-discovery.js";
+import {
+  defaultGitHubDiscoveryQuery,
+  discoverGitHubRepositories,
+} from "./core/github-discovery.js";
 import {
   formatStarHistory,
   readCatalogObservations,
@@ -207,11 +212,40 @@ import {
   parseCompletionShell,
   renderShellCompletion,
 } from "./core/completion.js";
+import {
+  buildCatalogCoverage,
+  formatCatalogCoverage,
+} from "./core/catalog-coverage.js";
+import {
+  createCredentialResolver,
+  createOsCredentialStore,
+} from "./core/credentials.js";
 
 const collectOption = (value: string, previous: string[] = []): string[] => [
   ...previous,
   value,
 ];
+
+async function readCredentialFromStdin(): Promise<string> {
+  if (process.stdin.isTTY)
+    throw new Error(
+      "Credential input must be piped on stdin; interactive echo is intentionally unsupported",
+    );
+  const chunks: Buffer[] = [];
+  let size = 0;
+  for await (const chunk of process.stdin) {
+    const value = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+    size += value.length;
+    if (size > 64 * 1024)
+      throw new Error("Credential input exceeds the 64 KiB safety limit");
+    chunks.push(value);
+  }
+  const secret = Buffer.concat(chunks)
+    .toString("utf8")
+    .replace(/\r?\n$/, "");
+  if (!secret) throw new Error("Credential input is empty");
+  return secret;
+}
 
 interface SetupOptions {
   mode?: string;
@@ -386,7 +420,16 @@ const program = new Command();
 program
   .name("loadout")
   .description("Universal upgrade manager for AI coding agents")
-  .version("0.1.0");
+  .version("0.1.0")
+  .option(
+    "--json-errors",
+    "emit a machine-readable error object on stderr; normal output is unchanged",
+  )
+  // Commander normally calls process.exit() immediately after rendering help
+  // or version output. Large top-level help can then be truncated to one pipe
+  // buffer when Loadout is invoked by another process. Keep control in this
+  // module so Node has time to flush stdout before exiting naturally.
+  .exitOverride();
 
 program
   .command("setup")
@@ -567,13 +610,24 @@ program
   .option("--local", "publish to the local registry")
   .option("--registry-url <url>", "remote registry base URL")
   .option(
+    "--credential-keychain <service>",
+    "resolve the remote registry token from the OS credential store",
+  )
+  .option("--credential-account <account>", "OS credential account")
+  .option(
     "--approve-risk",
     "explicitly approve publishing scripts, hooks, or binaries",
   )
   .action(
     async (
       directory: string,
-      options: { local?: boolean; registryUrl?: string; approveRisk?: boolean },
+      options: {
+        local?: boolean;
+        registryUrl?: string;
+        credentialKeychain?: string;
+        credentialAccount?: string;
+        approveRisk?: boolean;
+      },
     ) => {
       if (
         Number(Boolean(options.local)) +
@@ -584,6 +638,8 @@ program
           "Choose exactly one destination: --local or --registry-url",
         );
       if (options.local) {
+        if (options.credentialKeychain)
+          throw new Error("Local publishing does not require a credential");
         const packed = await publishLocalPackage(directory, {
           approveRisk: options.approveRisk,
         });
@@ -592,10 +648,25 @@ program
         );
         return;
       }
+      const token = await createCredentialResolver()(
+        options.credentialKeychain
+          ? {
+              kind: "os-keychain",
+              service: options.credentialKeychain,
+              ...(options.credentialAccount
+                ? { account: options.credentialAccount }
+                : {}),
+            }
+          : { kind: "environment", name: "LOADOUT_REGISTRY_TOKEN" },
+      );
+      if (!token)
+        throw new Error(
+          "Remote publishing credential did not resolve; set LOADOUT_REGISTRY_TOKEN or use --credential-keychain",
+        );
       const published = await publishRemotePackage(
         directory,
         options.registryUrl!,
-        process.env.LOADOUT_REGISTRY_TOKEN ?? "",
+        token,
         { approveRisk: options.approveRisk },
       );
       console.log(
@@ -609,30 +680,52 @@ program
   .description("Run the Loadout registry protocol server")
   .option("--host <host>", "listen host", "127.0.0.1")
   .option("--port <port>", "listen port", "7331")
-  .action(async (options: { host: string; port: string }) => {
-    const token = process.env.LOADOUT_REGISTRY_TOKEN;
-    if (!token)
-      throw new Error(
-        "Set LOADOUT_REGISTRY_TOKEN before starting a registry server",
+  .option(
+    "--credential-keychain <service>",
+    "resolve the server token from the OS credential store",
+  )
+  .option("--credential-account <account>", "OS credential account")
+  .action(
+    async (options: {
+      host: string;
+      port: string;
+      credentialKeychain?: string;
+      credentialAccount?: string;
+    }) => {
+      const token = await createCredentialResolver()(
+        options.credentialKeychain
+          ? {
+              kind: "os-keychain",
+              service: options.credentialKeychain,
+              ...(options.credentialAccount
+                ? { account: options.credentialAccount }
+                : {}),
+            }
+          : { kind: "environment", name: "LOADOUT_REGISTRY_TOKEN" },
       );
-    const handle = await startRegistryServer({
-      host: options.host,
-      port: Number(options.port),
-      token,
-    });
-    console.log(
-      `Loadout registry listening at http://${handle.host}:${handle.port}.`,
-    );
-    await new Promise<void>((resolve) => {
-      const stop = () => {
-        process.off("SIGINT", stop);
-        process.off("SIGTERM", stop);
-        void handle.close().then(resolve);
-      };
-      process.on("SIGINT", stop);
-      process.on("SIGTERM", stop);
-    });
-  });
+      if (!token)
+        throw new Error(
+          "Set LOADOUT_REGISTRY_TOKEN before starting a registry server",
+        );
+      const handle = await startRegistryServer({
+        host: options.host,
+        port: Number(options.port),
+        token,
+      });
+      console.log(
+        `Loadout registry listening at http://${handle.host}:${handle.port}.`,
+      );
+      await new Promise<void>((resolve) => {
+        const stop = () => {
+          process.off("SIGINT", stop);
+          process.off("SIGTERM", stop);
+          void handle.close().then(resolve);
+        };
+        process.on("SIGINT", stop);
+        process.on("SIGTERM", stop);
+      });
+    },
+  );
 
 program
   .command("search")
@@ -1609,14 +1702,24 @@ program
     "print the evidence and guardrails behind one package's ranking",
   )
   .option("--history <id>", "show locally recorded stars and release history")
+  .option(
+    "--coverage",
+    "show capability, evidence, license, and overlap metrics",
+  )
+  .option("--json", "emit machine-readable output")
   .action(
     async (options: {
       refresh?: boolean;
       explain?: string;
       history?: string;
+      coverage?: boolean;
+      json?: boolean;
     }) => {
-      if (options.explain && options.history)
-        throw new Error("Choose either --explain or --history");
+      if (
+        [options.explain, options.history, options.coverage].filter(Boolean)
+          .length > 1
+      )
+        throw new Error("Choose one of --explain, --history, or --coverage");
       const base = await loadCatalog();
       const result = options.refresh
         ? await refreshCatalog(base, { forceRefresh: true })
@@ -1652,6 +1755,15 @@ program
             null,
             2,
           ),
+        );
+        return;
+      }
+      if (options.coverage) {
+        const coverage = buildCatalogCoverage(result.catalog);
+        console.log(
+          options.json
+            ? JSON.stringify(coverage, null, 2)
+            : formatCatalogCoverage(coverage),
         );
         return;
       }
@@ -1694,6 +1806,11 @@ program
     "opt into private GitHub metadata discovery using GITHUB_TOKEN",
   )
   .option(
+    "--credential-keychain <service>",
+    "resolve the private GitHub token from the OS credential store",
+  )
+  .option("--credential-account <account>", "OS credential account")
+  .option(
     "--queue",
     "persist deduplicated public leads for human review; never promotes them",
   )
@@ -1705,14 +1822,29 @@ program
       minScore: string;
       query?: string;
       private?: boolean;
+      credentialKeychain?: string;
+      credentialAccount?: string;
       queue?: boolean;
       json?: boolean;
     }) => {
       const limit = Number(options.limit);
       if (!Number.isInteger(limit) || limit < 1)
         throw new Error("--limit must be a positive integer");
+      if (options.credentialKeychain && !options.private)
+        throw new Error("--credential-keychain requires --private");
       if (options.private) {
-        const repositories = await discoverPrivateRepositories();
+        const token = options.credentialKeychain
+          ? await createCredentialResolver()({
+              kind: "os-keychain",
+              service: options.credentialKeychain,
+              ...(options.credentialAccount
+                ? { account: options.credentialAccount }
+                : {}),
+            })
+          : undefined;
+        if (options.credentialKeychain && !token)
+          throw new Error("Private GitHub keychain credential did not resolve");
+        const repositories = await discoverPrivateRepositories({ token });
         if (options.json)
           return console.log(JSON.stringify(repositories, null, 2));
         console.log(`Private GitHub repositories: ${repositories.length}`);
@@ -1726,9 +1858,7 @@ program
           throw new Error("--min-score must be a non-negative number");
         const [github, hackerNews] = await Promise.allSettled([
           discoverGitHubRepositories({
-            query:
-              options.query ??
-              "(topic:mcp OR topic:agent OR topic:skills) created:>=2026-01-01",
+            query: options.query ?? defaultGitHubDiscoveryQuery(),
             limit,
           }),
           discoverHackerNewsRepositories({
@@ -1784,9 +1914,7 @@ program
       }
       if (options.source === "github") {
         const repositories = await discoverGitHubRepositories({
-          query:
-            options.query ??
-            "(topic:mcp OR topic:agent OR topic:skills) created:>=2026-01-01",
+          query: options.query ?? defaultGitHubDiscoveryQuery(),
           limit,
         });
         if (options.queue) {
@@ -1888,6 +2016,84 @@ program
     );
   });
 
+const credentials = program
+  .command("credentials")
+  .description(
+    "Store, inspect, or remove secrets in the native OS credential store",
+  );
+
+credentials
+  .command("status")
+  .description("Check whether the native OS credential backend is available")
+  .option("--json", "emit machine-readable status")
+  .action(async (options: { json?: boolean }) => {
+    const status = await createOsCredentialStore().status();
+    console.log(
+      options.json
+        ? JSON.stringify(status, null, 2)
+        : `${status.backend}: ${status.available ? "available" : "unavailable"}`,
+    );
+    if (!status.available) process.exitCode = 1;
+  });
+
+credentials
+  .command("set")
+  .description(
+    "Store a credential read from stdin; its value is never placed in arguments or output",
+  )
+  .argument("<service>", "credential service identifier")
+  .option("--account <account>", "credential account")
+  .requiredOption("--stdin", "require secret input from stdin")
+  .action(async (service: string, options: { account?: string }) => {
+    await createOsCredentialStore().set(
+      {
+        kind: "os-keychain",
+        service,
+        ...(options.account ? { account: options.account } : {}),
+      },
+      await readCredentialFromStdin(),
+    );
+    console.log(`Stored '${service}' in the native OS credential store.`);
+  });
+
+credentials
+  .command("check")
+  .description("Check whether one credential resolves without printing it")
+  .argument("<service>", "credential service identifier")
+  .option("--account <account>", "credential account")
+  .option("--json", "emit machine-readable status")
+  .action(
+    async (service: string, options: { account?: string; json?: boolean }) => {
+      const found = Boolean(
+        await createOsCredentialStore().get({
+          kind: "os-keychain",
+          service,
+          ...(options.account ? { account: options.account } : {}),
+        }),
+      );
+      console.log(
+        options.json
+          ? JSON.stringify({ service, found })
+          : `${service}: ${found ? "stored" : "not found"}`,
+      );
+      if (!found) process.exitCode = 1;
+    },
+  );
+
+credentials
+  .command("delete")
+  .description("Remove one credential from the native OS store")
+  .argument("<service>", "credential service identifier")
+  .option("--account <account>", "credential account")
+  .action(async (service: string, options: { account?: string }) => {
+    const deleted = await createOsCredentialStore().delete({
+      kind: "os-keychain",
+      service,
+      ...(options.account ? { account: options.account } : {}),
+    });
+    console.log(`${service}: ${deleted ? "deleted" : "not found"}`);
+  });
+
 const models = program
   .command("models")
   .description(
@@ -1923,9 +2129,13 @@ models
   )
   .option(
     "--credential-env <name>",
-    "environment variable reference",
-    "OPENROUTER_API_KEY",
+    "environment variable reference (default: OPENROUTER_API_KEY)",
   )
+  .option(
+    "--credential-keychain <service>",
+    "native OS credential service reference",
+  )
+  .option("--credential-account <account>", "native credential account")
   .option("--agents <ids>", "comma-separated target agent ids")
   .option("--config <path>", "model configuration path")
   .option("--yes", "apply after preview")
@@ -1936,22 +2146,39 @@ models
       model: string;
       provider: string;
       endpoint: string;
-      credentialEnv: string;
+      credentialEnv?: string;
+      credentialKeychain?: string;
+      credentialAccount?: string;
       agents?: string;
       config?: string;
       yes?: boolean;
       json?: boolean;
     }) => {
+      if (options.credentialEnv && options.credentialKeychain)
+        throw new Error(
+          "Choose either --credential-env or --credential-keychain",
+        );
+      if (options.credentialAccount && !options.credentialKeychain)
+        throw new Error("--credential-account requires --credential-keychain");
+      const credential = options.credentialKeychain
+        ? {
+            kind: "os-keychain" as const,
+            service: options.credentialKeychain,
+            ...(options.credentialAccount
+              ? { account: options.credentialAccount }
+              : {}),
+          }
+        : {
+            kind: "environment" as const,
+            name: options.credentialEnv ?? "OPENROUTER_API_KEY",
+          };
       const plan = await planProviderModelSelection(
         {
           id: options.id,
           provider: options.provider,
           model: options.model,
           endpoint: options.endpoint,
-          credential: {
-            kind: "environment",
-            name: options.credentialEnv,
-          },
+          credential,
           ...(options.agents
             ? { targetAgents: options.agents.split(",") as AgentId[] }
             : {}),
@@ -1982,7 +2209,7 @@ models
 models
   .command("verify")
   .description(
-    "Make one explicit minimal provider request using the referenced environment key",
+    "Make one explicit minimal provider request using the referenced credential",
   )
   .argument("<id>", "selection id")
   .option("--config <path>", "model configuration path")
@@ -2002,13 +2229,7 @@ models
         },
       ],
       {
-        resolveCredential: async (reference) => {
-          if (reference.kind !== "environment")
-            throw new Error(
-              "OS keychain resolution is not available in this build",
-            );
-          return process.env[reference.name];
-        },
+        resolveCredential: createCredentialResolver(),
       },
     );
     console.log(
@@ -2080,12 +2301,28 @@ program
 program
   .command("mcp-recipe")
   .description(
-    "Preview, configure, or verify a reviewed MCP recipe without authorizing or starting it",
+    "Preview/configure a reviewed MCP recipe, or explicitly verify its real connection",
   )
   .argument("[id]", "recipe id; omit to list reviewed recipes")
   .option("--config <path>", "target JSON MCP config path")
   .option("--yes", "write the reviewed server entry after preview")
   .option("--verify", "verify the configured entry without starting a server")
+  .option(
+    "--connect",
+    "launch the exact pinned artifact and perform an MCP initialize handshake",
+  )
+  .option(
+    "--credential <mapping>",
+    "credential mapping NAME=env:VARIABLE or NAME=keychain:SERVICE (repeatable)",
+    collectOption,
+    [],
+  )
+  .option("--credential-account <account>", "account for keychain mappings")
+  .option("--timeout <milliseconds>", "real connection timeout", "8000")
+  .option(
+    "--approve-risk",
+    "approve launching the reviewed pinned MCP artifact for --connect",
+  )
   .option("--json", "emit machine-readable JSON")
   .action(
     async (
@@ -2094,10 +2331,17 @@ program
         config?: string;
         yes?: boolean;
         verify?: boolean;
+        connect?: boolean;
+        credential: string[];
+        credentialAccount?: string;
+        timeout: string;
+        approveRisk?: boolean;
         json?: boolean;
       },
     ) => {
       if (!id) {
+        if (options.connect || options.verify || options.yes)
+          throw new Error("Select an MCP recipe id for this operation");
         const listed = REVIEWED_MCP_RECIPES.map((recipe) => ({
           id: recipe.id,
           displayName: recipe.displayName,
@@ -2117,8 +2361,72 @@ program
         );
         return;
       }
+      if (options.connect) {
+        if (options.verify || options.yes)
+          throw new Error(
+            "--connect cannot be combined with --verify or --yes",
+          );
+        const recipe = findMcpRecipe(id);
+        const credentialReferences: Record<
+          string,
+          | { kind: "environment"; name: string }
+          | { kind: "os-keychain"; service: string; account?: string }
+        > = {};
+        for (const mapping of options.credential) {
+          const separator = mapping.indexOf("=");
+          if (separator <= 0)
+            throw new Error(
+              `Invalid --credential '${mapping}'; expected NAME=env:VARIABLE or NAME=keychain:SERVICE`,
+            );
+          const name = mapping.slice(0, separator);
+          const value = mapping.slice(separator + 1);
+          if (!recipe.environment.includes(name))
+            throw new Error(
+              `Credential '${name}' is not required by recipe '${id}'`,
+            );
+          if (value.startsWith("env:"))
+            credentialReferences[name] = {
+              kind: "environment",
+              name: value.slice(4),
+            };
+          else if (value.startsWith("keychain:"))
+            credentialReferences[name] = {
+              kind: "os-keychain",
+              service: value.slice(9),
+              ...(options.credentialAccount
+                ? { account: options.credentialAccount }
+                : {}),
+            };
+          else
+            throw new Error(
+              `Invalid --credential '${mapping}'; use env: or keychain:`,
+            );
+        }
+        const timeoutMs = Number(options.timeout);
+        const controller = new AbortController();
+        const abort = () => controller.abort();
+        process.once("SIGINT", abort);
+        process.once("SIGTERM", abort);
+        try {
+          const result = await verifyMcpRecipeConnection(id, {
+            approveRisk: Boolean(options.approveRisk),
+            credentialReferences,
+            timeoutMs,
+            signal: controller.signal,
+          });
+          console.log(
+            options.json
+              ? JSON.stringify(result, null, 2)
+              : `Connected: ${result.recipeId} · MCP ${result.protocolVersion}${result.serverInfo ? ` · ${result.serverInfo.name}${result.serverInfo.version ? ` ${result.serverInfo.version}` : ""}` : ""}\n${result.checks.join("\n")}`,
+          );
+        } finally {
+          process.off("SIGINT", abort);
+          process.off("SIGTERM", abort);
+        }
+        return;
+      }
       if (!options.config)
-        throw new Error("--config is required when selecting an MCP recipe");
+        throw new Error("--config is required for recipe planning or --verify");
       if (options.verify) {
         if (options.yes)
           throw new Error("--verify cannot be combined with --yes");
@@ -2830,10 +3138,8 @@ program
   .description("Restore the most recent Loadout snapshot")
   .option("--snapshot <id>", "specific snapshot id")
   .action(async (options: { snapshot?: string }) => {
-    const directory =
-      process.env.LOADOUT_HOME ??
-      `${process.env.HOME ?? process.cwd()}/.loadout`;
-    const snapshotFiles = (await readdir(`${directory}/snapshots`))
+    const snapshotsDirectory = join(loadoutHome(), "snapshots");
+    const snapshotFiles = (await readdir(snapshotsDirectory))
       .filter((file) => file.endsWith(".json"))
       .sort();
     const selected = options.snapshot
@@ -2841,7 +3147,7 @@ program
       : snapshotFiles.at(-1);
     if (!selected) throw new Error("No Loadout snapshots found");
     const snapshot = JSON.parse(
-      await readFile(`${directory}/snapshots/${selected}`, "utf8"),
+      await readFile(join(snapshotsDirectory, selected), "utf8"),
     );
     await restoreSnapshot(snapshot);
     console.log(`Restored snapshot ${selected.replace(/\.json$/, "")}`);
@@ -3033,7 +3339,28 @@ program.action(() => runSetup({ package: [] }));
 try {
   await program.parseAsync();
 } catch (error) {
-  const message = error instanceof Error ? error.message : String(error);
-  console.error(`Error: ${message}`);
-  process.exitCode = 1;
+  if (
+    error instanceof CommanderError &&
+    (error.code === "commander.helpDisplayed" ||
+      error.code === "commander.version")
+  ) {
+    // Help/version were already rendered successfully by Commander.
+  } else {
+    const message = error instanceof Error ? error.message : String(error);
+    const jsonErrors =
+      process.argv.includes("--json-errors") ||
+      Boolean((program.opts() as { jsonErrors?: boolean }).jsonErrors);
+    console.error(
+      jsonErrors
+        ? JSON.stringify({
+            error: {
+              code:
+                error instanceof CommanderError ? error.code : "loadout.error",
+              message,
+            },
+          })
+        : `Error: ${message}`,
+    );
+    process.exitCode = 1;
+  }
 }

@@ -18,6 +18,14 @@ export interface GitHubDiscoveryOptions {
   fetcher?: typeof fetch;
 }
 
+/** A rolling window prevents the default discovery query from aging in place. */
+export function defaultGitHubDiscoveryQuery(now = new Date()): string {
+  const start = new Date(now.getTime() - 180 * 86_400_000)
+    .toISOString()
+    .slice(0, 10);
+  return `(topic:mcp OR topic:agent OR topic:skills) created:>=${start}`;
+}
+
 /** Search public GitHub repositories through the documented REST API. */
 export async function discoverGitHubRepositories(
   options: GitHubDiscoveryOptions,
@@ -41,8 +49,18 @@ export async function discoverGitHubRepositories(
     `https://api.github.com/search/repositories?${params}`,
     { headers },
   );
-  if (!response.ok)
-    throw new Error(`GitHub repository discovery failed (${response.status})`);
+  if (!response.ok) {
+    const remaining = response.headers.get("x-ratelimit-remaining");
+    const reset = response.headers.get("x-ratelimit-reset");
+    const retryAfter = response.headers.get("retry-after");
+    const resetAt =
+      reset && /^\d+$/.test(reset)
+        ? new Date(Number(reset) * 1000).toISOString()
+        : undefined;
+    throw new Error(
+      `GitHub repository discovery failed (${response.status})${remaining === "0" ? `; rate limit exhausted${resetAt ? ` until ${resetAt}` : ""}` : retryAfter ? `; retry after ${retryAfter} second(s)` : ""}`,
+    );
+  }
   const value: unknown = await response.json();
   if (!value || typeof value !== "object")
     throw new Error("GitHub repository discovery response is invalid");

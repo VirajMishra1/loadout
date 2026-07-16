@@ -13,6 +13,12 @@ export const agentIdSchema = z.enum([
   "gemini-cli",
   "opencode",
   "hermes",
+  "windsurf",
+  "cline",
+  "github-copilot",
+  "roo-code",
+  "kiro-cli",
+  "junie",
 ]);
 
 export const packageTierSchema = z.enum([

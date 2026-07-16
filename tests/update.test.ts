@@ -232,6 +232,7 @@ describe("update planning", () => {
       },
     ]);
     expect(quarantinePath).toContain("demo-bbb");
+    expect(quarantinePath.startsWith(process.env.LOADOUT_HOME)).toBe(true);
     const quarantine = join(
       process.env.LOADOUT_HOME,
       "quarantine",

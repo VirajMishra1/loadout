@@ -79,6 +79,9 @@ describe("platform paths", () => {
     expect(agentSkillsDirectory("codex", userHome(env, "linux"), "linux")).toBe(
       "/home/viraj/.agents/skills",
     );
+    expect(
+      agentSkillsDirectory("opencode", userHome(env, "linux"), "linux"),
+    ).toBe("/home/viraj/.config/opencode/skills");
     expect(runtimeBoundary({ USERPROFILE: "C:\\Users\\viraj" }, "win32")).toBe(
       "windows",
     );
@@ -120,6 +123,12 @@ describe("platform paths", () => {
       "gemini-cli",
       "opencode",
       "hermes",
+      "windsurf",
+      "cline",
+      "github-copilot",
+      "roo-code",
+      "kiro-cli",
+      "junie",
     ]);
   });
 
@@ -132,6 +141,48 @@ describe("platform paths", () => {
         (await detectAgents()).find((agent) => agent.id === "hermes")
           ?.installed,
       ).toBe(true);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("uses vendor-documented global skill roots for the six additional adapters", () => {
+    const home = "/home/viraj";
+    expect(agentSkillsDirectory("windsurf", home, "linux")).toBe(
+      "/home/viraj/.codeium/windsurf/skills",
+    );
+    expect(agentSkillsDirectory("cline", home, "linux")).toBe(
+      "/home/viraj/.cline/skills",
+    );
+    expect(agentSkillsDirectory("github-copilot", home, "linux")).toBe(
+      "/home/viraj/.copilot/skills",
+    );
+    expect(agentSkillsDirectory("roo-code", home, "linux")).toBe(
+      "/home/viraj/.roo/skills",
+    );
+    expect(agentSkillsDirectory("kiro-cli", home, "linux")).toBe(
+      "/home/viraj/.kiro/skills",
+    );
+    expect(agentSkillsDirectory("junie", home, "linux")).toBe(
+      "/home/viraj/.junie/skills",
+    );
+  });
+
+  it("detects IDE-first adapters from documented configuration roots", async () => {
+    const root = await mkdtemp(join(tmpdir(), "loadout-ide-detect-"));
+    try {
+      process.env.LOADOUT_USER_HOME = root;
+      await Promise.all([
+        mkdir(join(root, ".codeium", "windsurf"), { recursive: true }),
+        mkdir(join(root, ".roo"), { recursive: true }),
+        mkdir(join(root, ".junie"), { recursive: true }),
+      ]);
+      const agents = await detectAgents();
+      for (const id of ["windsurf", "roo-code", "junie"] as const) {
+        const agent = agents.find((candidate) => candidate.id === id);
+        expect(agent?.installed).toBe(true);
+        expect(agent?.binary).toBeUndefined();
+      }
     } finally {
       await rm(root, { recursive: true, force: true });
     }

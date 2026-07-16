@@ -442,5 +442,709 @@
       ],
       "verifiedAt": "2026-07-15T08:30:00Z"
     }
+  },
+  {
+    "id": "ponytail",
+    "displayName": "Ponytail",
+    "repository": "DietrichGebert/ponytail",
+    "description": "A portable coding-agent skill and plugin for simplifying implementations and reducing unnecessary code.",
+    "category": "code-simplification",
+    "tier": "trending",
+    "license": "MIT",
+    "components": ["skill", "plugin"],
+    "operatingSystems": ["windows", "macos", "linux"],
+    "stars": 84287,
+    "pushedAt": "2026-07-15T21:32:15Z",
+    "source": {
+      "type": "github",
+      "url": "https://github.com/DietrichGebert/ponytail",
+      "defaultBranch": "main",
+      "commit": "16f29800fd2681bdf24f3eb4ccffe38be3baec6b",
+      "evidencePaths": [
+        "skills/ponytail/SKILL.md",
+        ".codex-plugin/plugin.json"
+      ],
+      "verifiedAt": "2026-07-16T08:44:36Z"
+    }
+  },
+  {
+    "id": "addyosmani-agent-skills",
+    "displayName": "Addy Osmani Agent Skills",
+    "repository": "addyosmani/agent-skills",
+    "description": "Production-grade engineering skills covering planning, testing, debugging, review, security, performance, and shipping.",
+    "category": "software-engineering",
+    "tier": "stable",
+    "license": "MIT",
+    "components": ["skill", "plugin"],
+    "operatingSystems": ["windows", "macos", "linux"],
+    "stars": 78646,
+    "pushedAt": "2026-07-16T07:22:11Z",
+    "source": {
+      "type": "github",
+      "url": "https://github.com/addyosmani/agent-skills",
+      "defaultBranch": "main",
+      "commit": "c1974de476a39cb002a3b8e51e6a7e8e57b808c6",
+      "evidencePaths": [
+        "skills/code-review-and-quality/SKILL.md",
+        "skills/test-driven-development/SKILL.md",
+        ".codex-plugin/plugin.json"
+      ],
+      "verifiedAt": "2026-07-16T08:44:36Z"
+    }
+  },
+  {
+    "id": "scientific-agent-skills",
+    "displayName": "Scientific Agent Skills",
+    "repository": "K-Dense-AI/scientific-agent-skills",
+    "description": "A broad collection of scientific research skills spanning data analysis, biology, chemistry, medicine, and scholarly workflows.",
+    "category": "scientific-research",
+    "tier": "stable",
+    "license": "MIT",
+    "components": ["skill"],
+    "operatingSystems": ["windows", "macos", "linux"],
+    "stars": 30995,
+    "pushedAt": "2026-07-15T17:44:16Z",
+    "source": {
+      "type": "github",
+      "url": "https://github.com/K-Dense-AI/scientific-agent-skills",
+      "defaultBranch": "main",
+      "commit": "3f825caafe149b7853ec8c4d1dd7f4553ea6b2a5",
+      "evidencePaths": [
+        "skills/experimental-design/SKILL.md",
+        "skills/citation-management/SKILL.md"
+      ],
+      "verifiedAt": "2026-07-16T08:44:36Z"
+    }
+  },
+  {
+    "id": "planning-with-files",
+    "displayName": "Planning with Files",
+    "repository": "OthmanAdi/planning-with-files",
+    "description": "Persistent file-based planning skills for long-running coding-agent tasks across many agent clients.",
+    "category": "planning",
+    "tier": "stable",
+    "license": "MIT",
+    "components": ["skill", "plugin"],
+    "operatingSystems": ["windows", "macos", "linux"],
+    "stars": 25403,
+    "pushedAt": "2026-07-14T14:32:40Z",
+    "source": {
+      "type": "github",
+      "url": "https://github.com/OthmanAdi/planning-with-files",
+      "defaultBranch": "master",
+      "commit": "f90780c92f0506d21c5f6c4865ce95517a8b1964",
+      "evidencePaths": [
+        "skills/planning-with-files/SKILL.md",
+        ".claude-plugin/plugin.json"
+      ],
+      "verifiedAt": "2026-07-16T08:44:36Z"
+    }
+  },
+  {
+    "id": "pm-skills",
+    "displayName": "PM Skills",
+    "repository": "phuryn/pm-skills",
+    "description": "Product-management skills for discovery, strategy, execution, analytics, go-to-market, and growth.",
+    "category": "product-management",
+    "tier": "stable",
+    "license": "MIT",
+    "components": ["skill", "plugin"],
+    "operatingSystems": ["windows", "macos", "linux"],
+    "stars": 23791,
+    "pushedAt": "2026-07-03T11:34:49Z",
+    "source": {
+      "type": "github",
+      "url": "https://github.com/phuryn/pm-skills",
+      "defaultBranch": "main",
+      "commit": "18468a95b427e70e258b51389796367c6f684e7d",
+      "evidencePaths": [
+        "pm-execution/skills/create-prd/SKILL.md",
+        "pm-data-analytics/skills/ab-test-analysis/SKILL.md",
+        "pm-execution/.claude-plugin/plugin.json"
+      ],
+      "verifiedAt": "2026-07-16T08:44:36Z"
+    }
+  },
+  {
+    "id": "baoyu-skills",
+    "displayName": "Baoyu Skills",
+    "repository": "JimLiu/baoyu-skills",
+    "description": "Agent skills for diagrams, slide decks, illustrations, image generation, publishing, translation, and content conversion.",
+    "category": "content-creation",
+    "tier": "stable",
+    "license": "MIT",
+    "components": ["skill"],
+    "operatingSystems": ["windows", "macos", "linux"],
+    "stars": 23700,
+    "pushedAt": "2026-07-04T16:25:18Z",
+    "source": {
+      "type": "github",
+      "url": "https://github.com/JimLiu/baoyu-skills",
+      "defaultBranch": "main",
+      "commit": "6b7a2e417500561a5ecdd0b168332f4142584617",
+      "evidencePaths": [
+        "skills/baoyu-diagram/SKILL.md",
+        "skills/baoyu-slide-deck/SKILL.md"
+      ],
+      "verifiedAt": "2026-07-16T08:44:36Z"
+    }
+  },
+  {
+    "id": "trail-of-bits-skills",
+    "displayName": "Trail of Bits Skills",
+    "repository": "trailofbits/skills",
+    "description": "Security-research, vulnerability-detection, code-audit, and secure-development skills from Trail of Bits.",
+    "category": "security",
+    "tier": "stable",
+    "license": "CC-BY-SA-4.0",
+    "components": ["skill", "plugin"],
+    "operatingSystems": ["windows", "macos", "linux"],
+    "stars": 6141,
+    "pushedAt": "2026-07-15T16:33:40Z",
+    "source": {
+      "type": "github",
+      "url": "https://github.com/trailofbits/skills",
+      "defaultBranch": "main",
+      "commit": "cfe5d7b1619e47fb5b38b7e2561dad7e5f1e89af",
+      "evidencePaths": [
+        "plugins/differential-review/skills/differential-review/SKILL.md",
+        "plugins/differential-review/.claude-plugin/plugin.json"
+      ],
+      "verifiedAt": "2026-07-16T08:44:36Z"
+    }
+  },
+  {
+    "id": "antfu-skills",
+    "displayName": "Antfu Skills",
+    "repository": "antfu/skills",
+    "description": "Curated skills for Vue, Nuxt, Vite, Vitest, pnpm, Slidev, and related frontend tooling.",
+    "category": "frontend-development",
+    "tier": "stable",
+    "license": "MIT",
+    "components": ["skill"],
+    "operatingSystems": ["windows", "macos", "linux"],
+    "stars": 5603,
+    "pushedAt": "2026-06-23T00:14:36Z",
+    "source": {
+      "type": "github",
+      "url": "https://github.com/antfu/skills",
+      "defaultBranch": "main",
+      "commit": "a74f281a27dadc02397bc1a174b0f2c97531b6ae",
+      "evidencePaths": [
+        "skills/vue-best-practices/SKILL.md",
+        "skills/vitest/SKILL.md"
+      ],
+      "verifiedAt": "2026-07-16T08:44:36Z"
+    }
+  },
+  {
+    "id": "dotnet-skills",
+    "displayName": ".NET Skills",
+    "repository": "dotnet/skills",
+    "description": "Official skills, plugins, and custom agents for .NET, C#, ASP.NET Core, Blazor, diagnostics, and AI development.",
+    "category": "dotnet-development",
+    "tier": "official",
+    "license": "MIT",
+    "components": ["skill", "agent", "plugin"],
+    "operatingSystems": ["windows", "macos", "linux"],
+    "stars": 4632,
+    "pushedAt": "2026-07-15T23:43:32Z",
+    "source": {
+      "type": "github",
+      "url": "https://github.com/dotnet/skills",
+      "defaultBranch": "main",
+      "commit": "79a2ada302fe8feb884ab33e1bfc2bddae3ee7ce",
+      "evidencePaths": [
+        "plugins/dotnet-ai/skills/mcp-csharp-create/SKILL.md",
+        "plugins/dotnet-ai/.codex-plugin/plugin.json",
+        "plugins/dotnet-diag/agents/optimizing-dotnet-performance.agent.md"
+      ],
+      "verifiedAt": "2026-07-16T08:44:36Z"
+    }
+  },
+  {
+    "id": "microsoft-skills",
+    "displayName": "Microsoft Skills",
+    "repository": "microsoft/skills",
+    "description": "Official Microsoft SDK-grounding skills, plugins, custom agents, and agent instructions.",
+    "category": "cloud-development",
+    "tier": "official",
+    "license": "MIT",
+    "components": ["skill", "agent", "plugin"],
+    "operatingSystems": ["windows", "macos", "linux"],
+    "stars": 2752,
+    "pushedAt": "2026-07-15T23:29:24Z",
+    "source": {
+      "type": "github",
+      "url": "https://github.com/microsoft/skills",
+      "defaultBranch": "main",
+      "commit": "e19efc27887e5f1a6380b9135cdbdbf10648fba7",
+      "evidencePaths": [
+        ".github/plugins/azure-sdk-dotnet/skills/azure-ai-openai-dotnet/SKILL.md",
+        ".github/plugins/azure-sdk-dotnet/.claude-plugin/plugin.json",
+        ".github/agents/backend.agent.md"
+      ],
+      "verifiedAt": "2026-07-16T08:44:36Z"
+    }
+  },
+  {
+    "id": "web-quality-skills",
+    "displayName": "Web Quality Skills",
+    "repository": "addyosmani/web-quality-skills",
+    "description": "Web-quality auditing skills for accessibility, performance, Core Web Vitals, SEO, and engineering best practices.",
+    "category": "web-quality",
+    "tier": "stable",
+    "license": "MIT",
+    "components": ["skill", "plugin"],
+    "operatingSystems": ["windows", "macos", "linux"],
+    "stars": 2507,
+    "pushedAt": "2026-06-14T09:08:35Z",
+    "source": {
+      "type": "github",
+      "url": "https://github.com/addyosmani/web-quality-skills",
+      "defaultBranch": "main",
+      "commit": "95d6e255afe1596b557d7a8498517884438f5b3a",
+      "evidencePaths": [
+        "skills/core-web-vitals/SKILL.md",
+        "skills/accessibility/SKILL.md",
+        ".claude-plugin/plugin.json"
+      ],
+      "verifiedAt": "2026-07-16T08:44:36Z"
+    }
+  },
+  {
+    "id": "softaworks-agent-toolkit",
+    "displayName": "Softaworks Agent Toolkit",
+    "repository": "softaworks/agent-toolkit",
+    "description": "Practical skills for software delivery, architecture, documentation, diagrams, testing, and team communication.",
+    "category": "engineering-productivity",
+    "tier": "stable",
+    "license": "MIT",
+    "components": ["skill"],
+    "operatingSystems": ["windows", "macos", "linux"],
+    "stars": 2195,
+    "pushedAt": "2026-03-05T16:46:24Z",
+    "source": {
+      "type": "github",
+      "url": "https://github.com/softaworks/agent-toolkit",
+      "defaultBranch": "main",
+      "commit": "3027f20f3181758385a1bb8c022d4041dfb4de84",
+      "evidencePaths": [
+        "skills/c4-architecture/SKILL.md",
+        "skills/qa-test-planner/SKILL.md"
+      ],
+      "verifiedAt": "2026-07-16T08:44:36Z"
+    }
+  },
+  {
+    "id": "drawio-skill",
+    "displayName": "Draw.io Skill",
+    "repository": "Agents365-ai/drawio-skill",
+    "description": "An agent skill for creating and validating editable Draw.io diagrams across architecture, UML, BPMN, and network workflows.",
+    "category": "diagramming",
+    "tier": "stable",
+    "license": "MIT",
+    "components": ["skill"],
+    "operatingSystems": ["windows", "macos", "linux"],
+    "stars": 5848,
+    "pushedAt": "2026-07-14T11:41:30Z",
+    "source": {
+      "type": "github",
+      "url": "https://github.com/Agents365-ai/drawio-skill",
+      "defaultBranch": "main",
+      "commit": "9f52925770334e9bd2794e40a7fa64c234e9f545",
+      "evidencePaths": ["skills/drawio-skill/SKILL.md"],
+      "verifiedAt": "2026-07-16T08:44:36Z"
+    }
+  },
+  {
+    "id": "chrome-devtools-mcp",
+    "displayName": "Chrome DevTools MCP",
+    "repository": "ChromeDevTools/chrome-devtools-mcp",
+    "description": "Chrome DevTools automation, inspection, performance, accessibility, and debugging capabilities for coding agents.",
+    "category": "browser-debugging",
+    "tier": "official",
+    "license": "Apache-2.0",
+    "components": ["skill", "mcp", "plugin"],
+    "operatingSystems": ["windows", "macos", "linux"],
+    "stars": 47050,
+    "pushedAt": "2026-07-15T14:10:27Z",
+    "source": {
+      "type": "github",
+      "url": "https://github.com/ChromeDevTools/chrome-devtools-mcp",
+      "defaultBranch": "main",
+      "commit": "9a7e04daa2cd031afe469d4503d6baf58b9b2cea",
+      "evidencePaths": [
+        "src/bin/chrome-devtools-mcp-main.ts",
+        "skills/chrome-devtools/SKILL.md",
+        ".claude-plugin/plugin.json"
+      ],
+      "verifiedAt": "2026-07-16T08:45:18Z"
+    }
+  },
+  {
+    "id": "serena",
+    "displayName": "Serena",
+    "repository": "oraios/serena",
+    "description": "A semantic code-retrieval and editing MCP toolkit with language-server support for coding agents.",
+    "category": "code-intelligence",
+    "tier": "stable",
+    "license": "MIT",
+    "components": ["mcp"],
+    "operatingSystems": ["windows", "macos", "linux"],
+    "stars": 26505,
+    "pushedAt": "2026-07-16T08:35:29Z",
+    "source": {
+      "type": "github",
+      "url": "https://github.com/oraios/serena",
+      "defaultBranch": "main",
+      "commit": "465c5eb627883ec310c5b7e643fe445af84589b3",
+      "evidencePaths": ["src/serena/mcp.py", "pyproject.toml"],
+      "verifiedAt": "2026-07-16T08:45:18Z"
+    }
+  },
+  {
+    "id": "model-context-protocol-servers",
+    "displayName": "Model Context Protocol Servers",
+    "repository": "modelcontextprotocol/servers",
+    "description": "Official reference MCP servers for filesystem, Git, memory, fetching, time, and protocol testing.",
+    "category": "mcp-reference",
+    "tier": "official",
+    "license": "NOASSERTION",
+    "components": ["mcp"],
+    "operatingSystems": ["windows", "macos", "linux"],
+    "stars": 88530,
+    "pushedAt": "2026-07-10T03:30:19Z",
+    "source": {
+      "type": "github",
+      "url": "https://github.com/modelcontextprotocol/servers",
+      "defaultBranch": "main",
+      "commit": "d31124c982401739917fd817c2a59db344529c16",
+      "evidencePaths": [
+        ".mcp.json",
+        "src/filesystem/package.json",
+        "src/fetch/src/mcp_server_fetch/server.py"
+      ],
+      "verifiedAt": "2026-07-16T08:45:18Z"
+    }
+  },
+  {
+    "id": "aws-mcp-servers",
+    "displayName": "AWS MCP Servers",
+    "repository": "awslabs/mcp",
+    "description": "Official AWS MCP servers for cloud architecture, operations, data, documentation, and service workflows.",
+    "category": "cloud-platform",
+    "tier": "official",
+    "license": "Apache-2.0",
+    "components": ["mcp"],
+    "operatingSystems": ["windows", "macos", "linux"],
+    "stars": 9451,
+    "pushedAt": "2026-07-16T05:55:03Z",
+    "source": {
+      "type": "github",
+      "url": "https://github.com/awslabs/mcp",
+      "defaultBranch": "main",
+      "commit": "778b5a5db8a6f5b92ddb355e59b398544dbf6630",
+      "evidencePaths": [
+        "src/aws-api-mcp-server/awslabs/aws_api_mcp_server/server.py",
+        "src/aws-api-mcp-server/pyproject.toml"
+      ],
+      "verifiedAt": "2026-07-16T08:45:18Z"
+    }
+  },
+  {
+    "id": "dbhub",
+    "displayName": "DBHub",
+    "repository": "bytebase/dbhub",
+    "description": "A token-efficient database MCP server for PostgreSQL, MySQL, SQL Server, MariaDB, and SQLite.",
+    "category": "database",
+    "tier": "stable",
+    "license": "MIT",
+    "components": ["skill", "mcp"],
+    "operatingSystems": ["windows", "macos", "linux"],
+    "stars": 3167,
+    "pushedAt": "2026-07-10T18:02:19Z",
+    "source": {
+      "type": "github",
+      "url": "https://github.com/bytebase/dbhub",
+      "defaultBranch": "main",
+      "commit": "ec8efede6b8b47dabceb822022954852fc420490",
+      "evidencePaths": [
+        "src/server.ts",
+        "package.json",
+        "skills/dbhub/SKILL.md"
+      ],
+      "verifiedAt": "2026-07-16T08:45:18Z"
+    }
+  },
+  {
+    "id": "fastapi-mcp",
+    "displayName": "FastAPI MCP",
+    "repository": "tadata-org/fastapi_mcp",
+    "description": "A library for exposing FastAPI endpoints as authenticated MCP tools.",
+    "category": "api-development",
+    "tier": "stable",
+    "license": "MIT",
+    "components": ["mcp"],
+    "operatingSystems": ["windows", "macos", "linux"],
+    "stars": 11945,
+    "pushedAt": "2025-11-24T14:51:54Z",
+    "source": {
+      "type": "github",
+      "url": "https://github.com/tadata-org/fastapi_mcp",
+      "defaultBranch": "main",
+      "commit": "e5cad13cabfc725bbcb047e526816d887d96da62",
+      "evidencePaths": ["fastapi_mcp/server.py", "pyproject.toml"],
+      "verifiedAt": "2026-07-16T08:45:18Z"
+    }
+  },
+  {
+    "id": "browser-mcp",
+    "displayName": "Browser MCP",
+    "repository": "BrowserMCP/mcp",
+    "description": "A browser-control MCP server that connects compatible AI applications to a local browser extension.",
+    "category": "browser-automation",
+    "tier": "stable",
+    "license": "Apache-2.0",
+    "components": ["mcp"],
+    "operatingSystems": ["windows", "macos", "linux"],
+    "stars": 6832,
+    "pushedAt": "2025-04-24T21:49:44Z",
+    "source": {
+      "type": "github",
+      "url": "https://github.com/BrowserMCP/mcp",
+      "defaultBranch": "main",
+      "commit": "9db12f2b4f61294f0bc11708986abc47db539d6c",
+      "evidencePaths": ["src/server.ts", "package.json"],
+      "verifiedAt": "2026-07-16T08:45:18Z"
+    }
+  },
+  {
+    "id": "antvis-chart-mcp",
+    "displayName": "AntV Chart MCP",
+    "repository": "antvis/mcp-server-chart",
+    "description": "An MCP server for generating and analyzing a broad range of data visualizations with AntV.",
+    "category": "data-visualization",
+    "tier": "official",
+    "license": "MIT",
+    "components": ["mcp"],
+    "operatingSystems": ["windows", "macos", "linux"],
+    "stars": 4241,
+    "pushedAt": "2026-05-06T07:58:59Z",
+    "source": {
+      "type": "github",
+      "url": "https://github.com/antvis/mcp-server-chart",
+      "defaultBranch": "main",
+      "commit": "33178096abfa58f245b456f5bacb18bc37f5cbaf",
+      "evidencePaths": ["src/server.ts", "package.json"],
+      "verifiedAt": "2026-07-16T08:45:18Z"
+    }
+  },
+  {
+    "id": "excel-mcp-server",
+    "displayName": "Excel MCP Server",
+    "repository": "haris-musa/excel-mcp-server",
+    "description": "An MCP server for reading, writing, formatting, and analyzing Excel workbooks.",
+    "category": "spreadsheets",
+    "tier": "stable",
+    "license": "MIT",
+    "components": ["mcp"],
+    "operatingSystems": ["windows", "macos", "linux"],
+    "stars": 4033,
+    "pushedAt": "2026-04-12T06:14:45Z",
+    "source": {
+      "type": "github",
+      "url": "https://github.com/haris-musa/excel-mcp-server",
+      "defaultBranch": "main",
+      "commit": "f51340ecd5778952405044b203d3a2d4c8a46833",
+      "evidencePaths": ["src/excel_mcp/server.py", "pyproject.toml"],
+      "verifiedAt": "2026-07-16T08:45:18Z"
+    }
+  },
+  {
+    "id": "arxiv-mcp-server",
+    "displayName": "arXiv MCP Server",
+    "repository": "blazickjp/arxiv-mcp-server",
+    "description": "An MCP server and skill for searching, downloading, and analyzing research papers from arXiv.",
+    "category": "academic-research",
+    "tier": "stable",
+    "license": "Apache-2.0",
+    "components": ["skill", "mcp", "plugin"],
+    "operatingSystems": ["windows", "macos", "linux"],
+    "stars": 2961,
+    "pushedAt": "2026-05-18T18:00:11Z",
+    "source": {
+      "type": "github",
+      "url": "https://github.com/blazickjp/arxiv-mcp-server",
+      "defaultBranch": "main",
+      "commit": "d58901760d7ede4adb162eaba1725209a933f100",
+      "evidencePaths": [
+        "src/arxiv_mcp_server/server.py",
+        "skills/arxiv-mcp-server/SKILL.md",
+        ".codex-plugin/plugin.json",
+        ".mcp.json"
+      ],
+      "verifiedAt": "2026-07-16T08:45:18Z"
+    }
+  },
+  {
+    "id": "google-workspace-mcp",
+    "displayName": "Google Workspace MCP",
+    "repository": "taylorwilsdon/google_workspace_mcp",
+    "description": "An MCP server and skill for Gmail, Calendar, Drive, Docs, Sheets, Slides, Chat, Forms, and Tasks.",
+    "category": "productivity",
+    "tier": "stable",
+    "license": "MIT",
+    "components": ["skill", "mcp", "plugin"],
+    "operatingSystems": ["windows", "macos", "linux"],
+    "stars": 2856,
+    "pushedAt": "2026-07-07T15:21:48Z",
+    "source": {
+      "type": "github",
+      "url": "https://github.com/taylorwilsdon/google_workspace_mcp",
+      "defaultBranch": "main",
+      "commit": "3f19c7d4a2654238e5fed1b767174fac5615555b",
+      "evidencePaths": [
+        "core/server.py",
+        "fastmcp.json",
+        "skills/managing-google-workspace/SKILL.md",
+        ".claude-plugin/plugin.json"
+      ],
+      "verifiedAt": "2026-07-16T08:45:18Z"
+    }
+  },
+  {
+    "id": "mongodb-mcp-server",
+    "displayName": "MongoDB MCP Server",
+    "repository": "mongodb-js/mongodb-mcp-server",
+    "description": "MongoDB's official MCP server for MongoDB databases and Atlas clusters.",
+    "category": "database",
+    "tier": "official",
+    "license": "Apache-2.0",
+    "components": ["mcp"],
+    "operatingSystems": ["windows", "macos", "linux"],
+    "stars": 1081,
+    "pushedAt": "2026-07-16T08:27:53Z",
+    "source": {
+      "type": "github",
+      "url": "https://github.com/mongodb-js/mongodb-mcp-server",
+      "defaultBranch": "main",
+      "commit": "f45d7c777d88d77069da36b3133e68901dc0697a",
+      "evidencePaths": ["src/server.ts", "package.json"],
+      "verifiedAt": "2026-07-16T08:45:18Z"
+    }
+  },
+  {
+    "id": "redis-mcp-server",
+    "displayName": "Redis MCP Server",
+    "repository": "redis/mcp-redis",
+    "description": "Redis's official MCP server for managing, querying, and searching Redis data.",
+    "category": "database",
+    "tier": "official",
+    "license": "MIT",
+    "components": ["mcp"],
+    "operatingSystems": ["windows", "macos", "linux"],
+    "stars": 547,
+    "pushedAt": "2026-06-22T11:06:06Z",
+    "source": {
+      "type": "github",
+      "url": "https://github.com/redis/mcp-redis",
+      "defaultBranch": "main",
+      "commit": "53df2bcb7754a393f53b6c880ab710b95fefa343",
+      "evidencePaths": [
+        "src/main.py",
+        "src/common/server.py",
+        "pyproject.toml"
+      ],
+      "verifiedAt": "2026-07-16T08:45:18Z"
+    }
+  },
+  {
+    "id": "stripe-ai",
+    "displayName": "Stripe AI",
+    "repository": "stripe/ai",
+    "description": "Official Stripe skills, plugins, MCP configuration, tools, and guidance for AI-powered products.",
+    "category": "payments",
+    "tier": "official",
+    "license": "MIT",
+    "components": ["skill", "mcp", "plugin"],
+    "operatingSystems": ["windows", "macos", "linux"],
+    "stars": 1680,
+    "pushedAt": "2026-07-16T00:45:28Z",
+    "source": {
+      "type": "github",
+      "url": "https://github.com/stripe/ai",
+      "defaultBranch": "main",
+      "commit": "e238b951665cba5260d70aa80e5021def27a61d3",
+      "evidencePaths": [
+        "providers/claude/plugin/.mcp.json",
+        "providers/claude/plugin/skills/stripe-best-practices/SKILL.md",
+        "providers/claude/plugin/.claude-plugin/plugin.json"
+      ],
+      "verifiedAt": "2026-07-16T08:45:18Z"
+    }
+  },
+  {
+    "id": "mcp-toolbox-for-databases",
+    "displayName": "MCP Toolbox for Databases",
+    "repository": "googleapis/mcp-toolbox",
+    "description": "Google's open-source MCP server for connecting agents to databases with configurable tools and data sources.",
+    "category": "database",
+    "tier": "official",
+    "license": "Apache-2.0",
+    "components": ["mcp"],
+    "operatingSystems": ["windows", "macos", "linux"],
+    "stars": 15963,
+    "pushedAt": "2026-07-16T08:34:35Z",
+    "source": {
+      "type": "github",
+      "url": "https://github.com/googleapis/mcp-toolbox",
+      "defaultBranch": "main",
+      "commit": "b574b071fc27f717e90b4362864b1086be0c8995",
+      "evidencePaths": ["internal/server/server.go", "main.go", "go.mod"],
+      "verifiedAt": "2026-07-16T08:45:18Z"
+    }
+  },
+  {
+    "id": "browserbase-mcp-server",
+    "displayName": "Browserbase MCP Server",
+    "repository": "browserbase/mcp-server-browserbase",
+    "description": "An MCP server for browser automation through Browserbase and Stagehand.",
+    "category": "browser-automation",
+    "tier": "stable",
+    "license": "Apache-2.0",
+    "components": ["mcp"],
+    "operatingSystems": ["windows", "macos", "linux"],
+    "stars": 3407,
+    "pushedAt": "2026-07-07T05:50:51Z",
+    "source": {
+      "type": "github",
+      "url": "https://github.com/browserbase/mcp-server-browserbase",
+      "defaultBranch": "main",
+      "commit": "1e196b3d3c4dc70944e0d19038dd9eb3608b207a",
+      "evidencePaths": ["src/server.ts", "package.json"],
+      "verifiedAt": "2026-07-16T08:45:18Z"
+    }
+  },
+  {
+    "id": "bright-data-mcp",
+    "displayName": "Bright Data MCP",
+    "repository": "brightdata/brightdata-mcp",
+    "description": "An MCP server for public-web search, browsing, extraction, and structured data access through Bright Data.",
+    "category": "web-research",
+    "tier": "stable",
+    "license": "MIT",
+    "components": ["mcp"],
+    "operatingSystems": ["windows", "macos", "linux"],
+    "stars": 2499,
+    "pushedAt": "2026-06-21T08:55:29Z",
+    "source": {
+      "type": "github",
+      "url": "https://github.com/brightdata/brightdata-mcp",
+      "defaultBranch": "main",
+      "commit": "adbfdd49b8805136662a264490118c2688da3e29",
+      "evidencePaths": ["server.js", "package.json"],
+      "verifiedAt": "2026-07-16T08:45:18Z"
+    }
   }
 ]

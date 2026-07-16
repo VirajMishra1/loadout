@@ -19,8 +19,14 @@ export interface ReviewQueueItem {
   decision: ReviewDecision;
   alreadyCataloged: boolean;
   stars?: number;
-  /** Observed star change per day; absent until two GitHub observations exist. */
+  /** Observed star change per day; absent until observations are at least a day apart. */
   starVelocity?: number;
+  /** Actual interval used for starVelocity, retained so the rate is auditable. */
+  starVelocityWindowDays?: number;
+  starVelocityMeasuredAt?: string;
+  /** Persisted measurement baseline; sub-day refreshes do not move it forward. */
+  starVelocityBaselineStars?: number;
+  starVelocityBaselineAt?: string;
   forks?: number;
   repositoryCreatedAt?: string;
   repositoryUpdatedAt?: string;
@@ -95,6 +101,8 @@ function fromLead(
       decision: "pending",
       alreadyCataloged: cataloged.has(lead.repository.toLowerCase()),
       stars: lead.stars,
+      starVelocityBaselineStars: lead.stars,
+      starVelocityBaselineAt: now,
       forks: lead.forks,
       repositoryCreatedAt: lead.createdAt,
       repositoryUpdatedAt: lead.updatedAt,
@@ -112,6 +120,27 @@ function fromLead(
     communityScore: lead.score,
     discussionUrl: lead.discussionUrl,
   };
+}
+
+function decisionPriority(decision: ReviewDecision): number {
+  if (decision === "shortlisted") return 0;
+  if (decision === "pending") return 1;
+  return 2;
+}
+
+function compareQueueItems(
+  left: ReviewQueueItem,
+  right: ReviewQueueItem,
+): number {
+  return (
+    Number(left.alreadyCataloged) - Number(right.alreadyCataloged) ||
+    decisionPriority(left.decision) - decisionPriority(right.decision) ||
+    (right.starVelocity ?? Number.NEGATIVE_INFINITY) -
+      (left.starVelocity ?? Number.NEGATIVE_INFINITY) ||
+    (right.stars ?? right.communityScore ?? 0) -
+      (left.stars ?? left.communityScore ?? 0) ||
+    left.repository.localeCompare(right.repository)
+  );
 }
 
 /** Merge read-only discovery leads; this never promotes or installs a candidate. */
@@ -132,6 +161,42 @@ export async function mergeReviewQueue(
     const incoming = fromLead(lead, timestamp, cataloged);
     const key = incoming.repository.toLowerCase();
     const existing = items.get(key);
+    let velocityEvidence: Partial<ReviewQueueItem> = {};
+    if (
+      existing &&
+      incoming.stars !== undefined &&
+      existing.stars !== undefined
+    ) {
+      const baselineStars =
+        existing.starVelocityBaselineStars ?? existing.stars;
+      const baselineAt = existing.starVelocityBaselineAt ?? existing.lastSeenAt;
+      const elapsedDays = (now.getTime() - Date.parse(baselineAt)) / 86_400_000;
+      if (Number.isFinite(elapsedDays) && elapsedDays >= 1) {
+        velocityEvidence = {
+          starVelocity: (incoming.stars - baselineStars) / elapsedDays,
+          starVelocityWindowDays: elapsedDays,
+          starVelocityMeasuredAt: timestamp,
+          starVelocityBaselineStars: incoming.stars,
+          starVelocityBaselineAt: timestamp,
+        };
+      } else if (Number.isFinite(elapsedDays) && elapsedDays > 0) {
+        velocityEvidence = {
+          starVelocity: existing.starVelocity,
+          starVelocityWindowDays: existing.starVelocityWindowDays,
+          starVelocityMeasuredAt: existing.starVelocityMeasuredAt,
+          starVelocityBaselineStars: baselineStars,
+          starVelocityBaselineAt: baselineAt,
+        };
+      } else {
+        velocityEvidence = {
+          starVelocity: existing.starVelocity,
+          starVelocityWindowDays: existing.starVelocityWindowDays,
+          starVelocityMeasuredAt: existing.starVelocityMeasuredAt,
+          starVelocityBaselineStars: incoming.stars,
+          starVelocityBaselineAt: timestamp,
+        };
+      }
+    }
     items.set(
       key,
       existing
@@ -141,17 +206,7 @@ export async function mergeReviewQueue(
             sources: [...new Set([...existing.sources, ...incoming.sources])],
             firstSeenAt: existing.firstSeenAt,
             decision: existing.decision,
-            ...(incoming.stars !== undefined && existing.stars !== undefined
-              ? {
-                  starVelocity:
-                    (incoming.stars - existing.stars) /
-                    Math.max(
-                      1,
-                      (now.getTime() - Date.parse(existing.lastSeenAt)) /
-                        86_400_000,
-                    ),
-                }
-              : {}),
+            ...velocityEvidence,
           }
         : incoming,
     );
@@ -159,17 +214,7 @@ export async function mergeReviewQueue(
   const queue: ReviewQueue = {
     schemaVersion: 1,
     updatedAt: timestamp,
-    items: [...items.values()].sort(
-      (left, right) =>
-        Number(left.alreadyCataloged) - Number(right.alreadyCataloged) ||
-        Number(right.decision === "shortlisted") -
-          Number(left.decision === "shortlisted") ||
-        (right.starVelocity ?? Number.NEGATIVE_INFINITY) -
-          (left.starVelocity ?? Number.NEGATIVE_INFINITY) ||
-        (right.stars ?? right.communityScore ?? 0) -
-          (left.stars ?? left.communityScore ?? 0) ||
-        left.repository.localeCompare(right.repository),
-    ),
+    items: [...items.values()].sort(compareQueueItems),
   };
   await ensureDirectory(dirname(queuePath()));
   await writeFileAtomically(queuePath(), `${JSON.stringify(queue, null, 2)}\n`);
@@ -190,6 +235,7 @@ export async function setReviewDecision(
       `Repository is not in the review queue: ${repository}. Run loadout discover --queue first.`,
     );
   item.decision = decision;
+  queue.items.sort(compareQueueItems);
   queue.updatedAt = new Date().toISOString();
   await writeFileAtomically(queuePath(), `${JSON.stringify(queue, null, 2)}\n`);
   return item;
@@ -201,7 +247,7 @@ export function formatReviewQueue(queue: ReviewQueue): string {
     `Review queue: ${visible.length} uncataloged candidate(s), ${queue.items.length - visible.length} already cataloged`,
     ...visible.map(
       (item) =>
-        `${item.decision === "shortlisted" ? "★" : item.decision === "ignored" ? "×" : "○"} ${item.repository} — ${item.stars !== undefined ? `${item.stars} stars${item.starVelocity !== undefined ? ` (${item.starVelocity >= 0 ? "+" : ""}${item.starVelocity.toFixed(1)}/day)` : ""}` : `community score ${item.communityScore ?? 0}`} — ${item.sources.join("+")}`,
+        `${item.decision === "shortlisted" ? "★" : item.decision === "ignored" ? "×" : "○"} ${item.repository} — ${item.stars !== undefined ? `${item.stars} stars${item.starVelocity !== undefined ? ` (${item.starVelocity >= 0 ? "+" : ""}${item.starVelocity.toFixed(1)}/day over ${item.starVelocityWindowDays?.toFixed(2) ?? "unknown"} days)` : ""}` : `community score ${item.communityScore ?? 0}`} — ${item.sources.join("+")}`,
     ),
   ].join("\n");
 }

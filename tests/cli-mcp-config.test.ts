@@ -47,4 +47,18 @@ describe("mcp-config CLI", () => {
       await rm(root, { recursive: true, force: true });
     }
   });
+
+  it("never launches a reviewed MCP artifact without explicit approval", async () => {
+    await expect(
+      run(process.execPath, [
+        cli,
+        entry,
+        "mcp-recipe",
+        "playwright",
+        "--connect",
+      ]),
+    ).rejects.toMatchObject({
+      stderr: expect.stringContaining("explicit approveRisk"),
+    });
+  });
 });

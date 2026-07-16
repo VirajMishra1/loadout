@@ -9,8 +9,10 @@ const execFileAsync = promisify(execFile);
 export const AGENT_DEFINITIONS: ReadonlyArray<{
   id: AgentId;
   displayName: string;
-  binary: string;
-  directory: readonly [string, string];
+  binary?: string;
+  directory: readonly string[];
+  /** Agent-owned roots whose presence proves an IDE/config installation. */
+  detectionDirectories?: readonly (readonly string[])[];
 }> = [
   {
     id: "claude-code",
@@ -40,13 +42,51 @@ export const AGENT_DEFINITIONS: ReadonlyArray<{
     id: "opencode",
     displayName: "OpenCode",
     binary: "opencode",
-    directory: [".opencode", "skills"],
+    directory: [".config", "opencode", "skills"],
   },
   {
     id: "hermes",
     displayName: "Hermes",
     binary: "hermes",
     directory: [".hermes", "skills"],
+  },
+  {
+    id: "windsurf",
+    displayName: "Windsurf",
+    directory: [".codeium", "windsurf", "skills"],
+    detectionDirectories: [[".codeium", "windsurf"]],
+  },
+  {
+    id: "cline",
+    displayName: "Cline",
+    binary: "cline",
+    directory: [".cline", "skills"],
+    detectionDirectories: [[".cline"]],
+  },
+  {
+    id: "github-copilot",
+    displayName: "GitHub Copilot",
+    binary: "copilot",
+    directory: [".copilot", "skills"],
+    detectionDirectories: [[".copilot"]],
+  },
+  {
+    id: "roo-code",
+    displayName: "Roo Code",
+    directory: [".roo", "skills"],
+    detectionDirectories: [[".roo"]],
+  },
+  {
+    id: "kiro-cli",
+    displayName: "Kiro CLI",
+    directory: [".kiro", "skills"],
+    detectionDirectories: [[".kiro"]],
+  },
+  {
+    id: "junie",
+    displayName: "Junie",
+    directory: [".junie", "skills"],
+    detectionDirectories: [[".junie"]],
   },
 ];
 
@@ -158,18 +198,30 @@ export async function detectAgents(
   const home = userHome(env, platform);
   return Promise.all(
     AGENT_DEFINITIONS.map(async (definition) => {
+      const path = platform === "win32" ? win32 : posix;
       const skillsDirectory = agentSkillsDirectory(
         definition.id,
         home,
         platform,
       );
+      const detectionDirectories = definition.detectionDirectories?.map(
+        (parts) => path.join(home, ...parts),
+      ) ?? [dirnameForDetection(skillsDirectory)];
       return {
         id: definition.id,
         displayName: definition.displayName,
-        binary: definition.binary,
+        ...(definition.binary ? { binary: definition.binary } : {}),
         installed:
-          (await hasBinary(definition.binary, platform)) ||
-          (await directoryExists(dirnameForDetection(skillsDirectory))),
+          (definition.binary
+            ? await hasBinary(definition.binary, platform)
+            : false) ||
+          (
+            await Promise.all(
+              detectionDirectories.map((directory) =>
+                directoryExists(directory),
+              ),
+            )
+          ).some(Boolean),
         skillsDirectory,
       };
     }),

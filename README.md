@@ -2,7 +2,8 @@
 
 Loadout is a universal upgrade manager for AI coding agents. It discovers, installs,
 synchronizes, and updates trusted skills and MCP tools across Claude Code, Codex,
-Cursor, Gemini CLI, OpenCode, Hermes, and other compatible agents.
+Cursor, Gemini CLI, OpenCode, Hermes, Windsurf, Cline, GitHub Copilot, Roo Code,
+Kiro CLI, and Junie.
 
 The project is being built for the OpenAI Build Week **Developer Tools** category.
 
@@ -40,12 +41,13 @@ npx loadout-ai setup --mode maximum --yes --approve-risk
 npx loadout-ai optimize --project .                 # project-aware dry run
 ```
 
-The current 20-repository reviewed catalog contains 13 automatically installable skill
-repositories. In the verified Maximum stress run on 2026-07-15, overlap resolution
-produced 684 unique skill directories per detected agent; seven MCP-only repositories
-were deferred for explicit credentials and configuration. That breadth is not the
-recommended active set. Loadout warns above 30 active skills per agent and never runs
-repository install scripts.
+The current 50-repository reviewed catalog contains 31 skill-bearing repositories and
+19 MCP-only repositories across 37 capability categories. Every record has an immutable
+commit and component evidence; `loadout catalog --coverage` exposes license, overlap,
+install-shape, platform-inspection, activity, and evaluation-readiness metrics. Maximum
+keeps the broad library disabled until project-aware optimization chooses a bounded
+active set. Loadout warns above 30 active skills per agent and never runs repository
+install scripts.
 
 Daily use remains CLI-first:
 
@@ -67,11 +69,31 @@ loadout discover --source github
 loadout recommend --project .
 loadout models set --id coding --model openai/gpt-5
 loadout models status
+loadout credentials status
 loadout schedule --time 09:00
 loadout unschedule
 loadout outcome openai-skills/playwright --agent codex --task testing --result success
 loadout report
 loadout share loadout-report.json
+```
+
+Native secrets are stdin-only and never echoed:
+
+```bash
+printf '%s' "$OPENROUTER_API_KEY" | loadout credentials set loadout.openrouter --stdin
+loadout models set --id coding --model openai/gpt-5 --credential-keychain loadout.openrouter --yes
+loadout models verify coding
+```
+
+MCP configuration verification remains non-executing. Real connection verification is
+separate, opt-in, bounded, and launches only the exact reviewed artifact:
+
+```bash
+loadout mcp-recipe playwright --config ./mcp.json       # dry-run configuration
+loadout mcp-recipe playwright --config ./mcp.json --verify
+loadout mcp-recipe playwright --connect --approve-risk
+loadout mcp-recipe github-readonly --connect --approve-risk \
+  --credential GITHUB_PERSONAL_ACCESS_TOKEN=keychain:loadout.github
 ```
 
 ## Status
@@ -80,9 +102,11 @@ The working product path detects installed agents, inventories actual `SKILL.md`
 capabilities and ownership, prepares reviewed catalog sources at pinned commits,
 resolves exact overlaps, previews every target and safety finding, installs the approved
 loadout transactionally, tracks updates, and rolls back cleanly. Exact provenance,
-comparison, reviewed-library state, per-skill activation, safe adoption, and a first
-deterministic project optimizer now work. Evaluation-backed replacement, scheduled
-discovery, and public-beta hardening remain explicit Phase 12 work.
+comparison, reviewed-library state, per-skill activation, safe adoption, signed
+head-to-head evidence, evaluation-backed replacement alerts, scheduled multi-source
+discovery, native credential references, and deterministic project optimization now
+work. Publication, upstream license review, and real multi-user beta validation remain
+explicit release work.
 
 See [MASTER_PLAN.md](./MASTER_PLAN.md) for the canonical, current implementation plan
 and [SIMPLE_PLAN.md](./SIMPLE_PLAN.md) for the short plain-language version. New users
@@ -91,12 +115,20 @@ test before touching a real agent profile.
 
 ## Supported platforms
 
-| Platform | Detection                                                       | Skill target roots                                       | Verification                            |
-| -------- | --------------------------------------------------------------- | -------------------------------------------------------- | --------------------------------------- |
-| macOS    | `PATH` executable or existing agent directory                   | Claude Code, Codex, Cursor, Gemini CLI, OpenCode, Hermes | Native install/remove CI smoke test     |
-| Linux    | `PATH` executable or existing agent directory                   | Claude Code, Codex, Cursor, Gemini CLI, OpenCode, Hermes | Native install/remove CI smoke test     |
-| Windows  | `PATH` executable/`.cmd` resolution or existing agent directory | Claude Code, Codex, Cursor, Gemini CLI, OpenCode, Hermes | Native install/remove CI smoke test     |
-| WSL      | Linux executable and POSIX `$HOME` only                         | Linux-side agent directories only                        | Deterministic boundary tests + Linux CI |
+| Platform | Detection                                                       | Skill adapters               | Verification                            |
+| -------- | --------------------------------------------------------------- | ---------------------------- | --------------------------------------- |
+| macOS    | `PATH` executable or existing documented agent directory        | All twelve adapters          | Native install/remove CI smoke test     |
+| Linux    | `PATH` executable or existing documented agent directory        | All twelve adapters          | Native install/remove CI smoke test     |
+| Windows  | `PATH` executable/`.cmd` resolution or existing agent directory | All twelve adapters          | Native install/remove CI smoke test     |
+| WSL      | Linux executable and POSIX `$HOME` only                         | Linux-side agent directories | Deterministic boundary tests + Linux CI |
+
+The six additional adapters intentionally manage Agent Skills only: Windsurf
+`~/.codeium/windsurf/skills`, Cline `~/.cline/skills`, GitHub Copilot
+`~/.copilot/skills`, Roo Code `~/.roo/skills`, Kiro CLI `~/.kiro/skills`, and
+Junie `~/.junie/skills`. OpenCode uses its documented
+`~/.config/opencode/skills` root. Rules, commands, custom agents, MCP, and plugins
+remain unsupported for these six until their formats have separate documented and
+tested adapters.
 
 Loadout writes to the detected agent's documented user directory and supports
 `LOADOUT_USER_HOME` for an isolated test or demo profile. It does not claim that every
@@ -253,7 +285,7 @@ and copies only discovered `SKILL.md` directories into the selected agent roots.
 
 ## Catalog provenance and attribution
 
-The bundled catalog contains 20 public repositories selected for inspectable skills,
+The bundled catalog contains 50 public repositories selected for inspectable skills,
 plugins, or MCP tooling. Every record pins the GitHub HEAD commit observed on
 2026-07-14 and records the exact repository-relative paths used as component evidence.
 It also records the SPDX identifier GitHub returned; `NOASSERTION` means GitHub did
@@ -273,6 +305,7 @@ than manufacturing a velocity signal. Use the terminal chart after at least two 
 ```bash
 node dist/src/cli.js catalog --refresh
 node dist/src/cli.js catalog --history superpowers
+node dist/src/cli.js catalog --coverage
 ```
 
 ## Early discovery without blind installation
@@ -281,7 +314,7 @@ node dist/src/cli.js catalog --history superpowers
 # Public Hacker News API only; finds current front-page stories that link to GitHub.
 node dist/src/cli.js discover --source hacker-news --min-score 20
 node dist/src/cli.js discover --source hacker-news --query codex,mcp,agent
-node dist/src/cli.js discover --source github --query "(topic:mcp OR topic:agent) created:>=2026-01-01"
+node dist/src/cli.js discover --source github # defaults to a rolling 180-day window
 node dist/src/cli.js discover --source hacker-news --json
 ```
 
@@ -312,6 +345,10 @@ npx . rollback --snapshot <snapshot-id>
 For a fully disposable presentation, follow [docs/TESTING.md](./docs/TESTING.md): it
 creates temporary agent and Loadout homes, demonstrates the same scan/compare/optimize
 flow, and leaves the real profile untouched.
+
+Run `npm run test:e2e:cli` to execute that core journey automatically against the
+built CLI. It is the required product-flow CI gate; dashboard browser automation is
+kept as an optional diagnostic job.
 
 ### Optional dashboard diagnostics
 
@@ -376,7 +413,9 @@ catalog, updates, recommendations, and authenticated safe sync/rollback actions.
 
 ## Current demo boundaries
 
-- Public GitHub repositories are supported; private-repository OAuth is planned.
+- Public GitHub repositories are supported. Private discovery is opt-in through an
+  environment or native OS credential reference; Loadout never stores repository tokens
+  in its JSON state.
 - The install path currently handles skill directories containing `SKILL.md`.
 - MCP manifests can be inspected and MCP JSON configuration changes can be planned or
   applied, but MCP processes are not launched by Loadout.

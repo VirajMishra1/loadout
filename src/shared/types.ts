@@ -1,5 +1,16 @@
 export type AgentId =
-  "claude-code" | "codex" | "cursor" | "gemini-cli" | "opencode" | "hermes";
+  | "claude-code"
+  | "codex"
+  | "cursor"
+  | "gemini-cli"
+  | "opencode"
+  | "hermes"
+  | "windsurf"
+  | "cline"
+  | "github-copilot"
+  | "roo-code"
+  | "kiro-cli"
+  | "junie";
 
 /** A non-secret pointer to credentials managed outside Loadout. */
 export type CredentialReference =

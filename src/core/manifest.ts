@@ -18,6 +18,12 @@ const AGENTS = new Set<AgentId>([
   "gemini-cli",
   "opencode",
   "hermes",
+  "windsurf",
+  "cline",
+  "github-copilot",
+  "roo-code",
+  "kiro-cli",
+  "junie",
 ]);
 
 function source(value: unknown, label: string): PackageSource {

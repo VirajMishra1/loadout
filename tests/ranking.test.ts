@@ -58,4 +58,21 @@ describe("catalog score explanation", () => {
       score.contributions.find((item) => item.factor === "adoption")?.points,
     ).toBe(0);
   });
+
+  it("does not award trust or compatibility points for unknown licenses or source-inspection platforms", () => {
+    const asserted = explainCatalogScore(base);
+    const unknown = explainCatalogScore({ ...base, license: "NOASSERTION" });
+    expect(
+      unknown.contributions.find((item) => item.factor === "trust")!.points,
+    ).toBe(
+      asserted.contributions.find((item) => item.factor === "trust")!.points -
+        4,
+    );
+    expect(
+      unknown.contributions.find((item) => item.factor === "trust")!.evidence,
+    ).toContain("unknown");
+    expect(
+      unknown.contributions.find((item) => item.factor === "compatibility"),
+    ).toMatchObject({ points: 5 });
+  });
 });

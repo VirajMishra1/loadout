@@ -5,7 +5,7 @@ import { repositoryCachePath } from "./source.js";
 import { diffRepositorySnapshots, type ChangedFileDiff } from "./diff.js";
 import { readInstallState } from "./state.js";
 import { analyzeUpdateSafety, type SafetyFinding } from "./safety.js";
-import { detectAgents } from "./paths.js";
+import { detectAgents, loadoutHome } from "./paths.js";
 import {
   applySkillInstall,
   buildSkillPlan,
@@ -165,11 +165,7 @@ export function formatUpdatePlan(plans: UpdatePlan[]): string {
 }
 
 function quarantineRoot(): string {
-  return join(
-    process.env.LOADOUT_HOME ??
-      join(process.env.HOME ?? process.cwd(), ".loadout"),
-    "quarantine",
-  );
+  return join(loadoutHome(), "quarantine");
 }
 
 function safeName(value: string): string {

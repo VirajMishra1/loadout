@@ -57,6 +57,59 @@ describe("native read-only scheduler", () => {
     );
   });
 
+  it("uses job-specific native files and identifiers so both jobs can coexist", () => {
+    for (const platform of ["darwin", "linux", "win32"] as const) {
+      const shared = {
+        platform,
+        home: platform === "win32" ? "C:\\Users\\test" : "/home/test",
+        stateHome:
+          platform === "win32"
+            ? "C:\\Users\\test\\AppData\\Roaming\\loadout"
+            : "/home/test/.loadout",
+        nodePath: platform === "win32" ? "C:\\node.exe" : "/usr/bin/node",
+        cliPath:
+          platform === "win32" ? "C:\\loadout\\cli.js" : "/opt/loadout/cli.js",
+        uid: 501,
+      } as const;
+      const updates = planNativeScheduler("schedule", {
+        ...shared,
+        job: "updates",
+      });
+      const discovery = planNativeScheduler("schedule", {
+        ...shared,
+        job: "discovery",
+      });
+      expect(updates.files.map((file) => file.path)).not.toEqual(
+        discovery.files.map((file) => file.path),
+      );
+      expect(updates.applyCommands).not.toEqual(discovery.applyCommands);
+      const updatesNativeState = JSON.stringify({
+        files: updates.files.map((file) => file.path),
+        commands: updates.applyCommands,
+      });
+      const discoveryNativeState = JSON.stringify({
+        files: discovery.files.map((file) => file.path),
+        commands: discovery.applyCommands,
+      });
+      expect(updatesNativeState).toContain("updates");
+      expect(discoveryNativeState).toContain("discovery");
+    }
+  });
+
+  it("declares the UTF-8 encoding actually written for Windows task XML", () => {
+    const plan = planNativeScheduler("schedule", {
+      platform: "win32",
+      home: "C:\\Users\\test",
+      stateHome: "C:\\Users\\test\\AppData\\Roaming\\loadout",
+      nodePath: "C:\\node.exe",
+      cliPath: "C:\\loadout\\cli.js",
+    });
+    expect(plan.files[0].content).toMatch(
+      /^<\?xml version="1\.0" encoding="UTF-8"\?>/,
+    );
+    expect(plan.files[0].content).not.toContain("UTF-16");
+  });
+
   it("applies and removes a Linux timer through a mocked native runner", async () => {
     root = await mkdtemp(join(tmpdir(), "loadout-scheduler-"));
     process.env.LOADOUT_HOME = join(root, "state");
@@ -76,7 +129,7 @@ describe("native read-only scheduler", () => {
     expect(await applyNativeScheduler(schedule, runner)).toBeTruthy();
     await expect(access(schedule.files[0].path)).resolves.toBeUndefined();
     expect(calls.join("\n")).toContain(
-      "systemctl --user enable --now loadout-daily.timer",
+      "systemctl --user enable --now loadout-daily-updates.timer",
     );
 
     const unschedule = planNativeScheduler("unschedule", {

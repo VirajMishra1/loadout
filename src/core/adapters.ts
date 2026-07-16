@@ -7,6 +7,7 @@ import type {
   InstallPlan,
 } from "../shared/types.js";
 import { planSkillInstall } from "./skills.js";
+import { formatTerminalTable } from "./terminal.js";
 
 export interface AdapterCapabilities {
   agent: AgentId;
@@ -114,6 +115,44 @@ export const ADAPTER_CAPABILITIES: AdapterCapabilities[] = [
     components: { ...unsupported, skill: "native", plugin: "adapted" },
     notes: ["Only skill installation is currently claimed."],
   },
+  {
+    agent: "windsurf",
+    displayName: "Windsurf",
+    components: { ...unsupported, skill: "native" },
+    notes: ["Only the documented global Agent Skills directory is managed."],
+  },
+  {
+    agent: "cline",
+    displayName: "Cline",
+    components: { ...unsupported, skill: "native" },
+    notes: ["Only the documented global Agent Skills directory is managed."],
+  },
+  {
+    agent: "github-copilot",
+    displayName: "GitHub Copilot",
+    components: { ...unsupported, skill: "native" },
+    notes: ["Only the documented personal Agent Skills directory is managed."],
+  },
+  {
+    agent: "roo-code",
+    displayName: "Roo Code",
+    components: { ...unsupported, skill: "native" },
+    notes: ["Only the documented global generic skills directory is managed."],
+  },
+  {
+    agent: "kiro-cli",
+    displayName: "Kiro CLI",
+    components: { ...unsupported, skill: "native" },
+    notes: ["Only the documented global Agent Skills directory is managed."],
+  },
+  {
+    agent: "junie",
+    displayName: "Junie",
+    components: { ...unsupported, skill: "native" },
+    notes: [
+      "Only the documented user-level Agent Skills directory is managed.",
+    ],
+  },
 ];
 
 export function adapterCapabilities(agent: AgentId): AdapterCapabilities {
@@ -192,7 +231,7 @@ export function agentComponentDirectory(
   return undefined;
 }
 
-export function formatCapabilityMatrix(): string {
+export function formatCapabilityMatrix(width?: number): string {
   const types: ComponentType[] = [
     "skill",
     "rule",
@@ -202,14 +241,14 @@ export function formatCapabilityMatrix(): string {
     "plugin",
     "root",
   ];
-  return [
-    "Agent | " + types.join(" | "),
-    "--- | " + types.map(() => "---").join(" | "),
-    ...ADAPTER_CAPABILITIES.map(
-      (entry) =>
-        `${entry.displayName} | ${types.map((type) => entry.components[type]).join(" | ")}`,
-    ),
-  ].join("\n");
+  return formatTerminalTable(
+    ["Agent", ...types],
+    ADAPTER_CAPABILITIES.map((entry) => [
+      entry.displayName,
+      ...types.map((type) => entry.components[type]),
+    ]),
+    width,
+  );
 }
 
 export function compatibilityRule(

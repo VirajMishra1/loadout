@@ -1,8 +1,8 @@
 import { existsSync } from "node:fs";
 import { cp, lstat, rm } from "node:fs/promises";
-import { basename, dirname, join } from "node:path";
+import { basename, dirname, join, posix, win32 } from "node:path";
 import type { AgentId, DetectedAgent, InstallPlan } from "../shared/types.js";
-import { ensureDirectory } from "./paths.js";
+import { ensureDirectory, loadoutHome } from "./paths.js";
 import { planAdapterSkillInstall } from "./adapters.js";
 import { createSnapshot } from "./snapshot.js";
 import {
@@ -317,10 +317,14 @@ export async function applySkillLibraryBatch(
   return snapshot.id;
 }
 
-export function snapshotPath(snapshotId: string): string {
-  return join(
-    process.env.LOADOUT_HOME ??
-      join(process.env.HOME ?? process.cwd(), ".loadout"),
+export function snapshotPath(
+  snapshotId: string,
+  environment: NodeJS.ProcessEnv = process.env,
+  platform: NodeJS.Platform = process.platform,
+): string {
+  const path = platform === "win32" ? win32 : posix;
+  return path.join(
+    loadoutHome(environment, platform),
     "snapshots",
     `${snapshotId}.json`,
   );

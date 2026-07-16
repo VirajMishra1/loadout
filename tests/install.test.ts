@@ -1,8 +1,12 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { mkdtemp, mkdir, readFile, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { applySkillInstall, buildSkillPlan } from "../src/core/install.js";
+import { join, win32 } from "node:path";
+import {
+  applySkillInstall,
+  buildSkillPlan,
+  snapshotPath,
+} from "../src/core/install.js";
 import {
   detectInstallConflicts,
   planSkillInstall,
@@ -72,6 +76,27 @@ describe("skill installation transaction", () => {
       "keep me",
     );
     expect((await readInstallState()).installs).toEqual([]);
+  });
+
+  it("resolves snapshot state through explicit overrides and native Windows app data", () => {
+    process.env.LOADOUT_HOME = "/isolated/loadout-state";
+    expect(snapshotPath("override")).toBe(
+      join("/isolated/loadout-state", "snapshots", "override.json"),
+    );
+    expect(
+      snapshotPath(
+        "windows",
+        { APPDATA: "C:\\Users\\viraj\\AppData\\Roaming" },
+        "win32",
+      ),
+    ).toBe(
+      win32.join(
+        "C:\\Users\\viraj\\AppData\\Roaming",
+        "loadout",
+        "snapshots",
+        "windows.json",
+      ),
+    );
   });
 
   it("discovers and validates nested skills", async () => {

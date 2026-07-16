@@ -100,22 +100,19 @@ export function planNativeScheduler(
   const nodePath = options.nodePath ?? process.execPath;
   const cliPath = options.cliPath ?? process.argv[1];
   const job = options.job ?? "updates";
+  const nativeId = `loadout-daily-${job}`;
   const command =
     job === "updates"
       ? [nodePath, cliPath, "watch", "--once", "--json"]
       : [nodePath, cliPath, "discover", "--source", "all", "--queue", "--json"];
   if (selectedPlatform === "darwin") {
-    const path = join(
-      home,
-      "Library",
-      "LaunchAgents",
-      "com.loadout.daily.plist",
-    );
-    const log = join(stateHome, "logs", "daily.log");
+    const label = `com.loadout.daily.${job}`;
+    const path = join(home, "Library", "LaunchAgents", `${label}.plist`);
+    const log = join(stateHome, "logs", `daily-${job}.log`);
     const content = `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
-<key>Label</key><string>com.loadout.daily</string>
+<key>Label</key><string>${label}</string>
 <key>ProgramArguments</key><array>${command.map((item) => `<string>${xml(item)}</string>`).join("")}</array>
 <key>StartCalendarInterval</key><dict><key>Hour</key><integer>${time.hour}</integer><key>Minute</key><integer>${time.minute}</integer></dict>
 <key>ProcessType</key><string>Background</string>
@@ -162,15 +159,9 @@ export function planNativeScheduler(
       ".config",
       "systemd",
       "user",
-      "loadout-daily.service",
+      `${nativeId}.service`,
     );
-    const timer = join(
-      home,
-      ".config",
-      "systemd",
-      "user",
-      "loadout-daily.timer",
-    );
+    const timer = join(home, ".config", "systemd", "user", `${nativeId}.timer`);
     return {
       action,
       job,
@@ -209,13 +200,13 @@ WantedBy=timers.target
               { command: "systemctl", args: ["--user", "daemon-reload"] },
               {
                 command: "systemctl",
-                args: ["--user", "enable", "--now", "loadout-daily.timer"],
+                args: ["--user", "enable", "--now", `${nativeId}.timer`],
               },
             ]
           : [
               {
                 command: "systemctl",
-                args: ["--user", "disable", "--now", "loadout-daily.timer"],
+                args: ["--user", "disable", "--now", `${nativeId}.timer`],
                 allowFailure: true,
               },
               { command: "systemctl", args: ["--user", "daemon-reload"] },
@@ -225,19 +216,20 @@ WantedBy=timers.target
           ? [
               {
                 command: "systemctl",
-                args: ["--user", "disable", "--now", "loadout-daily.timer"],
+                args: ["--user", "disable", "--now", `${nativeId}.timer`],
               },
             ]
           : [],
       guarantee: "read-only-checks-only",
     };
   }
-  const path = win32.join(stateHome, "scheduler", "loadout-daily.xml");
+  const path = win32.join(stateHome, "scheduler", `${nativeId}.xml`);
+  const taskName = `LoadoutDaily${job === "updates" ? "Updates" : "Discovery"}`;
   const argumentsValue = command
     .slice(1)
     .map((item) => `"${item.replace(/"/g, '\\"')}"`)
     .join(" ");
-  const content = `<?xml version="1.0" encoding="UTF-16"?>
+  const content = `<?xml version="1.0" encoding="UTF-8"?>
 <Task version="1.4" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
 <Triggers><CalendarTrigger><StartBoundary>2000-01-01T${time.text}:00</StartBoundary><Enabled>true</Enabled><ScheduleByDay><DaysInterval>1</DaysInterval></ScheduleByDay></CalendarTrigger></Triggers>
 <Principals><Principal id="Author"><LogonType>InteractiveToken</LogonType><RunLevel>LeastPrivilege</RunLevel></Principal></Principals>
@@ -258,13 +250,13 @@ WantedBy=timers.target
         ? [
             {
               command: "schtasks",
-              args: ["/Create", "/TN", "LoadoutDaily", "/XML", path, "/F"],
+              args: ["/Create", "/TN", taskName, "/XML", path, "/F"],
             },
           ]
         : [
             {
               command: "schtasks",
-              args: ["/Delete", "/TN", "LoadoutDaily", "/F"],
+              args: ["/Delete", "/TN", taskName, "/F"],
               allowFailure: true,
             },
           ],
@@ -273,7 +265,7 @@ WantedBy=timers.target
         ? [
             {
               command: "schtasks",
-              args: ["/Delete", "/TN", "LoadoutDaily", "/F"],
+              args: ["/Delete", "/TN", taskName, "/F"],
             },
           ]
         : [],

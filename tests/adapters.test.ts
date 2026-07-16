@@ -17,6 +17,12 @@ describe("adapter conformance declarations", () => {
       "gemini-cli",
       "opencode",
       "hermes",
+      "windsurf",
+      "cline",
+      "github-copilot",
+      "roo-code",
+      "kiro-cli",
+      "junie",
     ];
     const components: ComponentType[] = [
       "skill",
@@ -38,8 +44,8 @@ describe("adapter conformance declarations", () => {
           capabilities.components[component],
         );
     }
-    expect(formatCapabilityMatrix()).toContain(
-      "Codex | native | unsupported | adapted",
+    expect(formatCapabilityMatrix()).toMatch(
+      /Codex\s+\| native \| unsupported \| adapted/,
     );
   });
 
@@ -58,5 +64,23 @@ describe("adapter conformance declarations", () => {
     expect(adapterCapabilities("hermes").components.command).toBe(
       "unsupported",
     );
+  });
+
+  it("keeps every new adapter skill-only until further formats are documented and tested", () => {
+    const agents: AgentId[] = [
+      "windsurf",
+      "cline",
+      "github-copilot",
+      "roo-code",
+      "kiro-cli",
+      "junie",
+    ];
+    for (const agent of agents) {
+      const components = adapterCapabilities(agent).components;
+      expect(components.skill).toBe("native");
+      expect(components.root).toBe("native");
+      for (const type of ["rule", "command", "agent", "mcp", "plugin"] as const)
+        expect(components[type]).toBe("unsupported");
+    }
   });
 });

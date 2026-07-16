@@ -65,6 +65,12 @@ const AGENTS = new Set<AgentId>([
   "gemini-cli",
   "opencode",
   "hermes",
+  "windsurf",
+  "cline",
+  "github-copilot",
+  "roo-code",
+  "kiro-cli",
+  "junie",
 ]);
 
 function validEvent(value: unknown): value is LocalOutcomeEvent {

@@ -11,15 +11,20 @@ describe("npm release contract", () => {
       bin?: Record<string, string>;
       files?: string[];
       scripts?: Record<string, string>;
+      license?: string;
     };
 
     expect(manifest.name).toBe("loadout-ai");
     expect(manifest.private).toBe(false);
+    expect(manifest.license).toBe("MIT");
     expect(manifest.bin).toEqual({ loadout: "dist/src/cli.js" });
     expect(manifest.files).toEqual(
       expect.arrayContaining(["dist/src", "dashboard", "catalog"]),
     );
     expect(manifest.files).not.toContain("tests");
     expect(manifest.scripts?.prepack).toBe("npm run build");
+    expect(manifest.scripts?.["test:package"]).toBe(
+      "node scripts/package-smoke.mjs",
+    );
   });
 });

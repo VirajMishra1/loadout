@@ -3,6 +3,19 @@
 The primary product is the CLI. Use this walkthrough before installing into your real
 Codex, Claude Code, or other agent directories.
 
+The automated product journey runs the built CLI against disposable user, state, and
+project directories. It performs a real scan and offline provenance comparison, then
+previews and applies project optimization, verifies the installed bytes, and rolls the
+snapshot back:
+
+```bash
+npm run test:e2e:cli
+```
+
+This test does not use the dashboard, network, mock command output, or any real agent
+profile. It is a required CI gate on Ubuntu; the manual cross-platform workflow runs
+the broader native filesystem suite.
+
 ## 1. Build the exact npm package entry point
 
 ```bash
@@ -173,4 +186,5 @@ npx . dashboard
 ```
 
 Open the printed loopback URL. CLI setup, updates, removal, discovery, and rollback all
-work without it.
+work without it. Browser automation is also optional and runs only when manually
+dispatched in CI; locally, use `npm run test:e2e:dashboard`.

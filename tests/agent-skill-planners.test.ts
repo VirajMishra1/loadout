@@ -15,6 +15,12 @@ const ADAPTERS: Array<{ id: AgentId; displayName: string }> = [
   { id: "gemini-cli", displayName: "Gemini CLI" },
   { id: "opencode", displayName: "OpenCode" },
   { id: "hermes", displayName: "Hermes" },
+  { id: "windsurf", displayName: "Windsurf" },
+  { id: "cline", displayName: "Cline" },
+  { id: "github-copilot", displayName: "GitHub Copilot" },
+  { id: "roo-code", displayName: "Roo Code" },
+  { id: "kiro-cli", displayName: "Kiro CLI" },
+  { id: "junie", displayName: "Junie" },
 ];
 
 function detectedAgent(

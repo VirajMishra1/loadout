@@ -103,10 +103,10 @@ export function formatDoctorReport(report: DoctorReport): string {
     "Loadout doctor",
     `Platform: ${report.platform}`,
     `User home: ${report.userHome}`,
-    `State directory: ${report.loadoutHome}`,
+    `State home: ${report.loadoutHome}`,
   ];
   lines.push(
-    `State directory: ${report.loadoutHomeExists ? "present" : "not created"} (${report.loadoutHomeWritable ? "writable" : "not writable"})`,
+    `State status: ${report.loadoutHomeExists ? "present" : "not created"} (${report.loadoutHomeWritable ? "writable" : "not writable"})`,
     "",
     "Agents:",
   );

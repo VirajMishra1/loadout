@@ -1,7 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { discoverGitHubRepositories } from "../src/core/github-discovery.js";
+import {
+  defaultGitHubDiscoveryQuery,
+  discoverGitHubRepositories,
+} from "../src/core/github-discovery.js";
 
 describe("GitHub public repository discovery", () => {
+  it("uses a rolling six-month default window", () => {
+    expect(
+      defaultGitHubDiscoveryQuery(new Date("2026-07-16T00:00:00Z")),
+    ).toContain("created:>=2026-01-17");
+  });
   it("uses the official search endpoint and returns no credentials", async () => {
     let requested = "";
     const result = await discoverGitHubRepositories({
@@ -32,5 +40,23 @@ describe("GitHub public repository discovery", () => {
     ]);
     expect(requested).toContain("topic%3Amcp");
     expect(JSON.stringify(result)).not.toContain("ephemeral-token");
+  });
+
+  it("reports an actionable rate-limit reset", async () => {
+    await expect(
+      discoverGitHubRepositories({
+        query: "topic:skills",
+        fetcher: async () =>
+          new Response("limited", {
+            status: 403,
+            headers: {
+              "x-ratelimit-remaining": "0",
+              "x-ratelimit-reset": String(
+                Date.parse("2026-07-16T12:00:00Z") / 1000,
+              ),
+            },
+          }),
+      }),
+    ).rejects.toThrow(/rate limit exhausted.*2026-07-16T12:00:00/);
   });
 });

@@ -2,6 +2,7 @@
   "name": "loadout-ai",
   "version": "0.1.0",
   "private": false,
+  "license": "MIT",
   "description": "Universal upgrade manager for AI coding agents",
   "type": "module",
   "bin": {
@@ -15,7 +16,8 @@
     "README.md",
     "MASTER_PLAN.md",
     "SIMPLE_PLAN.md",
-    "SECURITY.md"
+    "SECURITY.md",
+    "LICENSE"
   ],
   "repository": {
     "type": "git",
@@ -48,7 +50,13 @@
     "lint": "eslint src tests vitest.config.ts",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "playwright test",
+    "test:e2e": "npm run test:e2e:cli",
+    "test:e2e:dashboard": "playwright test",
+    "pretest:e2e:cli": "npm run build",
+    "test:e2e:cli": "node scripts/cli-product-flow.mjs",
+    "test:package": "node scripts/package-smoke.mjs",
+    "pretest:performance": "npm run build",
+    "test:performance": "node scripts/scan-benchmark.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {

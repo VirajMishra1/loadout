@@ -1015,11 +1015,11 @@ universal or permanent truth.
       `NOASSERTION` records, before distribution.
 - [ ] `P12-31 [TERRA]` Publish `loadout-ai` to npm and run clean-machine package tests
       from outside the repository on macOS, Windows, Linux, and Node 20/22.
-  - Partial: a real tarball is packed, installed outside the repository, executed,
-    catalog-checked, used for install, and rolled back. CI contains an opt-in OS/Node
-    matrix and an owner-controlled OIDC/provenance release workflow. The hosted
-    macOS/Windows/Linux Node 20/22 matrix passes; actual npm publication and the
-    post-publication clean external package checks remain release-owner actions.
+  - Partial: `loadout-ai@0.1.0` was published publicly on 2026-07-16 while the GitHub
+    repository remained private. Registry metadata, `npx` version/help, and a real
+    read-only Stable preview passed outside the source directory. CI contains an
+    opt-in OS/Node matrix and OIDC/provenance release workflow; clean independent-user
+    installs on Windows/macOS/Linux remain required.
 - [ ] `P12-32 [HUMAN]` Run moderated founder testing on the real Claude and Codex
       profiles with snapshots and explicit rollback checkpoints.
 - [ ] `P12-33 [HUMAN]` Run at least ten external user tests spanning new users, power
@@ -1053,7 +1053,7 @@ universal or permanent truth.
     record.
 - [x] `P13-03 [LUNA]` Rebuild the README and credit every reviewed upstream source.
   - The README is CLI-first, accurately distinguishes preview/network/mutation
-    boundaries, links the daily candidate feed, and avoids claiming npm publication.
+    boundaries, links the daily candidate feed, and records npm publication accurately.
   - `docs/CATALOG.md` links all 50 repositories and all 50 immutable reviewed commits;
     CI prevents silent attribution drift and identifies six `NOASSERTION` records for
     human legal review.
@@ -1156,6 +1156,10 @@ universal or permanent truth.
     1,000 on-disk skills at a 1.29-second p95 on macOS/Node 23.
 - [ ] `P15-06 [HUMAN]` Approve public repository visibility, complete the six
       `NOASSERTION` license decisions, authenticate npm, and publish `loadout-ai`.
+  - Partial 2026-07-16: npm authentication and the public `loadout-ai@0.1.0`
+    publication succeeded. Repository visibility remains private at the owner's
+    request, and the six root-level `NOASSERTION` decisions remain a human release
+    gate; therefore this combined item is not ticked.
 - [x] `P15-07A [TERRA]` Run the hosted macOS/Windows/Linux Node matrix.
   - GitHub Actions run `29502324100` passes fast verification, dashboard browser
     diagnostics, and native install/package flows on Windows, macOS, and Ubuntu with

@@ -6,6 +6,9 @@ import { fileURLToPath } from "node:url";
 
 const root = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const temporary = await mkdtemp(join(tmpdir(), "loadout-package-smoke-"));
+const expectedVersion = JSON.parse(
+  await readFile(join(root, "package.json"), "utf8"),
+).version;
 
 function run(command, args, options = {}) {
   return new Promise((resolveRun, reject) => {
@@ -90,7 +93,7 @@ try {
     cwd: packageRoot,
     env: environment,
   });
-  if (!/^0\.1\.0\s*$/.test(version.stdout))
+  if (version.stdout.trim() !== expectedVersion)
     throw new Error(`Unexpected packaged version: ${version.stdout}`);
   const coverage = await run(
     process.execPath,

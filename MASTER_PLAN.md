@@ -1015,13 +1015,19 @@ universal or permanent truth.
       `NOASSERTION` records, before distribution.
 - [ ] `P12-31 [TERRA]` Publish `loadout-ai` to npm and run clean-machine package tests
       from outside the repository on macOS, Windows, Linux, and Node 20/22.
-  - Partial: `loadout-ai@0.1.0` was published publicly on 2026-07-16 while the GitHub
+  - Partial: `loadout-ai@0.1.2` was published publicly on 2026-07-16 while the GitHub
     repository remained private. Registry metadata, `npx` version/help, and a real
-    read-only Stable preview passed outside the source directory. CI contains an
+    read-only Stable preview passed outside the source directory. Patch `0.1.2`
+    adds Codex Desktop detection through its existing `~/.codex` home when the
+    standalone `codex` executable is absent from the user's shell PATH. CI contains an
     opt-in OS/Node matrix and OIDC/provenance release workflow; clean independent-user
     installs on Windows/macOS/Linux remain required.
 - [ ] `P12-32 [HUMAN]` Run moderated founder testing on the real Claude and Codex
       profiles with snapshots and explicit rollback checkpoints.
+  - Partial 2026-07-16: the founder ran the published npm CLI against the real macOS
+    profile. Read-only doctor/scan/status/health and snapshot listing completed; the
+    run exposed and regression-tested the Codex Desktop detection fix. A real Stable
+    mutation and rollback remain pending.
 - [ ] `P12-33 [HUMAN]` Run at least ten external user tests spanning new users, power
       users, Windows, macOS, Linux, one-agent, and multi-agent setups.
 - [ ] `P12-34 [SOL]` Public-beta go/no-go review.
@@ -1156,7 +1162,7 @@ universal or permanent truth.
     1,000 on-disk skills at a 1.29-second p95 on macOS/Node 23.
 - [ ] `P15-06 [HUMAN]` Approve public repository visibility, complete the six
       `NOASSERTION` license decisions, authenticate npm, and publish `loadout-ai`.
-  - Partial 2026-07-16: npm authentication and the public `loadout-ai@0.1.0`
+  - Partial 2026-07-16: npm authentication and the public `loadout-ai@0.1.2`
     publication succeeded. Repository visibility remains private at the owner's
     request, and the six root-level `NOASSERTION` decisions remain a human release
     gate; therefore this combined item is not ticked.

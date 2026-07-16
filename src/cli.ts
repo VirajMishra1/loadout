@@ -505,7 +505,7 @@ async function runSetup(options: SetupOptions): Promise<void> {
   }
 }
 
-const LOADOUT_VERSION = "0.1.1";
+const LOADOUT_VERSION = "0.1.2";
 
 function durableSchedulerLauncher(): string[] {
   return [

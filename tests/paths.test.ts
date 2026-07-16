@@ -160,6 +160,34 @@ describe("platform paths", () => {
     }
   });
 
+  it("detects Codex Desktop from its home even when the CLI is not on PATH", async () => {
+    const root = await mkdtemp(join(tmpdir(), "loadout-codex-desktop-"));
+    try {
+      process.env.LOADOUT_USER_HOME = root;
+      await mkdir(join(root, ".codex"));
+      const codex = (await detectAgents()).find(
+        (agent) => agent.id === "codex",
+      );
+      expect(codex?.installed).toBe(true);
+      expect(codex?.skillsDirectory).toBe(join(root, ".agents", "skills"));
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("detects Codex from an existing shared Agent Skills root", async () => {
+    const root = await mkdtemp(join(tmpdir(), "loadout-codex-skills-"));
+    try {
+      process.env.LOADOUT_USER_HOME = root;
+      await mkdir(join(root, ".agents", "skills"), { recursive: true });
+      expect(
+        (await detectAgents()).find((agent) => agent.id === "codex")?.installed,
+      ).toBe(true);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
   it("uses vendor-documented global skill roots for the six additional adapters", () => {
     const home = "/home/viraj";
     expect(agentSkillsDirectory("windsurf", home, "linux")).toBe(

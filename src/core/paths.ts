@@ -25,6 +25,10 @@ export const AGENT_DEFINITIONS: ReadonlyArray<{
     displayName: "Codex",
     binary: "codex",
     directory: [".agents", "skills"],
+    // Codex Desktop owns ~/.codex even when the standalone `codex` binary is
+    // not exposed on the shell PATH. The shared Agent Skills root (~/.agents)
+    // is also valid evidence when it already exists.
+    detectionDirectories: [[".codex"], [".agents"]],
   },
   {
     id: "cursor",

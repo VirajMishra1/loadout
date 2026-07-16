@@ -28,10 +28,10 @@ Loadout does not claim there is one universally “best” configuration. It mak
 
 ## Install from npm
 
-Requirements: Git and Node.js 20 or newer. Pin `0.1.1` while testing the beta so every machine runs the same bytes.
+Requirements: Git and Node.js 20 or newer. Pin `0.1.2` while testing the beta so every machine runs the same bytes.
 
 ```bash
-npm install --global loadout-ai@0.1.1
+npm install --global loadout-ai@0.1.2
 loadout --help
 ```
 

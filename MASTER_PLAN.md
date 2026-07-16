@@ -1155,8 +1155,13 @@ universal or permanent truth.
     1,000 on-disk skills at a 1.29-second p95 on macOS/Node 23.
 - [ ] `P15-06 [HUMAN]` Approve public repository visibility, complete the six
       `NOASSERTION` license decisions, authenticate npm, and publish `loadout-ai`.
-- [ ] `P15-07 [HUMAN]` Run the hosted macOS/Windows/Linux Node matrix on the final
-      commit, then verify a clean external `npx loadout-ai` installation.
+- [x] `P15-07A [TERRA]` Run the hosted macOS/Windows/Linux Node matrix.
+  - GitHub Actions run `29502324100` passes fast verification, dashboard browser
+    diagnostics, and native install/package flows on Windows, macOS, and Ubuntu with
+    Node 20 and 22. The first run exposed a Windows-only root-path test assumption;
+    the portable regression fix passes on both Windows versions.
+- [ ] `P15-07B [HUMAN]` After npm publication, verify a clean external
+      `npx loadout-ai` installation on Windows, macOS, and Linux.
 - [ ] `P15-08 [SOL]` Design sandboxed explicit recipes for runtime tools that are not
       portable skills or declarative MCP servers. Require immutable artifacts,
       bounded commands, no inherited secrets, preview, health checks, and rollback;

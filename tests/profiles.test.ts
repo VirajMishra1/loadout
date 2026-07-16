@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
   POWER_SKILL_ALLOWLIST,
+  STABLE_BOOST_PACKAGE_IDS,
+  STABLE_SKILL_ALLOWLIST,
+  catalogTrustStage,
   isPowerSkillSelected,
+  isStableSkillSelected,
   resolveCatalogProfile,
   type CatalogConflictFamily,
 } from "../src/core/profiles.js";
@@ -89,19 +93,55 @@ describe("catalog profile conflict resolution", () => {
     ).toThrow(/Archived catalog package/);
   });
 
-  it("keeps the bundled Stable Boost intentionally small", () => {
+  it("keeps Stable bounded to the recommended daily-driver sources", () => {
     const superpowers = item("superpowers", "stable", 1000);
     const context7 = item("context7", "stable", 900);
+    const addy = item("addyosmani-agent-skills", "stable", 800);
+    const agents = item("wshobson-agents", "stable", 700);
     const popularExtra = item("popular-extra", "official", 1_000_000);
     const result = resolveCatalogProfile(
-      [popularExtra, context7, superpowers],
+      [popularExtra, agents, addy, context7, superpowers],
       { mode: "stable" },
       [],
     );
     expect(result.packages.map((pkg) => pkg.id)).toEqual([
       "superpowers",
       "context7",
+      "addyosmani-agent-skills",
+      "wshobson-agents",
     ]);
+    expect(STABLE_BOOST_PACKAGE_IDS).toEqual(
+      Object.keys(STABLE_SKILL_ALLOWLIST),
+    );
+    expect(
+      isStableSkillSelected(
+        "wshobson-agents",
+        "code-review-excellence",
+        "code-review-excellence",
+      ),
+    ).toBe(true);
+    expect(
+      isStableSkillSelected(
+        "wshobson-agents",
+        "employment-contract-templates",
+        "employment-contract-templates",
+      ),
+    ).toBe(false);
+    expect(
+      catalogTrustStage({
+        ...superpowers,
+        license: "MIT",
+        source: {
+          type: "github",
+          url: "https://github.com/example/superpowers",
+          defaultBranch: "main",
+          commit: "a".repeat(40),
+          evidencePaths: ["skills/example/SKILL.md"],
+          verifiedAt: "2026-07-16T00:00:00Z",
+        },
+      }),
+    ).toBe("recommended");
+    expect(catalogTrustStage(popularExtra)).toBe("discovered");
   });
 
   it("selects broad Power collections but filters them at skill granularity", () => {

@@ -90,6 +90,10 @@ export interface CandidateDossier {
   inspection: Omit<PackageInspection, "root">;
   evaluation: Omit<PackageEvaluation, "root">;
   components: ComponentType[];
+  installability:
+    | "portable-components"
+    | "explicit-runtime-setup"
+    | "unsupported-source-shape";
   evidencePaths: string[];
   overlap: Array<{
     packageId: string;
@@ -117,6 +121,24 @@ export interface CandidateProposalOptions {
 
 const dossierDirectory = (): string => join(loadoutHome(), "candidates");
 const sourceVerifiedDossiers = new WeakMap<CandidateDossier, string>();
+
+function installabilityFor(
+  components: ComponentType[],
+): CandidateDossier["installability"] {
+  if (
+    components.some((component) =>
+      ["skill", "rule", "command", "agent"].includes(component),
+    )
+  )
+    return "portable-components";
+  if (
+    components.some(
+      (component) => component === "mcp" || component === "plugin",
+    )
+  )
+    return "explicit-runtime-setup";
+  return "unsupported-source-shape";
+}
 
 function dossierIntegrity(dossier: CandidateDossier): string {
   return createHash("sha256").update(JSON.stringify(dossier)).digest("hex");
@@ -494,6 +516,7 @@ export async function buildCandidateDossier(
     evaluatePackage(snapshot.path),
   ]);
   const components = componentsFor(inspection);
+  const installability = installabilityFor(components);
   const evidencePaths = evidencePathsFor(inspection);
   const summary = summarize(discovery);
   const blockedCategories = evaluation.categories.filter(
@@ -507,7 +530,12 @@ export async function buildCandidateDossier(
   const reasons = [
     ...(!components.length
       ? [
-          "No supported skill, rule, command, agent, plugin, or MCP evidence was found",
+          "No portable skill, rule, command, agent, plugin, or MCP declaration was found; this may be a runtime tool that needs an explicit reviewed recipe",
+        ]
+      : []),
+    ...(installability === "explicit-runtime-setup"
+      ? [
+          "Only plugin/MCP runtime evidence was found; Loadout will not run third-party setup automatically",
         ]
       : []),
     ...(!evidencePaths.length
@@ -552,6 +580,7 @@ export async function buildCandidateDossier(
       uncertainty: evaluation.uncertainty,
     },
     components,
+    installability,
     evidencePaths,
     overlap: overlapFor(discovery, inspection, catalog),
     review: {
@@ -712,6 +741,10 @@ function assertDossierEvidence(dossier: CandidateDossier): void {
     throw new Error(
       "Candidate dossier components do not match inspection evidence",
     );
+  if (dossier.installability !== installabilityFor(components))
+    throw new Error(
+      "Candidate dossier installability does not match inspection evidence",
+    );
   if (JSON.stringify(dossier.evidencePaths) !== JSON.stringify(evidencePaths))
     throw new Error(
       "Candidate dossier evidencePaths do not match inspection evidence",
@@ -758,6 +791,11 @@ export async function readCandidateDossier(
     !Array.isArray(dossier.components) ||
     dossier.components.some((component) => !componentKinds.has(component)) ||
     new Set(dossier.components).size !== dossier.components.length ||
+    ![
+      "portable-components",
+      "explicit-runtime-setup",
+      "unsupported-source-shape",
+    ].includes(dossier.installability ?? "") ||
     !Array.isArray(dossier.evidencePaths) ||
     dossier.evidencePaths.some(
       (item) =>
@@ -951,6 +989,7 @@ export function formatCandidateDossier(dossier: CandidateDossier): string {
   return [
     `${safeTerminalText(dossier.repository)} @ ${dossier.commit}`,
     `Review: ${dossier.review.status}`,
+    `Installability: ${dossier.installability}`,
     `Evidence: ${dossier.components.join(", ") || "none"}; ${dossier.evidencePaths.length} path(s)`,
     `Contents: ${counts.skills} skills, ${counts.rules} rules, ${counts.commands} commands, ${counts.agents} agents, ${counts.plugins} plugins, ${counts.mcpServers} MCP servers`,
     `Triage priority: ${dossier.triagePriority.toFixed(1)} (discovery ordering, not a quality score)`,

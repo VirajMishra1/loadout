@@ -2,7 +2,7 @@
 
 **One safe CLI to discover, compare, install, update, and roll back capabilities across AI coding agents.**
 
-Loadout turns the fragmented world of Agent Skills, MCP servers, plugins, and agent-specific directories into one reviewed workflow. It detects the agents on your computer, inventories what you already have, prepares capabilities from immutable Git commits, explains conflicts before writing, and snapshots every managed change.
+Loadout turns the fragmented world of Agent Skills, MCP servers, plugins, and agent-specific directories into one screened workflow. It detects the agents on your computer, inventories what you already have, prepares capabilities from immutable Git commits, explains conflicts before writing, and snapshots every managed change.
 
 It supports Codex, Claude Code, Cursor, Gemini CLI, OpenCode, Hermes, Windsurf, Cline, GitHub Copilot, Roo Code, Kiro CLI, and Junie on macOS, Linux, and Windows.
 
@@ -15,7 +15,7 @@ Useful agent extensions appear across dozens of repositories, social feeds, and 
 Loadout gives you:
 
 - one inventory across supported agents;
-- a 50-repository reviewed catalog pinned to exact commits;
+- a 50-repository technically screened catalog pinned to exact commits;
 - Stable, Power, Maximum, and Custom selection modes;
 - project-aware activation instead of exposing an enormous library to every prompt;
 - evidence-based comparison and replacement alerts;
@@ -42,7 +42,7 @@ Start with the two read-only commands:
 
 ```bash
 npx . scan
-npx . setup --mode power
+npx . setup --mode stable
 ```
 
 `scan` inventories existing `SKILL.md` capabilities, ownership, duplicates, provenance confidence, and capacity without changing an agent profile. `setup` is also a preview unless `--yes` is supplied.
@@ -53,11 +53,11 @@ npx . setup --mode power
 # 1. See what is already installed. Read-only.
 npx . scan --refresh-provenance
 
-# 2. Preview a reviewed loadout. Read-only.
-npx . setup --mode power
+# 2. Preview the recommended Stable loadout. Read-only.
+npx . setup --mode stable
 
 # 3. Apply exactly the displayed plan.
-npx . setup --mode power --yes --approve-risk
+npx . setup --mode stable --yes
 
 # 4. Inspect and optimize the active set for this project.
 npx . library
@@ -83,9 +83,9 @@ The demo creates a temporary virtual Codex profile, fetches the pinned public Su
 
 | Mode        | Intended use                        | What it selects                                                         | Installation behavior                                                                                              |
 | ----------- | ----------------------------------- | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| **Stable**  | Small, low-noise foundation         | The reviewed Superpowers and Context7 packages                          | Installs the selected skills into detected agents                                                                  |
+| **Stable**  | Recommended daily driver            | 17 selected skills from four pinned, SPDX-identified sources            | Installs the selected skills into detected agents with no extra static-risk approval                               |
 | **Power**   | Broad daily driver                  | A maintained skill-level allowlist from eight cross-project collections | Installs only the selected skills, not every skill in each collection                                              |
-| **Maximum** | Exploration and maximum optionality | Every non-archived reviewed catalog record                              | Stores all discovered skill components in Loadout's disabled library; MCP-only records remain explicit setup steps |
+| **Maximum** | Exploration and maximum optionality | Every non-archived technically screened catalog record                  | Stores all discovered skill components in Loadout's disabled library; MCP-only records remain explicit setup steps |
 | **Custom**  | Precise control                     | Only package IDs supplied by the user                                   | Uses the same preview, safety, conflict, and transaction pipeline                                                  |
 
 Maximum is a library, not an instruction to activate everything. Use `optimize`, `activate`, `enable`, and `disable` to keep each agent's active set bounded and relevant to the current project. Loadout warns when an active set exceeds 30 skills per agent.
@@ -99,7 +99,7 @@ npx . optimize --project . --limit 30 --yes
 
 ## What Loadout manages
 
-The bundled catalog currently contains **50 credited public repositories** across **37 categories**: **31 have reviewed skill components** and **19 are MCP-only**. See the complete linked source, license status, component type, and pinned commit for every entry in **[Catalog and upstream credits](./docs/CATALOG.md)**.
+The bundled catalog currently contains **50 credited public repositories** across **37 categories**: **31 have skill components** and **19 are MCP-only**. All 50 are technically screened and pinned; four sources currently satisfy the stricter Stable recommendation policy. See every linked source, license status, component type, and pinned commit in **[Catalog and upstream credits](./docs/CATALOG.md)**.
 
 ```bash
 npx . catalog
@@ -108,7 +108,7 @@ npx . catalog --history superpowers
 npx . search playwright
 ```
 
-Catalog admission is evidence-based. Every bundled record has an exact GitHub commit and repository-relative component evidence. Stars are one bounded ranking input, not an installation threshold or a substitute for source review. Missing evidence receives no score, archived projects are not auto-selected, and unrelated categories are never presented as head-to-head alternatives.
+Catalog admission is evidence-based. Every bundled record has an exact GitHub commit and repository-relative component evidence. Loadout reports separate trust stages—`discovered`, `inspected`, `human-reviewed`, `benchmarked`, and `recommended`—instead of calling every pinned record “best.” Stars are one bounded ranking input, not an installation threshold or a substitute for source review. Missing evidence receives no score, archived projects are not auto-selected, and unrelated categories are never presented as head-to-head alternatives.
 
 `NOASSERTION` in the catalog means GitHub did not report an SPDX license identifier. It is a review flag—not a license grant and not an accusation. Upstream repositories and their current terms remain authoritative.
 
@@ -116,7 +116,7 @@ Catalog admission is evidence-based. Every bundled record has an exact GitHub co
 
 Discovery is deliberately separate from installation. It gathers leads and explains their evidence, but a newly popular repository cannot silently enter the trusted catalog or modify an agent.
 
-**[Today's generated discovery report](./docs/DISCOVERED.md)** lists the latest candidates with direct repository links and supporting signals. Automation refreshes that page and its machine-readable companion at `catalog/discovered.json`; the reviewed 50-repository catalog remains separate.
+**[Today's generated discovery report](./docs/DISCOVERED.md)** lists the latest candidates with direct repository links and supporting signals. Automation refreshes that page and its machine-readable companion at `catalog/discovered.json`; the signed 50-repository release catalog remains separate.
 
 <!-- loadout:daily-discovery:start -->
 
@@ -141,17 +141,19 @@ npx . candidate list --limit 20
 npx . candidate inspect owner/repository --output ./candidate-dossier.json
 ```
 
-Daily scheduled checks are read-only:
+Install both daily read-only jobs with one command:
 
 ```bash
-npx . schedule --job discovery --time 09:00       # preview
-npx . schedule --job discovery --time 09:00 --yes # install native schedule
-npx . unschedule --job discovery --yes
+npx . autopilot --time 09:00       # preview both jobs
+npx . autopilot --time 09:00 --yes # install both native schedules
+npx . autopilot --remove --yes     # remove both schedules
 ```
+
+Autopilot installs native schedules on macOS, Linux, and Windows using the pinned npm launcher for this Loadout version. It refreshes the local discovery/review queue and checks pinned package updates every day. It never installs a candidate, promotes a catalog record, or applies an update without a later explicit command and approval. Catalog membership changes only through a verified signed release.
 
 Candidates stay in the review queue until a human decision. Shortlisting is not promotion, and promotion is not installation. Discovery state records observations over time so momentum can be measured without manufacturing a signal from a single snapshot.
 
-`candidate inspect` is the missing bridge between “this repository is moving” and “this belongs in the catalog.” It creates a path-portable dossier containing the immutable Git commit, discovered skills/rules/commands/agents/plugins/MCP declarations, static safety findings, license status, and possible overlap with reviewed packages. It never runs repository scripts, hooks, MCP servers, lifecycle commands, or models.
+`candidate inspect` is the missing bridge between “this repository is moving” and “this belongs in the catalog.” It creates a path-portable dossier containing the immutable Git commit, installability (`portable-components`, `explicit-runtime-setup`, or `unsupported-source-shape`), discovered skills/rules/commands/agents/plugins/MCP declarations, static safety findings, license status, and possible overlap with catalog packages. Runtime tools such as Graphify are not mislabeled as portable skill bundles. Inspection never runs repository scripts, hooks, MCP servers, lifecycle commands, or models.
 
 After a human reviews that dossier, Loadout can create a catalog-record proposal without editing the catalog:
 
@@ -281,7 +283,7 @@ macOS, Linux, and native Windows paths are supported. WSL is intentionally treat
 ## Safety model
 
 - **Preview first:** mutating commands are dry-run by default.
-- **Immutable input:** reviewed sources are fetched at exact commits and verified.
+- **Immutable input:** screened sources are fetched at exact commits and verified.
 - **Narrow copying:** setup copies discovered component directories; it does not run repository installers.
 - **Transactional writes:** a failed multi-package operation restores prior state.
 - **Owned-file boundaries:** remove and rollback touch only recorded managed targets.
@@ -306,7 +308,7 @@ Read [Compatibility policy](./docs/COMPATIBILITY_POLICY.md), [Active-set contrac
 | Credentials and models | `credentials`, `models`                                                              |
 | Evaluate evidence      | `inspect`, `evaluate`, `candidate`, `head-to-head`, `canary`, `outcome`, `report`    |
 | Package and registry   | `create`, `pack`, `publish`, `registry-serve`                                        |
-| Operate                | `completion`, `schedule`, `unschedule`, `dashboard`, `serve`                         |
+| Operate                | `completion`, `autopilot`, `schedule`, `unschedule`, `dashboard`, `serve`            |
 
 Use `npx . <command> --help` for exact options. Shell completion is available for Bash, Zsh, Fish, and PowerShell:
 
@@ -318,7 +320,7 @@ npx . completion zsh > ~/.zfunc/_loadout
 
 ```mermaid
 flowchart LR
-  A["Detect and scan agents"] --> B["Select reviewed sources"]
+  A["Detect and scan agents"] --> B["Select screened sources"]
   B --> C["Fetch exact Git commits"]
   C --> D["Inspect skills and MCP evidence"]
   D --> E["Resolve overlaps and safety findings"]
@@ -352,7 +354,7 @@ rollback on virtual Codex and Claude Code profiles.
 ## Current limits
 
 - The npm package is prepared but not yet published.
-- The bundled catalog is reviewed and finite; discovery leads do not auto-promote themselves.
+- The bundled catalog is technically screened and finite; only the stricter Stable subset is currently marked recommended, and discovery leads do not auto-promote themselves.
 - Public GitHub is the default source. Private GitHub discovery requires explicit authorization through an environment or native credential reference.
 - Skill components are the only components installed automatically by broad setup. MCP-only records require an explicit recipe or configuration target.
 - Six catalog records currently have `NOASSERTION` license status and need upstream-license review before a public release decision.

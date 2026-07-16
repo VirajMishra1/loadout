@@ -2,7 +2,7 @@
 
 Loadout deliberately separates discovery, inspection, catalog admission, and
 installation. A repository can be popular or fast-growing without being useful,
-compatible, licensed for the intended use, safe, or better than a reviewed package.
+compatible, licensed for the intended use, safe, or better than a catalog package.
 
 ## Evidence pipeline
 
@@ -12,7 +12,7 @@ daily GitHub observations
   -> immutable source snapshot
   -> static dossier
   -> human-reviewed proposal
-  -> reviewed catalog JSON
+  -> technically screened catalog JSON
   -> Ed25519-signed release
   -> explicit local diff and apply
   -> normal preview/install/rollback workflow
@@ -44,6 +44,8 @@ commit, and scans files statically. The dossier records:
 
 - discovery date, queries, adoption and growth evidence;
 - immutable repository, commit, branch, and evidence paths;
+- installability as portable components, explicit runtime setup, or unsupported
+  source shape;
 - observed skills, rules, commands, agents, plugin manifests, and MCP declarations;
 - secret/instruction/static-safety findings and explicit uncertainty;
 - possible catalog overlaps based on disclosed shared terms; and
@@ -84,7 +86,7 @@ powers, platform behavior, category, and catalog policy.
 
 ## Distribute a trusted catalog release
 
-Maintainers sign a reviewed full catalog array with an Ed25519 key kept outside the
+Maintainers sign a technically screened full catalog array with an Ed25519 key kept outside the
 repository:
 
 ```bash
@@ -126,5 +128,5 @@ loadout recommend --project . --agent codex --json
 When an agent is supplied, baseline project recommendations are adjusted only by the
 local outcome store for the same agent and task family. The evidence contains no
 project paths, prompts, code, or source content. It can reorder or lower confidence in
-reviewed packages, but it cannot promote a discovery candidate or create a global
+catalog packages, but it cannot promote a discovery candidate or create a global
 popularity loop.

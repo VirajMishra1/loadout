@@ -6,6 +6,7 @@ import type {
 import { loadEffectiveCatalog, type InstallSelection } from "./catalog.js";
 import { detectAgents } from "./paths.js";
 import {
+  isStableSkillSelected,
   isPowerSkillSelected,
   resolveCatalogProfile,
   type ProfileResolution,
@@ -152,6 +153,14 @@ export async function prepareCatalogInstall(
             `resolved ${fetched.commit}, expected reviewed commit ${pkg.source.commit}`,
           );
         const plan = await buildSkillPlan(fetched.path, pkg.id, agents);
+        if (selection.mode === "stable")
+          plan.files = plan.files.filter((file) =>
+            isStableSkillSelected(
+              pkg.id,
+              file.skillName,
+              file.target.split(/[\\/]/).at(-1) ?? pkg.id,
+            ),
+          );
         if (selection.mode === "power")
           plan.files = plan.files.filter((file) =>
             isPowerSkillSelected(
@@ -162,7 +171,7 @@ export async function prepareCatalogInstall(
           );
         if (!plan.files.length)
           throw new Error(
-            "no skills from this collection are selected by the Power profile",
+            `no skills from this collection are selected by the ${selection.mode === "stable" ? "Stable" : "Power"} profile`,
           );
         const safety = await analyzeInstallPlanSafety(plan);
         completed += 1;

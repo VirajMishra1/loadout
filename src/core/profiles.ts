@@ -27,11 +27,70 @@ export interface ProfileResolution {
 }
 
 /**
- * The default profile must stay small enough for agents to expose its skills
- * without crowding their initial context. Maximum remains the explicit broad
- * catalog mode.
+ * Stable is Loadout's recommended daily driver: broad enough to improve normal
+ * engineering work immediately, but bounded at skill granularity and restricted
+ * to catalog sources with an identified SPDX license. Maximum remains the
+ * explicit broad-library mode.
  */
-export const STABLE_BOOST_PACKAGE_IDS = ["superpowers", "context7"] as const;
+export const STABLE_SKILL_ALLOWLIST: Readonly<
+  Record<string, readonly string[]>
+> = {
+  superpowers: [
+    "executing-plans",
+    "receiving-code-review",
+    "requesting-code-review",
+    "test-driven-development",
+    "verification-before-completion",
+    "writing-plans",
+  ],
+  context7: ["context7-cli", "context7-mcp", "find-docs"],
+  "addyosmani-agent-skills": [
+    "context-engineering",
+    "documentation-and-adrs",
+    "frontend-ui-engineering",
+    "git-workflow-and-versioning",
+    "observability-and-instrumentation",
+    "performance-optimization",
+  ],
+  "wshobson-agents": ["architecture-patterns", "code-review-excellence"],
+} as const;
+
+export const STABLE_BOOST_PACKAGE_IDS = Object.freeze(
+  Object.keys(STABLE_SKILL_ALLOWLIST),
+);
+
+export type CatalogTrustStage =
+  "discovered" | "inspected" | "human-reviewed" | "benchmarked" | "recommended";
+
+/**
+ * Trust is deliberately separate from popularity and publisher tier. No
+ * bundled record is labelled human-reviewed or benchmarked until that evidence
+ * is actually stored; Stable is the policy-recommended subset.
+ */
+export function catalogTrustStage(pkg: CatalogPackage): CatalogTrustStage {
+  if (
+    STABLE_BOOST_PACKAGE_IDS.includes(pkg.id) &&
+    pkg.license &&
+    pkg.license !== "NOASSERTION" &&
+    pkg.source?.commit &&
+    !pkg.archived
+  )
+    return "recommended";
+  if (pkg.source?.commit && pkg.source.evidencePaths.length) return "inspected";
+  return "discovered";
+}
+
+export function isStableSkillSelected(
+  packageId: string,
+  skillName: string | undefined,
+  targetName: string,
+): boolean {
+  const selected = STABLE_SKILL_ALLOWLIST[packageId];
+  if (!selected) return true;
+  return (
+    selected.includes(skillName ?? targetName) || selected.includes(targetName)
+  );
+}
 
 /**
  * Broad daily-driver capabilities selected at skill granularity. Collection
@@ -153,7 +212,7 @@ function eligiblePackages(
       (pkg) => pkg.tier === "official" || pkg.tier === "stable",
     );
     const curated = reviewed.filter((pkg) =>
-      (STABLE_BOOST_PACKAGE_IDS as readonly string[]).includes(pkg.id),
+      STABLE_BOOST_PACKAGE_IDS.includes(pkg.id),
     );
     // Fixtures and downstream catalogs may not contain Loadout's bundled ids;
     // preserve reviewed-tier behavior in that case instead of returning empty.

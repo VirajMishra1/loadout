@@ -199,7 +199,8 @@ export const TESTED_PROFILES: Record<
   { description: string; packages: string[] }
 > = {
   stable: {
-    description: "Small, broadly useful, reviewed foundation.",
+    description:
+      "Recommended 17-skill daily driver from four pinned, SPDX-identified sources with no extra static-risk approvals.",
     packages: [...STABLE_BOOST_PACKAGE_IDS],
   },
   web: {

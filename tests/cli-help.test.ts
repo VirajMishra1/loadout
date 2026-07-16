@@ -35,7 +35,7 @@ describe("CLI contract", () => {
     const result = await runCli("--help");
     expect(result.code).toBe(0);
     expect(result.stdout).toContain(
-      "Universal upgrade manager for AI coding agents",
+      "The trusted upgrade layer for AI coding agents",
     );
     expect(result.stdout).toContain("status");
     expect(result.stdout).toContain("scan");
@@ -58,13 +58,14 @@ describe("CLI contract", () => {
     expect(result.stdout).toContain("models");
     expect(result.stdout).toContain("credentials");
     expect(result.stdout).toContain("schedule");
+    expect(result.stdout).toContain("autopilot");
   });
 
   it("makes the CLI setup flow the non-interactive default without mutating", async () => {
     const result = await runCli();
     expect(result.code).toBe(0);
     expect(result.stdout).toContain("Loadout is CLI-first");
-    expect(result.stdout).toContain("setup --mode power");
+    expect(result.stdout).toContain("setup --mode stable");
   });
 
   it("validates setup mode before fetching repositories", async () => {

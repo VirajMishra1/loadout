@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   applyNativeScheduler,
+  applyNativeSchedulerBundle,
   planNativeScheduler,
 } from "../src/core/scheduler.js";
 
@@ -55,6 +56,23 @@ describe("native read-only scheduler", () => {
     expect(plan.files.map((file) => file.content).join("\n")).not.toMatch(
       /\b(?:install|update --yes|sync --yes)\b/,
     );
+  });
+
+  it("supports a durable pinned-package launcher instead of an ephemeral npx cache path", () => {
+    const plan = planNativeScheduler("schedule", {
+      platform: "linux",
+      home: "/home/test",
+      stateHome: "/home/test/.loadout",
+      launcher: ["/usr/bin/npx", "--yes", "loadout-ai@0.1.0"],
+    });
+    expect(plan.command).toEqual([
+      "/usr/bin/npx",
+      "--yes",
+      "loadout-ai@0.1.0",
+      "watch",
+      "--once",
+      "--json",
+    ]);
   });
 
   it("uses job-specific native files and identifiers so both jobs can coexist", () => {
@@ -144,6 +162,32 @@ describe("native read-only scheduler", () => {
     await expect(access(unschedule.files[0].path)).rejects.toMatchObject({
       code: "ENOENT",
     });
+  });
+
+  it("applies update and discovery jobs through one rollback-safe bundle", async () => {
+    root = await mkdtemp(join(tmpdir(), "loadout-autopilot-"));
+    process.env.LOADOUT_HOME = join(root, "state");
+    const home = join(root, "home");
+    const plans = (["updates", "discovery"] as const).map((job) =>
+      planNativeScheduler("schedule", {
+        platform: "linux",
+        home,
+        stateHome: process.env.LOADOUT_HOME,
+        nodePath: "/usr/bin/node",
+        cliPath: "/opt/loadout/cli.js",
+        job,
+      }),
+    );
+    const calls: string[] = [];
+    expect(
+      await applyNativeSchedulerBundle(plans, async (command, args) => {
+        calls.push(`${command} ${args.join(" ")}`);
+      }),
+    ).toBeTruthy();
+    expect(calls.join("\n")).toContain("loadout-daily-updates.timer");
+    expect(calls.join("\n")).toContain("loadout-daily-discovery.timer");
+    for (const plan of plans)
+      await expect(access(plan.files[0].path)).resolves.toBeUndefined();
   });
 
   it("rejects invalid times before producing native state", () => {

@@ -1122,6 +1122,46 @@ universal or permanent truth.
     surfaced script/network/environment review findings and five catalog overlaps,
     and executed or installed none of the source.
 
+### Phase 15: Stable release candidate and daily autopilot
+
+- [x] `P15-01 [TERRA]` Make Stable the strongest low-risk default, not a minimal demo.
+  - Stable now selects 17 high-value engineering, documentation, frontend,
+    observability, performance, planning, testing, review, Git, architecture, and
+    current-documentation skills from four immutable SPDX-identified sources.
+  - A live Codex-targeted preparation found zero static-risk approvals, collisions,
+    or skipped components. Power and Maximum remain broader opt-in libraries.
+- [x] `P15-02 [TERRA]` Separate technical screening from recommendation trust.
+  - The catalog and coverage API expose `discovered`, `inspected`, `human-reviewed`,
+    `benchmarked`, and `recommended` stages. The bundled release reports 50
+    technically screened records and four recommended Stable sources without
+    manufacturing human-review or benchmark evidence.
+- [x] `P15-03 [TERRA]` Correct candidate installability and runtime-tool detection.
+  - Candidate dossiers classify `portable-components`, `explicit-runtime-setup`, or
+    `unsupported-source-shape`. Conventional component directories accept real
+    manifest files only, preventing nested reference folders from being mislabeled
+    as agents; the live Graphify inspection now reports an unsupported runtime-tool
+    shape instead of a portable agent bundle.
+- [x] `P15-04 [TERRA]` Add one-command daily autopilot on macOS, Linux, and Windows.
+  - `autopilot` previews, transactionally applies, or removes both daily update and
+    discovery schedules. Scheduled commands use the pinned npm package version and
+    remain read-only: they never install, promote, or update content automatically.
+- [x] `P15-05 [TERRA]` Harden npm release metadata and trusted-publishing workflow.
+  - The package has normalized repository metadata, Node 24/npm 11 trusted-publish
+    tooling, full `npm run verify`, tag/version consistency, public provenance, and a
+    first-publish token fallback.
+- [x] `P15-05A [TERRA]` Pass the complete local release-candidate gate.
+  - `npm run verify` passes 78 test files/314 tests, catalog/discovery attribution,
+    the real CLI product flow, installed npm-tarball smoke, and seven real scans of
+    1,000 on-disk skills at a 1.29-second p95 on macOS/Node 23.
+- [ ] `P15-06 [HUMAN]` Approve public repository visibility, complete the six
+      `NOASSERTION` license decisions, authenticate npm, and publish `loadout-ai`.
+- [ ] `P15-07 [HUMAN]` Run the hosted macOS/Windows/Linux Node matrix on the final
+      commit, then verify a clean external `npx loadout-ai` installation.
+- [ ] `P15-08 [SOL]` Design sandboxed explicit recipes for runtime tools that are not
+      portable skills or declarative MCP servers. Require immutable artifacts,
+      bounded commands, no inherited secrets, preview, health checks, and rollback;
+      never execute arbitrary repository installers.
+
 ## 19. Seven-day schedule
 
 ### Day 1: Foundation
@@ -1271,24 +1311,24 @@ small PRs, no long-lived branches.
 
 ## 25. Immediate next tasks
 
-1. Run P12-32 founder testing from disposable profiles first, then on the owner's real
+1. Finish P15-06 and P15-07: release-owner license/visibility/npm authentication,
+   hosted platform matrix, provenance publication, and clean external package smoke.
+2. Run P12-32 founder testing from disposable profiles first, then on the owner's real
    Codex and Claude installations with a recorded pre-test snapshot and rollback
    checkpoint. Exercise every track in `docs/FEATURE_TEST_MATRIX.md`.
-2. Turn every reproducible founder-test failure into a regression test and fix it
+3. Turn every reproducible founder-test failure into a regression test and fix it
    before catalog expansion, npm publication, or scheduled automation is enabled.
-3. Complete P12-30: review the six `NOASSERTION` records and all attribution/license
+4. Complete P12-30: review the six `NOASSERTION` records and all attribution/license
    presentation with a human authorized to make the release decision.
-4. Trigger the hosted macOS/Windows/Linux Node 20/22 matrix and resolve platform-only
-   failures. Local macOS Node 23 evidence does not replace that release gate.
-5. Have the repository owner publish `loadout-ai` with npm provenance, then run the
-   clean external `npx loadout-ai` flow immediately on all three operating systems.
-6. Run P12-33 external user tests across beginners, power users, one/many agents, and
+5. Run P12-33 external user tests across beginners, power users, one/many agents, and
    all supported platforms; prioritize comprehension and rollback as well as success.
-7. Use `candidate list -> inspect -> propose` to review only candidates that close an
+6. Use `candidate list -> inspect -> propose` to review only candidates that close an
    evidenced capability gap. Do not expand the catalog to maximize its raw count.
-8. Use `capabilities --gaps` to select adapter work only after official path/config
+7. Use `capabilities --gaps` to select adapter work only after official path/config
    documentation exists; require preservation fixtures, transaction tests, and a real
    disposable smoke test for every newly claimed component.
+8. Build P15-08 only through explicit sandboxed runtime recipes; Graphify-class tools
+   must never be treated as copied skill folders or execute arbitrary setup scripts.
 9. Complete P10-05 through P10-10: demo recording, Codex usage explanation, feedback
    session ID, Devpost fields, screenshots, and final submission review.
 10. Resolve P0-05 branch protection when repository visibility or the GitHub plan

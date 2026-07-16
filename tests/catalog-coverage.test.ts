@@ -10,7 +10,14 @@ describe("catalog capability coverage", () => {
     const catalog = await loadCatalog();
     const report = buildCatalogCoverage(catalog);
     expect(report.records).toBe(catalog.length);
-    expect(report.fullyReviewedRecords).toBe(catalog.length);
+    expect(report.technicallyScreenedRecords).toBe(catalog.length);
+    expect(report.recommendedRecords).toBe(4);
+    expect(report.trustStages).toMatchObject({
+      inspected: 46,
+      recommended: 4,
+      "human-reviewed": 0,
+      benchmarked: 0,
+    });
     expect(report.immutablePins).toBe(catalog.length);
     expect(report.operatingSystems).toMatchObject({
       windows: catalog.length,
@@ -46,7 +53,9 @@ describe("catalog capability coverage", () => {
     ]);
     expect(report).toMatchObject({
       records: 1,
-      fullyReviewedRecords: 1,
+      technicallyScreenedRecords: 1,
+      recommendedRecords: 0,
+      trustStages: expect.objectContaining({ inspected: 1, recommended: 0 }),
       assertedLicenses: 0,
       noAssertionLicenses: 1,
       activityObserved: 0,

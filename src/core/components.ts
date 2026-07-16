@@ -15,6 +15,8 @@ const RESOURCE_DIRECTORIES = new Map<string, ResourceSummary["type"]>([
   ["agents", "agent"],
 ]);
 
+const RESOURCE_FILE = /\.(?:md|json|ya?ml)$/i;
+
 /** Discover conventional resource directories without following symlinks. */
 export async function discoverResources(
   root: string,
@@ -47,7 +49,11 @@ export async function discoverResources(
             throw new Error(
               `Refusing symlinked package resource: ${join(absolute, child.name)}`,
             );
-          if (!child.isFile() && !child.isDirectory()) continue;
+          // Conventional agent resources are files. Treating arbitrary child
+          // directories as agents creates dangerous false positives such as
+          // `skills/agents/references`, which is supporting material for a
+          // runtime tool rather than an installable agent declaration.
+          if (!child.isFile() || !RESOURCE_FILE.test(child.name)) continue;
           resources.push({
             type,
             name: child.name.replace(/\.(md|json|ya?ml)$/i, ""),

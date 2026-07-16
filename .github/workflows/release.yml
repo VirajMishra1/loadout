@@ -24,17 +24,20 @@ jobs:
           ref: ${{ github.event.release.tag_name }}
       - uses: actions/setup-node@v6
         with:
-          node-version: 22
+          node-version: 24
           registry-url: https://registry.npmjs.org
-          cache: npm
+          package-manager-cache: false
+      - name: Use an npm CLI with trusted-publishing support
+        run: npm install --global npm@11.5.1
+      - run: npm --version
       - run: npm ci
-      - run: npm run format:check
-      - run: npm run lint
-      - run: npm run typecheck
-      - run: npm test -- --run
-      - run: npm run test:package
+      - run: npm run verify
       - name: Verify tag matches package version
         shell: bash
         run: |
           test "${GITHUB_REF_NAME}" = "v$(node -p "require('./package.json').version")"
       - run: npm publish --access public --provenance
+        env:
+          # Needed only for the first publication before npm trusted publishing
+          # can be attached. OIDC is preferred and wins once configured.
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

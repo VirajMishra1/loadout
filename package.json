@@ -21,7 +21,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/VirajMishra1/loadout.git"
+    "url": "git+https://github.com/VirajMishra1/loadout.git"
   },
   "homepage": "https://github.com/VirajMishra1/loadout#readme",
   "bugs": {

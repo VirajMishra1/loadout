@@ -11,7 +11,7 @@ import {
 } from "./core/catalog.js";
 import { detectAgents, parseAgentSelection } from "./core/paths.js";
 import { readFile } from "node:fs/promises";
-import { resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import {
   buildSkillPlan,
   applySkillInstall,
@@ -109,7 +109,7 @@ import {
   planCodexMcpConfig,
 } from "./core/codex-mcp.js";
 import { formatDemoResult, runIsolatedDemo } from "./core/demo.js";
-import { resolveCatalogProfile } from "./core/profiles.js";
+import { catalogTrustStage, resolveCatalogProfile } from "./core/profiles.js";
 import { discoverHackerNewsRepositories } from "./core/community.js";
 import { discoverPrivateRepositories } from "./core/private-discovery.js";
 import {
@@ -184,6 +184,7 @@ import {
 } from "./core/model-config.js";
 import {
   applyNativeScheduler,
+  applyNativeSchedulerBundle,
   formatNativeScheduler,
   planNativeScheduler,
   type SchedulerAction,
@@ -342,7 +343,7 @@ async function runSetup(options: SetupOptions): Promise<void> {
     if (!mode) {
       if (!interactive) {
         console.log(
-          "Loadout is CLI-first. Run `loadout setup --mode power` for the broad daily driver, `--mode stable` for the smallest foundation, or `--mode maximum` to download the reviewed library without activating it.",
+          "Loadout is CLI-first. Run `loadout setup --mode stable` for the recommended daily driver, `--mode power` for broader opt-in skills, or `--mode maximum` to download the screened library without activating it.",
         );
         return;
       }
@@ -352,17 +353,17 @@ async function runSetup(options: SetupOptions): Promise<void> {
       });
       const answer = (
         await reader.question(
-          "Choose a loadout: [1] Power Boost (recommended), [2] Stable Boost, [3] Maximum Library, [4] Custom: ",
+          "Choose a loadout: [1] Stable Daily Driver (recommended), [2] Power Boost, [3] Maximum Library, [4] Custom: ",
         )
       ).trim();
       mode =
         answer === "2"
-          ? "stable"
+          ? "power"
           : answer === "3"
             ? "maximum"
             : answer === "4"
               ? "custom"
-              : "power";
+              : "stable";
       if (mode === "custom") {
         const custom = await reader.question(
           "Enter comma-separated catalog package ids: ",
@@ -374,7 +375,9 @@ async function runSetup(options: SetupOptions): Promise<void> {
       }
     }
     const selection = setupSelection(mode, packageIds);
-    console.log("\nPreparing a read-only install plan from reviewed commits…");
+    console.log(
+      "\nPreparing a read-only install plan from screened immutable commits…",
+    );
     const prepared = await prepareCatalogInstall(selection, {
       requestedAgents: parseAgentSelection(options.agents),
       onProgress: printSetupProgress,
@@ -386,7 +389,7 @@ async function runSetup(options: SetupOptions): Promise<void> {
     if (!approved) {
       if (!interactive) {
         console.log(
-          "Preview complete; nothing was changed. Re-run with --yes to install this exact reviewed plan.",
+          "Preview complete; nothing was changed. Re-run with --yes to install this exact screened plan.",
         );
         return;
       }
@@ -409,7 +412,7 @@ async function runSetup(options: SetupOptions): Promise<void> {
     if (risky && !riskApproved) {
       if (!interactive)
         throw new Error(
-          `The reviewed skills contain additional safety findings: ${risky}. Inspect the preview and add --approve-risk to proceed.`,
+          `The screened skills contain additional safety findings: ${risky}. Inspect the preview and add --approve-risk to proceed.`,
         );
       reader ??= createInterface({
         input: process.stdin,
@@ -435,18 +438,31 @@ async function runSetup(options: SetupOptions): Promise<void> {
       `\nLoadout installed ${prepared.entries.length} repositories for ${prepared.agents.length} agent(s). Snapshot: ${snapshotId}`,
     );
     console.log(
-      "Next: `loadout status`, `loadout update`, or `loadout rollback`.",
+      "Next: `loadout status`, `loadout optimize --project .`, or `loadout autopilot --yes` for opt-in daily read-only discovery and update checks.",
     );
   } finally {
     reader?.close();
   }
 }
 
+const LOADOUT_VERSION = "0.1.0";
+
+function durableSchedulerLauncher(): string[] {
+  return [
+    join(
+      dirname(process.execPath),
+      process.platform === "win32" ? "npx.cmd" : "npx",
+    ),
+    "--yes",
+    `loadout-ai@${LOADOUT_VERSION}`,
+  ];
+}
+
 const program = new Command();
 program
   .name("loadout")
-  .description("Universal upgrade manager for AI coding agents")
-  .version("0.1.0")
+  .description("The trusted upgrade layer for AI coding agents")
+  .version(LOADOUT_VERSION)
   .option(
     "--json-errors",
     "emit a machine-readable error object on stderr; normal output is unchanged",
@@ -464,12 +480,12 @@ program
 program
   .command("setup")
   .description(
-    "Preview and install a broad reviewed skill loadout for detected agents",
+    "Preview and install a screened skill loadout for detected agents",
   )
   .option("--mode <mode>", "stable, power, maximum, or custom")
   .option("--agents <ids>", "comma-separated target agent ids")
   .option("--package <id>", "package id for custom mode", collectOption, [])
-  .option("-y, --yes", "install after preparing the reviewed plan")
+  .option("-y, --yes", "install after preparing the screened plan")
   .option(
     "--approve-risk",
     "approve reviewed safety findings in non-interactive mode",
@@ -1124,6 +1140,49 @@ for (const action of [
       },
     );
 }
+
+program
+  .command("autopilot")
+  .description(
+    "Preview or enable both daily read-only discovery and update radar jobs",
+  )
+  .option("--time <HH:MM>", "local daily check time", "09:00")
+  .option("--remove", "remove both daily radar jobs")
+  .option("--yes", "apply both native scheduler changes atomically")
+  .option("--json", "emit machine-readable JSON")
+  .action(
+    async (options: {
+      time: string;
+      remove?: boolean;
+      yes?: boolean;
+      json?: boolean;
+    }) => {
+      const action: SchedulerAction = options.remove
+        ? "unschedule"
+        : "schedule";
+      const plans = (["updates", "discovery"] as const).map((job) =>
+        planNativeScheduler(action, {
+          time: options.time,
+          launcher: durableSchedulerLauncher(),
+          job,
+        }),
+      );
+      if (!options.yes) {
+        console.log(
+          options.json
+            ? JSON.stringify({ action, plans }, null, 2)
+            : `${plans.map(formatNativeScheduler).join("\n\n")}\n\nDry run only. Re-run with --yes to ${options.remove ? "remove" : "enable"} both read-only jobs.`,
+        );
+        return;
+      }
+      const snapshotId = await applyNativeSchedulerBundle(plans);
+      console.log(
+        options.json
+          ? JSON.stringify({ action, plans, snapshotId }, null, 2)
+          : `Loadout Autopilot ${options.remove ? "removed" : "enabled"}: daily update radar + multi-source candidate discovery.\nNo scheduled command can install, promote, or execute a candidate. Snapshot: ${snapshotId}`,
+      );
+    },
+  );
 
 program
   .command("health")
@@ -1817,6 +1876,7 @@ program
                 displayName: pkg.displayName,
                 category: pkg.category,
                 tier: pkg.tier,
+                trustStage: catalogTrustStage(pkg),
               },
               ranking: explainCatalogScore(pkg),
             },
@@ -1841,7 +1901,7 @@ program
           ? ` — updated ${pkg.lastUpdatedAt.slice(0, 10)}`
           : "";
         console.log(
-          `${pkg.displayName} [${pkg.tier}] ★${pkg.stars ?? "?"} — ${pkg.repository}${topics}${updated}`,
+          `${pkg.displayName} [${pkg.tier}; ${catalogTrustStage(pkg)}] ★${pkg.stars ?? "?"} — ${pkg.repository}${topics}${updated}`,
         );
       }
       for (const failure of result.failures)
@@ -2974,7 +3034,7 @@ for (const action of [
           throw new Error("--job must be updates or discovery");
         const plan = planNativeScheduler(action, {
           time: options.time,
-          cliPath: process.argv[1],
+          launcher: durableSchedulerLauncher(),
           job: options.job,
         });
         if (!options.yes) {

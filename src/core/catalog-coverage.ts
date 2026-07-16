@@ -3,11 +3,14 @@ import type {
   ComponentType,
   OperatingSystem,
 } from "../shared/types.js";
+import { catalogTrustStage, type CatalogTrustStage } from "./profiles.js";
 
 export interface CatalogCoverageReport {
   records: number;
   targetRecords: number;
-  fullyReviewedRecords: number;
+  technicallyScreenedRecords: number;
+  recommendedRecords: number;
+  trustStages: Record<CatalogTrustStage, number>;
   immutablePins: number;
   assertedLicenses: number;
   noAssertionLicenses: number;
@@ -37,6 +40,13 @@ const componentTypes: ComponentType[] = [
   "root",
 ];
 const operatingSystems: OperatingSystem[] = ["windows", "macos", "linux"];
+const trustStages: CatalogTrustStage[] = [
+  "discovered",
+  "inspected",
+  "human-reviewed",
+  "benchmarked",
+  "recommended",
+];
 
 function tally<T extends string>(values: T[], keys: T[]): Record<T, number> {
   return Object.fromEntries(
@@ -44,7 +54,7 @@ function tally<T extends string>(values: T[], keys: T[]): Record<T, number> {
   ) as Record<T, number>;
 }
 
-function fullyReviewed(pkg: CatalogPackage): boolean {
+function technicallyScreened(pkg: CatalogPackage): boolean {
   return Boolean(
     pkg.license &&
     pkg.components?.length &&
@@ -60,7 +70,7 @@ function fullyReviewed(pkg: CatalogPackage): boolean {
 
 /**
  * Explain catalog breadth without pretending repository count equals quality.
- * All metrics are derived from reviewed records; live activity remains explicit
+ * All metrics are derived from technically screened records; live activity remains explicit
  * and absent until `catalog --refresh` observes it.
  */
 export function buildCatalogCoverage(
@@ -82,7 +92,11 @@ export function buildCatalogCoverage(
   return {
     records: catalog.length,
     targetRecords,
-    fullyReviewedRecords: catalog.filter(fullyReviewed).length,
+    technicallyScreenedRecords: catalog.filter(technicallyScreened).length,
+    recommendedRecords: catalog.filter(
+      (pkg) => catalogTrustStage(pkg) === "recommended",
+    ).length,
+    trustStages: tally(catalog.map(catalogTrustStage), trustStages),
     immutablePins: catalog.filter((pkg) =>
       pkg.source?.commit.match(/^[a-f0-9]{40}$/),
     ).length,
@@ -134,7 +148,8 @@ export function formatCatalogCoverage(report: CatalogCoverageReport): string {
     .map(([category, count]) => `${category}:${count}`)
     .join(", ");
   return [
-    `Reviewed catalog: ${report.fullyReviewedRecords}/${report.records} complete records (target ${report.targetRecords})`,
+    `Screened catalog: ${report.technicallyScreenedRecords}/${report.records} technically complete records (target ${report.targetRecords})`,
+    `Recommendation trust: ${report.recommendedRecords} Stable sources · human license approval still required before release`,
     `Evidence: ${report.immutablePins} immutable pins · ${report.assertedLicenses} asserted licenses · ${report.noAssertionLicenses} NOASSERTION`,
     `Coverage: ${Object.values(report.categories).length} categories · ${report.evaluationReady} evaluation-ready · ${report.activityObserved} with refreshed activity`,
     `Install shape: ${report.installShapes.skills} skill · ${report.installShapes.mcpOnly} MCP-only · ${report.installShapes.mixed} mixed`,

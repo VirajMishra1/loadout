@@ -152,8 +152,9 @@ loadout capabilities --inspect --json
 
 Expected:
 
-- catalog coverage reports reviewed records, component/install shapes, licenses,
-  evidence, categories, and overlap statistics;
+- catalog coverage reports technically screened and recommended counts separately,
+  all trust stages, component/install shapes, licenses, evidence, categories, and
+  overlap statistics;
 - ranking explanation cites stored evidence and guardrails rather than claiming that
   stars alone prove quality;
 - recommendation reflects the disposable project's JavaScript/testing signals;
@@ -617,21 +618,22 @@ bash -n "$TEST_ROOT/loadout.bash"
 zsh -n "$TEST_ROOT/_loadout"
 ```
 
-Native scheduling is H. Always preview both independent jobs before installing them:
+Native scheduling is H. The recommended path plans and applies both independent
+read-only jobs as one bundle:
 
 ```bash
-loadout schedule --job updates --time 09:00 --json
-loadout schedule --job discovery --time 09:15 --json
-loadout schedule --job updates --time 09:00 --yes --json
-loadout schedule --job discovery --time 09:15 --yes --json
-loadout unschedule --job updates --time 09:00 --yes --json
-loadout unschedule --job discovery --time 09:15 --yes --json
+loadout autopilot --time 09:00 --json
+loadout autopilot --time 09:00 --yes --json
+loadout autopilot --remove --yes --json
 ```
 
-Expected: update and discovery jobs coexist; each runs a read-only check; removal is
-job-specific. Confirm removal in `launchctl` on macOS, Task Scheduler on Windows, or
-the user systemd/cron facility selected on Linux. `LOADOUT_HOME` does not make the
-native scheduler disposable, so never skip the two `unschedule` commands.
+Expected: the preview contains exactly an update job and a discovery job, both marked
+`read-only-checks-only`, and uses a pinned `loadout-ai@<version>` npm launcher rather
+than a temporary checkout path. Apply is transactional and removal removes both jobs.
+Confirm removal in `launchctl` on macOS, Task Scheduler on Windows, or the user
+systemd/cron facility selected on Linux. `LOADOUT_HOME` does not make the native
+scheduler disposable, so never skip the remove command. The lower-level `schedule`
+and `unschedule` commands remain available for job-specific control.
 
 Loopback services are X but do not require the dashboard for normal product use:
 
@@ -732,5 +734,5 @@ sections. Parenthesized numbers identify the track above.
   `catalog-verify`, `catalog-update` (8, 9).
 - MCP/conversion/sandbox: `mcp`, `inspect`, `evaluate`, `mcp-recipe`, `mcp-config`,
   `codex-mcp-config`, `convert`, `sandbox-run` (7).
-- Host/secondary surfaces: `completion`, `schedule`, `unschedule`, `serve`,
-  `dashboard` (10).
+- Host/secondary surfaces: `completion`, `autopilot`, `schedule`, `unschedule`,
+  `serve`, `dashboard` (10).

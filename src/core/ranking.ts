@@ -117,7 +117,7 @@ export function explainCatalogScore(
     factor: "trust" as const,
     points: trustPoints,
     maximum: 15,
-    evidence: `${pkg.source ? "Immutable source evidence" : "No immutable source evidence"}, ${assertedLicense ? `asserted ${pkg.license} license metadata` : pkg.license === "NOASSERTION" ? "license is unknown (NOASSERTION)" : "no license metadata"}${pkg.tier === "official" ? ", and a reviewed official publisher tier" : ""}.`,
+    evidence: `${pkg.source ? "Immutable source evidence" : "No immutable source evidence"}, ${assertedLicense ? `asserted ${pkg.license} license metadata` : pkg.license === "NOASSERTION" ? "license is unknown (NOASSERTION)" : "no license metadata"}${pkg.tier === "official" ? ", and a declared official publisher tier" : ""}.`,
   };
 
   const contributions = [adoption, momentum, maintenance, compatibility, trust];

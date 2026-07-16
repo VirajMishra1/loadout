@@ -84,6 +84,7 @@ export function planNativeScheduler(
     stateHome?: string;
     nodePath?: string;
     cliPath?: string;
+    launcher?: string[];
     uid?: number;
     job?: SchedulerJob;
   } = {},
@@ -99,12 +100,15 @@ export function planNativeScheduler(
   const stateHome = options.stateHome ?? loadoutHome(process.env, platform);
   const nodePath = options.nodePath ?? process.execPath;
   const cliPath = options.cliPath ?? process.argv[1];
+  const launcher = options.launcher ?? [nodePath, cliPath];
+  if (!launcher.length || launcher.some((item) => !item))
+    throw new Error("Scheduler launcher arguments must be non-empty");
   const job = options.job ?? "updates";
   const nativeId = `loadout-daily-${job}`;
   const command =
     job === "updates"
-      ? [nodePath, cliPath, "watch", "--once", "--json"]
-      : [nodePath, cliPath, "discover", "--source", "all", "--queue", "--json"];
+      ? [...launcher, "watch", "--once", "--json"]
+      : [...launcher, "discover", "--source", "all", "--queue", "--json"];
   if (selectedPlatform === "darwin") {
     const label = `com.loadout.daily.${job}`;
     const path = join(home, "Library", "LaunchAgents", `${label}.plist`);
@@ -281,31 +285,50 @@ export async function applyNativeScheduler(
   plan: NativeSchedulerPlan,
   runner: SchedulerRunner = defaultRunner,
 ): Promise<string> {
+  return applyNativeSchedulerBundle([plan], runner);
+}
+
+/** Apply both read-only daily jobs through one filesystem transaction. */
+export async function applyNativeSchedulerBundle(
+  plans: NativeSchedulerPlan[],
+  runner: SchedulerRunner = defaultRunner,
+): Promise<string> {
+  if (!plans.length) throw new Error("At least one scheduler plan is required");
+  const actions = new Set(plans.map((plan) => plan.action));
+  if (actions.size !== 1)
+    throw new Error(
+      "A scheduler bundle cannot mix schedule and unschedule plans",
+    );
   await recoverPendingTransactions();
-  const paths = plan.files.map((file) => file.path);
+  const paths = [
+    ...new Set(plans.flatMap((plan) => plan.files.map((file) => file.path))),
+  ];
   const snapshot = await createSnapshot(paths, { persist: false });
   const transaction = await beginTransaction(snapshot, paths);
   try {
     await markTransactionCommitting(transaction);
-    if (plan.action === "schedule") {
-      for (const directory of plan.directories)
+    if (plans[0].action === "schedule") {
+      for (const directory of new Set(
+        plans.flatMap((plan) => plan.directories),
+      ))
         await ensureDirectory(directory);
-      for (const file of plan.files) {
+      for (const file of plans.flatMap((plan) => plan.files)) {
         await ensureDirectory(dirname(file.path));
         await writeFileAtomically(file.path, file.content);
       }
     }
-    for (const item of plan.applyCommands)
+    for (const item of plans.flatMap((plan) => plan.applyCommands))
       try {
         await runner(item.command, item.args);
       } catch (error) {
         if (!item.allowFailure) throw error;
       }
-    if (plan.action === "unschedule")
-      for (const file of plan.files) await rm(file.path, { force: true });
+    if (plans[0].action === "unschedule")
+      for (const file of plans.flatMap((plan) => plan.files))
+        await rm(file.path, { force: true });
     await completeTransaction(transaction);
   } catch (error) {
-    for (const item of plan.rollbackCommands)
+    for (const item of plans.flatMap((plan) => plan.rollbackCommands).reverse())
       try {
         await runner(item.command, item.args);
       } catch {

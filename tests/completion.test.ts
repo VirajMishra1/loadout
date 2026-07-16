@@ -13,6 +13,7 @@ describe("CLI completion", () => {
       expect(renderShellCompletion(shell)).toContain("catalog-update");
       expect(renderShellCompletion(shell)).toContain("candidate");
       expect(renderShellCompletion(shell)).toContain("propose");
+      expect(renderShellCompletion(shell)).toContain("autopilot");
     }
   });
 

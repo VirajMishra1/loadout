@@ -29,6 +29,26 @@ describe("universal package components", () => {
     ]);
   });
 
+  it("does not classify arbitrary directories below agents as agent declarations", async () => {
+    root = await mkdtemp(join(tmpdir(), "loadout-components-false-agent-"));
+    await mkdir(join(root, "graphify", "skills", "agents", "references"), {
+      recursive: true,
+    });
+    await writeFile(
+      join(
+        root,
+        "graphify",
+        "skills",
+        "agents",
+        "references",
+        "architecture.txt",
+      ),
+      "supporting material",
+    );
+
+    expect(await discoverResources(root)).toEqual([]);
+  });
+
   it("plans only supported targets and labels adapted layouts", async () => {
     root = await mkdtemp(join(tmpdir(), "loadout-components-plan-"));
     await mkdir(join(root, "commands"));

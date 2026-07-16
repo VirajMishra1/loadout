@@ -135,6 +135,7 @@ describe("candidate intelligence", () => {
     });
     expect(dossier.review.status).toBe("needs-human-review");
     expect(dossier.components).toContain("skill");
+    expect(dossier.installability).toBe("portable-components");
     expect(dossier.evidencePaths).toEqual(["skills/review/SKILL.md"]);
     expect(dossier.overlap[0]?.packageId).toBe("review-baseline");
     expect(JSON.stringify(dossier)).not.toContain(source);
@@ -311,6 +312,7 @@ describe("candidate intelligence", () => {
       }),
     });
     expect(dossier.components).toEqual([]);
+    expect(dossier.installability).toBe("unsupported-source-shape");
     expect(dossier.evidencePaths).toEqual([]);
     expect(dossier.review.status).toBe("blocked");
     const path = await writeCandidateDossier(

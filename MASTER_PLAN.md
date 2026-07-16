@@ -1017,8 +1017,9 @@ universal or permanent truth.
       from outside the repository on macOS, Windows, Linux, and Node 20/22.
   - Partial: a real tarball is packed, installed outside the repository, executed,
     catalog-checked, used for install, and rolled back. CI contains an opt-in OS/Node
-    matrix and an owner-controlled OIDC/provenance release workflow; actual npm
-    publication and the hosted matrix run remain release-owner actions.
+    matrix and an owner-controlled OIDC/provenance release workflow. The hosted
+    macOS/Windows/Linux Node 20/22 matrix passes; actual npm publication and the
+    post-publication clean external package checks remain release-owner actions.
 - [ ] `P12-32 [HUMAN]` Run moderated founder testing on the real Claude and Codex
       profiles with snapshots and explicit rollback checkpoints.
 - [ ] `P12-33 [HUMAN]` Run at least ten external user tests spanning new users, power
@@ -1029,7 +1030,7 @@ universal or permanent truth.
     success on all supported platforms; p95 local scan under five seconds for 1,000
     skills; actionable failure messages; npm provenance and attribution complete.
   - Partial evidence: seven real CLI runs over 1,000 on-disk skills measured a local
-    p95 of 0.97 seconds on 2026-07-16. A disposable real Maximum flow also prepared all
+    p95 of 1.28 seconds on 2026-07-16. A disposable real Maximum flow also prepared all
     31 skill-bearing repositories, exposed 1,219 skill directories, resolved 48
     overlaps, exercised optimization/apply/rollback, and left no test profile behind.
     Transaction, rollback, package-tarball, and CLI product-flow gates pass locally;
@@ -1340,8 +1341,9 @@ small PRs, no long-lived branches.
 7. Use `capabilities --gaps` to select adapter work only after official path/config
    documentation exists; require preservation fixtures, transaction tests, and a real
    disposable smoke test for every newly claimed component.
-8. Build P15-08 only through explicit sandboxed runtime recipes; Graphify-class tools
-   must never be treated as copied skill folders or execute arbitrary setup scripts.
+8. Build P15-09 by admitting additional executable tools only through Graphify-class
+   explicit reviewed recipes; never treat them as copied skill folders or execute
+   arbitrary candidate setup scripts.
 9. Complete P10-05 through P10-10: demo recording, Codex usage explanation, feedback
    session ID, Devpost fields, screenshots, and final submission review.
 10. Resolve P0-05 branch protection when repository visibility or the GitHub plan

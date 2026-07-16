@@ -24,6 +24,50 @@ export interface PrivacySafeLoadoutReport {
   };
 }
 
+export function parsePrivacySafeLoadoutReport(
+  value: unknown,
+): PrivacySafeLoadoutReport {
+  if (!value || typeof value !== "object" || Array.isArray(value))
+    throw new Error("Privacy-safe Loadout report must be an object");
+  const report = value as Partial<PrivacySafeLoadoutReport>;
+  if (
+    report.schemaVersion !== 1 ||
+    typeof report.generatedAt !== "string" ||
+    !Number.isFinite(Date.parse(report.generatedAt)) ||
+    !Array.isArray(report.packages) ||
+    !Array.isArray(report.mcp) ||
+    !report.privacy ||
+    !Array.isArray(report.privacy.excludes)
+  )
+    throw new Error("Privacy-safe Loadout report schema is invalid");
+  for (const item of report.packages) {
+    if (
+      !item ||
+      typeof item !== "object" ||
+      typeof item.id !== "string" ||
+      !Array.isArray(item.agents) ||
+      !item.agents.every((agent) => typeof agent === "string") ||
+      ![
+        item.managedFiles,
+        item.activeSkills,
+        item.disabledSkills,
+        item.reviewedSkills,
+        item.unreviewedSkills,
+      ].every((count) => Number.isSafeInteger(count) && count >= 0)
+    )
+      throw new Error("Privacy-safe Loadout package entry is invalid");
+  }
+  if (
+    !report.mcp.every(
+      (item) =>
+        item && typeof item === "object" && typeof item.packageId === "string",
+    ) ||
+    !report.privacy.excludes.every((item) => typeof item === "string")
+  )
+    throw new Error("Privacy-safe Loadout report entry is invalid");
+  return report as PrivacySafeLoadoutReport;
+}
+
 export async function buildPrivacySafeReport(): Promise<PrivacySafeLoadoutReport> {
   const state = await readInstallState();
   return {

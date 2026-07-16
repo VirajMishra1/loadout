@@ -2,6 +2,7 @@ export type CompletionShell = "bash" | "zsh" | "fish" | "powershell";
 
 const commands = [
   "setup",
+  "upgrade",
   "init",
   "lock",
   "export",
@@ -19,6 +20,8 @@ const commands = [
   "test-drive",
   "scan",
   "status",
+  "versions",
+  "benchmark",
   "doctor",
   "health",
   "compare",
@@ -50,6 +53,8 @@ const commands = [
   "tool",
   "report",
   "share",
+  "card",
+  "compare-loadouts",
   "head-to-head",
   "keygen",
   "catalog-sign",
@@ -82,6 +87,7 @@ const commands = [
 const modelCommands = ["status", "set", "verify"];
 const credentialCommands = ["status", "set", "check", "delete"];
 const candidateCommands = ["list", "inspect", "propose"];
+const benchmarkCommands = ["plan"];
 
 export function renderShellCompletion(shell: CompletionShell): string {
   const words = commands.join(" ");
@@ -99,17 +105,20 @@ _loadout() {
     COMPREPLY=( $(compgen -W "${credentialCommands.join(" ")}" -- "$current") )
   elif [[ COMP_CWORD -eq 2 && "\${COMP_WORDS[1]}" == "candidate" ]]; then
     COMPREPLY=( $(compgen -W "${candidateCommands.join(" ")}" -- "$current") )
+  elif [[ COMP_CWORD -eq 2 && "\${COMP_WORDS[1]}" == "benchmark" ]]; then
+    COMPREPLY=( $(compgen -W "${benchmarkCommands.join(" ")}" -- "$current") )
   fi
 }
 complete -F _loadout loadout
 `;
     case "zsh":
       return `#compdef loadout
-typeset -a commands model_commands credential_commands candidate_commands
+typeset -a commands model_commands credential_commands candidate_commands benchmark_commands
 commands=(${commands.map((command) => `'${command}'`).join(" ")})
 model_commands=(${modelCommands.map((command) => `'${command}'`).join(" ")})
 credential_commands=(${credentialCommands.map((command) => `'${command}'`).join(" ")})
 candidate_commands=(${candidateCommands.map((command) => `'${command}'`).join(" ")})
+benchmark_commands=(${benchmarkCommands.map((command) => `'${command}'`).join(" ")})
 if (( CURRENT == 2 )); then
   _describe 'command' commands
 elif (( CURRENT == 3 )) && [[ $words[2] == models ]]; then
@@ -118,6 +127,8 @@ elif (( CURRENT == 3 )) && [[ $words[2] == credentials ]]; then
   _describe 'credentials command' credential_commands
 elif (( CURRENT == 3 )) && [[ $words[2] == candidate ]]; then
   _describe 'candidate command' candidate_commands
+elif (( CURRENT == 3 )) && [[ $words[2] == benchmark ]]; then
+  _describe 'benchmark command' benchmark_commands
 fi
 `;
     case "fish":
@@ -138,6 +149,10 @@ fi
           (command) =>
             `complete -c loadout -f -n '__fish_seen_subcommand_from candidate' -a ${command}`,
         ),
+        ...benchmarkCommands.map(
+          (command) =>
+            `complete -c loadout -f -n '__fish_seen_subcommand_from benchmark' -a ${command}`,
+        ),
       ]
         .join("\n")
         .concat("\n");
@@ -145,7 +160,7 @@ fi
       return `Register-ArgumentCompleter -Native -CommandName loadout -ScriptBlock {
   param($wordToComplete, $commandAst, $cursorPosition)
   $elements = @($commandAst.CommandElements | ForEach-Object { $_.Extent.Text })
-  $candidates = if ($elements.Count -ge 2 -and $elements[1] -eq 'models') { @(${modelCommands.map((command) => `'${command}'`).join(", ")}) } elseif ($elements.Count -ge 2 -and $elements[1] -eq 'credentials') { @(${credentialCommands.map((command) => `'${command}'`).join(", ")}) } elseif ($elements.Count -ge 2 -and $elements[1] -eq 'candidate') { @(${candidateCommands.map((command) => `'${command}'`).join(", ")}) } else { @(${commands.map((command) => `'${command}'`).join(", ")}) }
+  $candidates = if ($elements.Count -ge 2 -and $elements[1] -eq 'models') { @(${modelCommands.map((command) => `'${command}'`).join(", ")}) } elseif ($elements.Count -ge 2 -and $elements[1] -eq 'credentials') { @(${credentialCommands.map((command) => `'${command}'`).join(", ")}) } elseif ($elements.Count -ge 2 -and $elements[1] -eq 'candidate') { @(${candidateCommands.map((command) => `'${command}'`).join(", ")}) } elseif ($elements.Count -ge 2 -and $elements[1] -eq 'benchmark') { @(${benchmarkCommands.map((command) => `'${command}'`).join(", ")}) } else { @(${commands.map((command) => `'${command}'`).join(", ")}) }
   $candidates | Where-Object { $_ -like "$wordToComplete*" } | ForEach-Object { [System.Management.Automation.CompletionResult]::new($_, $_, 'ParameterValue', $_) }
 }
 `;

@@ -4,16 +4,26 @@ import type { CatalogPackage } from "../shared/types.js";
 import { writeFileAtomically } from "./atomic-file.js";
 import type { CommunityRepositoryCandidate } from "./community.js";
 import type { GitHubRepositoryLead } from "./github-discovery.js";
+import type { McpRegistryDiscoveryRecord } from "./mcp-registry-discovery.js";
 import { ensureDirectory, loadoutHome } from "./paths.js";
+import type { SkillsShDiscoveryRecord } from "./skills-sh-discovery.js";
 
 export type ReviewDecision = "pending" | "shortlisted" | "ignored";
+export type ReviewQueueSource =
+  "github-search" | "hacker-news" | "skills-sh" | "official-mcp-registry";
+
+export type ReviewQueueLead =
+  | GitHubRepositoryLead
+  | CommunityRepositoryCandidate
+  | SkillsShDiscoveryRecord
+  | McpRegistryDiscoveryRecord;
 
 export interface ReviewQueueItem {
   repository: string;
   url: string;
   title: string;
   description: string;
-  sources: Array<"github-search" | "hacker-news">;
+  sources: ReviewQueueSource[];
   firstSeenAt: string;
   lastSeenAt: string;
   decision: ReviewDecision;
@@ -32,6 +42,9 @@ export interface ReviewQueueItem {
   repositoryUpdatedAt?: string;
   communityScore?: number;
   discussionUrl?: string;
+  installs?: number;
+  registryVersion?: string;
+  lifecycleStatus?: string;
 }
 
 export interface ReviewQueue {
@@ -85,10 +98,10 @@ export async function readReviewQueue(): Promise<ReviewQueue> {
 }
 
 function fromLead(
-  lead: GitHubRepositoryLead | CommunityRepositoryCandidate,
+  lead: ReviewQueueLead,
   now: string,
   cataloged: Set<string>,
-): ReviewQueueItem {
+): ReviewQueueItem | undefined {
   if (lead.source === "github-search")
     return {
       repository: lead.repository,
@@ -107,19 +120,48 @@ function fromLead(
       repositoryCreatedAt: lead.createdAt,
       repositoryUpdatedAt: lead.updatedAt,
     };
-  return {
-    repository: lead.repository,
-    url: lead.storyUrl,
-    title: lead.title,
-    description: "",
-    sources: [lead.source],
-    firstSeenAt: now,
-    lastSeenAt: now,
-    decision: "pending",
-    alreadyCataloged: cataloged.has(lead.repository.toLowerCase()),
-    communityScore: lead.score,
-    discussionUrl: lead.discussionUrl,
-  };
+  if (lead.source === "hacker-news")
+    return {
+      repository: lead.repository,
+      url: lead.storyUrl,
+      title: lead.title,
+      description: "",
+      sources: [lead.source],
+      firstSeenAt: now,
+      lastSeenAt: now,
+      decision: "pending",
+      alreadyCataloged: cataloged.has(lead.repository.toLowerCase()),
+      communityScore: lead.score,
+      discussionUrl: lead.discussionUrl,
+    };
+  if (lead.source === "skills-sh" && lead.repository)
+    return {
+      repository: lead.repository.repository,
+      url: lead.repository.url,
+      title: lead.name,
+      description: lead.ranking.meaning,
+      sources: [lead.source],
+      firstSeenAt: now,
+      lastSeenAt: now,
+      decision: "pending",
+      alreadyCataloged: cataloged.has(lead.repository.repository.toLowerCase()),
+      installs: lead.installs,
+    };
+  if (lead.source === "official-mcp-registry" && lead.repository?.repository)
+    return {
+      repository: lead.repository.repository,
+      url: lead.repository.url,
+      title: lead.title ?? lead.name,
+      description: lead.description,
+      sources: [lead.source],
+      firstSeenAt: now,
+      lastSeenAt: now,
+      decision: "pending",
+      alreadyCataloged: cataloged.has(lead.repository.repository.toLowerCase()),
+      registryVersion: lead.version,
+      lifecycleStatus: lead.verification.lifecycleStatus,
+    };
+  return undefined;
 }
 
 function decisionPriority(decision: ReviewDecision): number {
@@ -145,7 +187,7 @@ function compareQueueItems(
 
 /** Merge read-only discovery leads; this never promotes or installs a candidate. */
 export async function mergeReviewQueue(
-  leads: Array<GitHubRepositoryLead | CommunityRepositoryCandidate>,
+  leads: ReviewQueueLead[],
   catalog: CatalogPackage[],
   now = new Date(),
 ): Promise<ReviewQueue> {
@@ -159,6 +201,7 @@ export async function mergeReviewQueue(
   );
   for (const lead of leads) {
     const incoming = fromLead(lead, timestamp, cataloged);
+    if (!incoming) continue;
     const key = incoming.repository.toLowerCase();
     const existing = items.get(key);
     let velocityEvidence: Partial<ReviewQueueItem> = {};
@@ -247,7 +290,7 @@ export function formatReviewQueue(queue: ReviewQueue): string {
     `Review queue: ${visible.length} uncataloged candidate(s), ${queue.items.length - visible.length} already cataloged`,
     ...visible.map(
       (item) =>
-        `${item.decision === "shortlisted" ? "★" : item.decision === "ignored" ? "×" : "○"} ${item.repository} — ${item.stars !== undefined ? `${item.stars} stars${item.starVelocity !== undefined ? ` (${item.starVelocity >= 0 ? "+" : ""}${item.starVelocity.toFixed(1)}/day over ${item.starVelocityWindowDays?.toFixed(2) ?? "unknown"} days)` : ""}` : `community score ${item.communityScore ?? 0}`} — ${item.sources.join("+")}`,
+        `${item.decision === "shortlisted" ? "★" : item.decision === "ignored" ? "×" : "○"} ${item.repository} — ${item.stars !== undefined ? `${item.stars} stars${item.starVelocity !== undefined ? ` (${item.starVelocity >= 0 ? "+" : ""}${item.starVelocity.toFixed(1)}/day over ${item.starVelocityWindowDays?.toFixed(2) ?? "unknown"} days)` : ""}` : item.installs !== undefined ? `${item.installs} skills.sh installs` : item.registryVersion ? `MCP ${item.registryVersion} (${item.lifecycleStatus ?? "unknown"})` : `community score ${item.communityScore ?? 0}`} — ${item.sources.join("+")}`,
     ),
   ].join("\n");
 }

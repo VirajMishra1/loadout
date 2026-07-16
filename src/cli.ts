@@ -173,6 +173,7 @@ import {
   readReviewQueue,
   setReviewDecision,
   type ReviewDecision,
+  type ReviewQueueLead,
 } from "./core/review-queue.js";
 import {
   applyProviderModelSelection,
@@ -198,6 +199,7 @@ import {
 import {
   buildPrivacySafeReport,
   formatPrivacySafeReport,
+  parsePrivacySafeLoadoutReport,
   writePrivacySafeReport,
 } from "./core/share-report.js";
 import {
@@ -253,6 +255,32 @@ import {
   recoverPendingTransactions,
   withMutationLock,
 } from "./core/transaction.js";
+import {
+  applyUpgrade,
+  formatUpgradePlan,
+  planUpgrade,
+  summarizeUpgradePlan,
+} from "./core/upgrade.js";
+import {
+  formatAgentVersions,
+  inspectAgentVersions,
+} from "./core/agent-versions.js";
+import { formatAgentHealthScore } from "./core/agent-health-score.js";
+import { buildLocalAgentHealthScores } from "./core/health-score-evidence.js";
+import { discoverSkillsSh } from "./core/skills-sh-discovery.js";
+import { discoverOfficialMcpRegistry } from "./core/mcp-registry-discovery.js";
+import {
+  createBenchmarkRun,
+  formatBenchmarkCampaignSummary,
+  parseBenchmarkCampaign,
+  summarizeBenchmarkCampaign,
+} from "./core/benchmark-campaign.js";
+import {
+  buildLoadoutCard,
+  compareLoadoutReports,
+  formatLoadoutCard,
+  formatLoadoutComparison,
+} from "./core/loadout-card.js";
 
 const collectOption = (value: string, previous: string[] = []): string[] => [
   ...previous,
@@ -497,6 +525,71 @@ program
     "approve reviewed safety findings in non-interactive mode",
   )
   .action((options: SetupOptions) => runSetup(options));
+
+program
+  .command("upgrade")
+  .description(
+    "Diagnose, recommend, preview, and transactionally apply one screened upgrade",
+  )
+  .option("--mode <mode>", "stable, power, maximum, or custom", "stable")
+  .option("--project <path>", "project directory", process.cwd())
+  .option("--agents <ids>", "comma-separated target agent ids")
+  .option("--package <id>", "package id for custom mode", collectOption, [])
+  .option("--yes", "apply the exact displayed upgrade")
+  .option("--approve-risk", "approve the displayed reviewed safety findings")
+  .option("--json", "emit a machine-readable preview or result")
+  .action(
+    async (options: {
+      mode: string;
+      project: string;
+      agents?: string;
+      package: string[];
+      yes?: boolean;
+      approveRisk?: boolean;
+      json?: boolean;
+    }) => {
+      const plan = await planUpgrade(
+        setupSelection(options.mode, options.package),
+        {
+          projectPath: options.project,
+          requestedAgents: parseAgentSelection(options.agents),
+          onProgress: options.json ? undefined : printSetupProgress,
+        },
+      );
+      if (!options.yes) {
+        console.log(
+          options.json
+            ? JSON.stringify(summarizeUpgradePlan(plan), null, 2)
+            : `${formatUpgradePlan(plan)}\n\nPreview complete; nothing was changed. Re-run with --yes${plan.riskApprovalRequired ? " --approve-risk" : ""} to apply this exact upgrade.`,
+        );
+        return;
+      }
+      const result = await applyUpgrade(plan, {
+        approveRisk: options.approveRisk,
+      });
+      console.log(
+        options.json
+          ? JSON.stringify(
+              {
+                plan: summarizeUpgradePlan(plan),
+                result,
+              },
+              null,
+              2,
+            )
+          : [
+              `Upgrade applied as one transaction. Snapshot: ${result.snapshotId}`,
+              formatHealthReport(result.healthAfter),
+              ...result.healthScoresAfter.map(
+                (score) =>
+                  `Agent Health Score (${score.agent}): ${score.score}/100 (${score.rating}; evidence coverage ${score.evidenceCoverage}%)`,
+              ),
+              "Scores summarize stored evidence only; they do not claim task improvement until benchmark or local outcome evidence exists.",
+              "Next: run `loadout rollback` to restore or `loadout outcome` after real use.",
+            ].join("\n"),
+      );
+    },
+  );
 
 program
   .command("init")
@@ -1041,6 +1134,52 @@ program
     );
   });
 
+program
+  .command("card")
+  .description(
+    "Render a privacy-safe Markdown evidence card without project or repository details",
+  )
+  .option("--output <path>", "write the Markdown card to a file")
+  .option("--json", "emit the underlying privacy-safe card as JSON")
+  .action(async (options: { output?: string; json?: boolean }) => {
+    if (options.output && options.json)
+      throw new Error("--output and --json cannot be used together");
+    const card = await buildLoadoutCard();
+    const markdown = formatLoadoutCard(card);
+    if (options.output) {
+      await writeFileAtomically(resolve(options.output), `${markdown}\n`);
+      console.log(
+        `Wrote privacy-safe Loadout card to ${resolve(options.output)}. Review it before sharing.`,
+      );
+      return;
+    }
+    console.log(options.json ? JSON.stringify(card, null, 2) : markdown);
+  });
+
+program
+  .command("compare-loadouts")
+  .description(
+    "Compare aggregate counts from two explicit privacy-safe Loadout reports",
+  )
+  .argument("<left>", "earlier privacy-safe report JSON")
+  .argument("<right>", "later privacy-safe report JSON")
+  .option("--json", "emit machine-readable count deltas")
+  .action(async (left: string, right: string, options: { json?: boolean }) => {
+    const [before, after] = await Promise.all(
+      [left, right].map(async (path) =>
+        parsePrivacySafeLoadoutReport(
+          JSON.parse(await readFile(resolve(path), "utf8")) as unknown,
+        ),
+      ),
+    );
+    const comparison = compareLoadoutReports(before, after);
+    console.log(
+      options.json
+        ? JSON.stringify(comparison, null, 2)
+        : formatLoadoutComparison(comparison),
+    );
+  });
+
 for (const workflow of ["activate", "optimize"] as const) {
   program
     .command(workflow)
@@ -1267,14 +1406,41 @@ program
   .description("Quickly check agents, installed packages, and local file drift")
   .option("--json", "emit machine-readable JSON")
   .option("--updates", "also perform live network update checks")
-  .action(async (options: { json?: boolean; updates?: boolean }) => {
-    const report = await buildHealthReport({ checkUpdates: options.updates });
-    console.log(
-      options.json
-        ? JSON.stringify(report, null, 2)
-        : formatHealthReport(report),
-    );
-  });
+  .option(
+    "--explain",
+    "add deterministic score dimensions, evidence, uncertainty, and remediation",
+  )
+  .option("--agents <ids>", "limit explained scores to selected agent ids")
+  .action(
+    async (options: {
+      json?: boolean;
+      updates?: boolean;
+      explain?: boolean;
+      agents?: string;
+    }) => {
+      const report = await buildHealthReport({ checkUpdates: options.updates });
+      if (options.agents && !options.explain)
+        throw new Error("--agents requires --explain");
+      const selectedAgents = parseAgentSelection(options.agents);
+      const scores = options.explain
+        ? (await buildLocalAgentHealthScores()).filter(
+            (score) => !selectedAgents || selectedAgents.includes(score.agent),
+          )
+        : [];
+      console.log(
+        options.json
+          ? JSON.stringify(
+              options.explain ? { report, scores } : report,
+              null,
+              2,
+            )
+          : [
+              formatHealthReport(report),
+              ...scores.map((score) => `\n${formatAgentHealthScore(score)}`),
+            ].join("\n"),
+      );
+    },
+  );
 
 program
   .command("alerts")
@@ -1799,6 +1965,86 @@ program
   });
 
 program
+  .command("versions")
+  .description(
+    "Detect installed agent versions with bounded read-only commands",
+  )
+  .option("--json", "emit machine-readable version evidence")
+  .action(async (options: { json?: boolean }) => {
+    const evidence = await inspectAgentVersions();
+    console.log(
+      options.json
+        ? JSON.stringify(evidence, null, 2)
+        : formatAgentVersions(evidence),
+    );
+  });
+
+const benchmark = program
+  .command("benchmark")
+  .description(
+    "Validate deterministic evaluation campaigns without making model calls",
+  );
+
+benchmark
+  .command("plan")
+  .description(
+    "Validate a campaign, preview its worst-case budget, and optionally write resumable run metadata",
+  )
+  .argument("<campaign>", "benchmark campaign JSON file")
+  .option("--run-id <id>", "create resumable run metadata with this id")
+  .option("--output <path>", "write run metadata to this path")
+  .option("--json", "emit a machine-readable campaign summary")
+  .action(
+    async (
+      campaignPath: string,
+      options: { runId?: string; output?: string; json?: boolean },
+    ) => {
+      if (Boolean(options.runId) !== Boolean(options.output))
+        throw new Error("--run-id and --output must be provided together");
+      const campaign = parseBenchmarkCampaign(
+        JSON.parse(await readFile(resolve(campaignPath), "utf8")) as unknown,
+      );
+      const summary = summarizeBenchmarkCampaign(campaign);
+      if (options.output) {
+        if (!summary.withinBudget)
+          throw new Error(
+            `Refusing to write runnable benchmark metadata because declared ceilings are exceeded: ${summary.blockers.join("; ")}`,
+          );
+        const run = createBenchmarkRun(campaign, options.runId!);
+        await writeFileAtomically(
+          resolve(options.output),
+          `${JSON.stringify(run, null, 2)}\n`,
+          0o600,
+        );
+      }
+      console.log(
+        options.json
+          ? JSON.stringify(
+              {
+                summary,
+                executed: false,
+                ...(options.output
+                  ? { runMetadataPath: resolve(options.output) }
+                  : {}),
+                safetyBoundary:
+                  "Planning only: no model call, prompt, output, credential, or candidate execution occurred.",
+              },
+              null,
+              2,
+            )
+          : [
+              formatBenchmarkCampaignSummary(campaign),
+              options.output
+                ? `Run metadata: ${resolve(options.output)}`
+                : "No run metadata written; add --run-id <id> --output <path> to create it.",
+              "Planning only; no model call or candidate execution occurred.",
+            ].join("\n"),
+      );
+      if (!summary.withinBudget) process.exitCode = 2;
+    },
+  );
+
+program
   .command("demo")
   .alias("test-drive")
   .description(
@@ -2255,10 +2501,10 @@ program
   .description("Find public community leads; discovery never installs anything")
   .option(
     "--source <source>",
-    "community source: github, hacker-news, or all",
+    "source: github, hacker-news, skills-sh, mcp-registry, or all",
     "hacker-news",
   )
-  .option("--limit <count>", "front-page stories to inspect", "50")
+  .option("--limit <count>", "maximum source records or stories", "50")
   .option("--min-score <count>", "minimum Hacker News score", "20")
   .option(
     "--query <words>",
@@ -2319,27 +2565,37 @@ program
         const minScore = Number(options.minScore);
         if (!Number.isFinite(minScore) || minScore < 0)
           throw new Error("--min-score must be a non-negative number");
-        const [github, hackerNews] = await Promise.allSettled([
-          discoverGitHubRepositories({
-            ...(options.query
-              ? { query: options.query }
-              : { queries: defaultGitHubDiscoveryQueries() }),
-            limit,
-          }),
-          discoverHackerNewsRepositories({
-            limit,
-            minScore,
-            keywords: options.query?.split(",") ?? [],
-          }),
-        ]);
-        const leads = [
+        const [github, hackerNews, skillsSh, mcpRegistry] =
+          await Promise.allSettled([
+            discoverGitHubRepositories({
+              ...(options.query
+                ? { query: options.query }
+                : { queries: defaultGitHubDiscoveryQueries() }),
+              limit,
+            }),
+            discoverHackerNewsRepositories({
+              limit,
+              minScore,
+              keywords: options.query?.split(",") ?? [],
+            }),
+            discoverSkillsSh({ maxRecords: limit }),
+            discoverOfficialMcpRegistry({
+              maxRecords: limit,
+              ...(options.query ? { search: options.query } : {}),
+            }),
+          ]);
+        const leads: ReviewQueueLead[] = [
           ...(github.status === "fulfilled" ? github.value : []),
           ...(hackerNews.status === "fulfilled"
             ? hackerNews.value.candidates
             : []),
+          ...(skillsSh.status === "fulfilled" ? skillsSh.value.records : []),
+          ...(mcpRegistry.status === "fulfilled"
+            ? mcpRegistry.value.records
+            : []),
         ];
         if (!leads.length) {
-          const failures = [github, hackerNews]
+          const failures = [github, hackerNews, skillsSh, mcpRegistry]
             .filter(
               (result): result is PromiseRejectedResult =>
                 result.status === "rejected",
@@ -2349,11 +2605,16 @@ program
                 ? result.reason.message
                 : String(result.reason),
             );
+          const connectorIssues = [skillsSh, mcpRegistry].flatMap((result) =>
+            result.status === "fulfilled"
+              ? result.value.issues.map((issue) => issue.message)
+              : [],
+          );
           throw new Error(
-            `All discovery sources failed: ${failures.join("; ")}`,
+            `All discovery sources returned no usable leads: ${[...failures, ...connectorIssues].join("; ")}`,
           );
         }
-        const sourceWarnings = [github, hackerNews]
+        const sourceWarnings = [github, hackerNews, skillsSh, mcpRegistry]
           .filter(
             (result): result is PromiseRejectedResult =>
               result.status === "rejected",
@@ -2362,11 +2623,34 @@ program
             result.reason instanceof Error
               ? result.reason.message
               : String(result.reason),
+          )
+          .concat(
+            [skillsSh, mcpRegistry].flatMap((result) =>
+              result.status === "fulfilled"
+                ? result.value.issues.map(
+                    (issue) => `${result.value.source}: ${issue.message}`,
+                  )
+                : [],
+            ),
           );
         const queue = options.queue
           ? await mergeReviewQueue(leads, await loadEffectiveCatalog())
           : undefined;
-        const output = { leads, queue, sourceWarnings };
+        const output = {
+          leads,
+          queue,
+          sourceWarnings,
+          connectorStatus: {
+            skillsSh:
+              skillsSh.status === "fulfilled"
+                ? skillsSh.value.status
+                : "failed",
+            mcpRegistry:
+              mcpRegistry.status === "fulfilled"
+                ? mcpRegistry.value.status
+                : "failed",
+          },
+        };
         if (options.json) return console.log(JSON.stringify(output, null, 2));
         if (queue) console.log(formatReviewQueue(queue));
         else
@@ -2402,9 +2686,44 @@ program
           );
         return;
       }
+      if (options.source === "skills-sh") {
+        const result = await discoverSkillsSh({ maxRecords: limit });
+        const queue = options.queue
+          ? await mergeReviewQueue(result.records, await loadEffectiveCatalog())
+          : undefined;
+        if (options.json)
+          return console.log(JSON.stringify({ result, queue }, null, 2));
+        if (queue) console.log(formatReviewQueue(queue));
+        else
+          console.log(
+            `skills.sh (${result.status}): ${result.records.length} metadata lead(s); leaderboard popularity is not a safety or quality verdict.`,
+          );
+        for (const issue of result.issues)
+          console.error(`Warning: ${issue.message}`);
+        return;
+      }
+      if (options.source === "mcp-registry") {
+        const result = await discoverOfficialMcpRegistry({
+          maxRecords: limit,
+          ...(options.query ? { search: options.query } : {}),
+        });
+        const queue = options.queue
+          ? await mergeReviewQueue(result.records, await loadEffectiveCatalog())
+          : undefined;
+        if (options.json)
+          return console.log(JSON.stringify({ result, queue }, null, 2));
+        if (queue) console.log(formatReviewQueue(queue));
+        else
+          console.log(
+            `Official MCP Registry (${result.status}): ${result.records.length} identity/distribution lead(s); registry presence is not a Loadout safety approval.`,
+          );
+        for (const issue of result.issues)
+          console.error(`Warning: ${issue.message}`);
+        return;
+      }
       if (options.source !== "hacker-news")
         throw new Error(
-          `Unsupported discovery source '${options.source}'. Supported: github, hacker-news, all`,
+          `Unsupported discovery source '${options.source}'. Supported: github, hacker-news, skills-sh, mcp-registry, all`,
         );
       const minScore = Number(options.minScore);
       if (!Number.isFinite(minScore) || minScore < 0)

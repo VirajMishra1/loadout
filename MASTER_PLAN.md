@@ -1176,6 +1176,307 @@ universal or permanent truth.
       earn admission. Add OS sandbox backends where available; never execute an
       arbitrary candidate repository installer or inherit provider credentials.
 
+### Phase 16: Evidence-driven product moat and simple upgrade journey
+
+Phase 16 changes the product category from “another agent package manager” into the
+trust, discovery, evaluation, optimization, and rollback layer above skills.sh,
+OpenPackage, Microsoft APM, the official MCP Registry, and raw GitHub repositories.
+Loadout may ingest those ecosystems as read-only evidence sources or use their
+declarative formats as inputs, but it must not duplicate mature dependency-manager
+behavior merely to increase its command or repository count.
+
+#### Phase 16 model-routing and credit policy
+
+- **Sol** owns ambiguous, security-sensitive, research-heavy, or product-defining
+  work: evaluation methodology, threat models, ranking/promotion policy,
+  compatibility semantics, runtime execution boundaries, and final integration
+  reviews. Sol work must produce decisions, invariants, adversarial cases, or review
+  evidence—not bulk mechanical edits.
+- **Terra** owns the main implementation path: CLI orchestration, connectors,
+  schemas, state machines, transactions, provider adapters, scoring engines,
+  cross-platform integration, and regression fixes. Terra is the default for
+  production code with clear acceptance criteria.
+- **Luna** owns bounded repeatable work: fixtures, schema examples, deterministic
+  transforms, documentation matrices, command completion, generated reports, and
+  repetitive adapter tests. Luna output still requires Terra or Sol integration
+  review when it affects trust, mutation, or public claims.
+- Prefer Standard speed. Fast mode is reserved for a submission-critical wall-clock
+  emergency because GPT-5.6 Fast consumes credits at a higher multiplier.
+- Reserve at least 15% of remaining Codex credit for integration failures, founder
+  feedback, cross-platform regressions, release review, and submission polish.
+- ChatGPT/Codex credit must not be represented as OpenAI API credit. A model-backed
+  evaluation runner may be built without credentials, but paid benchmark execution
+  requires a separately verified provider credential and explicit per-run budget.
+- No task may consume credit merely to exhaust the grant. Every model-backed run must
+  have a hypothesis, maximum trials/tokens/cost, deterministic acceptance test, and
+  persisted evidence artifact.
+
+#### Product contract
+
+The default journey must answer, in order:
+
+1. What agents and extensions are already installed?
+2. Which files are owned, duplicated, stale, unsupported, or risky?
+3. Which reviewed additions fit this project and agent?
+4. Why is each addition preferred to a real alternative?
+5. What exact permissions and filesystem changes will occur?
+6. Can the complete change be restored byte-for-byte?
+7. Did the resulting loadout improve a measurable task outcome?
+
+The intended first-run surface is one command, with advanced commands retained:
+
+```text
+loadout upgrade
+  -> scan
+  -> diagnose and score
+  -> recommend and compare
+  -> preview permissions and exact targets
+  -> snapshot and transactionally apply
+  -> optimize the bounded active set
+  -> verify health
+  -> show an evidence-linked before/after report
+```
+
+- [x] `P16-01 [SOL]` Specify the Loadout Evaluation Protocol v1.
+  - Define paired baseline-versus-skill trials, pinned repositories, task families,
+    hidden or immutable acceptance tests, randomized run ordering, minimum repeats,
+    model/provider/version capture, temperature/reasoning capture where available,
+    latency, tokens, reported cost, pass rate, regressions, and uncertainty.
+  - Separate deterministic task verification from model-based judging. A model judge
+    can annotate qualitative dimensions but cannot override a failed executable test.
+  - Define contamination, prompt-injection, evaluator-tampering, flaky-test, timeout,
+    and partial-result policies before executing a community skill.
+  - Acceptance: the protocol is versioned, fixture-hash bound, reproducible, privacy
+    bounded, and explicit about what it cannot prove.
+  - Completed 2026-07-16 in `docs/EVALUATION_PROTOCOL_V1.md` with strict campaign and
+    resumable-run schemas, deterministic paired scheduling, blinded order, content
+    hashes, retry-inclusive budgets, interruption/tamper rules, privacy boundaries,
+    and nine adversarial protocol tests.
+
+- [ ] `P16-02 [TERRA]` Implement a provider-neutral benchmark run schema and budget
+      gate.
+  - Add exact model/provider/endpoint references without persisting secrets; store
+    input/output token counts, latency, reported cost, exit state, fixture hash,
+    candidate hash, agent version, and trial seed.
+  - Require `--max-cost`, `--max-trials`, and `--approve-model-spend` before a paid
+    runner starts. Preview must calculate the maximum possible spend and run count.
+  - Resume an interrupted campaign without duplicating completed trials; atomically
+    persist append-only evidence and reject edited or mismatched artifacts.
+  - Acceptance: no API key, prompt content, project source, or credential value enters
+    logs, lockfiles, reports, snapshots, or signed public evidence.
+  - Progress 2026-07-16: campaign/run validation, canonical hashes, deterministic
+    pending-run recovery, worst-case request/token/cost preview, and
+    `loadout benchmark plan` are implemented. Planning cannot contact a model and can
+    write mode-0600 resumable metadata. The paid runner flags, append-only completion
+    writer, and provider usage reconciliation remain gated with P16-03.
+
+- [ ] `P16-03 [SOL+TERRA]` Implement the isolated paired evaluation runner.
+  - Use disposable worktrees or copied fixtures and the strongest available local OS
+    sandbox. Network is denied by default; any required domain is declared and
+    separately approved. Candidate install scripts are never run implicitly.
+  - Run baseline and candidate with identical repository bytes, acceptance tests,
+    model settings, budgets, and tool policy; randomize ordering and record failures.
+  - Candidate output cannot edit evaluator code, hidden tests, prior evidence, or the
+    opposing trial. Restore or destroy the sandbox after every trial.
+  - Acceptance: adversarial fixtures prove evaluator isolation, timeout, budget,
+    interruption recovery, and tamper rejection on macOS, Linux, and Windows-capable
+    fallback paths.
+
+- [ ] `P16-04 [LUNA, SOL review]` Create the first real benchmark fixture suite.
+  - Start with planning/workflow adherence, code review, frontend accessibility,
+    debugging, documentation freshness, API design, and safe migration tasks.
+  - Every fixture has a pinned permissively licensed repository or synthetic source,
+    deterministic setup, explicit acceptance criteria, expected runtime, and license.
+  - Include negative-control skills, deliberately outdated guidance, overlapping
+    skills, and no-skill baselines so the harness can detect zero or negative value.
+  - Acceptance: at least five trials per compared candidate in the release evidence;
+    fixtures themselves contain no mock performance claims or fabricated outcomes.
+
+- [ ] `P16-05 [SOL]` Connect benchmark evidence to trust and Stable promotion.
+  - `benchmarked` requires signed protocol-conformant evidence; `recommended` requires
+    human license/trust review plus no blocking security finding and meaningful gain
+    in at least one declared task family without an unacceptable regression.
+  - Stars, install telemetry, and popularity can prioritize evaluation but cannot
+    establish quality. Missing evidence contributes zero rather than a neutral score.
+  - Acceptance: catalog coverage explains every promotion/demotion and retains the
+    prior signed evidence so a recommendation cannot silently change.
+
+- [ ] `P16-06 [SOL design, TERRA implementation]` Add the unified `loadout upgrade`
+      golden path.
+  - One preview combines scan, health, capability gaps, project signals, local
+    outcomes, Stable/Power choices, exact alternatives, risk findings, file targets,
+    deferred MCP/runtime steps, and the rollback point.
+  - Apply remains explicit. It uses one durable transaction and never turns daily
+    discovery into automatic installation. Existing unmanaged files are preserved.
+  - Non-interactive `--json`, `--yes`, risk approval, selected-agent, and project-root
+    behavior must be deterministic. Advanced constituent commands remain supported.
+  - Acceptance: a new user can preview in under one minute, understand the five most
+    important decisions, apply to a disposable profile, verify, and roll back.
+  - Progress 2026-07-16: `loadout upgrade` now combines local health, explainable
+    scores, project signals, recommendations, immutable preparation, exact targets,
+    collision/risk evidence, one transaction, post-apply health, JSON, selected-agent,
+    custom-mode, and approval behavior. A real disposable network exercise installed
+    30 Stable skills and rolled every managed byte back. Capability-gap/alternative
+    summaries and automatic bounded active-set optimization still need integration
+    before this item is complete.
+
+- [x] `P16-07 [SOL policy, TERRA implementation]` Add an explainable Agent Health
+      Score and `loadout health --explain`.
+  - Score only evidenced dimensions: immutable provenance, license state, safety
+    findings, drift, duplicates, staleness, active-set capacity, native compatibility,
+    project relevance, benchmark evidence, local outcomes, and recoverability.
+  - Show the exact contribution, cap, evidence date, uncertainty, and remediation for
+    every point. Never estimate a post-upgrade score from unexecuted performance.
+  - Acceptance: deterministic fixtures cover perfect, empty, overloaded, drifted,
+    unlicensed, incompatible, and mixed managed/unmanaged profiles.
+  - Completed 2026-07-16: ten independently capped dimensions total 100; every
+    dimension exposes contribution, evidence, uncertainty, remediation, and evidence
+    coverage. Local collection uses pinned catalog/state/hash/inventory/outcome/
+    snapshot evidence; unavailable static-risk or benchmark evidence remains unknown
+    and earns zero. `health --explain` and upgrade before/after output share the policy.
+
+- [x] `P16-08 [TERRA]` Add a read-only skills.sh discovery connector.
+  - Ingest permitted public metadata and immutable GitHub source references; preserve
+    source attribution, observation time, ranking meaning, and telemetry uncertainty.
+  - Deduplicate against GitHub/Hacker News observations and the reviewed catalog.
+    skills.sh popularity is an install signal, not safety or performance evidence.
+  - Connector failure is partial and cannot block offline catalog use or installation.
+  - Completed 2026-07-16 against the documented API with bounded pagination,
+    response/time limits, attribution, rate-limit evidence, deduplication, strict
+    schema validation, complete-cache fallback, and `discover --source skills-sh`.
+    The current upstream contract requires a request-scoped Vercel OIDC token and
+    exposes mutable repository identity rather than a commit, so Loadout says so and
+    requires later immutable dossier review instead of inventing pin evidence.
+
+- [x] `P16-09 [TERRA]` Add an official MCP Registry discovery connector.
+  - Validate registry responses against a bounded schema; preserve namespace,
+    publication version, distribution type, repository, and verification evidence.
+  - Registry membership establishes identity/distribution evidence only. Loadout still
+    previews credentials, permissions, transports, commands, domains, and target
+    configurations before any MCP recipe can be admitted or applied.
+  - Acceptance: pagination, duplicate versions, malformed records, rate limits,
+    replay, and offline cache behavior have deterministic tests.
+  - Completed 2026-07-16 with official v0.1 cursor pagination, bounded schemas,
+    namespace/version/distribution/lifecycle evidence, duplicate resolution, partial
+    results, cursor-replay defense, complete-cache fallback, and
+    `discover --source mcp-registry`. Registry presence is never labeled popularity,
+    safety approval, or Loadout recommendation.
+
+- [ ] `P16-10 [SOL design, TERRA implementation]` Treat Microsoft APM and OpenPackage
+      as interoperable inputs rather than enemies to reimplement.
+  - Inspect/import supported declarative manifests and lock evidence without invoking
+    either external CLI. Map primitives loss-reportingly into Loadout capability and
+    trust records; retain the original source and unsupported fields.
+  - Consider an optional backend adapter only after the preview, ownership,
+    transaction, and rollback contracts can remain true. Never claim Loadout created
+    or independently reviewed third-party registry evidence.
+
+- [ ] `P16-11 [SOL design, TERRA implementation]` Add agent and model compatibility
+      intelligence.
+  - Detect installed agent CLI/application versions using bounded read-only commands
+    or version files with timeouts. Never start an agent session or inherit secrets.
+  - Maintain a signed compatibility feed for path/config/format changes, deprecated
+    surfaces, supported model/provider changes, and known recipe breakage.
+  - Add `versions` and `compatibility` output with current version, evidence source,
+    freshness, affected managed content, migration preview, and uncertainty.
+  - Acceptance: fixtures cover missing binaries, prereleases, malformed output,
+    timeouts, Windows executable resolution, offline state, and a breaking path change.
+  - Progress 2026-07-16: `loadout versions` detects installed agent CLI versions using
+    fixed read-only commands, a sanitized environment, five-second timeout, semantic
+    version parsing, and explicit missing/malformed/timeout evidence. The signed
+    compatibility feed, affected-content migration previews, and breaking-path
+    fixtures remain.
+
+- [ ] `P16-12 [SOL trust design, TERRA implementation]` Publish a bounded signed daily
+      intelligence feed.
+  - Generate discovery observations, compatibility notices, candidate inspection
+    summaries, benchmark changes, and signed catalog-release pointers centrally.
+  - The public feed contains no user telemetry or private repository information.
+    Clients verify signatures, size, schema, freshness, sequence, and replay state.
+  - Feed consumption never installs, promotes, updates, or executes a candidate.
+    Trusted catalog membership changes only in a separately reviewed signed release.
+  - Acceptance: local file and HTTPS preview/apply, key pinning/rotation policy,
+    downgrade/replay rejection, stale fallback, and compromise recovery are tested.
+
+- [ ] `P16-13 [SOL security design, TERRA implementation]` Upgrade skill security and
+      specification validation.
+  - Validate Agent Skills frontmatter, naming, size, progressive-disclosure structure,
+    symlinks, executable files, dependencies, remote instruction loads, domains,
+    environment references, Unicode controls, prompt-injection/exfiltration language,
+    and capability/permission declarations.
+  - Generate an SBOM-like inventory for executable recipes and report disagreements
+    between deterministic and optional model-assisted scanners instead of collapsing
+    them into an unjustified safe/unsafe label.
+  - Acceptance: malicious and benign adversarial fixtures measure false positives and
+    false negatives; critical findings fail closed unless a narrowly scoped explicit
+    override is supported and recorded.
+
+- [ ] `P16-14 [TERRA, LUNA fixtures]` Create privacy-safe viral CLI artifacts.
+  - Add a deterministic Markdown/JSON `loadout card` with agents, active skills,
+    provenance coverage, health dimensions, update date, and zero project paths,
+    prompts, code, repository names from private sources, or secrets.
+  - Add `compare-loadouts` for two explicit privacy-safe reports and a static badge
+    endpoint specification that does not require telemetry.
+  - Acceptance: snapshot/redaction tests and a beginner comprehension test prove that
+    the artifact is useful without implying a universal quality score.
+  - Progress 2026-07-16: deterministic Markdown/JSON `loadout card` and aggregate-only
+    `compare-loadouts` are implemented with redaction tests, evidence coverage, claim
+    boundaries, and zero project/repository/path/prompt/code/credential detail. The
+    static badge specification and beginner comprehension study remain.
+
+- [ ] `P16-15 [SOL design, TERRA implementation]` Generalize reviewed runtime recipes.
+  - Define a versioned declarative schema for exact artifacts, hashes/signatures,
+    dependency cutoffs, permissions, sanitized environment, fixed commands, health
+    checks, agent targets, timeouts, snapshot roots, removal, and supported OSes.
+  - Migrate Graphify without changing its current reviewed behavior. Admit another
+    tool only after independent usefulness, license, security, and rollback review.
+  - Acceptance: schema validation, Graphify parity, malicious recipe rejection,
+    Windows path behavior, failure rollback, and removal restoration pass.
+
+- [ ] `P16-16 [TERRA implementation, LUNA fixtures]` Deepen adapters only where
+      official documentation and user demand justify it.
+  - Prioritize commands/agents/rules/plugins/MCP gaps for the agents actually observed
+    in founder tests. Every claim needs source documentation, preservation fixtures,
+    transaction coverage, and a real disposable smoke test.
+  - Do not broaden a compatibility badge merely because a directory can be copied.
+
+- [ ] `P16-17 [SOL]` Add a supply-chain and product claim review gate.
+  - Verify every “best,” “safe,” “compatible,” “daily,” “official,” and “supported”
+    statement against current stored evidence. Reject release artifacts containing
+    stale counts, fabricated benchmark data, unreviewed licenses, or silent execution.
+  - Produce a machine-readable release evidence index linking claims to tests,
+    immutable sources, benchmark artifacts, and human decisions.
+
+- [ ] `P16-18 [HUMAN+SOL]` Complete founder and external product validation.
+  - Run the complete matrix first in disposable profiles, then with snapshots on the
+    founder's real Codex and Claude installations. Record confusion and time-to-value,
+    not only command success.
+  - Run at least ten external sessions across beginners, power users, one/many agents,
+    and Windows/macOS/Linux. Convert reproducible failures into regression tests.
+  - Public beta requires zero known destructive-loss defects, successful rollback,
+    provenance publication, license decisions, and no unsupported universal-best claim.
+
+#### Phase 16 execution waves
+
+Integration checkpoint 2026-07-16: the complete required gate passes 89 test files/
+364 tests, catalog and discovery attribution, the real CLI product flow, installed
+npm-tarball smoke, and seven 1,000-skill scans at a 1.28-second p95. The optional
+Chromium first-run test and `npm publish --dry-run` also pass. Live bounded smoke tests
+returned current official MCP Registry records, failed skills.sh closed without its
+required token, installed and rolled back all 30 Stable skills in a disposable Codex
+profile, and changed no real agent profile.
+
+1. **Wave A — proof foundation:** P16-01 through P16-05.
+2. **Wave B — killer first run:** P16-06 and P16-07.
+3. **Wave C — ecosystem intelligence:** P16-08 through P16-12.
+4. **Wave D — trust depth and sharing:** P16-13 through P16-17.
+5. **Wave E — validation and release:** P16-18, P12-30 through P12-34, and P15-06/07B.
+
+Work in later waves may scaffold interfaces in parallel, but public claims and
+recommendation promotion cannot bypass earlier evidence/trust gates. More catalog
+records, a new frontend, automatic candidate installation, and broad arbitrary
+runtime execution are explicitly lower priority than these waves.
+
 ## 19. Seven-day schedule
 
 ### Day 1: Foundation
@@ -1325,26 +1626,42 @@ small PRs, no long-lived branches.
 
 ## 25. Immediate next tasks
 
-1. Finish P15-06 and P15-07: release-owner license/visibility/npm authentication,
-   hosted platform matrix, provenance publication, and clean external package smoke.
-2. Run P12-32 founder testing from disposable profiles first, then on the owner's real
-   Codex and Claude installations with a recorded pre-test snapshot and rollback
-   checkpoint. Exercise every track in `docs/FEATURE_TEST_MATRIX.md`.
-3. Turn every reproducible founder-test failure into a regression test and fix it
-   before catalog expansion, npm publication, or scheduled automation is enabled.
-4. Complete P12-30: review the six `NOASSERTION` records and all attribution/license
-   presentation with a human authorized to make the release decision.
-5. Run P12-33 external user tests across beginners, power users, one/many agents, and
-   all supported platforms; prioritize comprehension and rollback as well as success.
-6. Use `candidate list -> inspect -> propose` to review only candidates that close an
-   evidenced capability gap. Do not expand the catalog to maximize its raw count.
-7. Use `capabilities --gaps` to select adapter work only after official path/config
-   documentation exists; require preservation fixtures, transaction tests, and a real
-   disposable smoke test for every newly claimed component.
-8. Build P15-09 by admitting additional executable tools only through Graphify-class
-   explicit reviewed recipes; never treat them as copied skill folders or execute
-   arbitrary candidate setup scripts.
-9. Complete P10-05 through P10-10: demo recording, Codex usage explanation, feedback
-   session ID, Devpost fields, screenshots, and final submission review.
-10. Resolve P0-05 branch protection when repository visibility or the GitHub plan
-    permits it, and require teammate review for trust, transaction, and release code.
+The next engineering wave deliberately precedes npm, Devpost, and repository-visibility
+work. Preserve the Sol/Terra/Luna routing and credit policy above.
+
+1. `P16-06 [TERRA, SOL review]`: add capability gaps, explicit alternatives, deferred
+   MCP/runtime actions, and bounded project activation to the unified upgrade preview;
+   retain one transaction and prove apply/rollback on Codex and Claude fixtures.
+2. `P16-02/03 [SOL threat model, TERRA runner]`: finish the append-only campaign state
+   machine and build the isolated paired runner behind `--approve-model-spend`, hard
+   request/trial/token/cost ceilings, credential references, network denial, teardown,
+   interruption recovery, and provider-reported usage reconciliation. No paid run is
+   allowed before the threat-model review passes.
+3. `P16-04 [LUNA fixtures, SOL review]`: create synthetic permissively licensed
+   workflow, review, accessibility, debugging, documentation, API, and migration
+   fixtures plus negative/outdated/overlap/no-skill controls. Terra integrates them;
+   Sol reviews contamination and acceptance tests before any public number exists.
+4. `P16-05 [SOL]`: implement the signed evidence decision record and catalog trust
+   transition only after real fixture evidence exists. Popularity never supplies the
+   missing performance score.
+5. `P16-11/12 [SOL feed policy, TERRA implementation, LUNA fixtures]`: add the signed
+   compatibility/intelligence feed, migration previews, key rotation/compromise
+   recovery, stale fallback, sequence/replay protection, and cross-platform fixtures.
+6. `P16-13 [SOL threat model, TERRA scanner, LUNA adversarial corpus]`: deepen Agent
+   Skills/specification validation and SBOM-like runtime evidence; measure false
+   positives/negatives rather than claiming one heuristic proves safety.
+7. `P16-14 [TERRA+LUNA]`: finish the static badge specification, snapshot/redaction
+   corpus, and beginner comprehension test for `card` and `compare-loadouts`.
+8. `P16-10/15 [SOL design, TERRA implementation]`: add loss-reporting APM/OpenPackage
+   imports and a versioned reviewed runtime-recipe schema; migrate Graphify unchanged
+   before considering one independently reviewed second runtime tool.
+9. `P16-16/17 [TERRA implementation, SOL review]`: close only founder-observed adapter
+   gaps and add a machine-readable release claim/evidence index. Every supported/best/
+   official/daily claim must resolve to current evidence or fail the release gate.
+10. Run `npm run verify`, the complete disposable feature matrix, package dry-run,
+    performance gate, and the hosted cross-platform matrix after the above slices are
+    integrated. Then begin P16-18 founder/external testing and convert every
+    reproducible failure into a regression test.
+11. Human release work remains last: P12-30 license decisions, P15-06 public visibility
+    and npm authentication/publication, P15-07B clean external installs, branch
+    protection, demo/video, feedback session, Devpost fields, and final review.

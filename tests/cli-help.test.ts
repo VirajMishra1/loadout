@@ -38,12 +38,15 @@ describe("CLI contract", () => {
       "The trusted upgrade layer for AI coding agents",
     );
     expect(result.stdout).toContain("status");
+    expect(result.stdout).toContain("versions");
+    expect(result.stdout).toContain("benchmark");
     expect(result.stdout).toContain("scan");
     expect(result.stdout).toContain("compare");
     expect(result.stdout).toContain("library");
     expect(result.stdout).toContain("enable");
     expect(result.stdout).toContain("disable");
     expect(result.stdout).toContain("setup");
+    expect(result.stdout).toContain("upgrade");
     expect(result.stdout).toContain("doctor");
     expect(result.stdout).toContain("demo");
     expect(result.stdout).toContain("test-drive");
@@ -60,6 +63,8 @@ describe("CLI contract", () => {
     expect(result.stdout).toContain("schedule");
     expect(result.stdout).toContain("autopilot");
     expect(result.stdout).toContain("tool");
+    expect(result.stdout).toContain("card");
+    expect(result.stdout).toContain("compare-loadouts");
   });
 
   it("lists reviewed runtime tools without changing the profile", async () => {

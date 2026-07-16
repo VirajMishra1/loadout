@@ -142,10 +142,12 @@ loadout profiles --json
 loadout recommend --project "$TEST_PROJECT" --json
 loadout doctor --json
 loadout status --json
+loadout versions --json
 loadout list --json
 loadout library --json
-loadout health --json
+loadout health --explain --json
 loadout report --json
+loadout card --json
 loadout outcomes --json
 loadout capabilities --inspect --json
 ```
@@ -160,6 +162,11 @@ Expected:
 - recommendation reflects the disposable project's JavaScript/testing signals;
 - empty-state commands return a valid report instead of inventing installations;
 - privacy-safe reports contain no project paths, prompts, source code, or secrets.
+- version evidence comes only from bounded sanitized read-only probes; explained
+  health lists contribution, cap, evidence, uncertainty, and remediation for every
+  dimension and gives missing evidence no credit;
+- the card contains aggregate inventory and evidence coverage only, with an explicit
+  boundary against universal-quality or task-improvement claims.
 
 Network variants must be run deliberately:
 
@@ -168,6 +175,8 @@ loadout catalog --refresh --json
 loadout health --updates --json
 loadout scan --agents codex,claude-code --refresh-provenance --json
 loadout compare brainstorming --offline --json
+loadout discover --source mcp-registry --limit 10 --json
+loadout discover --source skills-sh --limit 10 --json
 ```
 
 The first three use network access and may update history/provenance below
@@ -176,6 +185,11 @@ Superpowers `brainstorming` skill can be compared with `--offline` and no fetch.
 rate limit interrupts the refresh, retry later rather than treating a partial index as
 complete. A same-name match is evidence for comparison, not proof that a package is
 universally better.
+
+The official MCP Registry path is public identity/distribution discovery. The
+skills.sh path needs its request-scoped `VERCEL_OIDC_TOKEN`; without one it must use a
+previous complete cache or return an attributed `unavailable` result without making
+an unauthenticated request. Neither source installs or promotes a lead.
 
 ## 3. Package, manifest, lock, portability, and registry track (S/A)
 
@@ -250,6 +264,23 @@ be accepted idempotently; changed content at the same version must be rejected. 
 the server with Ctrl-C.
 
 ## 4. Install, active-set, outcome, and rollback track (A; Maximum is N)
+
+Exercise the new-user golden path before its constituent commands:
+
+```bash
+loadout upgrade --mode stable --project "$TEST_PROJECT" --agents codex
+loadout upgrade --mode stable --project "$TEST_PROJECT" --agents codex \
+  --yes
+loadout health --explain --agents codex
+loadout rollback
+```
+
+Expected: the first command combines project signals, existing health, Agent Health
+Score evidence, recommendations, exact immutable sources, target directories, safety
+findings, and transaction guarantees without changing the profile. Apply prints one
+snapshot, and rollback removes the managed bytes while preserving the virtual Codex
+profile. If the preview requires risk approval, review the findings and repeat with
+`--approve-risk`; never add it pre-emptively.
 
 Create a second local package to give direct `plan`/`install` an unoccupied target;
 the manifest-synced `local-demo` remains available for comparison:
@@ -464,6 +495,20 @@ container has a read-only source mount, no inherited secrets, no Docker socket, 
 network, and a time bound. The image may need to be pulled beforehand.
 
 ## 8. Signing and head-to-head evidence (S)
+
+Validate the model-free benchmark campaign and card/compare surfaces with their
+deterministic automated contracts:
+
+```bash
+npx vitest run tests/benchmark-campaign.test.ts tests/benchmark-cli.test.ts \
+  tests/loadout-card.test.ts tests/share-report.test.ts
+```
+
+Expected: campaign hashes and paired order are deterministic, every retry is included
+in the worst-case budget, over-budget plans are blocked, resumable metadata contains
+no prompt/output/credential bytes, and aggregate comparison never invents a quality
+delta. See `docs/EVALUATION_PROTOCOL_V1.md` for the campaign JSON contract. These
+tests do not call a model provider and consume no provider credit.
 
 ```bash
 loadout keygen --private-key "$TEST_ROOT/private.pem" \

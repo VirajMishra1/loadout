@@ -9,11 +9,101 @@ import {
   setReviewDecision,
 } from "../src/core/review-queue.js";
 import type { CatalogPackage } from "../src/shared/types.js";
+import type { SkillsShDiscoveryRecord } from "../src/core/skills-sh-discovery.js";
+import type { McpRegistryDiscoveryRecord } from "../src/core/mcp-registry-discovery.js";
 
 describe("candidate review queue", () => {
   let root = "";
   afterEach(async () => {
     if (root) await rm(root, { recursive: true, force: true });
+    delete process.env.LOADOUT_HOME;
+  });
+
+  it("deduplicates connector repository identities without converting telemetry into stars", async () => {
+    root = await mkdtemp(join(tmpdir(), "loadout-review-connectors-"));
+    process.env.LOADOUT_HOME = root;
+    const observedAt = "2026-07-16T00:00:00.000Z";
+    const skills = {
+      source: "skills-sh",
+      kind: "skill",
+      identityKey: "skills-sh:owner/repo/react",
+      repositoryKey: "github:owner/repo",
+      externalId: "owner/repo/react",
+      slug: "react",
+      name: "React",
+      sourceName: "owner/repo",
+      sourceType: "github",
+      installUrl: "https://github.com/owner/repo",
+      sourceUrl: "https://skills.sh/owner/repo/react",
+      installs: 1200,
+      isDuplicate: false,
+      repository: {
+        repository: "owner/repo",
+        url: "https://github.com/owner/repo",
+        immutable: false,
+        limitation: "No immutable commit is supplied.",
+      },
+      ranking: {
+        provider: "skills.sh",
+        view: "trending",
+        position: 2,
+        installs: 1200,
+        meaning: "install telemetry",
+        uncertainty: "not quality or safety evidence",
+      },
+      attribution: {
+        source: "skills-sh",
+        sourceUrl: "https://skills.sh/docs/api",
+        observedAt,
+        meaning: "skills.sh install telemetry",
+      },
+    } satisfies SkillsShDiscoveryRecord;
+    const mcp = {
+      source: "official-mcp-registry",
+      kind: "mcp-server",
+      identityKey: "mcp-registry:io.github.owner/repo@1.0.0",
+      repositoryKey: "github:owner/repo",
+      externalId: "io.github.owner/repo@1.0.0",
+      namespace: "io.github.owner",
+      name: "io.github.owner/repo",
+      title: "Owner MCP",
+      description: "Reviewed later",
+      version: "1.0.0",
+      sourceUrl:
+        "https://registry.modelcontextprotocol.io/v0.1/servers/io.github.owner/repo/versions/1.0.0",
+      repository: {
+        url: "https://github.com/owner/repo",
+        source: "github",
+        repository: "OWNER/REPO",
+      },
+      distributions: [],
+      verification: {
+        registry: "Official MCP Registry",
+        lifecycleStatus: "active",
+        meaning: "identity and distribution evidence only",
+        namespaceEvidence: "official registry namespace",
+      },
+      attribution: {
+        source: "official-mcp-registry",
+        sourceUrl: "https://registry.modelcontextprotocol.io/docs",
+        observedAt,
+        meaning: "official registry metadata",
+      },
+    } satisfies McpRegistryDiscoveryRecord;
+    const queue = await mergeReviewQueue(
+      [skills, mcp],
+      [],
+      new Date(observedAt),
+    );
+    expect(queue.items).toHaveLength(1);
+    expect(queue.items[0]).toMatchObject({
+      repository: "OWNER/REPO",
+      sources: ["skills-sh", "official-mcp-registry"],
+      installs: 1200,
+      registryVersion: "1.0.0",
+      lifecycleStatus: "active",
+    });
+    expect(queue.items[0].stars).toBeUndefined();
   });
 
   it("deduplicates sources, marks cataloged repos, and preserves human decisions", async () => {

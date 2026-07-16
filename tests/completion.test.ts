@@ -8,6 +8,8 @@ describe("CLI completion", () => {
   it("renders installable scripts for supported shells", () => {
     for (const shell of ["bash", "zsh", "fish", "powershell"] as const) {
       expect(renderShellCompletion(shell)).toContain("loadout");
+      expect(renderShellCompletion(shell)).toContain("upgrade");
+      expect(renderShellCompletion(shell)).toContain("benchmark");
       expect(renderShellCompletion(shell)).toContain("optimize");
       expect(renderShellCompletion(shell)).toContain("test-drive");
       expect(renderShellCompletion(shell)).toContain("catalog-update");
@@ -15,6 +17,8 @@ describe("CLI completion", () => {
       expect(renderShellCompletion(shell)).toContain("propose");
       expect(renderShellCompletion(shell)).toContain("autopilot");
       expect(renderShellCompletion(shell)).toContain("tool");
+      expect(renderShellCompletion(shell)).toContain("card");
+      expect(renderShellCompletion(shell)).toContain("compare-loadouts");
     }
   });
 

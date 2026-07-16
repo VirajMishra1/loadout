@@ -38,36 +38,35 @@ npm run build
 npx . --help
 ```
 
-Start with the two read-only commands:
+Start with the unified read-only preview:
 
 ```bash
-npx . scan
-npx . setup --mode stable
+npx . upgrade
 ```
 
-`scan` inventories existing `SKILL.md` capabilities, ownership, duplicates, provenance confidence, and capacity without changing an agent profile. `setup` is also a preview unless `--yes` is supplied.
+`upgrade` detects installed agents, inventories health, scores only evidence it can prove, scans the current project, recommends reviewed sources, fetches exact pinned commits, and prints every target and risk finding. Nothing changes until `--yes` is supplied.
 
 ## The core journey
 
 ```bash
-# 1. See what is already installed. Read-only.
-npx . scan --refresh-provenance
+# 1. Preview the strongest low-risk Stable journey. Read-only.
+npx . upgrade --mode stable --project .
 
-# 2. Preview the recommended Stable loadout. Read-only.
-npx . setup --mode stable
+# 2. Apply exactly the displayed transaction.
+npx . upgrade --mode stable --project . --yes
 
-# 3. Apply exactly the displayed plan.
-npx . setup --mode stable --yes
-
-# 4. Inspect and optimize the active set for this project.
+# 3. Inspect and optimize the active set for this project.
 npx . library
 npx . optimize --project .
 npx . optimize --project . --yes
 
-# 5. Check health or undo the most recent managed change.
-npx . health
+# 4. Explain health evidence, share a private aggregate card, or undo.
+npx . health --explain
+npx . card
 npx . rollback
 ```
+
+`setup`, `scan`, `recommend`, and the other constituent commands remain available for advanced use. `upgrade --json` provides the same deterministic preview for automation.
 
 `--approve-risk` acknowledges findings that were already printed during preview; it does not disable safety validation. The applied operation is transactional and produces a snapshot identifier.
 
@@ -154,6 +153,16 @@ npx . discover --source github
 npx . discover --source hacker-news --min-score 20
 npx . discover --source hacker-news --query codex,mcp,agent
 
+# skills.sh install telemetry (requires its request-scoped VERCEL_OIDC_TOKEN,
+# or uses the last complete local cache).
+npx . discover --source skills-sh --limit 50
+
+# Official MCP Registry identity and distribution metadata.
+npx . discover --source mcp-registry --limit 50
+
+# Query all four sources independently and retain partial results.
+npx . discover --source all --queue --json
+
 # Inspect the deduplicated review queue.
 npx . review-queue
 
@@ -198,12 +207,15 @@ See [Candidate intelligence and catalog trust](./docs/CANDIDATE_INTELLIGENCE.md)
 
 ```bash
 npx . status
+npx . versions
 npx . doctor
-npx . health
+npx . health --explain
 npx . capabilities
 npx . compare <skill-name>
 npx . adopt <skill-name> --agent codex
 ```
+
+`versions` invokes only bounded read-only `--version` commands with a sanitized environment. `health --explain` shows every scored dimension, cap, evidence item, uncertainty, and remediation; absent evidence receives zero rather than an invented neutral score.
 
 `compare` uses fingerprints, embedded source evidence, names, capability relationships, and catalog evidence. A same-name result is a candidate match, never proof that two skills are identical. `adopt` takes Loadout ownership of one explicitly selected existing skill without changing its bytes.
 
@@ -282,6 +294,29 @@ Updates are planned before they are applied. Loadout checks managed hashes, revi
 
 `rollback` restores the most recent snapshot by default, or a specific snapshot with `--snapshot <id>`. Removal and configuration changes preserve unrelated files and unrelated MCP keys.
 
+## Reproducible evaluation and shareable evidence
+
+Loadout now includes the versioned [Evaluation Protocol v1](./docs/EVALUATION_PROTOCOL_V1.md). A campaign can be validated, deterministically scheduled, and worst-case priced without contacting a model provider:
+
+```bash
+npx . benchmark plan ./campaign.json
+npx . benchmark plan ./campaign.json \
+  --run-id first-run --output ./benchmark-run.json --json
+```
+
+Planning rejects unbounded or edited metadata and writes a resumable, content-free run record. It does **not** make a model call. The isolated paid runner and real fixture evidence remain separate release gates; Loadout will not label a source benchmarked from a plan alone.
+
+Generate or compare privacy-safe aggregate artifacts:
+
+```bash
+npx . report --json > before.json
+npx . card --output LOADOUT_CARD.md
+npx . report --json > after.json
+npx . compare-loadouts before.json after.json
+```
+
+The card excludes project paths and names, prompts, code, filenames, repository names, and credentials. Its Agent Health Score reports evidence coverage and explicitly does not claim universal quality or task improvement.
+
 ## Supported agents and platforms
 
 | Agent          | Skill management                       | Additional native/adapted components                                                           |
@@ -322,14 +357,15 @@ Read [Compatibility policy](./docs/COMPATIBILITY_POLICY.md), [Active-set contrac
 
 | Goal                   | Commands                                                                             |
 | ---------------------- | ------------------------------------------------------------------------------------ |
-| Onboard                | `setup`, `scan`, `status`, `doctor`, `capabilities`, `demo`                          |
+| Onboard                | `upgrade`, `setup`, `scan`, `status`, `versions`, `health`, `demo`                   |
 | Find and compare       | `catalog`, `search`, `discover`, `candidate`, `review-queue`, `compare`, `recommend` |
 | Manage active skills   | `library`, `activate`, `optimize`, `enable`, `disable`, `adopt`                      |
 | Maintain safely        | `health`, `alerts`, `update`, `watch`, `remove`, `rollback`, `audit`                 |
 | Share desired state    | `init`, `add`, `unadd`, `lock`, `sync`, `export`, `import`                           |
 | Configure MCP          | `mcp`, `mcp-config`, `codex-mcp-config`, `mcp-recipe`                                |
 | Credentials and models | `credentials`, `models`                                                              |
-| Evaluate evidence      | `inspect`, `evaluate`, `candidate`, `head-to-head`, `canary`, `outcome`, `report`    |
+| Evaluate evidence      | `benchmark`, `inspect`, `evaluate`, `head-to-head`, `canary`, `outcome`              |
+| Share safe evidence    | `report`, `share`, `card`, `compare-loadouts`                                        |
 | Package and registry   | `create`, `pack`, `publish`, `registry-serve`                                        |
 | Operate                | `completion`, `autopilot`, `schedule`, `unschedule`, `tool`, `dashboard`, `serve`    |
 
@@ -385,6 +421,7 @@ rollback on virtual Codex and Claude Code profiles.
 - Additional component types are installed only where the adapter reports tested support. Loadout does not promise perfect conversion of arbitrary hooks, subagents, plugins, or proprietary formats.
 - The included registry server is for local development or self-hosting. No public Loadout registry service is deployed.
 - Ranking and evaluation explain bounded evidence; they do not scientifically prove that one configuration is best for every person or task.
+- Benchmark campaign planning is implemented, but no bundled source is called benchmarked until the isolated runner, real fixtures, and signed promotion evidence are complete.
 
 ## Contributing
 

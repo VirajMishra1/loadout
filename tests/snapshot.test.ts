@@ -8,7 +8,7 @@ import {
   writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, parse } from "node:path";
 import {
   createSnapshot,
   listSnapshotIds,
@@ -80,11 +80,12 @@ describe("rollback snapshots", () => {
     process.env.LOADOUT_HOME = join(root, ".loadout");
     const id = `${Date.now()}-${"b".repeat(12)}`;
     const base = { id, createdAt: new Date().toISOString() };
+    const filesystemRoot = parse(root).root;
     await expect(
       restoreSnapshot({
         ...base,
-        roots: ["/"],
-        files: [{ path: "/", existed: false }],
+        roots: [filesystemRoot],
+        files: [{ path: filesystemRoot, existed: false }],
       }),
     ).rejects.toThrow(/filesystem root/);
     await expect(

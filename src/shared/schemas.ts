@@ -45,8 +45,31 @@ export const componentCompatibilitySchema = z.enum([
 ]);
 export const safetyRiskLevelSchema = z.enum(["safe", "review", "blocked"]);
 
+export const readmeClaimEvidenceClassSchema = z.enum([
+  "structural",
+  "unit-verified",
+  "integration-verified",
+  "live-verified",
+  "platform-verified",
+  "human-reviewed",
+  "benchmarked",
+  "policy-selected",
+]);
+
+export const readmeClaimStatusSchema = z.enum([
+  "proven",
+  "bounded",
+  "unfulfilled",
+]);
+
 const text = z.string().trim().min(1, "must not be empty");
 const optionalText = text.optional();
+const readmeClaimIdSchema = z
+  .string()
+  .regex(
+    /^[a-z][a-z0-9-]*(?:\.[a-z][a-z0-9-]*)*$/,
+    "must be a safe dotted identifier",
+  );
 const sha256 = z.string().regex(/^[a-f0-9]{64}$/i, "must be a SHA-256 hash");
 const gitSha = z.string().regex(/^[a-f0-9]{40}$/i, "must be a full Git SHA");
 const repository = z
@@ -400,6 +423,48 @@ export const loadoutLockfileSchema = z
   })
   .passthrough();
 
+export const readmeClaimSchema = z
+  .object({
+    id: readmeClaimIdSchema,
+    section: text,
+    summary: text,
+    evidenceClass: readmeClaimEvidenceClassSchema,
+    status: readmeClaimStatusSchema,
+    evidence: z.array(text),
+    externalPrerequisites: z.array(text).optional(),
+  })
+  .strict()
+  .superRefine((claim, context) => {
+    if (claim.status === "proven" && claim.evidence.length === 0) {
+      context.addIssue({
+        code: "custom",
+        path: ["evidence"],
+        message:
+          "proven claims require at least one authoritative evidence reference",
+      });
+    }
+  });
+
+export const readmeClaimManifestSchema = z
+  .object({
+    schemaVersion: z.literal(1),
+    claims: z.array(readmeClaimSchema).min(1),
+  })
+  .strict()
+  .superRefine((manifest, context) => {
+    const seen = new Set<string>();
+    for (const [index, claim] of manifest.claims.entries()) {
+      if (seen.has(claim.id)) {
+        context.addIssue({
+          code: "custom",
+          path: ["claims", index, "id"],
+          message: "must be unique",
+        });
+      }
+      seen.add(claim.id);
+    }
+  });
+
 /** Compact, path-aware errors suitable for CLI and persisted-data diagnostics. */
 export function formatSchemaError(error: z.ZodError): string {
   return error.issues
@@ -417,4 +482,8 @@ export type RuntimeInstallState = z.infer<typeof installStateSchema>;
 export type RuntimeLoadoutLockfile = z.infer<typeof loadoutLockfileSchema>;
 export type RuntimeProviderModelConfiguration = z.infer<
   typeof providerModelConfigurationSchema
+>;
+export type RuntimeReadmeClaim = z.infer<typeof readmeClaimSchema>;
+export type RuntimeReadmeClaimManifest = z.infer<
+  typeof readmeClaimManifestSchema
 >;

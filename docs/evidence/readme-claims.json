@@ -1,0 +1,228 @@
+{
+  "schemaVersion": 1,
+  "claims": [
+    {
+      "id": "product.scope",
+      "section": "Introduction",
+      "summary": "Loadout provides a local workflow for discovery, comparison, installation, updates, and rollback.",
+      "evidenceClass": "integration-verified",
+      "status": "bounded",
+      "evidence": [
+        "README.md",
+        "tests/upgrade.test.ts",
+        "tests/snapshot.test.ts"
+      ]
+    },
+    {
+      "id": "catalog.coverage",
+      "section": "What Loadout manages",
+      "summary": "The bundled catalog exposes generated coverage facts from pinned public records.",
+      "evidenceClass": "structural",
+      "status": "proven",
+      "evidence": [
+        "catalog/packages.json",
+        "src/core/catalog-coverage.ts",
+        "tests/catalog-coverage.test.ts"
+      ]
+    },
+    {
+      "id": "selection.stable",
+      "section": "Choose a loadout",
+      "summary": "Stable selection is defined by the checked-in policy and allowlist.",
+      "evidenceClass": "policy-selected",
+      "status": "proven",
+      "evidence": ["src/core/profiles.ts", "tests/profiles.test.ts"]
+    },
+    {
+      "id": "selection.power",
+      "section": "Choose a loadout",
+      "summary": "Power selection is defined by the checked-in policy and allowlist.",
+      "evidenceClass": "policy-selected",
+      "status": "proven",
+      "evidence": ["src/core/profiles.ts", "tests/profiles.test.ts"]
+    },
+    {
+      "id": "selection.maximum",
+      "section": "Choose a loadout",
+      "summary": "Maximum selection keeps optional components in Loadout's managed library rather than activating every component.",
+      "evidenceClass": "integration-verified",
+      "status": "bounded",
+      "evidence": ["src/core/active-set.ts", "tests/active-set.test.ts"]
+    },
+    {
+      "id": "agents.support",
+      "section": "Introduction",
+      "summary": "Supported-agent adapters are limited to checked-in definitions and tested filesystem operations.",
+      "evidenceClass": "integration-verified",
+      "status": "bounded",
+      "evidence": ["src/core/adapters.ts", "tests/adapters.test.ts"]
+    },
+    {
+      "id": "platforms.support",
+      "section": "Introduction",
+      "summary": "Platform support is bounded to tested local filesystem behavior and does not imply native application execution.",
+      "evidenceClass": "platform-verified",
+      "status": "bounded",
+      "evidence": [
+        "docs/FEATURE_TEST_MATRIX.md",
+        "tests/native-filesystem-smoke.test.ts"
+      ]
+    },
+    {
+      "id": "installation.transaction",
+      "section": "The core journey",
+      "summary": "Managed installation plans and applies transactional filesystem changes with snapshots.",
+      "evidenceClass": "integration-verified",
+      "status": "proven",
+      "evidence": [
+        "src/core/install.ts",
+        "tests/transaction.test.ts",
+        "tests/install.test.ts"
+      ]
+    },
+    {
+      "id": "updates.preview",
+      "section": "The core journey",
+      "summary": "Update workflows present a bounded local plan before an explicit apply step.",
+      "evidenceClass": "integration-verified",
+      "status": "proven",
+      "evidence": ["src/core/update.ts", "tests/update.test.ts"]
+    },
+    {
+      "id": "rollback.snapshot",
+      "section": "The core journey",
+      "summary": "Rollback restores managed snapshot state within Loadout's supported transaction boundary.",
+      "evidenceClass": "integration-verified",
+      "status": "proven",
+      "evidence": [
+        "src/core/snapshot.ts",
+        "tests/snapshot.test.ts",
+        "tests/transaction.test.ts"
+      ]
+    },
+    {
+      "id": "recommendations.evidence",
+      "section": "Why Loadout exists",
+      "summary": "Recommendations expose bounded repository and local evidence rather than universal quality claims.",
+      "evidenceClass": "unit-verified",
+      "status": "bounded",
+      "evidence": ["src/core/recommend.ts", "tests/recommend.test.ts"]
+    },
+    {
+      "id": "trust.stages",
+      "section": "What Loadout manages",
+      "summary": "Trust-stage labels distinguish evidence without promoting one stage to another.",
+      "evidenceClass": "structural",
+      "status": "proven",
+      "evidence": [
+        "src/core/benchmark-trust.ts",
+        "tests/benchmark-trust.test.ts",
+        "docs/CATALOG_POLICY.md"
+      ]
+    },
+    {
+      "id": "discovery.read-only",
+      "section": "Find what is new",
+      "summary": "Discovery records candidates separately from catalog promotion and installation.",
+      "evidenceClass": "integration-verified",
+      "status": "proven",
+      "evidence": [
+        "src/core/github-discovery.ts",
+        "tests/daily-discovery.test.ts",
+        "tests/review-queue.test.ts"
+      ]
+    },
+    {
+      "id": "credentials.references",
+      "section": "Credentials",
+      "summary": "Shared configuration stores credential references rather than secret values.",
+      "evidenceClass": "structural",
+      "status": "proven",
+      "evidence": [
+        "src/shared/schemas.ts",
+        "src/shared/types.ts",
+        "tests/credentials.test.ts"
+      ]
+    },
+    {
+      "id": "mcp.configuration",
+      "section": "MCP",
+      "summary": "MCP configuration uses explicit plans and keeps credentials outside persisted shared manifests.",
+      "evidenceClass": "integration-verified",
+      "status": "proven",
+      "evidence": ["src/core/mcp.ts", "tests/mcp-config.test.ts"]
+    },
+    {
+      "id": "manifests.portability",
+      "section": "Share a loadout",
+      "summary": "Loadout manifests are schema-validated portable declarations and do not contain secret values.",
+      "evidenceClass": "structural",
+      "status": "proven",
+      "evidence": [
+        "src/core/manifest.ts",
+        "src/shared/schemas.ts",
+        "tests/manifest.test.ts"
+      ]
+    },
+    {
+      "id": "benchmarks.protocol",
+      "section": "Measure what works",
+      "summary": "Benchmark planning and protocol artifacts do not by themselves prove a source is benchmarked.",
+      "evidenceClass": "benchmarked",
+      "status": "bounded",
+      "evidence": [
+        "docs/EVALUATION_PROTOCOL_V1.md",
+        "src/core/benchmark-campaign.ts",
+        "tests/benchmark-campaign.test.ts"
+      ]
+    },
+    {
+      "id": "dashboard.local",
+      "section": "Dashboard",
+      "summary": "The dashboard presents local Loadout data and does not establish hosted-service availability.",
+      "evidenceClass": "integration-verified",
+      "status": "bounded",
+      "evidence": ["src/dashboard.ts", "tests/dashboard.test.ts"]
+    },
+    {
+      "id": "distribution.npm",
+      "section": "Install from npm",
+      "summary": "npm distribution wording is time-bounded because offline verification cannot prove current registry availability.",
+      "evidenceClass": "live-verified",
+      "status": "bounded",
+      "evidence": ["package.json", "README.md"],
+      "externalPrerequisites": ["Current npm registry availability"]
+    },
+    {
+      "id": "release.state",
+      "section": "Install from npm",
+      "summary": "Release and beta wording is bounded to release-review artifacts and is not proof of current public publication.",
+      "evidenceClass": "human-reviewed",
+      "status": "bounded",
+      "evidence": ["docs/RELEASE_REVIEW.md", "package.json"],
+      "externalPrerequisites": [
+        "Current package publication and release review"
+      ]
+    },
+    {
+      "id": "testing.deterministic",
+      "section": "Testing",
+      "summary": "The repository contains deterministic automated tests for supported local behaviors.",
+      "evidenceClass": "unit-verified",
+      "status": "proven",
+      "evidence": [
+        "package.json",
+        "tests/schemas.test.ts",
+        "tests/transaction.test.ts"
+      ]
+    },
+    {
+      "id": "limits.current",
+      "section": "Current limits",
+      "summary": "Current limitations are stated explicitly instead of being represented as present capabilities.",
+      "evidenceClass": "structural",
+      "status": "proven",
+      "evidence": ["README.md", "docs/FEATURE_TEST_MATRIX.md"]
+    }
+  ]
+}

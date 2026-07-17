@@ -38,6 +38,36 @@ export interface ProviderModelConfiguration {
 
 export type PackageTier = "official" | "stable" | "trending" | "community";
 
+export type ReadmeClaimEvidenceClass =
+  | "structural"
+  | "unit-verified"
+  | "integration-verified"
+  | "live-verified"
+  | "platform-verified"
+  | "human-reviewed"
+  | "benchmarked"
+  | "policy-selected";
+
+export type ReadmeClaimStatus = "proven" | "bounded" | "unfulfilled";
+
+/** An evidence-backed or explicitly bounded material statement in the README. */
+export interface ReadmeClaim {
+  id: string;
+  section: string;
+  summary: string;
+  evidenceClass: ReadmeClaimEvidenceClass;
+  status: ReadmeClaimStatus;
+  /** Repository paths or deterministic verification commands. */
+  evidence: string[];
+  /** Requirements outside the repository that limit verification scope. */
+  externalPrerequisites?: string[];
+}
+
+export interface ReadmeClaimManifest {
+  schemaVersion: 1;
+  claims: ReadmeClaim[];
+}
+
 /** Operating systems on which Loadout can fetch and inspect a public Git source. */
 export type OperatingSystem = "windows" | "macos" | "linux";
 

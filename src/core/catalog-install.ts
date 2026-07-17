@@ -171,7 +171,7 @@ export async function prepareCatalogInstall(
                   isPowerSkillSelected(pkg.id, skill.name, skill.targetName)
               : undefined;
         const quarantineOptions =
-          selection.mode === "maximum"
+          selection.mode === "maximum" || selection.mode === "power"
             ? {
                 continueOnRejected: true,
                 onRejected: (skill: {

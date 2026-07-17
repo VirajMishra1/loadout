@@ -186,6 +186,75 @@ describe("CLI-first catalog setup", () => {
     );
   });
 
+  it("quarantines an invalid selected Power skill without discarding its safe siblings", async () => {
+    root = await mkdtemp(join(tmpdir(), "loadout-power-quarantine-"));
+    const repository = join(root, "repository");
+    const safe = join(repository, "skills", "using-superpowers");
+    const invalid = join(repository, "skills", "writing-skills");
+    await mkdir(safe, { recursive: true });
+    await mkdir(invalid, { recursive: true });
+    await writeFile(
+      join(safe, "SKILL.md"),
+      "---\nname: using-superpowers\ndescription: A valid reviewed skill\n---\n",
+    );
+    await writeFile(
+      join(invalid, "SKILL.md"),
+      "---\nname: writing-skills\n---\n",
+    );
+    const pkg: CatalogPackage = {
+      id: "superpowers",
+      displayName: "Superpowers",
+      repository: "example/superpowers",
+      description: "Contains one safe and one invalid selected Power skill",
+      category: "test",
+      tier: "stable",
+      components: ["skill"],
+      source: {
+        type: "github",
+        url: "https://github.com/example/superpowers",
+        defaultBranch: "main",
+        commit,
+        evidencePaths: ["skills/using-superpowers/SKILL.md"],
+        verifiedAt: "2026-07-15T00:00:00Z",
+      },
+    };
+    const prepared = await prepareCatalogInstall(
+      { mode: "power" },
+      {
+        catalog: [pkg],
+        detectedAgents: [
+          {
+            id: "codex",
+            displayName: "Codex",
+            installed: true,
+            skillsDirectory: join(root, "home", ".codex", "skills"),
+          },
+        ],
+        fetchSnapshot: async () => ({
+          repository: pkg.repository,
+          commit,
+          path: repository,
+        }),
+      },
+    );
+
+    expect(prepared.entries).toHaveLength(1);
+    expect(prepared.entries[0].plan.files).toHaveLength(1);
+    expect(prepared.entries[0].plan.files[0].target).toMatch(
+      /using-superpowers$/,
+    );
+    expect(prepared.skipped).toEqual([
+      expect.objectContaining({
+        packageId: "superpowers",
+        unitId: "writing-skills",
+        kind: "quarantined",
+      }),
+    ]);
+    expect(formatPreparedCatalogInstall(prepared)).not.toContain(
+      "Preparation failures",
+    );
+  });
+
   it("refuses setup when no supported agent is installed", async () => {
     await expect(
       prepareCatalogInstall(

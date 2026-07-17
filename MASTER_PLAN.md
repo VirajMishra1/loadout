@@ -1601,10 +1601,20 @@ accident.
   - Repeat the safe no-key journey with Claude, then collect one Windows and one Linux
     external session. Convert every reproducible failure into a regression test before
     public-release claims.
+- [x] `P17-09 [TERRA implementation, LUNA copy review]` Make Power resilient and
+      explain the product in beginner language before the `0.2.0` release.
+  - Power now quarantines a rejected selected skill while retaining safe selected
+    siblings from the same immutable collection, matching Maximum's unit-level
+    isolation without weakening Stable's exact bounded default.
+  - A live Codex preview prepares all eight Power collections and 50 skill directories,
+    quarantines six individual units, and reports every overlap and approval boundary.
+  - README now leads with install/mode/project/daily workflows, directly credits all
+    50 upstream repositories, and distinguishes a new lead, an available update, and
+    a comparison-backed replacement instead of treating popularity as proof.
 
-Engineering checkpoint 2026-07-17: the complete local gate passes 103 test files/459
+Engineering checkpoint 2026-07-17: the complete local gate passes 103 test files/460
 tests, packaged CLI smoke, the real CLI product journey, release-claim checks, and seven
-1,000-skill scans at a 1.49-second p95. A real read-only Maximum preview against the 50
+1,000-skill scans at a 1.88-second p95. A real read-only Maximum preview against the 50
 pinned catalog records prepared 29 repositories/1,158 Codex skill directories,
 quarantined 50 invalid units while retaining safe siblings, deferred 19 MCP-only
 records, and resolved 44 lower-ranked overlaps. Comparing that prepared plan with the

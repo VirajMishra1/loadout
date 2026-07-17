@@ -139,7 +139,7 @@ Discovery is deliberately separate from installation. It gathers leads and expla
 
 <!-- loadout:daily-discovery:start -->
 
-**Discovery snapshot (generated 2026-07-16):** [242 repositories observed](./docs/DISCOVERED.md), including 219 uncataloged review candidates and 23 repositories already in the reviewed catalog.
+**Discovery snapshot (generated 2026-07-17):** [242 repositories observed](./docs/DISCOVERED.md), including 219 uncataloged review candidates and 23 repositories already in the reviewed catalog.
 <!-- loadout:daily-discovery:end -->
 
 ```bash

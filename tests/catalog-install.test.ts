@@ -9,6 +9,7 @@ import {
 } from "../src/core/catalog-install.js";
 import type { CatalogPackage, DetectedAgent } from "../src/shared/types.js";
 import { activationLibraryPath, readInstallState } from "../src/core/state.js";
+import { applySkillInstallBatch, buildSkillPlan } from "../src/core/install.js";
 
 const commit = "a".repeat(40);
 
@@ -117,6 +118,70 @@ describe("CLI-first catalog setup", () => {
       findingCount: 0,
       policy: "install-safety-v1",
     });
+  });
+
+  it("previews active managed skills that an exact profile will retire", async () => {
+    root = await mkdtemp(join(tmpdir(), "loadout-profile-retirement-"));
+    process.env.LOADOUT_HOME = join(root, ".loadout");
+    const target = join(root, "home", ".codex", "skills");
+    const agent: DetectedAgent = {
+      id: "codex",
+      displayName: "Codex",
+      installed: true,
+      skillsDirectory: target,
+    };
+    const oldSource = join(root, "old-source");
+    await mkdir(oldSource, { recursive: true });
+    await writeFile(
+      join(oldSource, "SKILL.md"),
+      "---\nname: old-only\ndescription: Existing profile skill\n---\n",
+    );
+    await applySkillInstallBatch([
+      { plan: await buildSkillPlan(oldSource, "old-only", [agent]) },
+    ]);
+
+    const newSource = join(root, "new-source");
+    await mkdir(newSource, { recursive: true });
+    await writeFile(
+      join(newSource, "SKILL.md"),
+      "---\nname: new-only\ndescription: Replacement profile skill\n---\n",
+    );
+    const pkg: CatalogPackage = {
+      id: "new-only",
+      displayName: "New Only",
+      repository: "example/new-only",
+      description: "Replacement",
+      category: "test",
+      tier: "stable",
+      components: ["skill"],
+      source: {
+        type: "github",
+        url: "https://github.com/example/new-only",
+        defaultBranch: "main",
+        commit,
+        evidencePaths: ["SKILL.md"],
+        verifiedAt: "2026-07-15T00:00:00Z",
+      },
+    };
+    const prepared = await prepareCatalogInstall(
+      { mode: "custom", packageIds: ["new-only"] },
+      {
+        catalog: [pkg],
+        detectedAgents: [agent],
+        fetchSnapshot: async () => ({
+          repository: pkg.repository,
+          commit,
+          path: newSource,
+        }),
+      },
+    );
+
+    expect(prepared.reconciliation!.obsoleteTargets).toEqual([
+      join(target, "old-only"),
+    ]);
+    expect(formatPreparedCatalogInstall(prepared)).toContain(
+      "Profile reconciliation: 1 active managed skill will be retired",
+    );
   });
 
   it("quarantines an invalid Maximum skill without discarding its safe siblings", async () => {

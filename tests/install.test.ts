@@ -302,6 +302,148 @@ describe("skill installation transaction", () => {
     );
   });
 
+  it("reconciles an active profile to the exact replacement batch", async () => {
+    const root = await mkdtemp(join(tmpdir(), "loadout-profile-reconcile-"));
+    directories.push(root);
+    process.env.LOADOUT_HOME = join(root, ".loadout");
+    const target = join(root, "codex", "skills");
+    const makePlan = async (packageId: string) => {
+      const source = join(root, "sources", packageId);
+      await mkdir(source, { recursive: true });
+      await writeFile(
+        join(source, "SKILL.md"),
+        `---\nname: ${packageId}\ndescription: ${packageId} fixture\n---\n`,
+      );
+      return buildSkillPlan(source, packageId, [agent(target)]);
+    };
+    const oldOnly = await makePlan("old-only");
+    const shared = await makePlan("shared");
+    const newOnly = await makePlan("new-only");
+    await applySkillInstallBatch([{ plan: oldOnly }, { plan: shared }]);
+
+    const replacementSnapshot = await applySkillInstallBatch(
+      [{ plan: shared }, { plan: newOnly }],
+      [],
+      { replaceManagedTargets: true, reconcileManagedTargets: true },
+    );
+
+    await expect(
+      readFile(join(target, "old-only", "SKILL.md"), "utf8"),
+    ).rejects.toMatchObject({ code: "ENOENT" });
+    await expect(
+      readFile(join(target, "shared", "SKILL.md"), "utf8"),
+    ).resolves.toContain("shared fixture");
+    await expect(
+      readFile(join(target, "new-only", "SKILL.md"), "utf8"),
+    ).resolves.toContain("new-only fixture");
+    expect(
+      (await readInstallState()).installs
+        .map((record) => record.packageId)
+        .sort(),
+    ).toEqual(["new-only", "shared"]);
+
+    const snapshot = JSON.parse(
+      await readFile(
+        join(
+          process.env.LOADOUT_HOME,
+          "snapshots",
+          `${replacementSnapshot}.json`,
+        ),
+        "utf8",
+      ),
+    );
+    await restoreSnapshot(snapshot);
+    await expect(
+      readFile(join(target, "old-only", "SKILL.md"), "utf8"),
+    ).resolves.toContain("old-only fixture");
+    await expect(
+      readFile(join(target, "new-only", "SKILL.md"), "utf8"),
+    ).rejects.toMatchObject({ code: "ENOENT" });
+    expect(
+      (await readInstallState()).installs
+        .map((record) => record.packageId)
+        .sort(),
+    ).toEqual(["old-only", "shared"]);
+  });
+
+  it("refuses to reconcile a stale managed target that drifted", async () => {
+    const root = await mkdtemp(join(tmpdir(), "loadout-profile-drift-"));
+    directories.push(root);
+    process.env.LOADOUT_HOME = join(root, ".loadout");
+    const target = join(root, "codex", "skills");
+    const source = join(root, "sources", "old-only");
+    await mkdir(source, { recursive: true });
+    await writeFile(
+      join(source, "SKILL.md"),
+      "---\nname: old-only\ndescription: Original fixture\n---\n",
+    );
+    const oldOnly = await buildSkillPlan(source, "old-only", [agent(target)]);
+    await applySkillInstallBatch([{ plan: oldOnly }]);
+    const changed =
+      "---\nname: old-only\ndescription: Locally changed fixture\n---\n";
+    await writeFile(join(target, "old-only", "SKILL.md"), changed);
+
+    const replacementSource = join(root, "sources", "new-only");
+    await mkdir(replacementSource, { recursive: true });
+    await writeFile(
+      join(replacementSource, "SKILL.md"),
+      "---\nname: new-only\ndescription: Replacement fixture\n---\n",
+    );
+    const newOnly = await buildSkillPlan(replacementSource, "new-only", [
+      agent(target),
+    ]);
+    await expect(
+      applySkillInstallBatch([{ plan: newOnly }], [], {
+        replaceManagedTargets: true,
+        reconcileManagedTargets: true,
+      }),
+    ).rejects.toThrow(/drifted managed skill target/);
+    expect(await readFile(join(target, "old-only", "SKILL.md"), "utf8")).toBe(
+      changed,
+    );
+    await expect(
+      readFile(join(target, "new-only", "SKILL.md"), "utf8"),
+    ).rejects.toMatchObject({ code: "ENOENT" });
+  });
+
+  it("refuses profile reconciliation when managed state changed after preview", async () => {
+    const root = await mkdtemp(join(tmpdir(), "loadout-profile-stale-plan-"));
+    directories.push(root);
+    process.env.LOADOUT_HOME = join(root, ".loadout");
+    const target = join(root, "codex", "skills");
+    const makePlan = async (packageId: string) => {
+      const source = join(root, "sources", packageId);
+      await mkdir(source, { recursive: true });
+      await writeFile(
+        join(source, "SKILL.md"),
+        `---\nname: ${packageId}\ndescription: ${packageId} fixture\n---\n`,
+      );
+      return buildSkillPlan(source, packageId, [agent(target)]);
+    };
+    const oldOnly = await makePlan("old-only");
+    const newOnly = await makePlan("new-only");
+    await applySkillInstallBatch([{ plan: oldOnly }]);
+
+    await expect(
+      applySkillInstallBatch([{ plan: newOnly }], [], {
+        replaceManagedTargets: true,
+        reconcileManagedTargets: true,
+        expectedReconciliation: {
+          obsoleteActivationKeys: [],
+          obsoletePackageIds: [],
+          obsoleteTargets: [],
+          obsoleteUnits: [],
+        },
+      }),
+    ).rejects.toThrow(/managed state changed after preview/);
+    await expect(
+      readFile(join(target, "old-only", "SKILL.md"), "utf8"),
+    ).resolves.toContain("old-only fixture");
+    await expect(
+      readFile(join(target, "new-only", "SKILL.md"), "utf8"),
+    ).rejects.toMatchObject({ code: "ENOENT" });
+  });
+
   it("restores all changes when a later copy fails", async () => {
     const root = await mkdtemp(join(tmpdir(), "loadout-rollback-"));
     directories.push(root);

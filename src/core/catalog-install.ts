@@ -16,7 +16,9 @@ import {
   applySkillInstallBatch,
   buildSkillPlan,
   installedAgents,
+  planManagedProfileReconciliation,
   type InstallBatchEntry,
+  type ManagedProfileReconciliation,
 } from "./install.js";
 import {
   fetchRepositorySnapshot,
@@ -65,6 +67,7 @@ export interface PreparedCatalogInstall {
   skipped: CatalogInstallSkip[];
   collisions: CatalogInstallCollision[];
   access: SetupAccessProfile;
+  reconciliation?: ManagedProfileReconciliation;
 }
 
 export interface PrepareCatalogInstallOptions {
@@ -311,6 +314,15 @@ export async function prepareCatalogInstall(
     });
     return false;
   });
+  const reconciliation =
+    selection.mode === "maximum"
+      ? {
+          obsoleteActivationKeys: [],
+          obsoletePackageIds: [],
+          obsoleteTargets: [],
+          obsoleteUnits: [],
+        }
+      : await planManagedProfileReconciliation(usableEntries);
   return {
     selection,
     resolution,
@@ -319,6 +331,7 @@ export async function prepareCatalogInstall(
     skipped,
     collisions,
     access: options.access ?? { modelApis: [] },
+    reconciliation,
   };
 }
 
@@ -344,6 +357,7 @@ export function formatPreparedCatalogInstall(
   const quarantined = prepared.skipped.filter(
     (item) => item.kind === "quarantined",
   );
+  const retired = prepared.reconciliation?.obsoleteUnits ?? [];
   const lines = [
     `Loadout: ${prepared.selection.mode === "maximum" ? "Maximum Library" : prepared.selection.mode === "power" ? "Power Boost" : prepared.selection.mode === "stable" ? "Stable Boost" : "Custom"}`,
     `Detected agents: ${prepared.agents.map((agent) => agent.displayName).join(", ")}`,
@@ -369,6 +383,15 @@ export function formatPreparedCatalogInstall(
     lines.push(
       `Overlapping skill targets resolved: ${prepared.collisions.length} lower-ranked duplicate directories deferred`,
     );
+  if (retired.length) {
+    lines.push(
+      `Profile reconciliation: ${retired.length} active managed skill${retired.length === 1 ? "" : "s"} will be retired from the selected agents.`,
+    );
+    for (const item of retired)
+      lines.push(
+        `Retire ${item.packageId}${item.unitId ? `/${item.unitId}` : ""} from ${item.agent}`,
+      );
+  }
   if (risky.length)
     lines.push(
       `Additional risk approval required: ${risky.map((entry) => entry.package.id).join(", ")}`,
@@ -408,5 +431,9 @@ export async function applyPreparedCatalogInstall(
     ? applySkillLibraryBatch(prepared.entries)
     : applySkillInstallBatch(prepared.entries, [], {
         replaceManagedTargets: true,
+        reconcileManagedTargets: true,
+        ...(prepared.reconciliation
+          ? { expectedReconciliation: prepared.reconciliation }
+          : {}),
       });
 }

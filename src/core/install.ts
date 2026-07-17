@@ -14,6 +14,8 @@ import type {
   DetectedAgent,
   InstallMetadata,
   InstallPlan,
+  InstallRecord,
+  ManagedActivationRecord,
 } from "../shared/types.js";
 import { ensureDirectory, loadoutHome } from "./paths.js";
 import { planAdapterSkillInstall } from "./adapters.js";
@@ -26,6 +28,7 @@ import {
   recordLibraryInstallBatch,
   readInstallState,
   hashDirectory,
+  writeInstallState,
 } from "./state.js";
 import { runMutationTransaction } from "./transaction.js";
 
@@ -50,15 +53,140 @@ function relativeHashes(
   files: Array<{ path: string; sha256: string }>,
 ): Array<{ path: string; sha256: string }> {
   return files
-    .filter((file) => {
-      const child = relative(root, file.path);
-      return child !== "" && !child.startsWith("..") && !isAbsolute(child);
-    })
+    .filter((file) => isInside(root, file.path))
     .map((file) => ({
       path: relative(root, file.path),
       sha256: file.sha256,
     }))
     .sort((left, right) => left.path.localeCompare(right.path));
+}
+
+function isInside(root: string, path: string): boolean {
+  const child = relative(root, path);
+  return child !== "" && !child.startsWith("..") && !isAbsolute(child);
+}
+
+function activationKey(
+  record: Pick<ManagedActivationRecord, "packageId" | "agent" | "unitId">,
+): string {
+  return `${record.packageId}\0${record.agent}\0${record.unitId ?? ""}`;
+}
+
+async function assertManagedTargetUnchanged(
+  target: string,
+  owner: InstallRecord | undefined,
+): Promise<void> {
+  const expected = relativeHashes(target, owner?.files ?? []);
+  const actual = relativeHashes(target, await hashDirectory(target));
+  if (!expected.length || JSON.stringify(actual) !== JSON.stringify(expected))
+    throw new Error(
+      `Installation refuses to replace drifted managed skill target: ${target}`,
+    );
+}
+
+export interface ManagedProfileReconciliation {
+  obsoleteActivationKeys: string[];
+  obsoletePackageIds: string[];
+  obsoleteTargets: string[];
+  obsoleteUnits: Array<{
+    packageId: string;
+    agent: AgentId;
+    unitId?: string;
+  }>;
+}
+
+export async function planManagedProfileReconciliation(
+  entries: InstallBatchEntry[],
+): Promise<ManagedProfileReconciliation> {
+  const state = await readInstallState();
+  const requestedAgents = new Set(
+    entries.flatMap((entry) => entry.plan.targetAgents),
+  );
+  const desiredTargets = new Set(
+    entries.flatMap((entry) => entry.plan.files.map((file) => file.target)),
+  );
+  const obsolete: ManagedActivationRecord[] = [];
+  for (const activation of state.activations ?? []) {
+    if (
+      !requestedAgents.has(activation.agent) ||
+      activation.installationState !== "installed" ||
+      activation.activationState !== "active"
+    )
+      continue;
+    const staleTargets = activation.targets.filter(
+      (target) => !desiredTargets.has(target.activePath),
+    );
+    if (!staleTargets.length) continue;
+    if (staleTargets.length !== activation.targets.length)
+      throw new Error(
+        `Profile reconciliation refuses a partially selected managed unit: ${activation.packageId}/${activation.unitId ?? "skill"}`,
+      );
+    const owner = state.installs.find(
+      (record) => record.packageId === activation.packageId,
+    );
+    for (const target of staleTargets)
+      await assertManagedTargetUnchanged(target.activePath, owner);
+    obsolete.push(activation);
+  }
+  return {
+    obsoleteActivationKeys: obsolete.map(activationKey),
+    obsoletePackageIds: [...new Set(obsolete.map((item) => item.packageId))],
+    obsoleteTargets: [
+      ...new Set(
+        obsolete.flatMap((item) =>
+          item.targets.map((target) => target.activePath),
+        ),
+      ),
+    ],
+    obsoleteUnits: obsolete.map((item) => ({
+      packageId: item.packageId,
+      agent: item.agent,
+      ...(item.unitId ? { unitId: item.unitId } : {}),
+    })),
+  };
+}
+
+function reconciliationSignature(
+  reconciliation: ManagedProfileReconciliation,
+): string {
+  return JSON.stringify({
+    keys: [...reconciliation.obsoleteActivationKeys].sort(),
+    targets: [...reconciliation.obsoleteTargets].sort(),
+  });
+}
+
+async function recordManagedProfileReconciliation(
+  reconciliation: ManagedProfileReconciliation,
+): Promise<void> {
+  if (!reconciliation.obsoleteActivationKeys.length) return;
+  const obsoleteKeys = new Set(reconciliation.obsoleteActivationKeys);
+  const affectedPackages = new Set(reconciliation.obsoletePackageIds);
+  const state = await readInstallState();
+  state.activations = (state.activations ?? []).filter(
+    (record) => !obsoleteKeys.has(activationKey(record)),
+  );
+  state.installs = state.installs.flatMap((install) => {
+    if (!affectedPackages.has(install.packageId)) return [install];
+    const remaining = (state.activations ?? []).filter(
+      (record) =>
+        record.packageId === install.packageId &&
+        record.installationState === "installed",
+    );
+    if (!remaining.length) return [];
+    const roots = remaining.flatMap((record) =>
+      record.targets.map((target) => target.activePath),
+    );
+    return [
+      {
+        ...install,
+        targetAgents: [...new Set(remaining.map((record) => record.agent))],
+        files: install.files.filter((file) =>
+          roots.some((root) => isInside(root, file.path)),
+        ),
+      },
+    ];
+  });
+  await writeInstallState(state);
 }
 
 async function assertExactDirectoryCopy(
@@ -135,15 +263,7 @@ async function assertActiveTargetsUnoccupied(
     if (occupied.every((target) => allowed.has(target))) {
       for (const target of occupied) {
         const owner = allowed.get(target);
-        const expected = relativeHashes(target, owner?.files ?? []);
-        const actual = relativeHashes(target, await hashDirectory(target));
-        if (
-          !expected.length ||
-          JSON.stringify(actual) !== JSON.stringify(expected)
-        )
-          throw new Error(
-            `Installation refuses to replace drifted managed skill target: ${target}`,
-          );
+        await assertManagedTargetUnchanged(target, owner);
       }
       return;
     }
@@ -250,6 +370,8 @@ export async function applySkillInstallBatch(
   extraSnapshotPaths: string[] = [],
   options: {
     replaceManagedTargets?: boolean;
+    reconcileManagedTargets?: boolean;
+    expectedReconciliation?: ManagedProfileReconciliation;
   } = {},
 ): Promise<string> {
   if (!entries.length) throw new Error("Installation batch is empty");
@@ -263,6 +385,22 @@ export async function applySkillInstallBatch(
     );
   const applied = await runMutationTransaction(
     async () => {
+      const reconciliation = options.reconcileManagedTargets
+        ? await planManagedProfileReconciliation(entries)
+        : {
+            obsoleteActivationKeys: [],
+            obsoletePackageIds: [],
+            obsoleteTargets: [],
+            obsoleteUnits: [],
+          };
+      if (
+        options.expectedReconciliation &&
+        reconciliationSignature(reconciliation) !==
+          reconciliationSignature(options.expectedReconciliation)
+      )
+        throw new Error(
+          "Profile reconciliation refused because managed state changed after preview; prepare the plan again.",
+        );
       await assertActiveTargetsUnoccupied(
         entries.map((entry) => entry.plan),
         { allowManagedReplacement: options.replaceManagedTargets },
@@ -294,11 +432,14 @@ export async function applySkillInstallBatch(
           ),
           installStatePath(),
           ...extraSnapshotPaths,
+          ...reconciliation.obsoleteTargets,
         ],
-        value: entries,
+        value: { entries, reconciliation },
       };
     },
-    async (freshEntries, snapshot) => {
+    async ({ entries: freshEntries, reconciliation }, snapshot) => {
+      for (const target of reconciliation.obsoleteTargets)
+        await rm(target, { recursive: true, force: true });
       if (options.replaceManagedTargets)
         for (const target of [
           ...new Set(
@@ -318,6 +459,7 @@ export async function applySkillInstallBatch(
               "Exact setup copy verification failed",
             );
       await recordInstallBatch(freshEntries, snapshot.id);
+      await recordManagedProfileReconciliation(reconciliation);
     },
   );
   return applied.snapshotId;

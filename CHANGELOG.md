@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.2 - 2026-07-17
+
+### Fixed
+
+- Reconcile Stable and Power to their exact managed skill sets instead of leaving skills from the previous profile active.
+- Preview every managed skill that profile setup will retire and reject an apply if managed state changed after the preview.
+- Snapshot retired skills in the same transaction, preserve unmanaged skills, and refuse to retire locally changed managed content.
+
 ## 0.2.1 - 2026-07-17
 
 ### Fixed

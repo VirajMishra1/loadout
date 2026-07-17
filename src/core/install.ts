@@ -1,6 +1,14 @@
 import { existsSync } from "node:fs";
 import { cp, lstat, rm } from "node:fs/promises";
-import { basename, dirname, join, posix, relative, win32 } from "node:path";
+import {
+  basename,
+  dirname,
+  isAbsolute,
+  join,
+  posix,
+  relative,
+  win32,
+} from "node:path";
 import type {
   AgentId,
   DetectedAgent,
@@ -37,6 +45,35 @@ export function installedAgents(
   return selected;
 }
 
+function relativeHashes(
+  root: string,
+  files: Array<{ path: string; sha256: string }>,
+): Array<{ path: string; sha256: string }> {
+  return files
+    .filter((file) => {
+      const child = relative(root, file.path);
+      return child !== "" && !child.startsWith("..") && !isAbsolute(child);
+    })
+    .map((file) => ({
+      path: relative(root, file.path),
+      sha256: file.sha256,
+    }))
+    .sort((left, right) => left.path.localeCompare(right.path));
+}
+
+async function assertExactDirectoryCopy(
+  source: string,
+  target: string,
+  label: string,
+): Promise<void> {
+  const [expected, actual] = await Promise.all([
+    hashDirectory(source).then((files) => relativeHashes(source, files)),
+    hashDirectory(target).then((files) => relativeHashes(target, files)),
+  ]);
+  if (JSON.stringify(actual) !== JSON.stringify(expected))
+    throw new Error(`${label} for ${target}`);
+}
+
 async function assertActiveTargetsUnoccupied(
   plans: InstallPlan[],
   options: { allowManagedReplacement?: boolean } = {},
@@ -59,34 +96,57 @@ async function assertActiveTargetsUnoccupied(
     }
   if (occupied.length && options.allowManagedReplacement) {
     const state = await readInstallState();
-    const allowed = new Set(
-      plans.flatMap((plan) => {
-        const install = state.installs.find(
-          (record) => record.packageId === plan.packageId,
-        );
-        const packageActivations = (state.activations ?? []).filter(
-          (record) => record.packageId === plan.packageId,
-        );
-        const active =
-          packageActivations.length === 0 ||
-          packageActivations.some(
+    const allowed = new Map<string, (typeof state.installs)[number]>();
+    for (const plan of plans) {
+      const install = state.installs.find(
+        (record) => record.packageId === plan.packageId,
+      );
+      const packageActivations = (state.activations ?? []).filter(
+        (record) => record.packageId === plan.packageId,
+      );
+      if (!install) continue;
+      const activeTargets = new Set(
+        packageActivations
+          .filter(
             (record) =>
               record.installationState === "installed" &&
               record.activationState === "active",
+          )
+          .flatMap((record) =>
+            record.targets.map((target) => target.activePath),
+          ),
+      );
+      const recorded = install.files
+        .filter((file) => basename(file.path) === "SKILL.md")
+        .map((file) => dirname(file.path))
+        .filter(
+          (target) =>
+            packageActivations.length === 0 || activeTargets.has(target),
+        );
+      const legacy = packageActivations.length
+        ? []
+        : plan.files
+            .map((file) => file.target)
+            .filter((target) => basename(target) === plan.packageId);
+      for (const target of [...recorded, ...legacy])
+        if (plan.files.some((file) => file.target === target))
+          allowed.set(target, install);
+    }
+    if (occupied.every((target) => allowed.has(target))) {
+      for (const target of occupied) {
+        const owner = allowed.get(target);
+        const expected = relativeHashes(target, owner?.files ?? []);
+        const actual = relativeHashes(target, await hashDirectory(target));
+        if (
+          !expected.length ||
+          JSON.stringify(actual) !== JSON.stringify(expected)
+        )
+          throw new Error(
+            `Installation refuses to replace drifted managed skill target: ${target}`,
           );
-        if (!install || !active) return [];
-        const recorded = install.files
-          .filter((file) => basename(file.path) === "SKILL.md")
-          .map((file) => dirname(file.path));
-        const legacy = packageActivations.length
-          ? []
-          : plan.files
-              .map((file) => file.target)
-              .filter((target) => basename(target) === plan.packageId);
-        return [...recorded, ...legacy];
-      }),
-    );
-    if (occupied.every((target) => allowed.has(target))) return;
+      }
+      return;
+    }
   }
   if (occupied.length)
     throw new Error(
@@ -166,22 +226,11 @@ export async function applySkillInstall(
       await applySkillPlan(freshPlan);
       if (options.replaceManagedTargets)
         for (const file of freshPlan.files) {
-          const expected = (await hashDirectory(file.source))
-            .map((entry) => ({
-              path: relative(file.source, entry.path),
-              sha256: entry.sha256,
-            }))
-            .sort((left, right) => left.path.localeCompare(right.path));
-          const actual = (await hashDirectory(file.target))
-            .map((entry) => ({
-              path: relative(file.target, entry.path),
-              sha256: entry.sha256,
-            }))
-            .sort((left, right) => left.path.localeCompare(right.path));
-          if (JSON.stringify(actual) !== JSON.stringify(expected))
-            throw new Error(
-              `Exact update copy verification failed for ${file.target}`,
-            );
+          await assertExactDirectoryCopy(
+            file.source,
+            file.target,
+            "Exact update copy verification failed",
+          );
         }
       await recordInstall(freshPlan, snapshot.id, metadata);
       await options.verifyBeforeCommit?.(snapshot.id);
@@ -199,6 +248,9 @@ export interface InstallBatchEntry {
 export async function applySkillInstallBatch(
   entries: InstallBatchEntry[],
   extraSnapshotPaths: string[] = [],
+  options: {
+    replaceManagedTargets?: boolean;
+  } = {},
 ): Promise<string> {
   if (!entries.length) throw new Error("Installation batch is empty");
   const conflicts = detectInstallConflicts(entries.map((entry) => entry.plan));
@@ -211,7 +263,10 @@ export async function applySkillInstallBatch(
     );
   const applied = await runMutationTransaction(
     async () => {
-      await assertActiveTargetsUnoccupied(entries.map((entry) => entry.plan));
+      await assertActiveTargetsUnoccupied(
+        entries.map((entry) => entry.plan),
+        { allowManagedReplacement: options.replaceManagedTargets },
+      );
       for (const entry of entries) {
         entry.plan.conflicts = [
           ...(entry.plan.conflicts ?? []),
@@ -244,7 +299,24 @@ export async function applySkillInstallBatch(
       };
     },
     async (freshEntries, snapshot) => {
+      if (options.replaceManagedTargets)
+        for (const target of [
+          ...new Set(
+            freshEntries.flatMap((entry) =>
+              entry.plan.files.map((file) => file.target),
+            ),
+          ),
+        ])
+          await rm(target, { recursive: true, force: true });
       for (const entry of freshEntries) await applySkillPlan(entry.plan);
+      if (options.replaceManagedTargets)
+        for (const entry of freshEntries)
+          for (const file of entry.plan.files)
+            await assertExactDirectoryCopy(
+              file.source,
+              file.target,
+              "Exact setup copy verification failed",
+            );
       await recordInstallBatch(freshEntries, snapshot.id);
     },
   );

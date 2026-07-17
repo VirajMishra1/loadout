@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.1 - 2026-07-17
+
+### Fixed
+
+- Make Stable and Power setup safe to rerun when Loadout already owns some target skills.
+- Preserve unmanaged skills and refuse to replace managed skills that changed outside Loadout.
+- Verify every replacement byte and keep mixed existing/new-agent installs rollback-safe.
+
 ## 0.2.0 - 2026-07-17
 
 ### Added

@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join, win32 } from "node:path";
 import {
   applySkillInstall,
+  applySkillInstallBatch,
   buildSkillPlan,
   snapshotPath,
 } from "../src/core/install.js";
@@ -189,6 +190,116 @@ describe("skill installation transaction", () => {
       /occupied skill target/,
     );
     expect(await readFile(join(occupied, "SKILL.md"), "utf8")).toBe(original);
+  });
+
+  it("does not treat an unmanaged batch collision as replaceable", async () => {
+    const root = await mkdtemp(join(tmpdir(), "loadout-unmanaged-batch-"));
+    directories.push(root);
+    process.env.LOADOUT_HOME = join(root, ".loadout");
+    const source = join(root, "source");
+    const target = join(root, "skills");
+    const occupied = join(target, "source");
+    await mkdir(source, { recursive: true });
+    await mkdir(occupied, { recursive: true });
+    await writeFile(
+      join(source, "SKILL.md"),
+      "---\nname: source\ndescription: Reviewed source\n---\n",
+    );
+    const original =
+      "---\nname: source\ndescription: Unmanaged user source\n---\n";
+    await writeFile(join(occupied, "SKILL.md"), original);
+    const plan = await buildSkillPlan(source, "source", [agent(target)]);
+
+    await expect(
+      applySkillInstallBatch([{ plan }], [], { replaceManagedTargets: true }),
+    ).rejects.toThrow(/occupied skill target/);
+    expect(await readFile(join(occupied, "SKILL.md"), "utf8")).toBe(original);
+  });
+
+  it("reruns a managed batch while adding the same loadout to another agent", async () => {
+    const root = await mkdtemp(join(tmpdir(), "loadout-managed-rerun-"));
+    directories.push(root);
+    process.env.LOADOUT_HOME = join(root, ".loadout");
+    const source = join(root, "source");
+    const codexTarget = join(root, "codex", "skills");
+    const claudeTarget = join(root, "claude", "skills");
+    await mkdir(source, { recursive: true });
+    await writeFile(
+      join(source, "SKILL.md"),
+      "---\nname: source\ndescription: Managed rerun fixture\n---\n",
+    );
+
+    const firstPlan = await buildSkillPlan(source, "source", [
+      agent(codexTarget),
+    ]);
+    await applySkillInstallBatch([{ plan: firstPlan }]);
+
+    const secondPlan = await buildSkillPlan(source, "source", [
+      agent(codexTarget),
+      {
+        id: "claude-code",
+        displayName: "Claude Code",
+        binary: "claude",
+        installed: true,
+        skillsDirectory: claudeTarget,
+      },
+    ]);
+    const secondSnapshot = await applySkillInstallBatch(
+      [{ plan: secondPlan }],
+      [],
+      { replaceManagedTargets: true },
+    );
+    await expect(
+      readFile(join(codexTarget, "source", "SKILL.md"), "utf8"),
+    ).resolves.toContain("Managed rerun fixture");
+    await expect(
+      readFile(join(claudeTarget, "source", "SKILL.md"), "utf8"),
+    ).resolves.toContain("Managed rerun fixture");
+    expect((await readInstallState()).installs[0]?.targetAgents.sort()).toEqual(
+      ["claude-code", "codex"],
+    );
+
+    const snapshot = JSON.parse(
+      await readFile(
+        join(process.env.LOADOUT_HOME, "snapshots", `${secondSnapshot}.json`),
+        "utf8",
+      ),
+    );
+    await restoreSnapshot(snapshot);
+    await expect(
+      readFile(join(codexTarget, "source", "SKILL.md"), "utf8"),
+    ).resolves.toContain("Managed rerun fixture");
+    await expect(
+      readFile(join(claudeTarget, "source", "SKILL.md"), "utf8"),
+    ).rejects.toMatchObject({ code: "ENOENT" });
+    expect((await readInstallState()).installs[0]?.targetAgents).toEqual([
+      "codex",
+    ]);
+  });
+
+  it("refuses to replace a managed batch target that changed outside Loadout", async () => {
+    const root = await mkdtemp(join(tmpdir(), "loadout-managed-drift-"));
+    directories.push(root);
+    process.env.LOADOUT_HOME = join(root, ".loadout");
+    const source = join(root, "source");
+    const target = join(root, "codex", "skills");
+    await mkdir(source, { recursive: true });
+    await writeFile(
+      join(source, "SKILL.md"),
+      "---\nname: source\ndescription: Managed drift fixture\n---\n",
+    );
+    const plan = await buildSkillPlan(source, "source", [agent(target)]);
+    await applySkillInstallBatch([{ plan }]);
+    const changed =
+      "---\nname: source\ndescription: User changed this managed skill\n---\n";
+    await writeFile(join(target, "source", "SKILL.md"), changed);
+
+    await expect(
+      applySkillInstallBatch([{ plan }], [], { replaceManagedTargets: true }),
+    ).rejects.toThrow(/drifted managed skill target/);
+    expect(await readFile(join(target, "source", "SKILL.md"), "utf8")).toBe(
+      changed,
+    );
   });
 
   it("restores all changes when a later copy fails", async () => {

@@ -406,5 +406,7 @@ export async function applyPreparedCatalogInstall(
     );
   return prepared.selection.mode === "maximum"
     ? applySkillLibraryBatch(prepared.entries)
-    : applySkillInstallBatch(prepared.entries);
+    : applySkillInstallBatch(prepared.entries, [], {
+        replaceManagedTargets: true,
+      });
 }

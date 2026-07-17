@@ -141,7 +141,6 @@ describe("README fact generator", () => {
           installShapes: { mcpOnly: 2 },
           noAssertionLicenses: 1,
         },
-        profiles: { stable: { sources: 3 } },
         agents: { supportedNames: ["Zulu", "äther", "Alpha"] },
       },
       packageJson: {

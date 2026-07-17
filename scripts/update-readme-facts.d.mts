@@ -22,7 +22,6 @@ export interface ReadmeFactBlockSources {
       installShapes: { mcpOnly: number };
       noAssertionLicenses: number;
     };
-    profiles: { stable: { sources: number } };
     agents: { supportedNames: string[] };
   };
   packageJson: { scripts: { verify: string } };

@@ -124,26 +124,6 @@ export async function renderReadmeFactBlocks() {
   return renderReadmeFactBlocksFromSources(await sourceFacts());
 }
 
-/** Replace exactly one machine-owned block while preserving all human prose. */
-export function replaceGeneratedBlock(readme, name, content) {
-  const start = marker(name, "start");
-  const end = marker(name, "end");
-  const startIndex = readme.indexOf(start);
-  const endIndex = readme.indexOf(end);
-  if (
-    startIndex === -1 ||
-    endIndex === -1 ||
-    startIndex >= endIndex ||
-    startIndex !== readme.lastIndexOf(start) ||
-    endIndex !== readme.lastIndexOf(end)
-  ) {
-    throw new Error(
-      `README must contain exactly one ordered generated marker block for '${name}'`,
-    );
-  }
-  return `${readme.slice(0, startIndex)}${start}\n\n${content}\n\n${end}${readme.slice(endIndex + end.length)}`;
-}
-
 function generatedMarkerSpan(readme, name) {
   const start = marker(name, "start");
   const end = marker(name, "end");
@@ -160,7 +140,13 @@ function generatedMarkerSpan(readme, name) {
       `README must contain exactly one ordered generated marker block for '${name}'`,
     );
   }
-  return { name, start: startIndex, end: endIndex + end.length };
+  return { name, start, end, startIndex, endIndex: endIndex + end.length };
+}
+
+/** Replace exactly one machine-owned block while preserving all human prose. */
+export function replaceGeneratedBlock(readme, name, content) {
+  const span = generatedMarkerSpan(readme, name);
+  return `${readme.slice(0, span.startIndex)}${span.start}\n\n${content}\n\n${span.end}${readme.slice(span.endIndex)}`;
 }
 
 function validateGeneratedMarkerSpans(readme) {
@@ -168,11 +154,11 @@ function validateGeneratedMarkerSpans(readme) {
     .map((name) => generatedMarkerSpan(readme, name))
     .sort(
       (left, right) =>
-        left.start - right.start ||
+        left.startIndex - right.startIndex ||
         (left.name < right.name ? -1 : left.name > right.name ? 1 : 0),
     );
   for (let index = 1; index < spans.length; index += 1) {
-    if (spans[index].start < spans[index - 1].end) {
+    if (spans[index].startIndex < spans[index - 1].endIndex) {
       throw new Error(
         `README generated marker blocks are overlapping: '${spans[index - 1].name}' and '${spans[index].name}'`,
       );

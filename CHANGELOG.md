@@ -6,6 +6,7 @@
 
 - Validate large rollback snapshots in linear, constant-stack time so project-aware activation can safely snapshot large reviewed skills.
 - Preserve strict malformed-base64 rejection without relying on a stack-intensive regular expression.
+- Rewrite every generated Graphify top-level lookup, repair, and optional Gemini install to the reviewed hashed artifact instead of leaving unpinned package fallbacks.
 
 ## 0.2.2 - 2026-07-17
 

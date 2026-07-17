@@ -74,7 +74,13 @@ describe("reviewed runtime tool recipes", () => {
         await mkdir(join(target, "references"), { recursive: true });
         await writeFile(
           join(target, "SKILL.md"),
-          "uv tool run --from graphifyy python -m graphify\n",
+          [
+            "uv tool run --from graphifyy python -m graphify",
+            "uv tool install --upgrade graphifyy -q",
+            "python -m pip install graphifyy -q",
+            "Tip: pip install 'graphifyy[gemini]'",
+            "",
+          ].join("\n"),
         );
       }
       return {
@@ -95,11 +101,19 @@ describe("reviewed runtime tool recipes", () => {
     expect(await readFile(join(target, "SKILL.md"), "utf8")).toContain(
       GRAPHIFY_RECIPE.artifactSha256,
     );
-    expect(await readFile(join(target, "SKILL.md"), "utf8")).toBe(
-      `uv tool run --from 'graphifyy @ ${GRAPHIFY_RECIPE.artifactUrl}#sha256=${GRAPHIFY_RECIPE.artifactSha256}' python -m graphify\n`,
+    const generated = await readFile(join(target, "SKILL.md"), "utf8");
+    expect(generated).not.toContain("--from graphifyy ");
+    expect(generated).not.toContain("install --upgrade graphifyy ");
+    expect(generated).not.toContain("pip install graphifyy ");
+    expect(generated).not.toContain("pip install 'graphifyy[gemini]'");
+    expect(generated).toContain(
+      `uv tool install 'graphifyy @ ${GRAPHIFY_RECIPE.artifactUrl}#sha256=${GRAPHIFY_RECIPE.artifactSha256}' --exclude-newer 2026-07-17T00:00:00Z`,
     );
-    expect(await readFile(join(target, "SKILL.md"), "utf8")).not.toContain(
-      "--from graphifyy ",
+    expect(generated).toContain(
+      `pip install 'graphifyy @ ${GRAPHIFY_RECIPE.artifactUrl}#sha256=${GRAPHIFY_RECIPE.artifactSha256}'`,
+    );
+    expect(generated).toContain(
+      `pip install 'graphifyy[gemini] @ ${GRAPHIFY_RECIPE.artifactUrl}#sha256=${GRAPHIFY_RECIPE.artifactSha256}'`,
     );
 
     const removePlan = await planRuntimeTool("graphify", {

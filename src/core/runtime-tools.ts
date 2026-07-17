@@ -218,6 +218,24 @@ export const GRAPHIFY_RECIPE: RuntimeToolRecipe = deepFreeze(
           to: "--from '{artifactRequirement}'",
           mustEliminate: true,
         },
+        {
+          fileExtension: ".md",
+          from: "install --upgrade graphifyy",
+          to: "install '{artifactRequirement}' --exclude-newer 2026-07-17T00:00:00Z",
+          mustEliminate: true,
+        },
+        {
+          fileExtension: ".md",
+          from: "pip install graphifyy",
+          to: "pip install '{artifactRequirement}'",
+          mustEliminate: true,
+        },
+        {
+          fileExtension: ".md",
+          from: "pip install 'graphifyy[gemini]'",
+          to: "pip install 'graphifyy[gemini] @ {artifactUrl}#sha256={artifactSha256}'",
+          mustEliminate: true,
+        },
       ],
     },
     guarantees: [
@@ -225,7 +243,7 @@ export const GRAPHIFY_RECIPE: RuntimeToolRecipe = deepFreeze(
       "exact top-level wheel URL and SHA-256; dependency uploads bounded by the reviewed cutoff",
       "no API keys or provider credentials inherited by installer subprocesses",
       "agent skill targets and isolated runtime are snapshotted for rollback/removal",
-      "generated runtime lookup is rewritten to the same pinned Graphify artifact",
+      "generated top-level Graphify lookups and repair commands are rewritten to the same pinned artifact",
     ],
   }),
 );

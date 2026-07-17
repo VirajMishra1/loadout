@@ -153,11 +153,17 @@ const generatedFilesSchema = z
         .object({
           fileExtension: z.string().regex(/^\.[A-Za-z0-9]+$/),
           from: nonControlTextSchema,
-          to: nonControlTextSchema.refine(
-            (value) =>
-              !/[{}]/u.test(value.replaceAll("{artifactRequirement}", "")),
-            "unknown rewrite template variable",
-          ),
+          to: nonControlTextSchema.refine((value) => {
+            const rendered = [
+              "{artifactRequirement}",
+              "{artifactUrl}",
+              "{artifactSha256}",
+            ].reduce(
+              (current, placeholder) => current.replaceAll(placeholder, ""),
+              value,
+            );
+            return !/[{}]/u.test(rendered);
+          }, "unknown rewrite template variable"),
           mustEliminate: z.boolean(),
         })
         .strict(),
@@ -378,6 +384,8 @@ export function renderRuntimeRecipeValue(
 ): string {
   return value
     .replaceAll("{artifactRequirement}", runtimeArtifactRequirement(recipe))
+    .replaceAll("{artifactUrl}", recipe.artifactUrl)
+    .replaceAll("{artifactSha256}", recipe.artifactSha256)
     .replaceAll("{version}", recipe.version);
 }
 

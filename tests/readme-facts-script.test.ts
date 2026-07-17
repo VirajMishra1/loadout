@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   replaceGeneratedBlock,
   renderReadmeFactBlocks,
+  renderReadmeFactBlocksFromSources,
   updateReadmeFacts,
 } from "../scripts/update-readme-facts.mjs";
 
@@ -72,6 +73,27 @@ describe("README fact generator", () => {
     ).toThrow(/exactly one ordered/i);
   });
 
+  it("rejects nested marker spans before writing the README", async () => {
+    const nestedCatalogAndSupport = [
+      "<!-- loadout:catalog-coverage:start -->",
+      "<!-- loadout:support-summary:start -->",
+      "<!-- loadout:support-summary:end -->",
+      "<!-- loadout:catalog-coverage:end -->",
+    ].join("\n");
+    const before = `${[
+      nestedCatalogAndSupport,
+      ...blockNames
+        .filter(
+          (name) => name !== "catalog-coverage" && name !== "support-summary",
+        )
+        .map((name) => markers(name)),
+    ].join("\n\n")}\n`;
+    const path = await temporaryReadme(before);
+
+    await expect(updateReadmeFacts({ path })).rejects.toThrow(/overlapping/i);
+    expect(await readFile(path, "utf8")).toBe(before);
+  });
+
   it("updates only bytes inside the selected marker pair", () => {
     const before = `Human introduction\n\n${markers("catalog-coverage", "old")}\n\nHuman footer\n`;
     const after = replaceGeneratedBlock(before, "catalog-coverage", "new");
@@ -96,5 +118,41 @@ describe("README fact generator", () => {
     expect(blocks["evidence-stages"]).toContain(
       "| Stage          | Records |\n| -------------- | ------: |",
     );
+  });
+
+  it("uses catalog evidence for Stable policy counts and code-point support sorting", () => {
+    const blocks = renderReadmeFactBlocksFromSources({
+      coverage: {
+        technicallyScreenedRecords: 8,
+        recommendedRecords: 7,
+        trustStages: {
+          benchmarked: 0,
+          discovered: 0,
+          "human-reviewed": 0,
+          inspected: 1,
+          recommended: 7,
+        },
+      },
+      facts: {
+        catalog: {
+          records: 8,
+          categories: 2,
+          components: { skill: 3 },
+          installShapes: { mcpOnly: 2 },
+          noAssertionLicenses: 1,
+        },
+        profiles: { stable: { sources: 3 } },
+        agents: { supportedNames: ["Zulu", "äther", "Alpha"] },
+      },
+      packageJson: {
+        scripts: { verify: "npm run check:evidence && npm test" },
+      },
+    });
+
+    expect(blocks["catalog-coverage"]).toContain(
+      "7 sources currently satisfy the stricter Stable recommendation policy",
+    );
+    expect(blocks["evidence-stages"]).toContain("| recommended    |       7 |");
+    expect(blocks["support-summary"]).toContain("Alpha, Zulu, äther");
   });
 });

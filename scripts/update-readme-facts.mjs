@@ -86,19 +86,22 @@ async function sourceFacts() {
   };
 }
 
-export async function renderReadmeFactBlocks() {
-  const { coverage, facts, packageJson } = await sourceFacts();
-  const supportedAgents = [...facts.agents.supportedNames].sort((left, right) =>
-    left.localeCompare(right),
+export function renderReadmeFactBlocksFromSources({
+  coverage,
+  facts,
+  packageJson,
+}) {
+  const supportedAgents = [...facts.agents.supportedNames].sort(
+    (left, right) => (left < right ? -1 : left > right ? 1 : 0),
   );
   const evidenceRows = Object.entries(coverage.trustStages).sort(
-    ([left], [right]) => left.localeCompare(right),
+    ([left], [right]) => (left < right ? -1 : left > right ? 1 : 0),
   );
   const commands = verificationCommands(packageJson.scripts.verify);
 
   return {
     "catalog-coverage": [
-      `The bundled catalog currently contains **${facts.catalog.records} credited public repositories** across **${facts.catalog.categories} categories**: **${facts.catalog.components.skill} have skill components** and **${facts.catalog.installShapes.mcpOnly} are MCP-only**. All ${coverage.technicallyScreenedRecords} are technically screened and pinned; ${facts.profiles.stable.sources} sources currently satisfy the stricter Stable recommendation policy. See every linked source, license status, component type, and pinned commit in **[Catalog and upstream credits](./docs/CATALOG.md)**.`,
+      `The bundled catalog currently contains **${facts.catalog.records} credited public repositories** across **${facts.catalog.categories} categories**: **${facts.catalog.components.skill} have skill components** and **${facts.catalog.installShapes.mcpOnly} are MCP-only**. All ${coverage.technicallyScreenedRecords} are technically screened and pinned; ${coverage.recommendedRecords} sources currently satisfy the stricter Stable recommendation policy. See every linked source, license status, component type, and pinned commit in **[Catalog and upstream credits](./docs/CATALOG.md)**.`,
     ].join("\n"),
     "evidence-stages": [
       "Current catalog evidence-stage counts:",
@@ -115,6 +118,10 @@ export async function renderReadmeFactBlocks() {
       `- **${facts.catalog.noAssertionLicenses} catalog records** currently have \`NOASSERTION\` license status and need upstream-license review before a public release decision.`,
     ].join("\n"),
   };
+}
+
+export async function renderReadmeFactBlocks() {
+  return renderReadmeFactBlocksFromSources(await sourceFacts());
 }
 
 /** Replace exactly one machine-owned block while preserving all human prose. */
@@ -137,12 +144,49 @@ export function replaceGeneratedBlock(readme, name, content) {
   return `${readme.slice(0, startIndex)}${start}\n\n${content}\n\n${end}${readme.slice(endIndex + end.length)}`;
 }
 
+function generatedMarkerSpan(readme, name) {
+  const start = marker(name, "start");
+  const end = marker(name, "end");
+  const startIndex = readme.indexOf(start);
+  const endIndex = readme.indexOf(end);
+  if (
+    startIndex === -1 ||
+    endIndex === -1 ||
+    startIndex >= endIndex ||
+    startIndex !== readme.lastIndexOf(start) ||
+    endIndex !== readme.lastIndexOf(end)
+  ) {
+    throw new Error(
+      `README must contain exactly one ordered generated marker block for '${name}'`,
+    );
+  }
+  return { name, start: startIndex, end: endIndex + end.length };
+}
+
+function validateGeneratedMarkerSpans(readme) {
+  const spans = blockNames
+    .map((name) => generatedMarkerSpan(readme, name))
+    .sort(
+      (left, right) =>
+        left.start - right.start ||
+        (left.name < right.name ? -1 : left.name > right.name ? 1 : 0),
+    );
+  for (let index = 1; index < spans.length; index += 1) {
+    if (spans[index].start < spans[index - 1].end) {
+      throw new Error(
+        `README generated marker blocks are overlapping: '${spans[index - 1].name}' and '${spans[index].name}'`,
+      );
+    }
+  }
+}
+
 export async function updateReadmeFacts({
   path = resolve(projectRoot, "README.md"),
   check = false,
 } = {}) {
   const blocks = await renderReadmeFactBlocks();
   const readme = await readFile(path, "utf8");
+  validateGeneratedMarkerSpans(readme);
   const nextReadme = blockNames.reduce(
     (current, name) => replaceGeneratedBlock(current, name, blocks[name]),
     readme,

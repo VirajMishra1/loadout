@@ -8,7 +8,31 @@ export interface ReadmeFactUpdateResult {
   wrote: boolean;
 }
 
+export interface ReadmeFactBlockSources {
+  coverage: {
+    technicallyScreenedRecords: number;
+    recommendedRecords: number;
+    trustStages: Record<string, number>;
+  };
+  facts: {
+    catalog: {
+      records: number;
+      categories: number;
+      components: { skill: number };
+      installShapes: { mcpOnly: number };
+      noAssertionLicenses: number;
+    };
+    profiles: { stable: { sources: number } };
+    agents: { supportedNames: string[] };
+  };
+  packageJson: { scripts: { verify: string } };
+}
+
 export function renderReadmeFactBlocks(): Promise<Record<string, string>>;
+
+export function renderReadmeFactBlocksFromSources(
+  sources: ReadmeFactBlockSources,
+): Record<string, string>;
 
 export function replaceGeneratedBlock(
   readme: string,

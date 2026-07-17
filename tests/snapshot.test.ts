@@ -14,6 +14,7 @@ import {
   listSnapshotIds,
   readSnapshot,
   restoreSnapshot,
+  validateSnapshot,
 } from "../src/core/snapshot.js";
 
 describe("rollback snapshots", () => {
@@ -119,4 +120,45 @@ describe("rollback snapshots", () => {
     process.env.LOADOUT_HOME = join(root, ".loadout");
     expect(await listSnapshotIds()).toEqual([]);
   });
+
+  it("validates large binary snapshots without overflowing the call stack", () => {
+    const target = "/tmp/loadout-large-snapshot.bin";
+    expect(() =>
+      validateSnapshot({
+        id: `${Date.now()}-${"c".repeat(12)}`,
+        createdAt: new Date().toISOString(),
+        roots: [target],
+        files: [
+          {
+            path: target,
+            existed: true,
+            content: Buffer.alloc(4 * 1024 * 1024, 0x5a).toString("base64"),
+            encoding: "base64",
+          },
+        ],
+      }),
+    ).not.toThrow();
+  });
+
+  it.each(["AAA", "AA=A", "AAAA====", "AAAA\n"])(
+    "rejects malformed base64 snapshot bytes: %j",
+    (content) => {
+      const target = "/tmp/loadout-invalid-snapshot.bin";
+      expect(() =>
+        validateSnapshot({
+          id: `${Date.now()}-${"d".repeat(12)}`,
+          createdAt: new Date().toISOString(),
+          roots: [target],
+          files: [
+            {
+              path: target,
+              existed: true,
+              content,
+              encoding: "base64",
+            },
+          ],
+        }),
+      ).toThrow(/bytes are invalid/);
+    },
+  );
 });

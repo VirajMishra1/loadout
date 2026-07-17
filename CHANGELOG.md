@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.3 - 2026-07-17
+
+### Fixed
+
+- Validate large rollback snapshots in linear, constant-stack time so project-aware activation can safely snapshot large reviewed skills.
+- Preserve strict malformed-base64 rejection without relying on a stack-intensive regular expression.
+
 ## 0.2.2 - 2026-07-17
 
 ### Fixed

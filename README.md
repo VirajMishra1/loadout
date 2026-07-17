@@ -4,6 +4,12 @@
 
 Loadout works with Codex, Claude Code, Cursor, Gemini CLI, OpenCode, Hermes, Windsurf, Cline, GitHub Copilot, Roo Code, Kiro CLI, and Junie on macOS, Linux, and Windows.
 
+<!-- loadout:support-summary:start -->
+
+Loadout's adapter capability matrix currently declares native skill-directory support for **12 agents**: Claude Code, Cline, Codex, Cursor, Gemini CLI, GitHub Copilot, Hermes, Junie, Kiro CLI, OpenCode, Roo Code, Windsurf.
+
+<!-- loadout:support-summary:end -->
+
 It solves a simple problem: useful skills and MCP tools are scattered across hundreds of repositories. Loadout brings them into one place, checks what is actually inside, shows every change before making it, and keeps a snapshot so you can undo it.
 
 ## Start here
@@ -84,6 +90,26 @@ The selection process is:
 6. **Keep watching.** New candidates and changes are recorded every day, but nothing is silently promoted or installed.
 
 The bundled catalog contains **50 credited public repositories** across 37 categories. Thirty-one contain skills and 19 are MCP-only. See every source, direct repository link, pinned commit, component type, and license status in **[Catalog and upstream credits](./docs/CATALOG.md)**.
+
+<!-- loadout:catalog-coverage:start -->
+
+The bundled catalog currently contains **50 credited public repositories** across **37 categories**: **31 have skill components** and **19 are MCP-only**. All 50 are technically screened and pinned; 4 sources currently satisfy the stricter Stable recommendation policy. See every linked source, license status, component type, and pinned commit in **[Catalog and upstream credits](./docs/CATALOG.md)**.
+
+<!-- loadout:catalog-coverage:end -->
+
+<!-- loadout:evidence-stages:start -->
+
+Current catalog evidence-stage counts:
+
+| Stage          | Records |
+| -------------- | ------: |
+| benchmarked    |       0 |
+| discovered     |       0 |
+| human-reviewed |       0 |
+| inspected      |      46 |
+| recommended    |       4 |
+
+<!-- loadout:evidence-stages:end -->
 
 Loadout does not claim there is one universally “best” configuration. “Recommended” means the strongest choice supported by the evidence and policy currently stored in Loadout, not a permanent verdict for every person or project.
 
@@ -280,6 +306,12 @@ npm run verify
 
 `verify` checks formatting, lint, types, catalog evidence, unit and integration tests, a real CLI product flow, an installed-package smoke test, and a 1,000-skill performance gate.
 
+<!-- loadout:verification-summary:start -->
+
+`verify` invokes `format:check`, `lint`, `typecheck`, `check:evidence`, `test`, `test:e2e:cli`, `test:package`, `test:performance` in that order. Use `npm run verify:full` to include the optional Playwright dashboard check.
+
+<!-- loadout:verification-summary:end -->
+
 Use the **[product testing guide](./docs/TESTING.md)** for Power, Maximum, project optimization, credentials, and rollback. Use the **[complete feature matrix](./docs/FEATURE_TEST_MATRIX.md)** when you want to exercise every CLI feature and understand which commands read files, use the network, start processes, or write state.
 
 No bundled source is called benchmarked until real isolated trials, signed evidence, and human approval exist.
@@ -291,6 +323,12 @@ No bundled source is called benchmarked until real isolated trials, signed evide
 - MCP-only records need explicit configuration and may need external credentials or software.
 - Graphify is the first fully reviewed executable recipe; other runtime tools need equivalent recipe work.
 - Six catalog records currently have `NOASSERTION` license metadata and should be reviewed before relying on their license status.
+
+<!-- loadout:current-limits:start -->
+
+- **6 catalog records** currently have `NOASSERTION` license status and need upstream-license review before a public release decision.
+
+<!-- loadout:current-limits:end -->
 - The local registry works for development and self-hosting; there is no hosted Loadout registry service yet.
 - The optional dashboard exists for diagnostics, but the complete product is CLI-first.
 

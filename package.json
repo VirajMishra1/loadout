@@ -59,6 +59,8 @@
     "pretest:performance": "npm run build",
     "test:performance": "node scripts/scan-benchmark.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
+    "readme:update": "node scripts/update-readme-facts.mjs",
+    "readme:check": "node scripts/update-readme-facts.mjs --check",
     "check:evidence": "node scripts/check-catalog-attribution.mjs && node scripts/check-discovery-artifacts.mjs && node --import tsx scripts/check-release-claims.ts",
     "feed:build": "node --import tsx scripts/build-intelligence-feed.ts",
     "verify": "npm run format:check && npm run lint && npm run typecheck && npm run check:evidence && npm test -- --run && npm run test:e2e:cli && npm run test:package && npm run test:performance",

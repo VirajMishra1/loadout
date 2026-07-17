@@ -90,6 +90,7 @@ export interface PlanUpgradeOptions {
   detectedAgents?: DetectedAgent[];
   fetchSnapshot?: PrepareCatalogInstallOptions["fetchSnapshot"];
   onProgress?: PrepareCatalogInstallOptions["onProgress"];
+  access?: PrepareCatalogInstallOptions["access"];
   health?: () => Promise<HealthReport>;
   healthScores?: () => Promise<AgentHealthScore[]>;
   projectScan?: (path: string) => Promise<ProjectSignals>;
@@ -130,6 +131,7 @@ export async function planUpgrade(
           ? { fetchSnapshot: options.fetchSnapshot }
           : {}),
         ...(options.onProgress ? { onProgress: options.onProgress } : {}),
+        ...(options.access ? { access: options.access } : {}),
       }),
       outcomes(),
     ]);

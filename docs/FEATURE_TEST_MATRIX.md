@@ -330,19 +330,20 @@ drift test after manually changing a managed file.
 Run the real reviewed catalog journey only after the local track passes:
 
 ```bash
-loadout setup --mode stable --agents codex
-loadout setup --mode power --agents codex
-loadout setup --mode maximum --agents codex
-loadout setup --mode maximum --agents codex --yes --approve-risk
+loadout setup --mode stable --agents codex --api-access none
+loadout setup --mode power --agents codex --api-access none
+loadout setup --mode maximum --agents codex --api-access none
+loadout setup --mode maximum --agents codex --api-access none --yes --approve-risk
 loadout library
 loadout optimize --project "$TEST_PROJECT" --agents codex --limit 30
 loadout optimize --project "$TEST_PROJECT" --agents codex --limit 30 --yes
 ```
 
 The previews fetch pinned public repositories but do not write agent skill targets.
-Maximum downloads the full reviewed library; MCP-only packages remain explicit setup
-items. `--approve-risk` acknowledges displayed static findings but does not execute
-third-party repository scripts.
+Maximum downloads the screened skill library, quarantines invalid individual units,
+and preserves matching active Stable units at the same reviewed commit; MCP-only
+packages remain explicit setup items. `--approve-risk` acknowledges displayed static
+findings but does not execute third-party repository scripts.
 
 `loadout demo --json` is a shorter N smoke test. It creates its own isolated profile,
 performs a real public-repository install and rollback, and must report that local

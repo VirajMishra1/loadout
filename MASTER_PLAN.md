@@ -190,6 +190,14 @@ Post-MVP path: commit `loadout.lock` and restore it on another machine.
    `discover`, `recommend`, `compare`, `optimize`, `remove`, and `rollback`. Commands
    not yet implemented remain Phase 12 backlog items. The dashboard remains optional.
 
+Account capability rule: interactive setup asks whether the user has separately billed
+OpenAI API, Anthropic API, OpenRouter, other provider access, or none. ChatGPT and
+Claude subscriptions do not count. The answer contains provider names only, is not a
+credential, is not persisted by setup, and cannot weaken safety policy. Static skills
+remain available without model API access; credentialed MCP/runtime/model operations
+remain explicit and fail closed until a named environment or OS-keychain reference is
+appropriate for that execution boundary.
+
 ### 5.2 Normal use
 
 - `loadout status`: agents, packages, conflicts, and update health.
@@ -1541,6 +1549,67 @@ Work in later waves may scaffold interfaces in parallel, but public claims and
 recommendation promotion cannot bypass earlier evidence/trust gates. More catalog
 records, a new frontend, automatic candidate installation, and broad arbitrary
 runtime execution are explicitly lower priority than these waves.
+
+### Phase 17: Credential-aware onboarding and install/update correctness
+
+This phase was added after founder review identified a common misconception: paid
+ChatGPT or Claude chat subscriptions are not provider API billing. Loadout must give a
+useful no-key experience while making credentialed integrations impossible to apply by
+accident.
+
+- [x] `P17-01 [SOL policy, TERRA implementation]` Define a non-secret setup access
+      profile for `openai`, `anthropic`, `openrouter`, `other`, or `none`.
+  - Interactive onboarding asks in plain language and explicitly excludes chat
+    subscriptions. `--api-access` accepts provider names, rejects unknown/key-like
+    values, and never persists a credential.
+  - The answer is eligibility/explanation context only; it cannot bypass trust,
+    compatibility, license, safety, approval, or transaction gates.
+- [x] `P17-02 [TERRA]` Keep broad setup credential-free by construction.
+  - Stable, Power, Maximum, and Custom automatically copy only statically inspected
+    skill directories at immutable commits. MCP-only and executable records remain
+    explicit regardless of declared API access.
+  - Product copy explains that a skill mentioning OpenAI or Anthropic does not itself
+    require a model key; the specific runtime operation decides that requirement.
+- [x] `P17-03 [SOL security, TERRA implementation]` Fail closed on credentialed MCP
+      configuration.
+  - A credentialed recipe cannot be applied until every required environment reference
+    resolves. Config output stores `${VARIABLE}` only and never a value.
+  - OS-keychain references are accepted only at Loadout-controlled execution
+    boundaries such as the explicit bounded connection verifier; arbitrary host
+    configs are not falsely claimed to resolve Loadout keychain entries.
+- [x] `P17-04 [TERRA]` Quarantine invalid Maximum units rather than entire collections.
+  - Deterministic critical validation still fails closed for the unit. Safe siblings at
+    the same immutable source revision remain available, and every rejected unit and
+    reason appears in the preview.
+- [x] `P17-05 [SOL invariant, TERRA implementation]` Support Maximum after Stable.
+  - Matching active units stay active only when the incoming and installed reviewed
+    commits match. Additional units enter the disabled library. Revision mismatch or a
+    missing active unit blocks the transaction instead of relabeling or overwriting it.
+- [x] `P17-06 [SOL invariant, TERRA implementation]` Scope collection updates to the
+      exact managed unit set.
+  - Update diff, risk analysis, planning, copying, verification, and state replacement
+    ignore unrelated repository siblings and root files. Missing or added managed-unit
+    targets block instead of silently changing the active set.
+- [x] `P17-07 [TERRA]` Persist static assessment evidence in install state and expose it
+      to Agent Health.
+  - Store status, finding count, assessment time, and policy version without secret or
+    source-content values. Recompute it on every applied revision.
+- [ ] `P17-08 [HUMAN+SOL]` Complete founder verification on the published package.
+  - Test no-key Stable, Stable-to-Maximum overlay, quarantine output, project
+    optimization, scoped update, credential-gated MCP configuration, health evidence,
+    rollback, and clean uninstall on the founder's snapshotted real Codex profile.
+  - Repeat the safe no-key journey with Claude, then collect one Windows and one Linux
+    external session. Convert every reproducible failure into a regression test before
+    public-release claims.
+
+Engineering checkpoint 2026-07-17: the complete local gate passes 103 test files/459
+tests, packaged CLI smoke, the real CLI product journey, release-claim checks, and seven
+1,000-skill scans at a 1.49-second p95. A real read-only Maximum preview against the 50
+pinned catalog records prepared 29 repositories/1,158 Codex skill directories,
+quarantined 50 invalid units while retaining safe siblings, deferred 19 MCP-only
+records, and resolved 44 lower-ranked overlaps. Comparing that prepared plan with the
+founder's 30 active Stable units found zero missing units and zero commit mismatches;
+no real agent file was mutated.
 
 ## 19. Seven-day schedule
 

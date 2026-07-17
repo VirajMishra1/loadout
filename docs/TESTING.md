@@ -3,6 +3,21 @@
 The primary product is the CLI. Use this walkthrough before installing into your real
 Codex, Claude Code, or other agent directories.
 
+## 0. Choose the truthful account capability
+
+ChatGPT and Claude subscriptions do not include separately billed model API usage.
+If those subscriptions are all you have, choose `None` in interactive setup or pass:
+
+```bash
+npx . setup --mode stable --api-access none
+```
+
+This does not reduce the portable skill library. Automatic broad setup installs only
+screened static skill directories, which do not require OpenAI, Anthropic, or
+OpenRouter credentials. MCP servers and executable runtimes remain explicit. Never
+paste an API key into `--api-access`; it accepts provider names only and rejects
+key-like input.
+
 The automated product journey runs the built CLI against disposable user, state, and
 project directories. It performs a real scan and offline provenance comparison, then
 previews and applies project optimization, verifies the installed bytes, and rolls the
@@ -97,8 +112,8 @@ Power is the broad daily-use profile:
 npx . setup --mode power
 ```
 
-Expect a curated skill-level set across the strongest reviewed collections. Stable
-remains the smallest Superpowers + Context7 option. Maximum prepares the full library:
+Expect a curated skill-level set across reviewed collections. Stable is the bounded
+30-skill daily driver. Maximum prepares the full screened skill library:
 
 ```bash
 npx . setup --mode maximum
@@ -112,6 +127,7 @@ This is read-only. Expect the CLI to show:
 - lower-ranked duplicate skills that were deferred;
 - MCP-only repositories requiring explicit configuration;
 - safety categories requiring a separate approval.
+- invalid individual skill units quarantined without losing safe siblings.
 
 No agent skill directory or Loadout install state is created by preview.
 
@@ -128,6 +144,10 @@ disabled library but does not execute repository installation or lifecycle scrip
 The command should finish with one snapshot identifier. The library download is one
 transaction: a failure restores every library/state target rather than leaving a
 half-installed profile.
+
+If Stable is already installed, this command is also a required regression exercise:
+matching Stable units must remain active, their agent-visible bytes must not change,
+and only the additional Maximum units should appear disabled in `npx . library`.
 
 ## 5. Inspect the installed product
 
@@ -176,6 +196,28 @@ npx .
 Choose Maximum, Stable, or Custom, review the plan, and confirm only when you want to
 write to the detected real agent profiles. After npm publication, replace `npx .` with
 `npx loadout-ai`.
+
+## 8. Test credential-gated MCP configuration without exposing a key
+
+The Playwright recipe has no service credential. The GitHub read-only recipe does and
+must refuse `--yes` until its declared environment reference resolves:
+
+```bash
+npx . mcp-recipe github-readonly --config "$TEST_HOME/mcp.json" --yes
+
+export LOADOUT_TEST_GITHUB_TOKEN='<a disposable, least-privilege token>'
+npx . mcp-recipe github-readonly --config "$TEST_HOME/mcp.json" \
+  --credential GITHUB_PERSONAL_ACCESS_TOKEN=env:LOADOUT_TEST_GITHUB_TOKEN
+npx . mcp-recipe github-readonly --config "$TEST_HOME/mcp.json" \
+  --credential GITHUB_PERSONAL_ACCESS_TOKEN=env:LOADOUT_TEST_GITHUB_TOKEN --yes
+unset LOADOUT_TEST_GITHUB_TOKEN
+```
+
+The first command must fail without writing the server entry. The preview and applied
+output must never contain the token value; the config should contain only
+`${LOADOUT_TEST_GITHUB_TOKEN}`. OS-keychain references are supported by the separate,
+explicit `--connect --approve-risk` verification path because an arbitrary MCP host
+cannot resolve Loadout's keychain reference by itself.
 
 ## Optional dashboard
 

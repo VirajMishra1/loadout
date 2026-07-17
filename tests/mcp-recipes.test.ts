@@ -80,6 +80,79 @@ describe("reviewed MCP recipes", () => {
     await expect(
       verifyMcpRecipe("github-readonly", config),
     ).resolves.toMatchObject({ configured: true });
+
+    persisted.mcpServers.github.env.GITHUB_PERSONAL_ACCESS_TOKEN =
+      "must-not-be-accepted-as-a-reference";
+    await import("node:fs/promises").then(({ writeFile }) =>
+      writeFile(config, JSON.stringify(persisted)),
+    );
+    const plaintext = await verifyMcpRecipe("github-readonly", config);
+    expect(plaintext.configured).toBe(false);
+    expect(plaintext.warnings.join(" ")).toMatch(/not a variable reference/);
+    expect(JSON.stringify(plaintext)).not.toContain(
+      "must-not-be-accepted-as-a-reference",
+    );
+  });
+
+  it("fails closed when credentialed configuration lacks a resolved environment reference", async () => {
+    root = await mkdtemp(join(tmpdir(), "loadout-mcp-credential-gate-"));
+    const config = join(root, "mcp.json");
+    await expect(
+      planMcpRecipe("github-readonly", config, {
+        requireResolvedCredentials: true,
+        credentialReferences: {},
+        environment: {},
+      }),
+    ).rejects.toThrow(/requires a credential reference/);
+    await expect(
+      planMcpRecipe("github-readonly", config, {
+        requireResolvedCredentials: true,
+        credentialReferences: {
+          GITHUB_PERSONAL_ACCESS_TOKEN: {
+            kind: "os-keychain",
+            service: "loadout.github",
+          },
+        },
+        environment: {},
+      }),
+    ).rejects.toThrow(/keychain.*connection verification/i);
+    const invalidReference = "NOT-AN-ENV-NAME";
+    let invalidMessage = "";
+    try {
+      await planMcpRecipe("github-readonly", config, {
+        requireResolvedCredentials: true,
+        credentialReferences: {
+          GITHUB_PERSONAL_ACCESS_TOKEN: {
+            kind: "environment",
+            name: invalidReference,
+          },
+        },
+        environment: {},
+      });
+    } catch (error) {
+      invalidMessage = error instanceof Error ? error.message : String(error);
+    }
+    expect(invalidMessage).toMatch(/invalid environment reference/i);
+    expect(invalidMessage).not.toContain(invalidReference);
+
+    const secret = "never-serialize-this";
+    const plan = await planMcpRecipe("github-readonly", config, {
+      requireResolvedCredentials: true,
+      credentialReferences: {
+        GITHUB_PERSONAL_ACCESS_TOKEN: {
+          kind: "environment",
+          name: "MY_GITHUB_TOKEN",
+        },
+      },
+      environment: { MY_GITHUB_TOKEN: secret },
+    });
+    const proposed = plan.config.proposed as {
+      mcpServers?: Record<string, { env: Record<string, string> }>;
+    };
+    expect(proposed.mcpServers?.github.env.GITHUB_PERSONAL_ACCESS_TOKEN).toBe(
+      "${MY_GITHUB_TOKEN}",
+    );
+    expect(JSON.stringify(plan)).not.toContain(secret);
   });
 
   it("requires explicit risk approval before resolving or launching", async () => {

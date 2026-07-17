@@ -104,13 +104,86 @@ describe("CLI-first catalog setup", () => {
     ).rejects.toMatchObject({
       code: "ENOENT",
     });
-    expect((await readInstallState()).activations).toEqual([
+    const state = await readInstallState();
+    expect(state.activations).toEqual([
       expect.objectContaining({
         packageId: "useful-skill",
         cacheState: "downloaded",
         activationState: "disabled",
       }),
     ]);
+    expect(state.installs[0].staticAssessment).toMatchObject({
+      status: "clear",
+      findingCount: 0,
+      policy: "install-safety-v1",
+    });
+  });
+
+  it("quarantines an invalid Maximum skill without discarding its safe siblings", async () => {
+    root = await mkdtemp(join(tmpdir(), "loadout-maximum-quarantine-"));
+    const repository = join(root, "repository");
+    const safe = join(repository, "skills", "safe-skill");
+    const invalid = join(repository, "skills", "invalid-skill");
+    await mkdir(safe, { recursive: true });
+    await mkdir(invalid, { recursive: true });
+    await writeFile(
+      join(safe, "SKILL.md"),
+      "---\nname: safe-skill\ndescription: A valid reviewed skill\n---\n",
+    );
+    await writeFile(
+      join(invalid, "SKILL.md"),
+      "---\nname: invalid-skill\n---\n",
+    );
+    const pkg: CatalogPackage = {
+      id: "mixed-collection",
+      displayName: "Mixed Collection",
+      repository: "example/mixed-collection",
+      description: "Contains one safe and one invalid skill",
+      category: "test",
+      tier: "stable",
+      components: ["skill"],
+      source: {
+        type: "github",
+        url: "https://github.com/example/mixed-collection",
+        defaultBranch: "main",
+        commit,
+        evidencePaths: ["skills/safe-skill/SKILL.md"],
+        verifiedAt: "2026-07-15T00:00:00Z",
+      },
+    };
+    const prepared = await prepareCatalogInstall(
+      { mode: "maximum" },
+      {
+        catalog: [pkg],
+        detectedAgents: [
+          {
+            id: "codex",
+            displayName: "Codex",
+            installed: true,
+            skillsDirectory: join(root, "home", ".codex", "skills"),
+          },
+        ],
+        fetchSnapshot: async () => ({
+          repository: pkg.repository,
+          commit,
+          path: repository,
+        }),
+      },
+    );
+
+    expect(prepared.entries).toHaveLength(1);
+    expect(prepared.entries[0].plan.files).toHaveLength(1);
+    expect(prepared.entries[0].plan.files[0].target).toMatch(/safe-skill$/);
+    expect(prepared.skipped).toEqual([
+      expect.objectContaining({
+        packageId: "mixed-collection",
+        unitId: "invalid-skill",
+        kind: "quarantined",
+      }),
+    ]);
+    expect(formatPreparedCatalogInstall(prepared)).toContain(
+      "Quarantined invalid skill units: 1",
+    );
   });
 
   it("refuses setup when no supported agent is installed", async () => {
@@ -125,6 +198,7 @@ describe("CLI-first catalog setup", () => {
   it("warns when a broad plan exceeds the recommended active skill budget", async () => {
     const prepared = {
       selection: { mode: "maximum" as const },
+      access: { modelApis: [] },
       resolution: {
         mode: "maximum" as const,
         packages: [],

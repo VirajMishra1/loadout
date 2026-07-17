@@ -61,4 +61,50 @@ describe("mcp-config CLI", () => {
       stderr: expect.stringContaining("explicit approveRisk"),
     });
   });
+
+  it("requires a resolved credential reference before writing a credentialed recipe", async () => {
+    const root = await mkdtemp(join(tmpdir(), "loadout-cli-mcp-recipe-"));
+    const config = join(root, "mcp.json");
+    try {
+      await expect(
+        run(process.execPath, [
+          cli,
+          entry,
+          "mcp-recipe",
+          "github-readonly",
+          "--config",
+          config,
+          "--yes",
+        ]),
+      ).rejects.toMatchObject({
+        stderr: expect.stringContaining("requires a credential reference"),
+      });
+
+      const secret = "cli-test-secret";
+      const result = await run(
+        process.execPath,
+        [
+          cli,
+          entry,
+          "mcp-recipe",
+          "github-readonly",
+          "--config",
+          config,
+          "--credential",
+          "GITHUB_PERSONAL_ACCESS_TOKEN=env:LOADOUT_TEST_GITHUB_TOKEN",
+          "--yes",
+        ],
+        {
+          env: { ...process.env, LOADOUT_TEST_GITHUB_TOKEN: secret },
+        },
+      );
+      expect(result.stdout).not.toContain(secret);
+      const persisted = JSON.parse(await readFile(config, "utf8"));
+      expect(persisted.mcpServers.github.env.GITHUB_PERSONAL_ACCESS_TOKEN).toBe(
+        "${LOADOUT_TEST_GITHUB_TOKEN}",
+      );
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
 });

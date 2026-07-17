@@ -1,14 +1,15 @@
 import { existsSync } from "node:fs";
 import { cp, lstat, rm } from "node:fs/promises";
 import { basename, dirname, join, posix, relative, win32 } from "node:path";
-import type { AgentId, DetectedAgent, InstallPlan } from "../shared/types.js";
+import type {
+  AgentId,
+  DetectedAgent,
+  InstallMetadata,
+  InstallPlan,
+} from "../shared/types.js";
 import { ensureDirectory, loadoutHome } from "./paths.js";
 import { planAdapterSkillInstall } from "./adapters.js";
-import {
-  applySkillPlan,
-  detectInstallConflicts,
-  validateSkillDirectory,
-} from "./skills.js";
+import { applySkillPlan, detectInstallConflicts } from "./skills.js";
 import {
   activationLibraryPath,
   installStatePath,
@@ -105,17 +106,6 @@ export async function buildSkillPlan(
   if (!sourceStat.isDirectory() || sourceStat.isSymbolicLink()) {
     throw new Error(`Package source must be a real directory: ${source}`);
   }
-  // A repository may contain one skill at its root or several nested skills.
-  // Validate the root when present; planSkillInstall validates every nested skill.
-  if (
-    existsSync(join(source, "SKILL.md")) &&
-    (!options.include ||
-      options.include({
-        path: source,
-        targetName: basename(source),
-      }))
-  )
-    await validateSkillDirectory(source);
   const plans = await Promise.all(
     agents.map((agent) =>
       planAdapterSkillInstall(source, packageId, agent, options),
@@ -143,11 +133,7 @@ export async function buildSkillPlan(
 
 export async function applySkillInstall(
   plan: InstallPlan,
-  metadata?: {
-    repository?: string;
-    resolvedCommit?: string;
-    reviewed?: boolean;
-  },
+  metadata?: InstallMetadata,
   options: {
     allowManagedReplacement?: boolean;
     replaceManagedTargets?: boolean;
@@ -206,11 +192,7 @@ export async function applySkillInstall(
 
 export interface InstallBatchEntry {
   plan: InstallPlan;
-  metadata?: {
-    repository?: string;
-    resolvedCommit?: string;
-    reviewed?: boolean;
-  };
+  metadata?: InstallMetadata;
 }
 
 /** Apply all selected packages as one filesystem transaction and one state update. */
@@ -304,10 +286,33 @@ export async function applySkillLibraryBatch(
           record.installationState === "installed" &&
           record.activationState === "active",
       );
-      if (active.length)
-        throw new Error(
-          `Maximum Library will not relabel ${active.length} active managed skill(s) as disabled. Disable the selected packages first, then retry.`,
+      for (const activation of active) {
+        const current = state.installs.find(
+          (record) => record.packageId === activation.packageId,
         );
+        const incoming = entries.find(
+          (entry) => entry.plan.packageId === activation.packageId,
+        );
+        if (
+          !current?.resolvedCommit ||
+          !incoming?.metadata?.resolvedCommit ||
+          current.resolvedCommit.toLowerCase() !==
+            incoming.metadata.resolvedCommit.toLowerCase()
+        )
+          throw new Error(
+            `Maximum Library cannot preserve active '${activation.packageId}/${activation.unitId ?? "skill"}' because its reviewed revision differs or is unknown. Update or disable it explicitly first.`,
+          );
+        const includesActiveUnit = incoming.plan.files.some(
+          (file) =>
+            (file.targetAgent === activation.agent ||
+              (!file.targetAgent && incoming.plan.targetAgents.length === 1)) &&
+            basename(file.target) === activation.unitId,
+        );
+        if (!includesActiveUnit)
+          throw new Error(
+            `Maximum Library cannot preserve active '${activation.packageId}/${activation.unitId ?? "skill"}' because that unit is absent from the prepared library.`,
+          );
+      }
       return {
         targets: [...libraryPaths, installStatePath()],
         value: entries,

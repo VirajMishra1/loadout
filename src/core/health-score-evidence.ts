@@ -153,6 +153,14 @@ export async function collectLocalAgentHealthEvidence(
               ? ("verified" as const)
               : ("managed" as const),
           ...(pkg?.license ? { license: pkg.license } : {}),
+          ...(install.staticAssessment
+            ? {
+                staticRisk: {
+                  status: install.staticAssessment.status,
+                  findingCount: install.staticAssessment.findingCount,
+                },
+              }
+            : {}),
           ...(observedFreshness ? { freshness: observedFreshness } : {}),
         };
       });

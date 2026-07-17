@@ -28,10 +28,10 @@ Loadout does not claim there is one universally “best” configuration. It mak
 
 ## Install from npm
 
-Requirements: Git and Node.js 20 or newer. Pin `0.1.2` while testing the beta so every machine runs the same bytes.
+Requirements: Git and Node.js 20 or newer. Pin `0.2.0` while testing the beta so every machine runs the same bytes.
 
 ```bash
-npm install --global loadout-ai@0.1.2
+npm install --global loadout-ai@0.2.0
 loadout --help
 ```
 
@@ -67,6 +67,28 @@ loadout rollback
 
 `--approve-risk` acknowledges findings that were already printed during preview; it does not disable safety validation. The applied operation is transactional and produces a snapshot identifier.
 
+### Subscriptions are not API access
+
+A ChatGPT Plus/Pro subscription and a Claude Pro/Max subscription pay for their
+respective chat products; they do not provide separately billed OpenAI API or
+Anthropic API access. That is the normal case, and Loadout's Stable, Power,
+Maximum, Custom, scan, discovery, comparison, update, activation, and rollback
+flows do not require a model API key.
+
+Interactive setup asks only which separately billed model APIs are available so it
+can explain which optional integrations are eligible. It never asks for or persists
+the key. Non-interactive automation can declare the same capability without passing a
+secret:
+
+```bash
+loadout setup --mode stable --api-access none
+loadout setup --mode maximum --api-access openai,anthropic
+```
+
+Model API access does not make an unsafe repository eligible and does not cause an MCP
+server or executable to be installed automatically. Credentialed integrations remain
+separate previews with named environment or OS-keychain references.
+
 For a real install-and-rollback exercise that cannot touch your profile:
 
 ```bash
@@ -84,7 +106,7 @@ The demo creates a temporary virtual Codex profile, fetches the pinned public Su
 | **Maximum** | Exploration and maximum optionality | Every non-archived technically screened catalog record                  | Stores all discovered skill components in Loadout's disabled library; MCP-only records remain explicit setup steps |
 | **Custom**  | Precise control                     | Only package IDs supplied by the user                                   | Uses the same preview, safety, conflict, and transaction pipeline                                                  |
 
-Maximum is a library, not an instruction to activate everything. Use `optimize`, `activate`, `enable`, and `disable` to keep each agent's active set bounded and relevant to the current project. Loadout warns when an active set exceeds 30 skills per agent.
+Maximum is a library, not an instruction to activate everything. Use `optimize`, `activate`, `enable`, and `disable` to keep each agent's active set bounded and relevant to the current project. Loadout warns when an active set exceeds 30 skills per agent. If Stable is already active, Maximum keeps matching pinned Stable units active and caches only the additional units as disabled. Invalid individual skills are quarantined without discarding safe siblings from the same collection.
 
 ```bash
 loadout setup --mode maximum
@@ -249,7 +271,22 @@ loadout mcp-recipe playwright --config ./mcp.json --verify
 loadout mcp-recipe playwright --connect --approve-risk
 ```
 
-Credential-bearing recipes can reference the native OS credential store. Secrets are accepted through stdin, never written into Loadout JSON state, and injected only into the approved child process:
+Credential-bearing host configuration fails closed until every required environment
+reference resolves. The value is never serialized; the resulting config contains only
+the environment-variable placeholder:
+
+```bash
+export LOADOUT_GITHUB_TOKEN="$GITHUB_PERSONAL_ACCESS_TOKEN"
+loadout mcp-recipe github-readonly --config ./mcp.json \
+  --credential GITHUB_PERSONAL_ACCESS_TOKEN=env:LOADOUT_GITHUB_TOKEN
+loadout mcp-recipe github-readonly --config ./mcp.json \
+  --credential GITHUB_PERSONAL_ACCESS_TOKEN=env:LOADOUT_GITHUB_TOKEN --yes
+```
+
+For the separate bounded `--connect` verification, credential-bearing recipes can
+also reference the native OS credential store. Secrets are accepted through stdin,
+never written into Loadout JSON state, and injected only into the approved child
+process:
 
 ```bash
 printf '%s' "$GITHUB_PERSONAL_ACCESS_TOKEN" \

@@ -27,6 +27,7 @@ import {
   analyzeInstallPlanSafety,
   type UpdateSafetyAnalysis,
 } from "./safety.js";
+import { formatModelApiAccess, type SetupAccessProfile } from "./access.js";
 
 export const RECOMMENDED_ACTIVE_SKILL_LIMIT = 30;
 
@@ -37,8 +38,9 @@ export interface CatalogInstallEntry extends InstallBatchEntry {
 
 export interface CatalogInstallSkip {
   packageId: string;
+  unitId?: string;
   reason: string;
-  kind: "explicit-setup" | "preparation-failed" | "overlap";
+  kind: "explicit-setup" | "preparation-failed" | "overlap" | "quarantined";
 }
 
 export interface CatalogInstallCollision {
@@ -62,6 +64,7 @@ export interface PreparedCatalogInstall {
   entries: CatalogInstallEntry[];
   skipped: CatalogInstallSkip[];
   collisions: CatalogInstallCollision[];
+  access: SetupAccessProfile;
 }
 
 export interface PrepareCatalogInstallOptions {
@@ -74,6 +77,7 @@ export interface PrepareCatalogInstallOptions {
     repository: string,
     options?: RepositoryFetchOptions,
   ) => Promise<RepositorySnapshot>;
+  access?: SetupAccessProfile;
 }
 
 async function parallelMap<T, R>(
@@ -134,7 +138,13 @@ export async function prepareCatalogInstall(
   const prepared = await parallelMap(
     installable,
     options.concurrency ?? 4,
-    async (pkg): Promise<CatalogInstallEntry | CatalogInstallSkip> => {
+    async (
+      pkg,
+    ): Promise<{
+      result?: CatalogInstallEntry | CatalogInstallSkip;
+      quarantined: CatalogInstallSkip[];
+    }> => {
+      const rejected = new Map<string, CatalogInstallSkip>();
       options.onProgress?.({
         packageId: pkg.id,
         completed,
@@ -160,12 +170,29 @@ export async function prepareCatalogInstall(
               ? (skill: { name?: string; targetName: string }) =>
                   isPowerSkillSelected(pkg.id, skill.name, skill.targetName)
               : undefined;
-        const plan = await buildSkillPlan(
-          fetched.path,
-          pkg.id,
-          agents,
-          include ? { include } : {},
-        );
+        const quarantineOptions =
+          selection.mode === "maximum"
+            ? {
+                continueOnRejected: true,
+                onRejected: (skill: {
+                  name?: string;
+                  targetName: string;
+                  reason: string;
+                }) => {
+                  const unitId = skill.name ?? skill.targetName;
+                  rejected.set(unitId, {
+                    packageId: pkg.id,
+                    unitId,
+                    kind: "quarantined",
+                    reason: skill.reason,
+                  });
+                },
+              }
+            : {};
+        const plan = await buildSkillPlan(fetched.path, pkg.id, agents, {
+          ...(include ? { include } : {}),
+          ...quarantineOptions,
+        });
         if (selection.mode === "stable")
           plan.files = plan.files.filter((file) =>
             isStableSkillSelected(
@@ -196,14 +223,27 @@ export async function prepareCatalogInstall(
           message: `${pkg.displayName} is ready (${plan.files.length} target directories)`,
         });
         return {
-          package: pkg,
-          plan,
-          metadata: {
-            repository: fetched.repository,
-            resolvedCommit: fetched.commit,
-            reviewed: true,
+          result: {
+            package: pkg,
+            plan,
+            metadata: {
+              repository: fetched.repository,
+              resolvedCommit: fetched.commit,
+              reviewed: true,
+              staticAssessment: {
+                status: safety.approvalRequired
+                  ? "blocking"
+                  : safety.findings.length
+                    ? "warning"
+                    : "clear",
+                findingCount: safety.findings.length,
+                assessedAt: new Date().toISOString(),
+                policy: "install-safety-v1",
+              },
+            },
+            safety,
           },
-          safety,
+          quarantined: [...rejected.values()],
         };
       } catch (error) {
         completed += 1;
@@ -215,15 +255,30 @@ export async function prepareCatalogInstall(
           status: "skipped",
           message: `${pkg.displayName} could not be prepared: ${reason}`,
         });
-        return { packageId: pkg.id, reason, kind: "preparation-failed" };
+        if (rejected.size > 0 && /No SKILL\.md found/.test(reason))
+          return { quarantined: [...rejected.values()] };
+        return {
+          result: {
+            packageId: pkg.id,
+            reason,
+            kind: "preparation-failed",
+          },
+          quarantined: [...rejected.values()],
+        };
       }
     },
   );
-  const entries = prepared.filter(
+  const preparedResults = prepared.flatMap((item) =>
+    item.result ? [item.result] : [],
+  );
+  const entries = preparedResults.filter(
     (item): item is CatalogInstallEntry => "plan" in item,
   );
   skipped.push(
-    ...prepared.filter((item): item is CatalogInstallSkip => !("plan" in item)),
+    ...preparedResults.filter(
+      (item): item is CatalogInstallSkip => !("plan" in item),
+    ),
+    ...prepared.flatMap((item) => item.quarantined),
   );
   // Broad collections frequently publish the same conventional skill name.
   // Resolution order is already deterministic and evidence-ranked, so keep
@@ -263,6 +318,7 @@ export async function prepareCatalogInstall(
     entries: usableEntries,
     skipped,
     collisions,
+    access: options.access ?? { modelApis: [] },
   };
 }
 
@@ -285,12 +341,17 @@ export function formatPreparedCatalogInstall(
   const failures = prepared.skipped.filter(
     (item) => item.kind === "preparation-failed",
   );
+  const quarantined = prepared.skipped.filter(
+    (item) => item.kind === "quarantined",
+  );
   const lines = [
     `Loadout: ${prepared.selection.mode === "maximum" ? "Maximum Library" : prepared.selection.mode === "power" ? "Power Boost" : prepared.selection.mode === "stable" ? "Stable Boost" : "Custom"}`,
     `Detected agents: ${prepared.agents.map((agent) => agent.displayName).join(", ")}`,
     `Catalog selection: ${prepared.resolution.packages.length} repositories`,
     `Ready to install: ${prepared.entries.length} skill repositories (${targetDirectories} agent skill directories)`,
     `Explicit setup later: ${explicit.length} repository/repositories`,
+    `Separately billed model API access: ${formatModelApiAccess(prepared.access)} (ChatGPT and Claude subscriptions do not count as API access)`,
+    "Automatic skill setup does not require an OpenAI, Anthropic, or OpenRouter API key; credentialed MCP/runtime integrations remain explicit and deferred.",
   ];
   if (directoriesPerAgent > RECOMMENDED_ACTIVE_SKILL_LIMIT)
     lines.push(
@@ -299,6 +360,10 @@ export function formatPreparedCatalogInstall(
   if (failures.length)
     lines.push(
       `Preparation failures (installation will remain blocked): ${failures.map((item) => item.packageId).join(", ")}`,
+    );
+  if (quarantined.length)
+    lines.push(
+      `Quarantined invalid skill units: ${quarantined.length} (safe siblings remain available)`,
     );
   if (prepared.collisions.length)
     lines.push(
@@ -312,7 +377,7 @@ export function formatPreparedCatalogInstall(
     lines.push(`Warning: ${warning}`);
   for (const item of prepared.skipped)
     lines.push(
-      `${item.kind === "preparation-failed" ? "Failed" : "Deferred"} ${item.packageId}: ${item.reason}`,
+      `${item.kind === "preparation-failed" ? "Failed" : item.kind === "quarantined" ? "Quarantined" : "Deferred"} ${item.packageId}${item.unitId ? `/${item.unitId}` : ""}: ${item.reason}`,
     );
   return lines.join("\n");
 }

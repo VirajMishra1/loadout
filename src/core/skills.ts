@@ -8,15 +8,24 @@ import type {
 import { ensureDirectory } from "./paths.js";
 import { assertSkillSecurity, scanSkillSecurity } from "./skill-security.js";
 
+export interface DiscoveredSkill {
+  path: string;
+  name?: string;
+  targetName: string;
+}
+
+export interface DiscoverSkillOptions {
+  include?: (skill: DiscoveredSkill) => boolean;
+  /** Read-only update analysis may locate units before validating the new revision. */
+  validate?: boolean;
+  /** Maximum Library may retain safe siblings while recording rejected units. */
+  continueOnRejected?: boolean;
+  onRejected?: (skill: DiscoveredSkill & { reason: string }) => void;
+}
+
 export async function discoverSkillDirectories(
   root: string,
-  options: {
-    include?: (skill: {
-      path: string;
-      name?: string;
-      targetName: string;
-    }) => boolean;
-  } = {},
+  options: DiscoverSkillOptions = {},
 ): Promise<string[]> {
   const result: string[] = [];
   async function visit(directory: string, depth: number): Promise<void> {
@@ -42,6 +51,7 @@ export async function discoverSkillDirectories(
     }
     if (entries.includes("SKILL.md")) {
       const skillPath = join(directory, "SKILL.md");
+      const targetName = directory.split(sep).at(-1) ?? "skill";
       let name: string | undefined;
       try {
         const skillStat = await lstat(skillPath);
@@ -52,16 +62,22 @@ export async function discoverSkillDirectories(
       } catch {
         // Selected invalid skills are rejected by validateSkillDirectory below.
       }
-      if (
-        options.include &&
-        !options.include({
-          path: directory,
-          ...(name ? { name } : {}),
-          targetName: directory.split(sep).at(-1) ?? "skill",
-        })
-      )
+      const discovered = {
+        path: directory,
+        ...(name ? { name } : {}),
+        targetName,
+      };
+      if (options.include && !options.include(discovered)) return;
+      try {
+        if (options.validate !== false) await validateSkillDirectory(directory);
+      } catch (error) {
+        if (!options.continueOnRejected) throw error;
+        options.onRejected?.({
+          ...discovered,
+          reason: error instanceof Error ? error.message : String(error),
+        });
         return;
-      await validateSkillDirectory(directory);
+      }
       result.push(directory);
       // A SKILL.md directory is one atomic skill package. Resources beneath it
       // are validated as content, not recursively treated as additional skills.

@@ -187,6 +187,21 @@ export interface InstallRecord {
   files: Array<{ path: string; sha256: string }>;
   snapshotId: string;
   installedAt: string;
+  staticAssessment?: StaticAssessment;
+}
+
+export interface StaticAssessment {
+  status: "clear" | "warning" | "blocking";
+  findingCount: number;
+  assessedAt: string;
+  policy: string;
+}
+
+export interface InstallMetadata {
+  repository?: string;
+  resolvedCommit?: string;
+  reviewed?: boolean;
+  staticAssessment?: StaticAssessment;
 }
 
 export interface InstallState {

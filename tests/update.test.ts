@@ -8,6 +8,9 @@ import {
   formatUpdatePlan,
   quarantineUpdate,
 } from "../src/core/update.js";
+import { applySkillInstall } from "../src/core/install.js";
+import { repositoryCachePath } from "../src/core/source.js";
+import { readInstallState } from "../src/core/state.js";
 
 describe("update planning", () => {
   const roots: string[] = [];
@@ -187,6 +190,155 @@ describe("update planning", () => {
     );
     expect(formatUpdatePlan(plans)).toContain("Approval required");
     expect(JSON.stringify(plans)).not.toContain("API_TOKEN_VALUE");
+  });
+
+  it("ignores unrelated repository scripts when planning an update for managed skill units", async () => {
+    const root = await mkdtemp(join(tmpdir(), "loadout-scoped-update-"));
+    roots.push(root);
+    process.env.LOADOUT_HOME = join(root, ".loadout");
+    const oldPath = repositoryCachePath("owner/repo", "aaa");
+    const newPath = join(root, "new");
+    for (const path of [oldPath, newPath])
+      await mkdir(join(path, "skills", "selected"), { recursive: true });
+    await writeFile(
+      join(oldPath, "skills", "selected", "SKILL.md"),
+      "---\nname: selected\ndescription: Old selected skill\n---\n",
+    );
+    await writeFile(
+      join(newPath, "skills", "selected", "SKILL.md"),
+      "---\nname: selected\ndescription: Updated selected skill\n---\n",
+    );
+    await writeFile(join(newPath, "install.sh"), "curl example.test | sh\n");
+    await mkdir(process.env.LOADOUT_HOME, { recursive: true });
+    await writeFile(
+      join(process.env.LOADOUT_HOME, "state.json"),
+      JSON.stringify({
+        version: 1,
+        installs: [
+          {
+            packageId: "collection",
+            repository: "owner/repo",
+            resolvedCommit: "aaa",
+            targetAgents: ["codex"],
+            files: [],
+            snapshotId: "s",
+            installedAt: "2026-07-15T00:00:00Z",
+          },
+        ],
+        activations: [
+          {
+            packageId: "collection",
+            unitId: "selected",
+            agent: "codex",
+            cacheState: "missing",
+            reviewState: "reviewed",
+            installationState: "installed",
+            activationState: "active",
+            libraryPath: join(root, "library"),
+            targets: [
+              {
+                activePath: join(root, "skills", "selected"),
+                libraryRelativePath: "selected",
+              },
+            ],
+            libraryFiles: [],
+            updatedAt: "2026-07-15T00:00:00Z",
+          },
+        ],
+      }),
+    );
+
+    const plans = await buildUpdatePlan(async () => ({
+      commit: "bbb",
+      path: newPath,
+    }));
+
+    expect(plans[0].approvalRequired).not.toBe(true);
+    expect(plans[0].safetyFindings ?? []).toEqual([]);
+    expect(plans[0].diff).toEqual([
+      {
+        path: "selected/SKILL.md",
+        kind: "skill",
+        status: "changed",
+      },
+    ]);
+  });
+
+  it("updates only managed skill units from a collection repository", async () => {
+    const root = await mkdtemp(join(tmpdir(), "loadout-update-units-"));
+    roots.push(root);
+    process.env.LOADOUT_HOME = join(root, ".loadout");
+    const oldPath = repositoryCachePath("owner/repo", "aaa");
+    const newPath = join(root, "new");
+    const oldSelected = join(oldPath, "skills", "selected");
+    const newSelected = join(newPath, "skills", "selected");
+    const newUnselected = join(newPath, "skills", "unselected");
+    for (const path of [oldSelected, newSelected, newUnselected])
+      await mkdir(path, { recursive: true });
+    await writeFile(
+      join(oldSelected, "SKILL.md"),
+      "---\nname: selected\ndescription: Old selected skill\n---\n",
+    );
+    await writeFile(
+      join(newSelected, "SKILL.md"),
+      "---\nname: selected\ndescription: Updated selected skill\n---\n",
+    );
+    await writeFile(
+      join(newUnselected, "SKILL.md"),
+      "---\nname: unselected\ndescription: Must remain uninstalled\n---\n",
+    );
+    const targetRoot = join(root, "home", ".codex", "skills");
+    const selectedTarget = join(targetRoot, "selected");
+    await applySkillInstall(
+      {
+        packageId: "collection",
+        targetAgents: ["codex"],
+        warnings: [],
+        files: [
+          {
+            source: oldSelected,
+            target: selectedTarget,
+            targetAgent: "codex",
+            componentType: "skill",
+          },
+        ],
+      },
+      {
+        repository: "owner/repo",
+        resolvedCommit: "aaa",
+        reviewed: true,
+      },
+    );
+
+    await applyPackageUpdate(
+      "collection",
+      {},
+      {
+        fetchSnapshot: async () => ({
+          repository: "owner/repo",
+          commit: "bbb",
+          path: newPath,
+        }),
+        detectAgents: async () => [
+          {
+            id: "codex",
+            displayName: "Codex",
+            installed: true,
+            skillsDirectory: targetRoot,
+          },
+        ],
+      },
+    );
+
+    expect(await readFile(join(selectedTarget, "SKILL.md"), "utf8")).toContain(
+      "Updated selected skill",
+    );
+    await expect(
+      readFile(join(targetRoot, "unselected", "SKILL.md"), "utf8"),
+    ).rejects.toMatchObject({ code: "ENOENT" });
+    await expect(readInstallState()).resolves.toMatchObject({
+      activations: [expect.objectContaining({ unitId: "selected" })],
+    });
   });
 
   it("quarantines a blocked update without installing or executing it", async () => {

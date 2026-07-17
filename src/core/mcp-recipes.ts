@@ -155,14 +155,27 @@ export function findMcpRecipe(id: string): McpSetupRecipe {
   return recipe;
 }
 
-function recipeServer(recipe: McpSetupRecipe, sourcePath: string): McpServer {
+export interface McpRecipePlanOptions {
+  credentialReferences?: Readonly<Record<string, CredentialReference>>;
+  /** Required only for an apply path; previews remain credential-free. */
+  requireResolvedCredentials?: boolean;
+  environment?: Readonly<Record<string, string | undefined>>;
+}
+
+function recipeServer(
+  recipe: McpSetupRecipe,
+  sourcePath: string,
+  credentialEnvironment: Readonly<Record<string, string>> = {},
+): McpServer {
   return {
     name: recipe.serverName,
     command: recipe.command,
     args: recipe.args,
     // References retain variable names without storing or printing their values.
     env: Object.fromEntries([
-      ...recipe.environment.map((name) => [name, `\${${name}}`] as const),
+      ...recipe.environment.map(
+        (name) => [name, `\${${credentialEnvironment[name] ?? name}}`] as const,
+      ),
       ...Object.entries(recipe.fixedEnvironment),
     ]),
     sourcePath,
@@ -173,18 +186,60 @@ function recipeServer(recipe: McpSetupRecipe, sourcePath: string): McpServer {
 export async function planMcpRecipe(
   recipeId: string,
   configPath: string,
+  options: McpRecipePlanOptions = {},
 ): Promise<McpRecipePlan> {
   const recipe = findMcpRecipe(recipeId);
+  const environment = options.environment ?? process.env;
+  const credentialEnvironment: Record<string, string> = {};
+  for (const name of Object.keys(options.credentialReferences ?? {}))
+    if (!recipe.environment.includes(name))
+      throw new Error(
+        `Credential '${name}' is not required by recipe '${recipeId}'`,
+      );
+  for (const name of recipe.environment) {
+    const reference = options.credentialReferences?.[name];
+    if (!reference) {
+      if (options.requireResolvedCredentials)
+        throw new Error(
+          `Recipe '${recipeId}' requires a credential reference for ${name}; use ${name}=env:VARIABLE.`,
+        );
+      continue;
+    }
+    if (reference.kind !== "environment") {
+      if (options.requireResolvedCredentials)
+        throw new Error(
+          `OS-keychain references are supported for explicit connection verification, but host MCP configuration requires an environment reference for ${name}.`,
+        );
+      continue;
+    }
+    if (!/^[A-Z_][A-Z0-9_]*$/.test(reference.name))
+      throw new Error(
+        `Invalid environment reference for ${name}; use an uppercase variable name, never a credential value.`,
+      );
+    if (!reference.name || !environment[reference.name]) {
+      if (options.requireResolvedCredentials)
+        throw new Error(
+          `Environment credential reference '${reference.name || "(empty)"}' for ${name} did not resolve.`,
+        );
+      continue;
+    }
+    credentialEnvironment[name] = reference.name;
+  }
   const config = await planMcpConfig(
     configPath,
-    recipeServer(recipe, recipe.source),
+    recipeServer(recipe, recipe.source, credentialEnvironment),
   );
   return {
     recipe,
     config,
     authorization: recipe.environment.length
       ? [
-          `Set these environment variables outside Loadout before starting the host: ${recipe.environment.join(", ")}.`,
+          `Set these environment variables outside Loadout before starting the host: ${recipe.environment
+            .map(
+              (name) =>
+                `${name}=${credentialEnvironment[name] ?? name} (reference only)`,
+            )
+            .join(", ")}.`,
         ]
       : ["No credential reference is required by this recipe."],
     safety: [
@@ -521,8 +576,15 @@ export async function verifyMcpRecipe(
     else warnings.push("configured arguments do not match recipe");
     const env = record.env as Record<string, unknown> | undefined;
     for (const name of recipe.environment) {
-      if (typeof env?.[name] === "string")
+      if (
+        typeof env?.[name] === "string" &&
+        /^\$\{[A-Z_][A-Z0-9_]*\}$/.test(env[name])
+      )
         checks.push(`environment reference present: ${name}`);
+      else if (typeof env?.[name] === "string")
+        warnings.push(
+          `configured environment entry is not a variable reference: ${name}`,
+        );
       else warnings.push(`missing environment reference: ${name}`);
     }
     for (const [name, expected] of Object.entries(recipe.fixedEnvironment)) {

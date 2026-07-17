@@ -4,6 +4,7 @@ import { basename, join, relative, sep } from "node:path";
 import type {
   AgentId,
   InstallPlan,
+  InstallMetadata,
   InstallRecord,
   InstallState,
   ManagedActivationRecord,
@@ -70,7 +71,7 @@ export function activationLibraryPath(
 
 function activationRecordsForPlan(
   plan: InstallPlan,
-  metadata: { reviewed?: boolean } = {},
+  metadata: InstallMetadata = {},
 ): ManagedActivationRecord[] {
   const now = new Date().toISOString();
   return plan.targetAgents.flatMap((agent) => {
@@ -179,11 +180,7 @@ export async function hashDirectory(
 export async function recordInstall(
   plan: InstallPlan,
   snapshotId: string,
-  metadata: {
-    repository?: string;
-    resolvedCommit?: string;
-    reviewed?: boolean;
-  } = {},
+  metadata: InstallMetadata = {},
 ): Promise<InstallRecord> {
   const record = await createInstallRecord(plan, snapshotId, metadata);
   const state = await readInstallState();
@@ -202,7 +199,7 @@ export async function recordInstall(
 async function createInstallRecord(
   plan: InstallPlan,
   snapshotId: string,
-  metadata: { repository?: string; resolvedCommit?: string } = {},
+  metadata: InstallMetadata = {},
 ): Promise<InstallRecord> {
   const files = (
     await Promise.all(
@@ -211,7 +208,13 @@ async function createInstallRecord(
   ).flat();
   return {
     packageId: plan.packageId,
-    ...metadata,
+    ...(metadata.repository ? { repository: metadata.repository } : {}),
+    ...(metadata.resolvedCommit
+      ? { resolvedCommit: metadata.resolvedCommit }
+      : {}),
+    ...(metadata.staticAssessment
+      ? { staticAssessment: metadata.staticAssessment }
+      : {}),
     targetAgents: [...plan.targetAgents],
     files,
     snapshotId,
@@ -222,11 +225,7 @@ async function createInstallRecord(
 export async function recordInstallBatch(
   entries: Array<{
     plan: InstallPlan;
-    metadata?: {
-      repository?: string;
-      resolvedCommit?: string;
-      reviewed?: boolean;
-    };
+    metadata?: InstallMetadata;
   }>,
   snapshotId: string,
 ): Promise<InstallRecord[]> {
@@ -259,15 +258,18 @@ export async function recordInstallBatch(
 export async function recordLibraryInstallBatch(
   entries: Array<{
     plan: InstallPlan;
-    metadata?: {
-      repository?: string;
-      resolvedCommit?: string;
-      reviewed?: boolean;
-    };
+    metadata?: InstallMetadata;
   }>,
   snapshotId: string,
 ): Promise<InstallRecord[]> {
   const now = new Date().toISOString();
+  const state = await readInstallState();
+  const existingActivations = new Map(
+    (state.activations ?? []).map((record) => [
+      `${record.packageId}\0${record.agent}\0${record.unitId ?? ""}`,
+      record,
+    ]),
+  );
   const activationRecords: ManagedActivationRecord[] = [];
   const records: InstallRecord[] = [];
   for (const entry of entries) {
@@ -314,6 +316,12 @@ export async function recordLibraryInstallBatch(
             sha256: file.sha256,
           });
         }
+        const existing = existingActivations.get(
+          `${entry.plan.packageId}\0${agent}\0${unitId}`,
+        );
+        const preserveActive =
+          existing?.installationState === "installed" &&
+          existing.activationState === "active";
         activationRecords.push({
           packageId: entry.plan.packageId,
           unitId,
@@ -321,9 +329,9 @@ export async function recordLibraryInstallBatch(
           cacheState: "downloaded",
           reviewState: entry.metadata?.reviewed ? "reviewed" : "unreviewed",
           installationState: "installed",
-          activationState: "disabled",
+          activationState: preserveActive ? "active" : "disabled",
           libraryPath,
-          targets: [target],
+          targets: preserveActive ? existing.targets : [target],
           libraryFiles: libraryFiles.sort((left, right) =>
             left.path.localeCompare(right.path),
           ),
@@ -346,9 +354,11 @@ export async function recordLibraryInstallBatch(
       ),
       snapshotId,
       installedAt: now,
+      ...(entry.metadata?.staticAssessment
+        ? { staticAssessment: entry.metadata.staticAssessment }
+        : {}),
     });
   }
-  const state = await readInstallState();
   const ids = new Set(records.map((record) => record.packageId));
   state.installs = [
     ...state.installs.filter((record) => !ids.has(record.packageId)),
@@ -372,11 +382,7 @@ function mcpFingerprint(plan: McpConfigPlan): string {
 export async function recordInstallTransaction(
   entries: Array<{
     plan: InstallPlan;
-    metadata?: {
-      repository?: string;
-      resolvedCommit?: string;
-      reviewed?: boolean;
-    };
+    metadata?: InstallMetadata;
   }>,
   mcpEntries: Array<{ packageId: string; plan: McpConfigPlan }>,
   snapshotId: string,

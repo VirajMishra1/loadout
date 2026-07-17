@@ -294,6 +294,14 @@ export const installRecordSchema = z
     files: z.array(fileHashSchema),
     snapshotId: text,
     installedAt: text,
+    staticAssessment: z
+      .object({
+        status: z.enum(["clear", "warning", "blocking"]),
+        findingCount: z.number().int().nonnegative(),
+        assessedAt: z.iso.datetime(),
+        policy: text,
+      })
+      .optional(),
   })
   .passthrough();
 

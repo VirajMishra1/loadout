@@ -1,5 +1,5 @@
 import { mkdir, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { fetchRepositorySnapshot } from "./source.js";
 import { repositoryCachePath } from "./source.js";
 import { diffRepositorySnapshots, type ChangedFileDiff } from "./diff.js";
@@ -11,8 +11,16 @@ import {
   buildSkillPlan,
   installedAgents,
 } from "./install.js";
-import { validateSkillDirectory } from "./skills.js";
-import type { DetectedAgent, InstallPlan } from "../shared/types.js";
+import {
+  discoverSkillDirectories,
+  validateSkillDirectory,
+  type DiscoverSkillOptions,
+} from "./skills.js";
+import type {
+  DetectedAgent,
+  InstallPlan,
+  InstallState,
+} from "../shared/types.js";
 
 export type UpdateStatus =
   "update-available" | "up-to-date" | "untracked" | "error";
@@ -60,8 +68,118 @@ export interface UpdateRuntime {
     source: string,
     packageId: string,
     agents: DetectedAgent[],
+    options?: DiscoverSkillOptions,
   ) => Promise<InstallPlan>;
   verify?: (context: UpdateSmokeTestContext) => Promise<void>;
+}
+
+function managedUnitIds(state: InstallState, packageId: string): string[] {
+  return [
+    ...new Set(
+      (state.activations ?? [])
+        .filter(
+          (activation) =>
+            activation.packageId === packageId &&
+            activation.installationState === "installed",
+        )
+        .map(
+          (activation) =>
+            activation.unitId ??
+            basename(activation.targets[0]?.activePath ?? packageId),
+        )
+        .filter(Boolean),
+    ),
+  ].sort();
+}
+
+async function locateManagedSkills(
+  root: string,
+  unitIds: string[],
+): Promise<Map<string, string>> {
+  const normalized = new Map(
+    unitIds.map((unitId) => [unitId.toLowerCase(), unitId]),
+  );
+  const located = new Map<string, string>();
+  await discoverSkillDirectories(root, {
+    validate: false,
+    include: (skill) => {
+      const unitId =
+        (skill.name ? normalized.get(skill.name.toLowerCase()) : undefined) ??
+        normalized.get(skill.targetName.toLowerCase());
+      if (!unitId) return false;
+      located.set(unitId, skill.path);
+      return true;
+    },
+  });
+  return located;
+}
+
+async function analyzeManagedUpdate(
+  oldRoot: string,
+  newRoot: string,
+  unitIds: string[],
+): Promise<{
+  diff: ChangedFileDiff[];
+  safetyFindings: SafetyFinding[];
+  approvalRequired: boolean;
+}> {
+  if (!unitIds.length) {
+    const [diff, safety] = await Promise.all([
+      diffRepositorySnapshots(oldRoot, newRoot),
+      analyzeUpdateSafety(oldRoot, newRoot),
+    ]);
+    return {
+      diff,
+      safetyFindings: safety.findings,
+      approvalRequired: safety.approvalRequired,
+    };
+  }
+  const [oldSkills, newSkills] = await Promise.all([
+    locateManagedSkills(oldRoot, unitIds),
+    locateManagedSkills(newRoot, unitIds),
+  ]);
+  const diff: ChangedFileDiff[] = [];
+  const findings: SafetyFinding[] = [];
+  for (const unitId of unitIds) {
+    const oldPath = oldSkills.get(unitId);
+    const newPath = newSkills.get(unitId);
+    if (!oldPath || !newPath) {
+      findings.push({
+        severity: "blocking",
+        category: "instruction",
+        message: `Managed skill '${unitId}' is missing from one update revision.`,
+        paths: [unitId],
+      });
+      continue;
+    }
+    diff.push(
+      ...(await diffRepositorySnapshots(oldPath, newPath)).map((item) => ({
+        ...item,
+        path: `${unitId}/${item.path}`,
+      })),
+    );
+    const safety = await analyzeUpdateSafety(oldPath, newPath);
+    findings.push(
+      ...safety.findings.map((finding) => ({
+        ...finding,
+        paths: finding.paths.map((path) => `${unitId}/${path}`),
+      })),
+    );
+  }
+  const unique = new Map<string, SafetyFinding>();
+  for (const finding of findings)
+    unique.set(
+      `${finding.severity}:${finding.category}:${finding.message}:${finding.paths.join(",")}:${finding.names?.join(",") ?? ""}`,
+      finding,
+    );
+  const safetyFindings = [...unique.values()];
+  return {
+    diff,
+    safetyFindings,
+    approvalRequired: safetyFindings.some(
+      (finding) => finding.severity === "blocking",
+    ),
+  };
 }
 
 /** Builds a read-only update plan from persisted installs and live GitHub snapshots. */
@@ -107,10 +225,14 @@ export async function buildUpdatePlan(
             record.repository,
             record.resolvedCommit,
           );
-          diff = await diffRepositorySnapshots(oldPath, current.path);
-          const safety = await analyzeUpdateSafety(oldPath, current.path);
-          safetyFindings = safety.findings;
-          approvalRequired = safety.approvalRequired;
+          const analysis = await analyzeManagedUpdate(
+            oldPath,
+            current.path,
+            managedUnitIds(state, record.packageId),
+          );
+          diff = analysis.diff;
+          safetyFindings = analysis.safetyFindings;
+          approvalRequired = analysis.approvalRequired;
         }
         return {
           ...base,
@@ -263,7 +385,8 @@ export async function applyPackageUpdate(
   if (current.commit.toLowerCase() === record.resolvedCommit.toLowerCase())
     throw new Error(`Package '${packageId}' is already up to date`);
   const oldPath = repositoryCachePath(record.repository, record.resolvedCommit);
-  const safety = await analyzeUpdateSafety(oldPath, current.path);
+  const units = managedUnitIds(state, packageId);
+  const safety = await analyzeManagedUpdate(oldPath, current.path, units);
   if (safety.approvalRequired && !options.approveRisk) {
     const quarantinePath =
       options.quarantineOnBlock === false
@@ -272,10 +395,10 @@ export async function applyPackageUpdate(
             packageId,
             current.repository,
             current.commit,
-            safety.findings,
+            safety.safetyFindings,
           );
     throw new Error(
-      `Update is blocked pending explicit risk approval${quarantinePath ? `; quarantined at ${quarantinePath}` : ""}: ${safety.findings
+      `Update is blocked pending explicit risk approval${quarantinePath ? `; quarantined at ${quarantinePath}` : ""}: ${safety.safetyFindings
         .filter((finding) => finding.severity === "blocking")
         .map((finding) => finding.message)
         .join(" ")}`,
@@ -289,7 +412,31 @@ export async function applyPackageUpdate(
     current.path,
     record.packageId,
     agents,
+    units.length
+      ? {
+          include: (skill) =>
+            units.some(
+              (unitId) =>
+                unitId.toLowerCase() === skill.name?.toLowerCase() ||
+                unitId.toLowerCase() === skill.targetName.toLowerCase(),
+            ),
+        }
+      : {},
   );
+  if (units.length) {
+    const plannedUnits = [
+      ...new Set(plan.files.map((file) => basename(file.target))),
+    ].sort();
+    if (
+      plannedUnits.length !== units.length ||
+      plannedUnits.some(
+        (unitId, index) => unitId.toLowerCase() !== units[index].toLowerCase(),
+      )
+    )
+      throw new Error(
+        `Update plan changed the managed skill set for '${packageId}'; expected ${units.join(", ")}, received ${plannedUnits.join(", ") || "none"}.`,
+      );
+  }
   const verifier = runtime.verify ?? verifyInstalledSkills;
   let verificationFailure: unknown;
   let verificationSnapshotId: string | undefined;
@@ -299,6 +446,17 @@ export async function applyPackageUpdate(
       {
         repository: current.repository,
         resolvedCommit: current.commit,
+        reviewed: true,
+        staticAssessment: {
+          status: safety.approvalRequired
+            ? "blocking"
+            : safety.safetyFindings.length
+              ? "warning"
+              : "clear",
+          findingCount: safety.safetyFindings.length,
+          assessedAt: new Date().toISOString(),
+          policy: "install-safety-v1",
+        },
       },
       {
         allowManagedReplacement: true,

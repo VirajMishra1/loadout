@@ -39,8 +39,9 @@ import {
   planMcpRecipe,
   verifyMcpRecipe,
   verifyMcpRecipeConnection,
+  type McpSetupRecipe,
 } from "./core/mcp-recipes.js";
-import type { McpServer } from "./shared/types.js";
+import type { CredentialReference, McpServer } from "./shared/types.js";
 import { runDoctor, formatDoctorReport } from "./core/doctor.js";
 import {
   applyPackageUpdate,
@@ -268,6 +269,11 @@ import {
 } from "./core/agent-versions.js";
 import { formatAgentHealthScore } from "./core/agent-health-score.js";
 import { buildLocalAgentHealthScores } from "./core/health-score-evidence.js";
+import {
+  interactiveModelApiAccess,
+  parseModelApiAccess,
+  type SetupAccessProfile,
+} from "./core/access.js";
 import { discoverSkillsSh } from "./core/skills-sh-discovery.js";
 import { discoverOfficialMcpRegistry } from "./core/mcp-registry-discovery.js";
 import {
@@ -313,6 +319,45 @@ const collectOption = (value: string, previous: string[] = []): string[] => [
   value,
 ];
 
+function parseMcpCredentialMappings(
+  recipe: McpSetupRecipe,
+  mappings: string[],
+  account?: string,
+): Record<string, CredentialReference> {
+  const references: Record<string, CredentialReference> = {};
+  for (const mapping of mappings) {
+    const separator = mapping.indexOf("=");
+    if (separator <= 0)
+      throw new Error(
+        "Invalid --credential mapping; expected NAME=env:VARIABLE or NAME=keychain:SERVICE. Never pass a credential value.",
+      );
+    const name = mapping.slice(0, separator);
+    const value = mapping.slice(separator + 1);
+    if (!recipe.environment.includes(name))
+      throw new Error(
+        `Credential '${name}' is not required by recipe '${recipe.id}'`,
+      );
+    if (references[name])
+      throw new Error(`Credential '${name}' was mapped more than once`);
+    if (value.startsWith("env:") && value.length > 4)
+      references[name] = {
+        kind: "environment",
+        name: value.slice(4),
+      };
+    else if (value.startsWith("keychain:") && value.length > 9)
+      references[name] = {
+        kind: "os-keychain",
+        service: value.slice(9),
+        ...(account ? { account } : {}),
+      };
+    else
+      throw new Error(
+        `Invalid --credential mapping for '${name}'; use env:VARIABLE or keychain:SERVICE, never a credential value.`,
+      );
+  }
+  return references;
+}
+
 async function readCredentialFromStdin(): Promise<string> {
   if (process.stdin.isTTY)
     throw new Error(
@@ -340,6 +385,7 @@ interface SetupOptions {
   package: string[];
   yes?: boolean;
   approveRisk?: boolean;
+  apiAccess?: string;
 }
 
 function setupSelection(
@@ -399,6 +445,9 @@ async function runSetup(options: SetupOptions): Promise<void> {
   let mode = options.mode;
   let packageIds = options.package ?? [];
   let reader: ReturnType<typeof createInterface> | undefined;
+  let access: SetupAccessProfile | undefined = options.apiAccess
+    ? parseModelApiAccess(options.apiAccess)
+    : undefined;
   try {
     if (!mode) {
       if (!interactive) {
@@ -434,6 +483,18 @@ async function runSetup(options: SetupOptions): Promise<void> {
           .filter(Boolean);
       }
     }
+    if (!access && interactive && !options.yes) {
+      reader ??= createInterface({
+        input: process.stdin,
+        output: process.stdout,
+      });
+      access = interactiveModelApiAccess(
+        await reader.question(
+          "Separately billed model API access (ChatGPT/Claude subscriptions do not count): [0] None, [1] OpenAI API, [2] Anthropic API, [3] Both, [4] OpenRouter, [5] Other: ",
+        ),
+      );
+    }
+    access ??= { modelApis: [] };
     const selection = setupSelection(mode, packageIds);
     console.log(
       "\nPreparing a read-only install plan from screened immutable commits…",
@@ -441,6 +502,7 @@ async function runSetup(options: SetupOptions): Promise<void> {
     const prepared = await prepareCatalogInstall(selection, {
       requestedAgents: parseAgentSelection(options.agents),
       onProgress: printSetupProgress,
+      access,
     });
     console.log(`\n${formatPreparedCatalogInstall(prepared)}\n`);
     const risky = riskyPackageSummary(prepared);
@@ -505,7 +567,7 @@ async function runSetup(options: SetupOptions): Promise<void> {
   }
 }
 
-const LOADOUT_VERSION = "0.1.2";
+const LOADOUT_VERSION = "0.2.0";
 
 function durableSchedulerLauncher(): string[] {
   return [
@@ -545,6 +607,10 @@ program
   .option("--mode <mode>", "stable, power, maximum, or custom")
   .option("--agents <ids>", "comma-separated target agent ids")
   .option("--package <id>", "package id for custom mode", collectOption, [])
+  .option(
+    "--api-access <providers>",
+    "separately billed model API access: none, openai, anthropic, openrouter, or other (comma-separated; never a key)",
+  )
   .option("-y, --yes", "install after preparing the screened plan")
   .option(
     "--approve-risk",
@@ -561,6 +627,10 @@ program
   .option("--project <path>", "project directory", process.cwd())
   .option("--agents <ids>", "comma-separated target agent ids")
   .option("--package <id>", "package id for custom mode", collectOption, [])
+  .option(
+    "--api-access <providers>",
+    "separately billed model API access: none, openai, anthropic, openrouter, or other (comma-separated; never a key)",
+  )
   .option("--yes", "apply the exact displayed upgrade")
   .option("--approve-risk", "approve the displayed reviewed safety findings")
   .option("--json", "emit a machine-readable preview or result")
@@ -572,6 +642,7 @@ program
       package: string[];
       yes?: boolean;
       approveRisk?: boolean;
+      apiAccess?: string;
       json?: boolean;
     }) => {
       const plan = await planUpgrade(
@@ -580,6 +651,7 @@ program
           projectPath: options.project,
           requestedAgents: parseAgentSelection(options.agents),
           onProgress: options.json ? undefined : printSetupProgress,
+          access: parseModelApiAccess(options.apiAccess),
         },
       );
       if (!options.yes) {
@@ -3439,41 +3511,11 @@ program
             "--connect cannot be combined with --verify or --yes",
           );
         const recipe = findMcpRecipe(id);
-        const credentialReferences: Record<
-          string,
-          | { kind: "environment"; name: string }
-          | { kind: "os-keychain"; service: string; account?: string }
-        > = {};
-        for (const mapping of options.credential) {
-          const separator = mapping.indexOf("=");
-          if (separator <= 0)
-            throw new Error(
-              `Invalid --credential '${mapping}'; expected NAME=env:VARIABLE or NAME=keychain:SERVICE`,
-            );
-          const name = mapping.slice(0, separator);
-          const value = mapping.slice(separator + 1);
-          if (!recipe.environment.includes(name))
-            throw new Error(
-              `Credential '${name}' is not required by recipe '${id}'`,
-            );
-          if (value.startsWith("env:"))
-            credentialReferences[name] = {
-              kind: "environment",
-              name: value.slice(4),
-            };
-          else if (value.startsWith("keychain:"))
-            credentialReferences[name] = {
-              kind: "os-keychain",
-              service: value.slice(9),
-              ...(options.credentialAccount
-                ? { account: options.credentialAccount }
-                : {}),
-            };
-          else
-            throw new Error(
-              `Invalid --credential '${mapping}'; use env: or keychain:`,
-            );
-        }
+        const credentialReferences = parseMcpCredentialMappings(
+          recipe,
+          options.credential,
+          options.credentialAccount,
+        );
         const timeoutMs = Number(options.timeout);
         const controller = new AbortController();
         const abort = () => controller.abort();
@@ -3511,7 +3553,16 @@ program
         if (!verification.configured) process.exitCode = 1;
         return;
       }
-      const plan = await planMcpRecipe(id, options.config);
+      const recipe = findMcpRecipe(id);
+      const credentialReferences = parseMcpCredentialMappings(
+        recipe,
+        options.credential,
+        options.credentialAccount,
+      );
+      const plan = await planMcpRecipe(id, options.config, {
+        credentialReferences,
+        requireResolvedCredentials: Boolean(options.yes),
+      });
       if (!options.yes) {
         console.log(
           options.json

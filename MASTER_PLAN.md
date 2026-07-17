@@ -1023,13 +1023,12 @@ universal or permanent truth.
       `NOASSERTION` records, before distribution.
 - [ ] `P12-31 [TERRA]` Publish `loadout-ai` to npm and run clean-machine package tests
       from outside the repository on macOS, Windows, Linux, and Node 20/22.
-  - Partial: `loadout-ai@0.1.2` was published publicly on 2026-07-16 while the GitHub
-    repository remained private. Registry metadata, `npx` version/help, and a real
-    read-only Stable preview passed outside the source directory. Patch `0.1.2`
-    adds Codex Desktop detection through its existing `~/.codex` home when the
-    standalone `codex` executable is absent from the user's shell PATH. CI contains an
-    opt-in OS/Node matrix and OIDC/provenance release workflow; clean independent-user
-    installs on Windows/macOS/Linux remain required.
+  - Partial: `loadout-ai@0.2.0` was published publicly on 2026-07-17 while the GitHub
+    repository remained private. Registry version/integrity, a clean external npm
+    install, version/help, 50-record catalog coverage, and the real disposable
+    Superpowers install/rollback demo pass on macOS. Hosted matrix evidence already
+    covers Windows/macOS/Linux and Node 20/22; clean independent-user installs on
+    Windows and Linux remain required.
 - [ ] `P12-32 [HUMAN]` Run moderated founder testing on the real Claude and Codex
       profiles with snapshots and explicit rollback checkpoints.
   - Partial 2026-07-16: the founder ran the published npm CLI against the real macOS
@@ -1170,7 +1169,7 @@ universal or permanent truth.
     1,000 on-disk skills at a 1.29-second p95 on macOS/Node 23.
 - [ ] `P15-06 [HUMAN]` Approve public repository visibility, complete the six
       `NOASSERTION` license decisions, authenticate npm, and publish `loadout-ai`.
-  - Partial 2026-07-16: npm authentication and the public `loadout-ai@0.1.2`
+  - Partial 2026-07-17: npm authentication and the public `loadout-ai@0.2.0`
     publication succeeded. Repository visibility remains private at the owner's
     request, and the six root-level `NOASSERTION` decisions remain a human release
     gate; therefore this combined item is not ticked.
@@ -1601,6 +1600,10 @@ accident.
   - Repeat the safe no-key journey with Claude, then collect one Windows and one Linux
     external session. Convert every reproducible failure into a regression test before
     public-release claims.
+  - Partial 2026-07-17: the registry and clean external macOS install are verified for
+    `0.2.0`; the published CLI loads the complete command surface, reports all 50
+    catalog records, and completes its disposable install/rollback demo. Real founder
+    Stable/Power/Maximum and Claude-profile exercises remain deliberately pending.
 - [x] `P17-09 [TERRA implementation, LUNA copy review]` Make Power resilient and
       explain the product in beginner language before the `0.2.0` release.
   - Power now quarantines a rejected selected skill while retaining safe selected

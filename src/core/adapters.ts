@@ -163,6 +163,19 @@ export function adapterCapabilities(agent: AgentId): AdapterCapabilities {
 }
 
 /**
+ * Return the display names of agents with an explicitly declared native skill
+ * directory. This is a filesystem-support boundary, not a claim about native
+ * application runtime behavior.
+ */
+export function supportedAdapterNames(
+  adapters: readonly AdapterCapabilities[] = ADAPTER_CAPABILITIES,
+): string[] {
+  return adapters
+    .filter((adapter) => adapter.components.skill === "native")
+    .map((adapter) => adapter.displayName);
+}
+
+/**
  * Produce a read-only native-skill plan for one agent.  This is deliberately
  * narrower than package normalization: adapters may only target a directory
  * declared by the capability matrix, and planning never creates that

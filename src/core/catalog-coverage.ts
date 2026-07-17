@@ -7,6 +7,7 @@ import { catalogTrustStage, type CatalogTrustStage } from "./profiles.js";
 
 export interface CatalogCoverageReport {
   records: number;
+  categoryCount: number;
   targetRecords: number;
   technicallyScreenedRecords: number;
   recommendedRecords: number;
@@ -91,6 +92,7 @@ export function buildCatalogCoverage(
   );
   return {
     records: catalog.length,
+    categoryCount: Object.keys(categories).length,
     targetRecords,
     technicallyScreenedRecords: catalog.filter(technicallyScreened).length,
     recommendedRecords: catalog.filter(

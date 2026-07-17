@@ -1,0 +1,482 @@
+import { execFileSync } from "node:child_process";
+import { generateKeyPairSync } from "node:crypto";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import {
+  BENCHMARK_PROTOCOL_VERSION,
+  buildBenchmarkSchedule,
+  type BenchmarkCampaignV1,
+} from "../src/core/benchmark-campaign.js";
+import {
+  createBenchmarkEvidenceEvent,
+  type BenchmarkEvidenceEventV1,
+} from "../src/core/benchmark-evidence.js";
+import {
+  createBenchmarkTrustEvidence,
+  type BenchmarkJudgmentV1,
+} from "../src/core/benchmark-trust.js";
+import { signPayload } from "../src/core/signing.js";
+import {
+  auditReadmeClaims,
+  formatReadmeClaimFailures,
+} from "../scripts/check-readme-claims.mjs";
+
+const roots: string[] = [];
+const builtCli = resolve("dist/src/cli.js");
+
+const packageJson = {
+  name: "loadout-ai",
+  version: "0.1.2",
+  bin: { loadout: "dist/src/cli.js" },
+  engines: { node: ">=20" },
+  scripts: {
+    test: "vitest run",
+    "check:evidence": "node scripts/check-readme-claims.mjs",
+  },
+};
+
+const facts = {
+  catalog: { records: 50 },
+  agents: { supportedNames: ["Codex"] },
+  package: {
+    name: packageJson.name,
+    version: packageJson.version,
+    bin: packageJson.bin,
+  },
+  runtime: { node: packageJson.engines.node },
+};
+
+const releaseIndex = {
+  schemaVersion: 1 as const,
+  policyVersion: "p16-17-v1" as const,
+  claims: [],
+  releaseBlocked: false,
+  blockers: [],
+};
+
+function claim(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "product.scope",
+    section: "Introduction",
+    summary: "Loadout provides a local workflow.",
+    evidenceClass: "structural",
+    status: "proven",
+    evidence: ["evidence.txt"],
+    ...overrides,
+  };
+}
+
+async function fixture() {
+  const root = await mkdtemp(join(tmpdir(), "loadout-readme-claims-"));
+  roots.push(root);
+  await mkdir(join(root, "docs"), { recursive: true });
+  await Promise.all([
+    writeFile(join(root, "evidence.txt"), "authoritative\n", "utf8"),
+    writeFile(join(root, "fake-review.json"), "{}\n", "utf8"),
+    writeFile(
+      join(root, "valid-review.json"),
+      `${JSON.stringify(
+        {
+          schemaVersion: 1,
+          reviewer: "test-fixture-reviewer",
+          reviewedAt: "2026-07-16T12:00:00.000Z",
+          reviewedSourceCommit: "a".repeat(40),
+          scope: "Temporary verifier fixture only.",
+          findings: ["The synthetic artifact satisfies the verifier schema."],
+          decision: "Accepted for this temporary verifier test only.",
+        },
+        null,
+        2,
+      )}\n`,
+      "utf8",
+    ),
+    writeFile(
+      join(root, "docs", "RELEASE_REVIEW.md"),
+      "# Release review — 2026-07-16\n\nScope, findings, and bounded decision.\n",
+      "utf8",
+    ),
+    writeFile(
+      join(root, "package.json"),
+      `${JSON.stringify(packageJson, null, 2)}\n`,
+      "utf8",
+    ),
+  ]);
+  return root;
+}
+
+async function audit(options: {
+  readme?: string;
+  claims?: ReturnType<typeof claim>[];
+  setup?: (root: string) => Promise<void>;
+}) {
+  const root = await fixture();
+  await options.setup?.(root);
+  return auditReadmeClaims({
+    root,
+    readme:
+      options.readme ??
+      "Install with `npm install --global loadout-ai@0.1.2`.\n",
+    manifest: { schemaVersion: 1, claims: options.claims ?? [claim()] },
+    packageJson,
+    facts,
+    releaseIndex,
+    cliPath: builtCli,
+  });
+}
+
+async function writeTimestampMismatchedBenchmarkEvidence(root: string) {
+  const sha = (character: string) => character.repeat(64);
+  const commit = (character: string) => character.repeat(40);
+  const campaign: BenchmarkCampaignV1 = {
+    schemaVersion: 1,
+    protocolVersion: BENCHMARK_PROTOCOL_VERSION,
+    campaignId: "readme-verifier-fixture",
+    createdAt: "2026-07-16T10:00:00.000Z",
+    category: "workflow-adherence",
+    fixture: {
+      id: "readme-verifier-fixture",
+      version: "1.0.0",
+      fixtureSha256: sha("a"),
+      rubricSha256: sha("b"),
+    },
+    candidates: [
+      {
+        role: "baseline",
+        id: "baseline",
+        packageId: "baseline-package",
+        skillPath: "baseline/SKILL.md",
+        reviewedCommit: commit("c"),
+        instructionSha256: sha("d"),
+      },
+      {
+        role: "candidate",
+        id: "candidate",
+        packageId: "candidate-package",
+        skillPath: "candidate/SKILL.md",
+        reviewedCommit: commit("e"),
+        instructionSha256: sha("f"),
+      },
+    ],
+    model: { provider: "synthetic", model: "fixture-model", version: "1" },
+    sampling: {
+      temperature: 0,
+      topP: 1,
+      maxInputTokensPerRequest: 100,
+      maxOutputTokensPerRequest: 50,
+    },
+    trials: { pairs: 5, maxRetriesPerRequest: 0, timeoutMsPerRequest: 1_000 },
+    randomization: {
+      strategy: "paired-balanced-sha256-v1",
+      seed: sha("1"),
+      concealCandidateLabels: true,
+    },
+    isolation: {
+      toolPolicy: "none",
+      networkPolicy: "disabled",
+      candidatePolicy: "instructions-as-data",
+      fixturePolicy: "synthetic-only",
+    },
+    budget: {
+      maxRequests: 10,
+      maxInputTokens: 1_000,
+      maxOutputTokens: 500,
+      maxCostUsd: 1,
+      inputUsdPerMillionTokens: 1,
+      outputUsdPerMillionTokens: 1,
+    },
+    decision: {
+      minimumSuccessfulPairs: 5,
+      minimumPracticalScoreDelta: 5,
+      promotionPolicy: "signed-evidence-plus-human-approval",
+    },
+  };
+  let events: BenchmarkEvidenceEventV1[] = [];
+  const judgments: BenchmarkJudgmentV1[] = [];
+  let tick = 0;
+  const add = (payload: Parameters<typeof createBenchmarkEvidenceEvent>[3]) => {
+    events = [
+      ...events,
+      createBenchmarkEvidenceEvent(
+        campaign,
+        "readme-verifier-run",
+        events,
+        payload,
+        new Date(Date.UTC(2026, 6, 16, 10, 1, tick++)).toISOString(),
+      ),
+    ];
+  };
+  add({
+    type: "run-started",
+    providerId: "synthetic",
+    sandboxBackend: "injected",
+    spendApproved: true,
+  });
+  for (const [index, request] of buildBenchmarkSchedule(campaign).entries()) {
+    add({
+      type: "request-started",
+      requestId: request.requestId,
+      pairIndex: request.pairIndex,
+      position: request.position,
+      attempt: 1,
+    });
+    const outputSha256 = sha(String(index % 10));
+    add({
+      type: "request-completed",
+      completion: {
+        requestId: request.requestId,
+        outcome: "succeeded",
+        attempts: 1,
+        inputTokens: 10,
+        outputTokens: 5,
+        durationMs: 20,
+        reportedCostUsd: 0.001,
+        outputSha256,
+      },
+    });
+    judgments.push({
+      requestId: request.requestId,
+      outputSha256,
+      score: request.role === "candidate" ? 90 : 60,
+      blockingSafetyFailure: false,
+    });
+  }
+  add({ type: "run-completed" });
+  const evidence = createBenchmarkTrustEvidence(
+    campaign,
+    events,
+    judgments,
+    "2026-07-16T10:04:00.000Z",
+  );
+  const pair = generateKeyPairSync("ed25519");
+  const privateKey = pair.privateKey
+    .export({ type: "pkcs8", format: "pem" })
+    .toString();
+  const publicKey = pair.publicKey
+    .export({ type: "spki", format: "pem" })
+    .toString();
+  const envelope = signPayload(
+    evidence,
+    privateKey,
+    "2026-07-16T10:05:00.000Z",
+  );
+  await Promise.all([
+    writeFile(
+      join(root, "benchmark-evidence.json"),
+      `${JSON.stringify(envelope, null, 2)}\n`,
+      "utf8",
+    ),
+    writeFile(join(root, "benchmark-public.pem"), publicKey, "utf8"),
+  ]);
+}
+
+function expectActionable(
+  result: Awaited<ReturnType<typeof audit>>,
+  claimId: string,
+  observed: RegExp,
+) {
+  const failure = result.failures.find((item) => item.claimId === claimId);
+  expect(failure).toMatchObject({ claimId });
+  expect(failure?.observed).toMatch(observed);
+  expect(failure?.authoritativeSource).toBeTruthy();
+  expect(failure?.remediation).toBeTruthy();
+  expect(formatReadmeClaimFailures([failure!])).toMatch(
+    /Observed:.*Authoritative source:.*Remediation:/s,
+  );
+}
+
+beforeAll(() => {
+  execFileSync("npm", ["run", "build"], { stdio: "pipe" });
+});
+
+afterAll(async () => {
+  await Promise.all(
+    roots.splice(0).map((root) => rm(root, { recursive: true, force: true })),
+  );
+});
+
+describe("README claim evidence gate", () => {
+  it("rejects stale npm version wording and contradictory publication wording", async () => {
+    const stale = await audit({
+      readme: "Install with `npm install --global loadout-ai@0.1.1`.\n",
+    });
+    expectActionable(stale, "distribution.npm", /0\.1\.1/);
+
+    const contradiction = await audit({
+      readme: [
+        "Loadout is available as a public npm beta.",
+        "The npm package is prepared but not yet published.",
+        "Install with `npm install --global loadout-ai@0.1.2`.",
+      ].join("\n"),
+    });
+    expectActionable(
+      contradiction,
+      "distribution.npm",
+      /both available and not published/i,
+    );
+  });
+
+  it("rejects absent authoritative evidence paths", async () => {
+    const result = await audit({
+      claims: [claim({ evidence: ["missing-evidence.json"] })],
+    });
+
+    expectActionable(result, "product.scope", /missing-evidence\.json/);
+  });
+
+  it("rejects duplicate manifest claim IDs", async () => {
+    const result = await audit({
+      claims: [claim(), claim({ summary: "A duplicate claim." })],
+    });
+
+    expectActionable(result, "product.scope", /duplicate/i);
+  });
+
+  it("rejects an unfulfilled claim presented as a current capability", async () => {
+    const summary = "Loadout supports teleporting skills between machines.";
+    const result = await audit({
+      readme: `# Product\n\n${summary}\n\nInstall with \`npm install --global loadout-ai@0.1.2\`.\n`,
+      claims: [
+        claim({
+          id: "future.teleportation",
+          summary,
+          status: "unfulfilled",
+          evidence: [],
+        }),
+      ],
+    });
+
+    expectActionable(result, "future.teleportation", /current capability/i);
+  });
+
+  it("rejects human-reviewed claims without a review artifact", async () => {
+    const result = await audit({
+      claims: [
+        claim({
+          id: "release.review",
+          evidenceClass: "human-reviewed",
+          status: "bounded",
+          evidence: ["fake-review.json"],
+        }),
+      ],
+    });
+
+    expectActionable(result, "release.review", /review artifact/i);
+  });
+
+  it("accepts a complete structured human-review artifact", async () => {
+    const result = await audit({
+      claims: [
+        claim({
+          id: "release.review",
+          evidenceClass: "human-reviewed",
+          status: "bounded",
+          evidence: ["valid-review.json"],
+        }),
+      ],
+    });
+
+    expect(result.failures).toEqual([]);
+  });
+
+  it("rejects benchmarked claims without verifiable signed run evidence even when bounded", async () => {
+    const result = await audit({
+      claims: [
+        claim({
+          id: "benchmark.result",
+          evidenceClass: "benchmarked",
+          status: "bounded",
+          evidence: ["evidence.txt"],
+        }),
+      ],
+    });
+
+    expectActionable(result, "benchmark.result", /signed run evidence/i);
+  });
+
+  it("rejects signed benchmark evidence with inconsistent envelope and payload timestamps", async () => {
+    const result = await audit({
+      claims: [
+        claim({
+          id: "benchmark.result",
+          evidenceClass: "benchmarked",
+          status: "bounded",
+          evidence: ["benchmark-evidence.json", "benchmark-public.pem"],
+        }),
+      ],
+      setup: writeTimestampMismatchedBenchmarkEvidence,
+    });
+
+    expectActionable(result, "benchmark.result", /signed run evidence/i);
+  });
+
+  it("requires live claims to be explicitly bounded or backed by signed dated evidence", async () => {
+    const proven = await audit({
+      claims: [
+        claim({
+          id: "distribution.live",
+          evidenceClass: "live-verified",
+          evidence: ["evidence.txt"],
+        }),
+      ],
+    });
+    expectActionable(proven, "distribution.live", /dated live evidence/i);
+
+    const unbounded = await audit({
+      claims: [
+        claim({
+          id: "distribution.live",
+          evidenceClass: "live-verified",
+          status: "bounded",
+          evidence: ["evidence.txt"],
+        }),
+      ],
+    });
+    expectActionable(unbounded, "distribution.live", /external prerequisite/i);
+
+    const bounded = await audit({
+      claims: [
+        claim({
+          id: "distribution.live",
+          evidenceClass: "live-verified",
+          status: "bounded",
+          evidence: ["evidence.txt"],
+          externalPrerequisites: ["Current registry availability"],
+        }),
+      ],
+    });
+    expect(bounded.failures).toEqual([]);
+  });
+
+  it("rejects a documented command absent from built CLI help", async () => {
+    const result = await audit({
+      readme: [
+        "Install with `npm install --global loadout-ai@0.1.2`.",
+        "```bash",
+        "loadout status && loadout candidate command-that-does-not-exist",
+        "```",
+      ].join("\n"),
+    });
+
+    expectActionable(
+      result,
+      "product.scope",
+      /command-that-does-not-exist.*built CLI help/i,
+    );
+  });
+
+  it("accepts nested commands reported by built subcommand help", async () => {
+    const result = await audit({
+      readme: [
+        "Install with `npm install --global loadout-ai@0.1.2`.",
+        "```bash",
+        "loadout candidate inspect owner/repository --output dossier.json",
+        "loadout credentials set loadout.github --stdin",
+        "```",
+      ].join("\n"),
+    });
+
+    expect(result.failures).toEqual([]);
+  });
+});

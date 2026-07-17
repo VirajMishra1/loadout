@@ -323,6 +323,10 @@ No bundled source is called benchmarked until real isolated trials, signed evide
 - MCP-only records need explicit configuration and may need external credentials or software.
 - Graphify is the first fully reviewed executable recipe; other runtime tools need equivalent recipe work.
 - Six catalog records currently have `NOASSERTION` license metadata and should be reviewed before relying on their license status.
+- The bundled catalog is technically screened and finite; only the stricter Stable subset is currently marked recommended, and discovery leads do not auto-promote themselves.
+- Public GitHub is the default source. Private GitHub discovery requires explicit authorization through an environment or native credential reference.
+- Skill components are the only components installed automatically by broad setup. MCP-only records require an explicit recipe or configuration target.
+- Executable tools are never included in broad setup. Graphify has a separately previewed, pinned, credential-isolated, reversible runtime recipe; additional runtime tools require the same reviewed-recipe treatment.
 
 <!-- loadout:current-limits:start -->
 

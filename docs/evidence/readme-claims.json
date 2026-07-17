@@ -168,7 +168,7 @@
       "id": "benchmarks.protocol",
       "section": "Measure what works",
       "summary": "Benchmark planning and protocol artifacts do not by themselves prove a source is benchmarked.",
-      "evidenceClass": "benchmarked",
+      "evidenceClass": "structural",
       "status": "bounded",
       "evidence": [
         "docs/EVALUATION_PROTOCOL_V1.md",
@@ -197,7 +197,7 @@
       "id": "release.state",
       "section": "Install from npm",
       "summary": "Release and beta wording is bounded to release-review artifacts and is not proof of current public publication.",
-      "evidenceClass": "human-reviewed",
+      "evidenceClass": "structural",
       "status": "bounded",
       "evidence": ["docs/RELEASE_REVIEW.md", "package.json"],
       "externalPrerequisites": [

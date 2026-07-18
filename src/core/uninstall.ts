@@ -89,7 +89,33 @@ async function removeEmptyManagedDirectories(
   ].sort((left, right) => right.length - left.length);
   for (const directory of candidates) {
     try {
-      if ((await readdir(directory)).length === 0) await rmdir(directory);
+      const queue = [directory];
+      const visited = [directory];
+      let entriesChecked = 0;
+      let empty = true;
+      while (queue.length && empty) {
+        const current = queue.pop()!;
+        for (const entry of await readdir(current, { withFileTypes: true })) {
+          entriesChecked += 1;
+          if (entriesChecked > 10_000) {
+            empty = false;
+            break;
+          }
+          if (entry.isDirectory() && !entry.isSymbolicLink()) {
+            const child = resolve(current, entry.name);
+            queue.push(child);
+            visited.push(child);
+          } else {
+            empty = false;
+            break;
+          }
+        }
+      }
+      if (empty)
+        for (const current of visited.sort(
+          (left, right) => right.length - left.length,
+        ))
+          await rmdir(current);
     } catch {
       // Missing and non-empty directories are both safe to leave alone.
     }

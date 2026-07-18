@@ -52,9 +52,12 @@ can test Loadout.
 - [x] `P18-12 [TERRA]` Add a pinned Chrome DevTools MCP recipe and distinguish
       separately billed AI/model API keys from unrelated service credentials. The
       no-model-key inventory includes GitHub read-only with its token disclosed.
-- [ ] `P18-13 [HUMAN+TERRA]` Publish `0.3.1`, then run Stable -> rollback -> Power ->
+- [ ] `P18-13 [HUMAN+TERRA]` Publish `0.3.2`, then run Stable -> rollback -> Power ->
       rollback -> Maximum -> project optimization -> dashboard -> complete uninstall
       against the exact npm package.
+- [x] `P18-14 [TERRA]` Treat recursively empty directories from legacy cleanup as
+      unoccupied without weakening unmanaged-file protection, and make complete
+      uninstall remove empty nested directory shells.
 
 ### Explicitly deferred (do not expand during this usability pass)
 

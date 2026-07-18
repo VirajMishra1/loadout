@@ -192,6 +192,28 @@ describe("skill installation transaction", () => {
     expect(await readFile(join(occupied, "SKILL.md"), "utf8")).toBe(original);
   });
 
+  it("treats recursively empty leftover skill directories as unoccupied", async () => {
+    const root = await mkdtemp(join(tmpdir(), "loadout-empty-target-"));
+    directories.push(root);
+    process.env.LOADOUT_HOME = join(root, ".loadout");
+    const source = join(root, "source");
+    const target = join(root, "skills");
+    const leftover = join(target, "source");
+    await mkdir(source, { recursive: true });
+    await mkdir(join(leftover, "empty", "nested"), { recursive: true });
+    const content =
+      "---\nname: source\ndescription: Reviewed replacement for an empty leftover\n---\n";
+    await writeFile(join(source, "SKILL.md"), content);
+    const plan = await buildSkillPlan(source, "source", [agent(target)]);
+
+    await expect(
+      applySkillInstallBatch([{ plan }], [], {
+        replaceManagedTargets: true,
+      }),
+    ).resolves.toMatch(/^\d+-[a-f0-9]{12}$/);
+    expect(await readFile(join(leftover, "SKILL.md"), "utf8")).toBe(content);
+  });
+
   it("does not treat an unmanaged batch collision as replaceable", async () => {
     const root = await mkdtemp(join(tmpdir(), "loadout-unmanaged-batch-"));
     directories.push(root);

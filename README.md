@@ -11,7 +11,7 @@ It solves a simple problem: useful skills and MCP tools are scattered across hun
 You need Node.js 20 or newer and Git.
 
 ```bash
-npm install --global loadout-ai@0.3.1
+npm install --global loadout-ai@0.3.2
 loadout --version
 loadout upgrade
 ```

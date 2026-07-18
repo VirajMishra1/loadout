@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.3.2 - 2026-07-18
+
+### Fixed
+
+- Treat recursively empty skill directories left by an older removal as unoccupied,
+  while continuing to block every directory containing a file, symlink, or other
+  unmanaged entry.
+- Re-check target occupancy immediately before copying or replacing files to close the
+  preview/apply race.
+- Remove recursively empty managed skill directories during complete uninstall so a
+  clean reinstall does not encounter false conflicts.
+
 ## 0.3.1 - 2026-07-18
 
 ### Fixed

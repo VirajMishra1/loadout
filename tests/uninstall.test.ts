@@ -78,6 +78,7 @@ describe("complete Loadout uninstall", () => {
     const unrelated = join(root, "agent", "my-own-skill.txt");
     await mkdir(source, { recursive: true });
     await mkdir(target, { recursive: true });
+    await mkdir(join(target, "empty", "nested"), { recursive: true });
     await writeFile(join(source, "SKILL.md"), "managed");
     await writeFile(join(target, "SKILL.md"), "managed");
     await writeFile(unrelated, "keep me");

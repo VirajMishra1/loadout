@@ -1,5 +1,5 @@
 import { existsSync } from "node:fs";
-import { cp, lstat, rm } from "node:fs/promises";
+import { cp, lstat, readdir, rm } from "node:fs/promises";
 import {
   basename,
   dirname,
@@ -211,7 +211,31 @@ async function assertActiveTargetsUnoccupied(
     ...new Set(plans.flatMap((plan) => plan.files.map((file) => file.target))),
   ])
     try {
-      await lstat(target);
+      const info = await lstat(target);
+      if (info.isDirectory() && !info.isSymbolicLink()) {
+        const queue = [target];
+        let entriesChecked = 0;
+        let empty = true;
+        while (queue.length && empty) {
+          const directory = queue.pop()!;
+          for (const entry of await readdir(directory, {
+            withFileTypes: true,
+          })) {
+            entriesChecked += 1;
+            if (entriesChecked > 10_000) {
+              empty = false;
+              break;
+            }
+            if (entry.isDirectory() && !entry.isSymbolicLink())
+              queue.push(join(directory, entry.name));
+            else {
+              empty = false;
+              break;
+            }
+          }
+        }
+        if (empty) continue;
+      }
       occupied.push(target);
     } catch (error) {
       if (
@@ -338,6 +362,9 @@ export async function applySkillInstall(
       };
     },
     async (freshPlan, snapshot) => {
+      // Close the preview/apply race: an empty target may have become occupied
+      // after the first check but before the transaction snapshot completed.
+      await assertActiveTargetsUnoccupied([freshPlan], options);
       if (options.replaceManagedTargets)
         for (const target of [
           ...new Set(freshPlan.files.map((file) => file.target)),
@@ -438,6 +465,12 @@ export async function applySkillInstallBatch(
       };
     },
     async ({ entries: freshEntries, reconciliation }, snapshot) => {
+      // Re-check immediately before any removal or copy for the same reason as
+      // the single-package path above.
+      await assertActiveTargetsUnoccupied(
+        freshEntries.map((entry) => entry.plan),
+        { allowManagedReplacement: options.replaceManagedTargets },
+      );
       for (const target of reconciliation.obsoleteTargets)
         await rm(target, { recursive: true, force: true });
       if (options.replaceManagedTargets)

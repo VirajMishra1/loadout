@@ -59,6 +59,15 @@ describe("reviewed MCP recipes", () => {
     }
   });
 
+  it("includes useful browser MCP recipes that need no API credential", () => {
+    const noKey = REVIEWED_MCP_RECIPES.filter(
+      (recipe) => recipe.environment.length === 0,
+    ).map((recipe) => recipe.id);
+    expect(noKey).toContain("playwright");
+    expect(noKey).toContain("chrome-devtools");
+    expect(noKey).not.toContain("github-readonly");
+  });
+
   it("plans a reviewed recipe without a credential value and preserves unrelated JSON", async () => {
     root = await mkdtemp(join(tmpdir(), "loadout-mcp-recipe-"));
     const config = join(root, "mcp.json");

@@ -14,7 +14,7 @@ describe("native read-only scheduler", () => {
     if (root) await rm(root, { recursive: true, force: true });
   });
 
-  it("renders macOS, Linux, and Windows plans that can only run watch --once", () => {
+  it("renders macOS, Linux, and Windows plans that only run the unified update check", () => {
     for (const platform of ["darwin", "linux", "win32"] as const) {
       const plan = planNativeScheduler("schedule", {
         platform,
@@ -30,7 +30,7 @@ describe("native read-only scheduler", () => {
         time: "08:30",
       });
       expect(plan.guarantee).toBe("read-only-checks-only");
-      expect(plan.command.slice(-3)).toEqual(["watch", "--once", "--json"]);
+      expect(plan.command.slice(-2)).toEqual(["update", "--json"]);
       expect(plan.files.map((file) => file.content).join("\n")).not.toMatch(
         /\b(?:install|update --yes|sync --yes)\b/,
       );
@@ -69,8 +69,7 @@ describe("native read-only scheduler", () => {
       "/usr/bin/npx",
       "--yes",
       "loadout-ai@0.1.0",
-      "watch",
-      "--once",
+      "update",
       "--json",
     ]);
   });

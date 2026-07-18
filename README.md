@@ -11,7 +11,7 @@ It solves a simple problem: useful skills and MCP tools are scattered across hun
 You need Node.js 20 or newer and Git.
 
 ```bash
-npm install --global loadout-ai@0.2.0
+npm install --global loadout-ai@0.3.0
 loadout --version
 loadout upgrade
 ```
@@ -29,6 +29,19 @@ Every applied change creates a snapshot. Undo the latest change with:
 ```bash
 loadout rollback
 ```
+
+Remove one package with `loadout remove <package>`. Remove everything Loadout owns
+with a preview-first command:
+
+```bash
+loadout uninstall
+loadout uninstall --yes
+loadout uninstall --yes --remove-cli
+```
+
+The first command changes nothing. Complete uninstall preserves unmanaged files and
+stops if a Loadout-managed file contains your edits unless you explicitly add
+`--force`.
 
 ## Choose how much you want
 
@@ -126,6 +139,11 @@ loadout alerts --updates
 loadout update
 ```
 
+`loadout update` checks the saved Stable, Power, Maximum, or Custom profile plus every
+managed repository. It is read-only. `loadout update --yes` applies reviewed profile
+changes and safe screened updates; anything disabled, risky, or failed is held for
+review. Daily checks never include `--yes`.
+
 The wording matters:
 
 - A **new lead** is interesting enough to inspect, not “must install.”
@@ -165,6 +183,15 @@ loadout setup --mode maximum --api-access openai,anthropic
 ```
 
 Loadout never treats API access as permission to install an MCP server. Credentialed MCP tools remain explicit setup steps, and configuration stores an environment-variable or OS-keychain reference rather than the secret value.
+
+See the reviewed MCP recipes that need no API key or service token:
+
+```bash
+loadout mcp-recipe --no-key
+```
+
+This release includes pinned recipes for Playwright MCP and Chrome DevTools MCP. They
+still control a local browser, so configuration and connection remain explicit.
 
 ```bash
 export LOADOUT_GITHUB_TOKEN="$GITHUB_PERSONAL_ACCESS_TOKEN"
@@ -206,7 +233,9 @@ Executable tools and MCP servers receive separate treatment because they can run
 | Read the discovery queue                  | `loadout review-queue`                        |
 | Check installed changes                   | `loadout alerts --updates`                    |
 | Preview updates                           | `loadout update`                              |
+| Apply all safe reviewed updates           | `loadout update --yes`                        |
 | Undo the latest applied change            | `loadout rollback`                            |
+| Completely remove Loadout                 | `loadout uninstall`                           |
 | Test safely without touching your profile | `loadout demo`                                |
 | See every command                         | `loadout --help`                              |
 

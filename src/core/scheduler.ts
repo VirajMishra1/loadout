@@ -107,7 +107,7 @@ export function planNativeScheduler(
   const nativeId = `loadout-daily-${job}`;
   const command =
     job === "updates"
-      ? [...launcher, "watch", "--once", "--json"]
+      ? [...launcher, "update", "--json"]
       : [...launcher, "discover", "--source", "all", "--queue", "--json"];
   if (selectedPlatform === "darwin") {
     const label = `com.loadout.daily.${job}`;
@@ -348,6 +348,6 @@ export function formatNativeScheduler(plan: NativeSchedulerPlan): string {
     ...plan.applyCommands.map(
       (item) => `Native action: ${item.command} ${item.args.join(" ")}`,
     ),
-    `Guarantee: the scheduled command is ${plan.command.slice(2).join(" ")}; it can only report updates or queue candidates and cannot apply changes.`,
+    `Guarantee: no --yes flag is scheduled; this job can only report updates or queue candidates and cannot apply changes.`,
   ].join("\n");
 }

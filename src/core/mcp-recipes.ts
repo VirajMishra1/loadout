@@ -118,6 +118,26 @@ export const REVIEWED_MCP_RECIPES: McpSetupRecipe[] = [
       "npm:@playwright/mcp@0.0.78#sha512-XLTUeA6mEN9sQ+hJ4dfG8EIkDbxS0K3Trc2RBkUJuf02TgE2FQRNTMtq/aJfhyRMINsRl/Ybc4sxcWLtFn4/TQ==",
   },
   {
+    id: "chrome-devtools",
+    displayName: "Chrome DevTools MCP",
+    source:
+      "https://github.com/ChromeDevTools/chrome-devtools-mcp/tree/f621d0052fd241dca76e7f615b20e9d320ba965f",
+    serverName: "chrome-devtools",
+    command: "npx",
+    args: ["-y", "chrome-devtools-mcp@1.6.0"],
+    environment: [],
+    fixedEnvironment: {},
+    permissions: [
+      "control a local Chrome browser",
+      "inspect pages, network activity, performance, and console output",
+    ],
+    connection: "stdio",
+    reviewedCommit: "f621d0052fd241dca76e7f615b20e9d320ba965f",
+    reviewedAt: "2026-07-18T00:00:00Z",
+    artifact:
+      "npm:chrome-devtools-mcp@1.6.0#sha512-VZX6f/OjQSYhy2BGGRs+y3LsrsAQAz/HwZCWKBLVyST/4r/3zjVEjjVW7gMCVbRDuspnVdcp5hQDPrQ5UFrdZw==",
+  },
+  {
     id: "github-readonly",
     displayName: "GitHub MCP Server (read-only)",
     source:

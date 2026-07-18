@@ -199,7 +199,13 @@ write to the detected real agent profiles. After npm publication, replace `npx .
 
 ## 8. Test credential-gated MCP configuration without exposing a key
 
-The Playwright recipe has no service credential. The GitHub read-only recipe does and
+List the reviewed recipes that need no API key or service token:
+
+```bash
+npx . mcp-recipe --no-key
+```
+
+Playwright and Chrome DevTools have no service credential. The GitHub read-only recipe does and
 must refuse `--yes` until its declared environment reference resolves:
 
 ```bash
@@ -230,3 +236,14 @@ npx . dashboard
 Open the printed loopback URL. CLI setup, updates, removal, discovery, and rollback all
 work without it. Browser automation is also optional and runs only when manually
 dispatched in CI; locally, use `npm run test:e2e:dashboard`.
+
+## Final cleanup test
+
+```bash
+npx . uninstall
+npx . uninstall --yes
+```
+
+The first command is a dry run. The second removes only Loadout-managed agent files,
+runtime tools, native jobs, state, snapshots, and cache; it leaves the locally invoked
+package itself alone. Use `--remove-cli` only when testing a global npm install.

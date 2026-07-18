@@ -434,14 +434,19 @@ export async function forgetInstall(packageId: string): Promise<void> {
   const installs = state.installs.filter(
     (entry) => entry.packageId !== packageId,
   );
-  if (installs.length === state.installs.length)
+  const mcpInstalls = (state.mcpInstalls ?? []).filter(
+    (entry) => entry.packageId !== packageId,
+  );
+  if (
+    installs.length === state.installs.length &&
+    mcpInstalls.length === (state.mcpInstalls ?? []).length
+  )
     throw new Error(`Package is not managed by Loadout: ${packageId}`);
   await writeInstallState({
     version: 1,
     installs,
-    mcpInstalls: (state.mcpInstalls ?? []).filter(
-      (entry) => entry.packageId !== packageId,
-    ),
+    ...(state.profile ? { profile: state.profile } : {}),
+    mcpInstalls,
     activations: (state.activations ?? []).map((entry) =>
       entry.packageId === packageId
         ? {

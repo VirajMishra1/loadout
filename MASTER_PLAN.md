@@ -24,21 +24,36 @@ can test Loadout.
 - [ ] `P18-03 [HUMAN+TERRA]` Run the founder acceptance path in
       `docs/USER_TEST_GUIDE.md` on the real Codex and Claude profiles. Record each
       observed failure and turn reproducible ones into regression tests.
-- [ ] `P18-04 [TERRA]` Bound and explain live network checks in `health --updates`
+- [x] `P18-04 [TERRA]` Bound and explain live network checks in `health --updates`
       and `watch --once`; they must show progress, a clear timeout, and an actionable
       result even when a large Maximum library is present.
-- [ ] `P18-05 [TERRA]` Make Agent Health distinguish active skills from disabled
+- [x] `P18-05 [TERRA]` Make Agent Health distinguish active skills from disabled
       Maximum-library copies, so a broad download is not presented as a broken active
       configuration.
-- [ ] `P18-06 [TERRA+LUNA]` Audit the local dashboard with real founder state at
+- [x] `P18-06 [TERRA+LUNA]` Audit the local dashboard with real founder state at
       desktop and mobile widths. Keep it optional, reduce jargon, and only add UI
       actions that retain preview, explicit acknowledgement, snapshot, and rollback.
-- [ ] `P18-07 [TERRA]` Add a concise beginner section to README that links to the
+- [x] `P18-07 [TERRA]` Add a concise beginner section to README that links to the
       testing guide and explains Stable, Power, Maximum, project recommendations,
       daily discovery, and rollback in plain language.
 - [ ] `P18-08 [HUMAN+TERRA]` Run the full verification gate, publish the next npm
       patch/minor only after founder acceptance, and test that exact tarball in a
       fresh terminal.
+
+### Release 0.3 lifecycle hardening
+
+- [x] `P18-09 [SOL+TERRA]` Add preview-first complete uninstall with modified-file
+      protection, native-job cleanup, runtime restoration, guarded state deletion,
+      and optional global npm removal.
+- [x] `P18-10 [TERRA]` Persist the installed profile and make `loadout update`
+      evaluate both profile drift and every managed repository.
+- [x] `P18-11 [SOL+TERRA]` Add explicit bulk safe updates while holding disabled,
+      risky, and failed packages for review; scheduled checks remain read-only.
+- [x] `P18-12 [TERRA]` Add a pinned Chrome DevTools MCP recipe and a clear no-key MCP
+      inventory alongside Playwright MCP.
+- [ ] `P18-13 [HUMAN+TERRA]` Publish `0.3.0`, then run Stable -> rollback -> Power ->
+      rollback -> Maximum -> project optimization -> dashboard -> complete uninstall
+      against the exact npm package.
 
 ### Explicitly deferred (do not expand during this usability pass)
 

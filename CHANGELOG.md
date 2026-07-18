@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.3.0 - 2026-07-18
+
+### Added
+
+- Add a preview-first `loadout uninstall` that removes managed packages, runtime
+  tools, native daily jobs, library/cache/state, and optionally the global npm CLI.
+- Save the installed Stable, Power, Maximum, or Custom profile and evaluate it on
+  every `loadout update` check.
+- Add explicit whole-profile `loadout update --yes` for reviewed profile drift and
+  safe active-package updates, holding disabled or risky changes for review.
+- Add a pinned Chrome DevTools MCP recipe and `mcp-recipe --no-key` alongside
+  Playwright MCP.
+
+### Changed
+
+- Daily update jobs use the unified profile-and-package update check while remaining
+  read-only.
+- Bound large update checks to four repositories at a time and 30 seconds per network
+  operation, with readable progress in interactive CLI output.
+
 ## 0.2.3 - 2026-07-17
 
 ### Fixed

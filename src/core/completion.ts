@@ -1,6 +1,8 @@
 export type CompletionShell = "bash" | "zsh" | "fish" | "powershell";
 
 const commands = [
+  "guide",
+  "advanced",
   "setup",
   "upgrade",
   "init",
@@ -85,6 +87,7 @@ const commands = [
   "outcome",
   "outcomes",
   "remove",
+  "uninstall",
   "dashboard",
   "serve",
   "completion",

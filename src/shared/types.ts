@@ -209,6 +209,15 @@ export interface InstallState {
   installs: InstallRecord[];
   mcpInstalls?: McpInstallRecord[];
   activations?: ManagedActivationRecord[];
+  profile?: InstalledLoadoutProfile;
+}
+
+export interface InstalledLoadoutProfile {
+  mode: "stable" | "power" | "maximum" | "custom";
+  packageIds?: string[];
+  agents: AgentId[];
+  catalogPackages: Array<{ packageId: string; reviewedCommit?: string }>;
+  appliedAt: string;
 }
 
 export type LibraryCacheState = "missing" | "downloaded";

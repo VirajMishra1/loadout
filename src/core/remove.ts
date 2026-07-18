@@ -17,13 +17,15 @@ export interface RemovePlan {
 }
 
 export async function planRemove(packageId: string): Promise<RemovePlan> {
-  const record = (await readInstallState()).installs.find(
+  const state = await readInstallState();
+  const record = state.installs.find((entry) => entry.packageId === packageId);
+  const trackedMcp = (state.mcpInstalls ?? []).filter(
     (entry) => entry.packageId === packageId,
   );
-  if (!record)
+  if (!record && !trackedMcp.length)
     throw new Error(`Package is not managed by Loadout: ${packageId}`);
   const files = await Promise.all(
-    record.files.map(async (file) => {
+    (record?.files ?? []).map(async (file) => {
       try {
         const digest = createHash("sha256")
           .update(await readFile(file.path))
@@ -41,40 +43,37 @@ export async function planRemove(packageId: string): Promise<RemovePlan> {
     }),
   );
   const modified = files.filter((file) => file.status === "modified");
-  const state = await readInstallState();
   const mcpServers = await Promise.all(
-    (state.mcpInstalls ?? [])
-      .filter((entry) => entry.packageId === packageId)
-      .map(async (entry) => {
-        try {
-          const config = JSON.parse(
-            await readFile(entry.configPath, "utf8"),
-          ) as { mcpServers?: Record<string, unknown> };
-          if (!config.mcpServers || !(entry.serverName in config.mcpServers))
-            return {
-              configPath: entry.configPath,
-              serverName: entry.serverName,
-              status: "missing" as const,
-            };
-          const fingerprint = createHash("sha256")
-            .update(JSON.stringify(config.mcpServers[entry.serverName]))
-            .digest("hex");
-          return {
-            configPath: entry.configPath,
-            serverName: entry.serverName,
-            status:
-              fingerprint === entry.fingerprint
-                ? ("unchanged" as const)
-                : ("modified" as const),
-          };
-        } catch {
+    trackedMcp.map(async (entry) => {
+      try {
+        const config = JSON.parse(await readFile(entry.configPath, "utf8")) as {
+          mcpServers?: Record<string, unknown>;
+        };
+        if (!config.mcpServers || !(entry.serverName in config.mcpServers))
           return {
             configPath: entry.configPath,
             serverName: entry.serverName,
             status: "missing" as const,
           };
-        }
-      }),
+        const fingerprint = createHash("sha256")
+          .update(JSON.stringify(config.mcpServers[entry.serverName]))
+          .digest("hex");
+        return {
+          configPath: entry.configPath,
+          serverName: entry.serverName,
+          status:
+            fingerprint === entry.fingerprint
+              ? ("unchanged" as const)
+              : ("modified" as const),
+        };
+      } catch {
+        return {
+          configPath: entry.configPath,
+          serverName: entry.serverName,
+          status: "missing" as const,
+        };
+      }
+    }),
   );
   const modifiedMcp = mcpServers.filter((entry) => entry.status === "modified");
   const warnings = [

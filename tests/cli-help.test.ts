@@ -52,6 +52,7 @@ describe("CLI contract", () => {
     expect(result.stdout).toContain("demo");
     expect(result.stdout).toContain("test-drive");
     expect(result.stdout).toContain("rollback");
+    expect(result.stdout).toContain("uninstall");
     expect(result.stdout).toContain("optimize");
     expect(result.stdout).toContain("autopilot");
     expect(result.stdout).toContain("tool");
@@ -77,6 +78,15 @@ describe("CLI contract", () => {
     expect(result.code).toBe(0);
     expect(result.stdout).toContain("graphify");
     expect(result.stdout).toContain("Graphify 0.9.17");
+  });
+
+  it("clearly lists MCP recipes that need no API key", async () => {
+    const result = await runCli("mcp-recipe", "--no-key");
+    expect(result.code).toBe(0);
+    expect(result.stdout).toContain("playwright");
+    expect(result.stdout).toContain("chrome-devtools");
+    expect(result.stdout).not.toContain("github-readonly");
+    expect(result.stdout).toContain("No API key required");
   });
 
   it("makes the CLI setup flow the non-interactive default without mutating", async () => {
@@ -120,6 +130,14 @@ describe("CLI contract", () => {
     const result = await runCli("update", "--apply");
     expect(result.code).not.toBe(0);
     expect(result.stderr).toContain("--apply requires --package <id>");
+  });
+
+  it("previews complete uninstall without deleting anything", async () => {
+    const result = await runCli("uninstall");
+    expect(result.code).toBe(0);
+    expect(result.stdout).toContain("Complete Loadout uninstall preview");
+    expect(result.stdout).toContain("Dry run only");
+    expect(result.stdout).toContain("--yes");
   });
 
   it("can emit structured color-free errors for automation", async () => {

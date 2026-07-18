@@ -284,6 +284,14 @@ async function readState(stateHome?: string): Promise<RuntimeToolState> {
   }
 }
 
+/** Return runtime tools currently installed and owned by Loadout. */
+export async function listInstalledRuntimeTools(
+  stateHome = loadoutHome(),
+): Promise<string[]> {
+  const state = await readState(stateHome);
+  return Object.keys(state.tools).sort();
+}
+
 async function writeState(
   state: RuntimeToolState,
   stateHome?: string,

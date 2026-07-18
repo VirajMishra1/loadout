@@ -7,6 +7,7 @@ import {
   buildUpdatePlan,
   formatUpdatePlan,
   quarantineUpdate,
+  selectSafeAutomaticUpdates,
 } from "../src/core/update.js";
 import { applySkillInstall } from "../src/core/install.js";
 import { repositoryCachePath } from "../src/core/source.js";
@@ -21,6 +22,32 @@ describe("update planning", () => {
     );
     if (original === undefined) delete process.env.LOADOUT_HOME;
     else process.env.LOADOUT_HOME = original;
+  });
+
+  it("bulk apply selects only active updates without blocking findings", () => {
+    const selected = selectSafeAutomaticUpdates([
+      {
+        packageId: "safe",
+        status: "update-available",
+        targetAgents: ["codex"],
+        action: "update",
+      },
+      {
+        packageId: "risky",
+        status: "update-available",
+        targetAgents: ["codex"],
+        approvalRequired: true,
+        action: "review",
+      },
+      {
+        packageId: "disabled",
+        status: "update-available",
+        targetAgents: ["codex"],
+        disabledAgents: ["codex"],
+        action: "enable first",
+      },
+    ]);
+    expect(selected.map((item) => item.packageId)).toEqual(["safe"]);
   });
 
   it("compares recorded commits without mutating installs", async () => {

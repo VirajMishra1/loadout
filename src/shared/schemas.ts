@@ -349,6 +349,20 @@ export const installStateSchema = z
     installs: z.array(installRecordSchema),
     mcpInstalls: z.array(mcpInstallRecordSchema).default([]),
     activations: z.array(managedActivationRecordSchema).default([]),
+    profile: z
+      .object({
+        mode: z.enum(["stable", "power", "maximum", "custom"]),
+        packageIds: z.array(text).optional(),
+        agents: z.array(agentIdSchema),
+        catalogPackages: z.array(
+          z.object({
+            packageId: text,
+            reviewedCommit: optionalText,
+          }),
+        ),
+        appliedAt: text,
+      })
+      .optional(),
   })
   .passthrough();
 

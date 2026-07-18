@@ -51,6 +51,13 @@ export type CommitResolver = (
 export interface UpdatePlanOptions {
   /** Limit a read-only update check to one explicitly managed package. */
   packageId?: string;
+  /** Bound concurrent repository checks for large Maximum libraries. */
+  concurrency?: number;
+  onProgress?: (progress: {
+    completed: number;
+    total: number;
+    packageId: string;
+  }) => void;
 }
 
 export interface UpdateSmokeTestContext {
@@ -190,85 +197,109 @@ async function analyzeManagedUpdate(
 /** Builds a read-only update plan from persisted installs and live GitHub snapshots. */
 export async function buildUpdatePlan(
   resolver: CommitResolver = async (repository) =>
-    fetchRepositorySnapshot(repository),
+    fetchRepositorySnapshot(repository, { timeoutMs: 30_000 }),
   options: UpdatePlanOptions = {},
 ): Promise<UpdatePlan[]> {
   const state = await readInstallState();
   const records = options.packageId
     ? state.installs.filter((record) => record.packageId === options.packageId)
     : state.installs;
-  return Promise.all(
-    records.map(async (record): Promise<UpdatePlan> => {
-      const disabledAgents = (state.activations ?? [])
-        .filter(
-          (activation) =>
-            activation.packageId === record.packageId &&
-            activation.installationState === "installed" &&
-            activation.activationState === "disabled",
-        )
-        .map((activation) => activation.agent);
-      const base = {
-        packageId: record.packageId,
-        repository: record.repository,
-        installedCommit: record.resolvedCommit,
-        targetAgents: record.targetAgents,
-        ...(disabledAgents.length ? { disabledAgents } : {}),
-      };
-      if (!record.repository || !record.resolvedCommit) {
-        return {
-          ...base,
-          status: "untracked",
-          action:
-            "Reinstall from the original source to begin update tracking.",
-        };
+  const results = new Array<UpdatePlan>(records.length);
+  let cursor = 0;
+  let completed = 0;
+  const workers = Array.from(
+    {
+      length: Math.min(
+        Math.max(1, options.concurrency ?? 4),
+        Math.max(1, records.length),
+      ),
+    },
+    async () => {
+      while (cursor < records.length) {
+        const index = cursor++;
+        const record = records[index];
+        results[index] = await (async (): Promise<UpdatePlan> => {
+          const disabledAgents = (state.activations ?? [])
+            .filter(
+              (activation) =>
+                activation.packageId === record.packageId &&
+                activation.installationState === "installed" &&
+                activation.activationState === "disabled",
+            )
+            .map((activation) => activation.agent);
+          const base = {
+            packageId: record.packageId,
+            repository: record.repository,
+            installedCommit: record.resolvedCommit,
+            targetAgents: record.targetAgents,
+            ...(disabledAgents.length ? { disabledAgents } : {}),
+          };
+          if (!record.repository || !record.resolvedCommit) {
+            return {
+              ...base,
+              status: "untracked",
+              action:
+                "Reinstall from the original source to begin update tracking.",
+            };
+          }
+          try {
+            const current = await resolver(record.repository);
+            const same =
+              current.commit.toLowerCase() ===
+              record.resolvedCommit.toLowerCase();
+            let diff: ChangedFileDiff[] | undefined;
+            let safetyFindings: SafetyFinding[] | undefined;
+            let approvalRequired = false;
+            if (!same && current.path) {
+              const oldPath = repositoryCachePath(
+                record.repository,
+                record.resolvedCommit,
+              );
+              const analysis = await analyzeManagedUpdate(
+                oldPath,
+                current.path,
+                managedUnitIds(state, record.packageId),
+              );
+              diff = analysis.diff;
+              safetyFindings = analysis.safetyFindings;
+              approvalRequired = analysis.approvalRequired;
+            }
+            return {
+              ...base,
+              availableCommit: current.commit,
+              status: same ? "up-to-date" : "update-available",
+              action: same
+                ? "No action required."
+                : disabledAgents.length
+                  ? `Enable ${record.packageId} for ${disabledAgents.join(", ")} before applying an update; planning remains read-only.`
+                  : approvalRequired
+                    ? `Approval required: review safety warnings before updating ${record.packageId}.`
+                    : `Run loadout update --package ${record.packageId} --yes after review.`,
+              ...(approvalRequired ? { approvalRequired: true } : {}),
+              ...(safetyFindings?.length ? { safetyFindings } : {}),
+              ...(diff ? { diff } : {}),
+            };
+          } catch (error) {
+            return {
+              ...base,
+              status: "error",
+              action:
+                "Retry when GitHub is reachable; the installed version was not changed.",
+              error: error instanceof Error ? error.message : String(error),
+            };
+          }
+        })();
+        completed += 1;
+        options.onProgress?.({
+          completed,
+          total: records.length,
+          packageId: record.packageId,
+        });
       }
-      try {
-        const current = await resolver(record.repository);
-        const same =
-          current.commit.toLowerCase() === record.resolvedCommit.toLowerCase();
-        let diff: ChangedFileDiff[] | undefined;
-        let safetyFindings: SafetyFinding[] | undefined;
-        let approvalRequired = false;
-        if (!same && current.path) {
-          const oldPath = repositoryCachePath(
-            record.repository,
-            record.resolvedCommit,
-          );
-          const analysis = await analyzeManagedUpdate(
-            oldPath,
-            current.path,
-            managedUnitIds(state, record.packageId),
-          );
-          diff = analysis.diff;
-          safetyFindings = analysis.safetyFindings;
-          approvalRequired = analysis.approvalRequired;
-        }
-        return {
-          ...base,
-          availableCommit: current.commit,
-          status: same ? "up-to-date" : "update-available",
-          action: same
-            ? "No action required."
-            : disabledAgents.length
-              ? `Enable ${record.packageId} for ${disabledAgents.join(", ")} before applying an update; planning remains read-only.`
-              : approvalRequired
-                ? `Approval required: review safety warnings before updating ${record.packageId}.`
-                : `Run loadout update --package ${record.packageId} after review.`,
-          ...(approvalRequired ? { approvalRequired: true } : {}),
-          ...(safetyFindings?.length ? { safetyFindings } : {}),
-          ...(diff ? { diff } : {}),
-        };
-      } catch (error) {
-        return {
-          ...base,
-          status: "error",
-          action:
-            "Retry when GitHub is reachable; the installed version was not changed.",
-          error: error instanceof Error ? error.message : String(error),
-        };
-      }
-    }),
+    },
   );
+  await Promise.all(workers);
+  return results;
 }
 
 export function formatUpdatePlan(plans: UpdatePlan[]): string {
@@ -287,6 +318,16 @@ export function formatUpdatePlan(plans: UpdatePlan[]): string {
       return `${plan.status.toUpperCase()} ${plan.packageId}${repo}: ${plan.action}${safety}${suffix}`;
     })
     .join("\n");
+}
+
+/** Updates safe enough for an explicit whole-profile `update --yes` apply. */
+export function selectSafeAutomaticUpdates(plans: UpdatePlan[]): UpdatePlan[] {
+  return plans.filter(
+    (plan) =>
+      plan.status === "update-available" &&
+      !plan.approvalRequired &&
+      !plan.disabledAgents?.length,
+  );
 }
 
 function quarantineRoot(): string {

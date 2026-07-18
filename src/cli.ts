@@ -47,6 +47,7 @@ import {
   applyPackageUpdate,
   buildUpdatePlan,
   formatUpdatePlan,
+  selectSafeAutomaticUpdates,
 } from "./core/update.js";
 import { startApiServer } from "./core/api.js";
 import { inspectPackage, formatPackageInspection } from "./core/package.js";
@@ -59,8 +60,19 @@ import {
   writeLockfile,
 } from "./core/manifest.js";
 import { buildHealthReport, formatHealthReport } from "./core/health.js";
-import { readInstallState } from "./core/state.js";
+import { readInstallState, recordInstallTransaction } from "./core/state.js";
 import { applyRemove, planRemove } from "./core/remove.js";
+import {
+  applyUninstall,
+  buildUninstallPlan,
+  formatUninstallPlan,
+  uninstallGlobalCli,
+} from "./core/uninstall.js";
+import {
+  evaluateInstalledProfile,
+  formatInstalledProfileStatus,
+  recordInstalledProfile,
+} from "./core/profile-state.js";
 import {
   formatRecommendations,
   personalizeRecommendations,
@@ -562,6 +574,7 @@ async function runSetup(options: SetupOptions): Promise<void> {
     const snapshotId = await applyPreparedCatalogInstall(prepared, {
       approveRisk: riskApproved,
     });
+    await recordInstalledProfile(prepared);
     console.log(
       `\nLoadout installed ${prepared.entries.length} repositories for ${prepared.agents.length} agent(s). Snapshot: ${snapshotId}`,
     );
@@ -573,7 +586,7 @@ async function runSetup(options: SetupOptions): Promise<void> {
   }
 }
 
-const LOADOUT_VERSION = "0.2.3";
+const LOADOUT_VERSION = "0.3.0";
 
 function durableSchedulerLauncher(): string[] {
   return [
@@ -1586,7 +1599,21 @@ program
       explain?: boolean;
       agents?: string;
     }) => {
-      const report = await buildHealthReport({ checkUpdates: options.updates });
+      if (options.updates && !options.json)
+        console.error(
+          "Checking managed repositories (4 at a time, 30s per network operation)…",
+        );
+      const report = await buildHealthReport({
+        updates: options.updates
+          ? () =>
+              buildUpdatePlan(undefined, {
+                onProgress: options.json
+                  ? undefined
+                  : ({ completed, total, packageId }) =>
+                      console.error(`✓ [${completed}/${total}] ${packageId}`),
+              })
+          : undefined,
+      });
       if (options.agents && !options.explain)
         throw new Error("--agents requires --explain");
       const selectedAgents = parseAgentSelection(options.agents);
@@ -1724,6 +1751,40 @@ program
         );
       const snapshot = await applyRemove(plan, { force: options.force });
       console.log(`Removed ${packageId}. Snapshot: ${snapshot}`);
+    },
+  );
+
+program
+  .command("uninstall")
+  .description("Preview or completely remove Loadout-managed data")
+  .option("--yes", "remove managed data; otherwise show a preview")
+  .option("--force", "also remove managed files changed outside Loadout")
+  .option("--remove-cli", "also uninstall the global loadout-ai npm command")
+  .action(
+    async (options: {
+      yes?: boolean;
+      force?: boolean;
+      removeCli?: boolean;
+    }) => {
+      const plan = await buildUninstallPlan();
+      console.log(formatUninstallPlan(plan));
+      if (!options.yes) return;
+      const result = await applyUninstall(plan, undefined, {
+        force: options.force,
+      });
+      console.log(
+        `Removed ${result.removedPackages} managed package(s), ${result.removedRuntimeTools} runtime tool(s), daily jobs, cache, library, and Loadout state.`,
+      );
+      if (options.removeCli) {
+        await uninstallGlobalCli();
+        console.log(
+          "Removed the global loadout-ai CLI. Open a new shell before checking the command again.",
+        );
+      } else {
+        console.log(
+          "The CLI is still installed. Remove it too with: npm uninstall -g loadout-ai",
+        );
+      }
     },
   );
 
@@ -3496,6 +3557,7 @@ program
     "approve launching the reviewed pinned MCP artifact for --connect",
   )
   .option("--json", "emit machine-readable JSON")
+  .option("--no-key", "list only recipes that need no API key or token")
   .action(
     async (
       id: string | undefined,
@@ -3509,12 +3571,19 @@ program
         timeout: string;
         approveRisk?: boolean;
         json?: boolean;
+        key?: boolean;
       },
     ) => {
       if (!id) {
         if (options.connect || options.verify || options.yes)
           throw new Error("Select an MCP recipe id for this operation");
-        const listed = REVIEWED_MCP_RECIPES.map((recipe) => ({
+        const selected =
+          options.key === false
+            ? REVIEWED_MCP_RECIPES.filter(
+                (recipe) => recipe.environment.length === 0,
+              )
+            : REVIEWED_MCP_RECIPES;
+        const listed = selected.map((recipe) => ({
           id: recipe.id,
           displayName: recipe.displayName,
           source: recipe.source,
@@ -3527,7 +3596,7 @@ program
             : listed
                 .map(
                   (recipe) =>
-                    `${recipe.id} — ${recipe.displayName} — env: ${recipe.environment.length ? recipe.environment.join(", ") : "none"}`,
+                    `${recipe.id} — ${recipe.displayName} — ${recipe.environment.length ? `requires: ${recipe.environment.join(", ")}` : "No API key required"}`,
                 )
                 .join("\n"),
         );
@@ -3600,6 +3669,11 @@ program
         return;
       }
       const snapshot = await applyMcpConfigPlan(plan.config);
+      await recordInstallTransaction(
+        [],
+        [{ packageId: `mcp-recipe:${id}`, plan: plan.config }],
+        snapshot.id,
+      );
       console.log(
         options.json
           ? JSON.stringify({ plan, snapshot }, null, 2)
@@ -4200,6 +4274,7 @@ program
         const snapshotId = await applyPreparedCatalogInstall(prepared, {
           approveRisk: options.approveRisk,
         });
+        await recordInstalledProfile(prepared);
         console.log(
           `Installed ${prepared.entries.length} repositories as one transaction. Snapshot: ${snapshotId}`,
         );
@@ -4307,9 +4382,13 @@ program
 
 program
   .command("update")
-  .description("Plan updates, or apply one explicitly selected package update")
+  .description("Check the saved profile and every managed package for updates")
   .option("--json", "emit machine-readable JSON")
-  .option("--apply", "apply the selected update")
+  .option(
+    "--yes",
+    "apply reviewed profile drift and safe screened package updates",
+  )
+  .option("--apply", "legacy alias for --yes with --package")
   .option("--package <id>", "managed package id to update")
   .option(
     "--approve-risk",
@@ -4318,30 +4397,126 @@ program
   .action(
     async (options: {
       json?: boolean;
+      yes?: boolean;
       apply?: boolean;
       package?: string;
       approveRisk?: boolean;
     }) => {
-      if (options.apply) {
-        if (!options.package)
-          throw new Error("--apply requires --package <id>");
+      const applying = Boolean(options.apply || options.yes);
+      if (options.apply && !options.package)
+        throw new Error("--apply requires --package <id>");
+      if (applying && options.package) {
         const result = await applyPackageUpdate(options.package, {
           approveRisk: options.approveRisk,
         });
         console.log(
-          `Updated ${options.package} to ${result.commit}. Snapshot: ${result.snapshotId}`,
+          options.json
+            ? JSON.stringify({ packageId: options.package, ...result }, null, 2)
+            : `Updated ${options.package} to ${result.commit}. Snapshot: ${result.snapshotId}`,
         );
         return;
       }
-      const plans = await buildUpdatePlan(undefined, {
+      const catalog = await loadEffectiveCatalog();
+      let profile = await evaluateInstalledProfile(catalog);
+      let profileSnapshotId: string | undefined;
+      const appliedPackages: string[] = [];
+      const failedPackages: Array<{ packageId: string; error: string }> = [];
+      if (applying && profile.installed && profile.needsRefresh) {
+        const saved = (await readInstallState()).profile!;
+        const prepared = await prepareCatalogInstall(
+          {
+            mode: saved.mode,
+            ...(saved.packageIds ? { packageIds: saved.packageIds } : {}),
+          },
+          {
+            requestedAgents: saved.agents,
+            catalog,
+            access: { modelApis: [] },
+            onProgress: printSetupProgress,
+          },
+        );
+        profileSnapshotId = await applyPreparedCatalogInstall(prepared, {
+          approveRisk: options.approveRisk,
+        });
+        await recordInstalledProfile(prepared);
+        if (!options.json)
+          console.log(
+            `Applied reviewed ${saved.mode} profile changes. Snapshot: ${profileSnapshotId}`,
+          );
+        profile = await evaluateInstalledProfile(catalog);
+      }
+      if (!options.json)
+        console.error(
+          "Checking managed repositories (4 at a time, 30s per network operation)…",
+        );
+      let plans = await buildUpdatePlan(undefined, {
         packageId: options.package,
+        onProgress: options.json
+          ? undefined
+          : ({ completed, total, packageId }) =>
+              console.error(`✓ [${completed}/${total}] ${packageId}`),
       });
       if (options.package && plans.length === 0)
         throw new Error(
           `No Loadout-managed installation named '${options.package}' was found. Run \`loadout list\` to see tracked packages.`,
         );
+      if (applying) {
+        const safe = selectSafeAutomaticUpdates(plans);
+        for (const plan of safe)
+          try {
+            await applyPackageUpdate(plan.packageId);
+            appliedPackages.push(plan.packageId);
+          } catch (error) {
+            failedPackages.push({
+              packageId: plan.packageId,
+              error: error instanceof Error ? error.message : String(error),
+            });
+          }
+        plans = await buildUpdatePlan(undefined, {
+          onProgress: options.json
+            ? undefined
+            : ({ completed, total, packageId }) =>
+                console.error(`✓ [${completed}/${total}] ${packageId}`),
+        });
+        if (!options.json) {
+          console.log(
+            appliedPackages.length
+              ? `Updated safely: ${appliedPackages.join(", ")}`
+              : "No safe active package update needed applying.",
+          );
+          for (const item of failedPackages)
+            console.log(`Could not update ${item.packageId}: ${item.error}`);
+          const held = plans.filter(
+            (plan) =>
+              plan.status === "update-available" &&
+              (plan.approvalRequired || plan.disabledAgents?.length),
+          );
+          if (held.length)
+            console.log(
+              `Held for explicit review: ${held.map((item) => item.packageId).join(", ")}`,
+            );
+        }
+      }
       console.log(
-        options.json ? JSON.stringify(plans, null, 2) : formatUpdatePlan(plans),
+        options.json
+          ? JSON.stringify(
+              {
+                profile,
+                packages: plans,
+                ...(applying
+                  ? {
+                      applied: {
+                        profileSnapshotId,
+                        packages: appliedPackages,
+                        failures: failedPackages,
+                      },
+                    }
+                  : {}),
+              },
+              null,
+              2,
+            )
+          : `${formatInstalledProfileStatus(profile)}\n\n${formatUpdatePlan(plans)}`,
       );
     },
   );

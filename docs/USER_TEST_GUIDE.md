@@ -104,6 +104,7 @@ is narrower and is preferable when you only want to undo that one runtime tool.
 
 ```bash
 loadout alerts
+loadout update
 loadout update --package superpowers
 loadout autopilot
 ```
@@ -113,6 +114,7 @@ read-only diff and safety plan. Apply only after review:
 
 ```bash
 loadout update --package superpowers --apply
+loadout update --yes
 ```
 
 `autopilot` previews two native daily read-only jobs (updates and discovery).
@@ -123,7 +125,39 @@ loadout autopilot --time 09:00 --yes
 loadout autopilot --remove --yes
 ```
 
-## 7. Advanced surface
+The daily update job re-evaluates your saved Stable, Power, or Maximum profile and
+checks every managed package, but never supplies `--yes`. Daily discovery can add
+interesting repositories to the review queue; it cannot silently promote or install
+them.
+
+## 7. Test no-key MCP choices
+
+```bash
+loadout mcp-recipe --no-key
+```
+
+Expect Playwright MCP and Chrome DevTools MCP. These need no API key, but they can
+control a browser, so Loadout keeps configuration and real connection testing
+explicit. GitHub read-only is excluded because it needs a GitHub token. Graphify is a
+separate runtime tool, not an MCP server.
+
+## 8. Preview complete cleanup
+
+```bash
+loadout uninstall
+```
+
+Read the package, runtime, scheduler, and state summary. The preview changes nothing.
+At the very end of testing, remove all Loadout-managed data while keeping the CLI:
+
+```bash
+loadout uninstall --yes
+```
+
+To remove the npm command too, use `loadout uninstall --yes --remove-cli`. Complete
+cleanup deliberately deletes Loadout's snapshots, so it is the last lifecycle test.
+
+## 9. Advanced surface
 
 The first help screen deliberately focuses on daily use. Existing advanced
 commands have not been removed:

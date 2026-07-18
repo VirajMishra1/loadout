@@ -6,6 +6,50 @@ Category: Developer Tools
 Team size: 3  
 Target submission: July 21, 2026 at 5:00 PM Pacific / July 22 at 4:00 AM Dubai
 
+## Current remaining work (July 18, 2026)
+
+This is the authoritative active list. The long phase history below is retained as
+an engineering record, not a command to build every speculative system before users
+can test Loadout.
+
+### Required before calling the CLI polished for public testing
+
+- [x] `P18-01 [TERRA]` Make the first CLI screen beginner-readable: a read-only
+      `loadout guide`, concise default library summary, focused first-screen help,
+      and retained access to every advanced command through `loadout advanced` or
+      `<command> --help`.
+- [x] `P18-02 [TERRA]` Make core machine output honest: `catalog --json` returns
+      JSON, and `update --package <id>` checks only that package rather than every
+      tracked installation.
+- [ ] `P18-03 [HUMAN+TERRA]` Run the founder acceptance path in
+      `docs/USER_TEST_GUIDE.md` on the real Codex and Claude profiles. Record each
+      observed failure and turn reproducible ones into regression tests.
+- [ ] `P18-04 [TERRA]` Bound and explain live network checks in `health --updates`
+      and `watch --once`; they must show progress, a clear timeout, and an actionable
+      result even when a large Maximum library is present.
+- [ ] `P18-05 [TERRA]` Make Agent Health distinguish active skills from disabled
+      Maximum-library copies, so a broad download is not presented as a broken active
+      configuration.
+- [ ] `P18-06 [TERRA+LUNA]` Audit the local dashboard with real founder state at
+      desktop and mobile widths. Keep it optional, reduce jargon, and only add UI
+      actions that retain preview, explicit acknowledgement, snapshot, and rollback.
+- [ ] `P18-07 [TERRA]` Add a concise beginner section to README that links to the
+      testing guide and explains Stable, Power, Maximum, project recommendations,
+      daily discovery, and rollback in plain language.
+- [ ] `P18-08 [HUMAN+TERRA]` Run the full verification gate, publish the next npm
+      patch/minor only after founder acceptance, and test that exact tarball in a
+      fresh terminal.
+
+### Explicitly deferred (do not expand during this usability pass)
+
+- Hosted accounts, GitHub OAuth, cloud sync, analytics, and enterprise policy.
+- Required API keys, automatic provider spending, or treating chat subscriptions as
+  API access.
+- Automatically installing newly discovered repositories or executing arbitrary
+  third-party installers.
+- A universal quality score, social-network scraping, or support claims for an agent
+  that has not passed a real adapter test.
+
 ## 1. Executive summary
 
 Loadout is a universal extension manager for AI coding agents. It detects the agents
@@ -91,12 +135,11 @@ Loadout wins through:
 - Optional local-folder scan for project-aware recommendations.
 - Clear display of `native`, `adapted`, and `unsupported` components.
 
-### 3.2 Committed full-product scope
+### 3.2 Deferred product exploration (not current launch scope)
 
-These are committed capabilities, not disposable ideas. The team attempts them after
-the submission-critical vertical slice is integrated and passing. Any capability that
-is incomplete at submission must remain behind an experimental flag rather than being
-presented as production-ready.
+These are ideas worth revisiting after the core CLI has passed real founder and
+external user testing. They are not commitments for this hackathon release and must
+not be presented as production-ready simply because a prototype or command exists.
 
 - GitHub OAuth for private repositories and personalized discovery, using minimal
   read-only scopes by default.
@@ -1773,31 +1816,7 @@ small PRs, no long-lived branches.
 
 ## 25. Immediate next tasks
 
-The next engineering wave deliberately precedes npm, Devpost, and repository-visibility
-work. Preserve the Sol/Terra/Luna routing and credit policy above.
-
-1. `P16-02/03`: add a concrete disposable fixture executor and one explicit provider
-   adapter only after the user supplies separate API credit and approves the exact
-   maximum spend. Run provider reconciliation and the hosted Linux/Windows matrix; do
-   not turn Codex subscription or hackathon credit into an assumed API budget.
-2. `P16-04/05`: execute at least five real paired trials per compared candidate, review
-   failures and contamination, sign the resulting evidence, and obtain genuine human
-   license/trust approval before any `benchmarked` or `recommended` transition.
-3. `P16-12`: generate the production Ed25519 key outside the repository, configure the
-   public feed location and secret-backed daily publisher, test first-pin/rotation/
-   recovery operationally, and publish no private or unsigned artifact.
-4. `P16-14`: run the beginner comprehension session for card/compare/badge wording and
-   convert every reproducible misunderstanding into a fixture or copy regression.
-5. `P16-15`: independently review usefulness, license, security, dependencies,
-   Windows behavior, rollback, and removal for a second runtime tool before admission.
-6. `P16-16`: run founder testing first, then implement only observed adapter gaps with
-   official-source evidence, preservation fixtures, transaction coverage, and a real
-   disposable smoke test.
-7. `P16-18`: run the full founder matrix on disposable profiles before the real Codex
-   and Claude profiles, followed by ten external sessions across experience levels and
-   Windows/macOS/Linux. Convert reproducible failures into regression tests.
-8. Rerun `npm run verify`, the complete disposable feature matrix, npm dry-run, hosted
-   cross-platform jobs, and clean external tarball installs after those external gates.
-9. Human release work remains last: P12-30 license decisions, P15-06 public visibility
-   and npm publication, P15-07B clean external installs, branch protection, demo/video,
-   feedback, Devpost fields, and final review.
+Use the `Current remaining work` section at the top of this document. The next action
+is founder acceptance testing with `docs/USER_TEST_GUIDE.md`; do not add a new hosted
+service, provider dependency, or frontend surface until an observed user-testing issue
+justifies it.

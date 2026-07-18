@@ -5,6 +5,7 @@ import { join } from "node:path";
 import {
   applyActivationChange,
   buildLibraryStateReport,
+  formatLibrarySummary,
   planActivationChange,
 } from "../src/core/active-set.js";
 import { applySkillInstall, buildSkillPlan } from "../src/core/install.js";
@@ -53,6 +54,7 @@ describe("reviewed library and active-set transactions", () => {
     await installSkill("review", target);
 
     const initial = await buildLibraryStateReport();
+    expect(initial.repositories.review).toBe("example/review");
     expect(initial.records[0]).toMatchObject({
       packageId: "review",
       agent: "codex",
@@ -107,6 +109,19 @@ describe("reviewed library and active-set transactions", () => {
       cacheState: "missing",
       activationState: "active",
     });
+  });
+
+  it("summarizes a large library without dumping every skill by default", async () => {
+    root = await mkdtemp(join(tmpdir(), "loadout-library-summary-"));
+    process.env.LOADOUT_HOME = join(root, ".loadout");
+    const target = join(root, "home", ".agents", "skills");
+    await installSkill("review", target);
+
+    const summary = formatLibrarySummary(await buildLibraryStateReport());
+    expect(summary).toContain("Managed library: 1 package(s), 1 active");
+    expect(summary).toContain("Active now: codex 1");
+    expect(summary).toContain("loadout library --all");
+    expect(summary).not.toContain("review — codex");
   });
 
   it("blocks disabling drifted or untracked content", async () => {

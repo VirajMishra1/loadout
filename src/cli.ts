@@ -155,6 +155,7 @@ import {
   applyActivationChange,
   buildLibraryStateReport,
   formatActivationPlan,
+  formatLibrarySummary,
   formatLibraryStateReport,
   planActivationChange,
   type ActivationAction,
@@ -313,6 +314,11 @@ import {
   buildCompatibilityIntelligence,
   parseCompatibilityNoticeSet,
 } from "./core/compatibility-intelligence.js";
+import {
+  ADVANCED_GUIDE,
+  BEGINNER_GUIDE,
+  HIDDEN_FROM_FIRST_SCREEN,
+} from "./core/cli-guide.js";
 
 const collectOption = (value: string, previous: string[] = []): string[] => [
   ...previous,
@@ -581,6 +587,11 @@ function durableSchedulerLauncher(): string[] {
 }
 
 const program = new Command();
+
+function printBeginnerGuide(): void {
+  console.log(BEGINNER_GUIDE);
+}
+
 program
   .name("loadout")
   .description("The trusted upgrade layer for AI coding agents")
@@ -598,6 +609,16 @@ program
   // writes its own parse error first, producing two stderr documents and
   // breaking --json-errors consumers.
   .configureOutput({ writeErr: () => undefined });
+
+program
+  .command("guide")
+  .description("Show the simple, read-only path for using Loadout")
+  .action(printBeginnerGuide);
+
+program
+  .command("advanced")
+  .description("Explain where to find advanced and maintainer-only commands")
+  .action(() => console.log(ADVANCED_GUIDE));
 
 program
   .command("setup")
@@ -1139,12 +1160,15 @@ program
     "Show separate cache, review, installation, and per-agent activation state",
   )
   .option("--json", "emit machine-readable JSON")
-  .action(async (options: { json?: boolean }) => {
+  .option("--all", "show every managed skill and its source package")
+  .action(async (options: { json?: boolean; all?: boolean }) => {
     const report = await buildLibraryStateReport();
     console.log(
       options.json
         ? JSON.stringify(report, null, 2)
-        : formatLibraryStateReport(report),
+        : options.all
+          ? formatLibraryStateReport(report)
+          : formatLibrarySummary(report),
     );
   });
 
@@ -2575,6 +2599,10 @@ program
             ? JSON.stringify(coverage, null, 2)
             : formatCatalogCoverage(coverage),
         );
+        return;
+      }
+      if (options.json) {
+        console.log(JSON.stringify(rankCatalog(result.catalog), null, 2));
         return;
       }
       for (const pkg of rankCatalog(result.catalog)) {
@@ -4305,7 +4333,13 @@ program
         );
         return;
       }
-      const plans = await buildUpdatePlan();
+      const plans = await buildUpdatePlan(undefined, {
+        packageId: options.package,
+      });
+      if (options.package && plans.length === 0)
+        throw new Error(
+          `No Loadout-managed installation named '${options.package}' was found. Run \`loadout list\` to see tracked packages.`,
+        );
       console.log(
         options.json ? JSON.stringify(plans, null, 2) : formatUpdatePlan(plans),
       );
@@ -4458,7 +4492,19 @@ program
     await handle.close();
   });
 
-program.action(() => runSetup({ package: [] }));
+for (const command of program.commands)
+  // Commander supports `hidden` when a command is created. These commands are
+  // registered by separate feature blocks, so use the same runtime flag here
+  // rather than `Option#hideHelp`, which does not exist on Command objects.
+  if (HIDDEN_FROM_FIRST_SCREEN.has(command.name()))
+    (command as unknown as { _hidden: boolean })._hidden = true;
+
+program.addHelpText(
+  "after",
+  "\nStart here: `loadout guide` shows the safe everyday path. `loadout advanced` lists the retained maintainer and integration commands.\n",
+);
+
+program.action(printBeginnerGuide);
 
 try {
   await recoverPendingTransactions();

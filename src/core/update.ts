@@ -48,6 +48,11 @@ export type CommitResolver = (
   repository: string,
 ) => Promise<{ commit: string; path?: string }>;
 
+export interface UpdatePlanOptions {
+  /** Limit a read-only update check to one explicitly managed package. */
+  packageId?: string;
+}
+
 export interface UpdateSmokeTestContext {
   packageId: string;
   commit: string;
@@ -186,10 +191,14 @@ async function analyzeManagedUpdate(
 export async function buildUpdatePlan(
   resolver: CommitResolver = async (repository) =>
     fetchRepositorySnapshot(repository),
+  options: UpdatePlanOptions = {},
 ): Promise<UpdatePlan[]> {
   const state = await readInstallState();
+  const records = options.packageId
+    ? state.installs.filter((record) => record.packageId === options.packageId)
+    : state.installs;
   return Promise.all(
-    state.installs.map(async (record): Promise<UpdatePlan> => {
+    records.map(async (record): Promise<UpdatePlan> => {
       const disabledAgents = (state.activations ?? [])
         .filter(
           (activation) =>

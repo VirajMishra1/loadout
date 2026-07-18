@@ -37,13 +37,10 @@ describe("CLI contract", () => {
     expect(result.stdout).toContain(
       "The trusted upgrade layer for AI coding agents",
     );
+    expect(result.stdout).toContain("guide");
+    expect(result.stdout).toContain("Start here");
     expect(result.stdout).toContain("status");
     expect(result.stdout).toContain("versions");
-    expect(result.stdout).toContain("intelligence");
-    expect(result.stdout).toContain("compatibility");
-    expect(result.stdout).toContain("skill-audit");
-    expect(result.stdout).toContain("interop");
-    expect(result.stdout).toContain("benchmark");
     expect(result.stdout).toContain("scan");
     expect(result.stdout).toContain("compare");
     expect(result.stdout).toContain("library");
@@ -54,23 +51,25 @@ describe("CLI contract", () => {
     expect(result.stdout).toContain("doctor");
     expect(result.stdout).toContain("demo");
     expect(result.stdout).toContain("test-drive");
-    expect(result.stdout).toContain("plan");
     expect(result.stdout).toContain("rollback");
-    expect(result.stdout).toContain("discover");
-    expect(result.stdout).toContain("evaluate");
-    expect(result.stdout).toContain("watch");
-    expect(result.stdout).toContain("sandbox-run");
-    expect(result.stdout).toContain("convert");
     expect(result.stdout).toContain("optimize");
-    expect(result.stdout).toContain("models");
-    expect(result.stdout).toContain("credentials");
-    expect(result.stdout).toContain("schedule");
     expect(result.stdout).toContain("autopilot");
     expect(result.stdout).toContain("tool");
-    expect(result.stdout).toContain("card");
-    expect(result.stdout).toContain("compare-loadouts");
-    expect(result.stdout).toContain("badge");
-    expect(result.stdout).toContain("claims");
+    expect(result.stdout).not.toContain("registry-serve");
+    expect(result.stdout).not.toContain("sandbox-run");
+  });
+
+  it("gives beginners one read-only guide while retaining advanced commands", async () => {
+    const guide = await runCli("guide");
+    expect(guide.code).toBe(0);
+    expect(guide.stdout).toContain("START HERE");
+    expect(guide.stdout).toContain("loadout setup --mode stable");
+    expect(guide.stdout).toContain("loadout dashboard");
+    expect(guide.stdout).toContain("Nothing above changes your agents");
+
+    const advanced = await runCli("registry-serve", "--help");
+    expect(advanced.code).toBe(0);
+    expect(advanced.stdout).toContain("Loadout registry protocol server");
   });
 
   it("lists reviewed runtime tools without changing the profile", async () => {
@@ -83,8 +82,17 @@ describe("CLI contract", () => {
   it("makes the CLI setup flow the non-interactive default without mutating", async () => {
     const result = await runCli();
     expect(result.code).toBe(0);
-    expect(result.stdout).toContain("Loadout is CLI-first");
+    expect(result.stdout).toContain("START HERE");
     expect(result.stdout).toContain("setup --mode stable");
+    expect(result.stdout).toContain("Nothing above changes your agents");
+  });
+
+  it("emits valid JSON when catalog JSON output is requested", async () => {
+    const result = await runCli("catalog", "--json");
+    expect(result.code).toBe(0);
+    const catalog = JSON.parse(result.stdout) as Array<{ id: string }>;
+    expect(catalog.length).toBeGreaterThan(0);
+    expect(catalog.some((entry) => entry.id === "superpowers")).toBe(true);
   });
 
   it("validates setup mode before fetching repositories", async () => {

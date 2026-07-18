@@ -46,6 +46,8 @@ export interface ActivationPlan {
 export interface LibraryStateReport {
   generatedAt: string;
   records: ManagedActivationRecord[];
+  /** Immutable source identity when a package was installed from a repository. */
+  repositories: Record<string, string>;
   counts: {
     packages: number;
     downloaded: number;
@@ -277,9 +279,15 @@ async function activeTreeFiles(
 export async function buildLibraryStateReport(): Promise<LibraryStateReport> {
   const state = await readInstallState();
   const records = allActivationRecords(state.installs, state.activations ?? []);
+  const repositories = Object.fromEntries(
+    state.installs
+      .filter((install) => Boolean(install.repository))
+      .map((install) => [install.packageId, install.repository!]),
+  );
   return {
     generatedAt: new Date().toISOString(),
     records,
+    repositories,
     counts: {
       packages: new Set(records.map((record) => record.packageId)).size,
       downloaded: records.filter((record) => record.cacheState === "downloaded")
@@ -574,11 +582,48 @@ export async function applyActivationChange(
   return applied.snapshotId;
 }
 
+function formatLibraryHeadline(report: LibraryStateReport): string {
+  return `Managed library: ${report.counts.packages} package(s), ${report.counts.active} active, ${report.counts.disabled} disabled, ${report.counts.downloaded} cached`;
+}
+
+function countByAgent(
+  report: LibraryStateReport,
+  activationState: "active" | "disabled",
+): string {
+  const counts = new Map<string, number>();
+  for (const record of report.records)
+    if (record.activationState === activationState)
+      counts.set(record.agent, (counts.get(record.agent) ?? 0) + 1);
+  return [...counts]
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([agent, count]) => `${agent} ${count}`)
+    .join(", ");
+}
+
+/** Concise default for people with a broad Maximum library. */
+export function formatLibrarySummary(report: LibraryStateReport): string {
+  if (!report.records.length)
+    return "No Loadout-managed skill activations exist.";
+  return [
+    formatLibraryHeadline(report),
+    `Active now: ${countByAgent(report, "active") || "none"}`,
+    `Disabled library: ${countByAgent(report, "disabled") || "none"}`,
+    "Disabled library skills are reviewed copies, not extra agent context.",
+    ...(report.migrationPending
+      ? [
+          `Migration pending: ${report.migrationPending} active installation(s) will be cached on first disable.`,
+        ]
+      : []),
+    "Use `loadout library --all` for every skill, source package, and activation state.",
+  ].join("\n");
+}
+
+/** Full per-skill provenance report for audits and explicit investigation. */
 export function formatLibraryStateReport(report: LibraryStateReport): string {
   if (!report.records.length)
     return "No Loadout-managed skill activations exist.";
   return [
-    `Managed library: ${report.counts.packages} package(s), ${report.counts.active} active, ${report.counts.disabled} disabled, ${report.counts.downloaded} cached`,
+    formatLibraryHeadline(report),
     ...(report.migrationPending
       ? [
           `Migration pending: ${report.migrationPending} active installation(s) will be cached on first disable.`,
@@ -586,7 +631,7 @@ export function formatLibraryStateReport(report: LibraryStateReport): string {
       : []),
     ...report.records.map(
       (record) =>
-        `${record.packageId}${record.unitId ? `/${record.unitId}` : ""} — ${record.agent} — cache:${record.cacheState} review:${record.reviewState} install:${record.installationState} activation:${record.activationState} — ${record.targets.length} target(s)`,
+        `${record.packageId}${record.unitId ? `/${record.unitId}` : ""}${report.repositories[record.packageId] ? ` (${report.repositories[record.packageId]})` : ""} — ${record.agent} — cache:${record.cacheState} review:${record.reviewState} install:${record.installationState} activation:${record.activationState} — ${record.targets.length} target(s)`,
     ),
   ].join("\n");
 }

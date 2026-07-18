@@ -51,6 +51,49 @@ describe("update planning", () => {
     expect(formatUpdatePlan(plans)).toContain("UPDATE-AVAILABLE demo");
   });
 
+  it("plans only the explicitly selected package without fetching every install", async () => {
+    const root = await mkdtemp(join(tmpdir(), "loadout-update-selected-"));
+    roots.push(root);
+    process.env.LOADOUT_HOME = join(root, ".loadout");
+    await mkdir(process.env.LOADOUT_HOME, { recursive: true });
+    await writeFile(
+      join(process.env.LOADOUT_HOME, "state.json"),
+      JSON.stringify({
+        version: 1,
+        installs: [
+          {
+            packageId: "first",
+            repository: "owner/first",
+            resolvedCommit: "aaa",
+            targetAgents: ["codex"],
+            files: [],
+            snapshotId: "s",
+            installedAt: new Date().toISOString(),
+          },
+          {
+            packageId: "second",
+            repository: "owner/second",
+            resolvedCommit: "aaa",
+            targetAgents: ["codex"],
+            files: [],
+            snapshotId: "s",
+            installedAt: new Date().toISOString(),
+          },
+        ],
+      }),
+    );
+    const requested: string[] = [];
+    const plans = await buildUpdatePlan(
+      async (repository) => {
+        requested.push(repository);
+        return { commit: "bbb" };
+      },
+      { packageId: "second" },
+    );
+    expect(plans.map((plan) => plan.packageId)).toEqual(["second"]);
+    expect(requested).toEqual(["owner/second"]);
+  });
+
   it("marks local and network-failed installs clearly", async () => {
     const root = await mkdtemp(join(tmpdir(), "loadout-update-"));
     roots.push(root);

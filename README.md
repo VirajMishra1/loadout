@@ -11,7 +11,7 @@ It solves a simple problem: useful skills and MCP tools are scattered across hun
 You need Node.js 20 or newer and Git.
 
 ```bash
-npm install --global loadout-ai@0.3.0
+npm install --global loadout-ai@0.3.1
 loadout --version
 loadout upgrade
 ```
@@ -184,14 +184,17 @@ loadout setup --mode maximum --api-access openai,anthropic
 
 Loadout never treats API access as permission to install an MCP server. Credentialed MCP tools remain explicit setup steps, and configuration stores an environment-variable or OS-keychain reference rather than the secret value.
 
-See the reviewed MCP recipes that need no API key or service token:
+See the reviewed MCP recipes that need no separately billed AI/model API key:
 
 ```bash
 loadout mcp-recipe --no-key
 ```
 
-This release includes pinned recipes for Playwright MCP and Chrome DevTools MCP. They
-still control a local browser, so configuration and connection remain explicit.
+This includes Playwright MCP, Chrome DevTools MCP, and GitHub's read-only MCP. Loadout
+shows non-AI credentials separately: GitHub MCP needs a GitHub token, while the two
+browser recipes need no credential. Use `loadout mcp-recipe --credential-free` for the
+stricter zero-credential list. Browser control and service authorization remain
+explicit.
 
 ```bash
 export LOADOUT_GITHUB_TOKEN="$GITHUB_PERSONAL_ACCESS_TOKEN"

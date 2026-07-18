@@ -199,14 +199,20 @@ write to the detected real agent profiles. After npm publication, replace `npx .
 
 ## 8. Test credential-gated MCP configuration without exposing a key
 
-List the reviewed recipes that need no API key or service token:
+List the reviewed recipes that need no separately billed AI/model API key:
 
 ```bash
 npx . mcp-recipe --no-key
 ```
 
-Playwright and Chrome DevTools have no service credential. The GitHub read-only recipe does and
-must refuse `--yes` until its declared environment reference resolves:
+This includes Playwright, Chrome DevTools, and GitHub read-only. The first two have no
+service credential. GitHub read-only needs a GitHub token and must refuse `--yes`
+until its declared environment reference resolves. Use `--credential-free` for the
+stricter zero-credential list:
+
+```bash
+npx . mcp-recipe --credential-free
+```
 
 ```bash
 npx . mcp-recipe github-readonly --config "$TEST_HOME/mcp.json" --yes

@@ -19,6 +19,8 @@ export interface McpSetupRecipe {
   args: string[];
   /** Credential names only. Values remain outside Loadout. */
   environment: string[];
+  /** Separately billed AI/model APIs required by this server, if any. */
+  modelApiProviders: Array<"openai" | "anthropic" | "openrouter" | "other">;
   /** Reviewed non-secret values that may be persisted in host config. */
   fixedEnvironment: Record<string, string>;
   permissions: string[];
@@ -106,6 +108,7 @@ export const REVIEWED_MCP_RECIPES: McpSetupRecipe[] = [
     command: "npx",
     args: ["-y", "@playwright/mcp@0.0.78"],
     environment: [],
+    modelApiProviders: [],
     fixedEnvironment: {},
     permissions: [
       "browser automation",
@@ -126,6 +129,7 @@ export const REVIEWED_MCP_RECIPES: McpSetupRecipe[] = [
     command: "npx",
     args: ["-y", "chrome-devtools-mcp@1.6.0"],
     environment: [],
+    modelApiProviders: [],
     fixedEnvironment: {},
     permissions: [
       "control a local Chrome browser",
@@ -155,6 +159,7 @@ export const REVIEWED_MCP_RECIPES: McpSetupRecipe[] = [
       "ghcr.io/github/github-mcp-server@sha256:7b1384cdd6d025c09256af2fb6cb79bc5e87aedc957c8826b5e50d8cb82f0be3",
     ],
     environment: ["GITHUB_PERSONAL_ACCESS_TOKEN"],
+    modelApiProviders: [],
     fixedEnvironment: { GITHUB_READ_ONLY: "1" },
     permissions: ["read GitHub repositories, issues, pull requests, and users"],
     connection: "stdio",

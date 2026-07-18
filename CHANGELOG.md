@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.1 - 2026-07-18
+
+### Fixed
+
+- Distinguish separately billed AI/model API keys from unrelated service credentials.
+  The no-model-key MCP view now correctly includes GitHub read-only while clearly
+  disclosing its GitHub token requirement; `--credential-free` retains the stricter
+  zero-credential filter.
+
 ## 0.3.0 - 2026-07-18
 
 ### Added

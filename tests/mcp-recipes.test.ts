@@ -59,13 +59,13 @@ describe("reviewed MCP recipes", () => {
     }
   });
 
-  it("includes useful browser MCP recipes that need no API credential", () => {
-    const noKey = REVIEWED_MCP_RECIPES.filter(
-      (recipe) => recipe.environment.length === 0,
-    ).map((recipe) => recipe.id);
-    expect(noKey).toContain("playwright");
-    expect(noKey).toContain("chrome-devtools");
-    expect(noKey).not.toContain("github-readonly");
+  it("classifies AI API requirements separately from service credentials", () => {
+    for (const recipe of REVIEWED_MCP_RECIPES)
+      expect(recipe.modelApiProviders).toEqual([]);
+    expect(
+      REVIEWED_MCP_RECIPES.find((recipe) => recipe.id === "github-readonly")
+        ?.environment,
+    ).toEqual(["GITHUB_PERSONAL_ACCESS_TOKEN"]);
   });
 
   it("plans a reviewed recipe without a credential value and preserves unrelated JSON", async () => {

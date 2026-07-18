@@ -586,7 +586,7 @@ async function runSetup(options: SetupOptions): Promise<void> {
   }
 }
 
-const LOADOUT_VERSION = "0.3.0";
+const LOADOUT_VERSION = "0.3.1";
 
 function durableSchedulerLauncher(): string[] {
   return [
@@ -3557,7 +3557,15 @@ program
     "approve launching the reviewed pinned MCP artifact for --connect",
   )
   .option("--json", "emit machine-readable JSON")
-  .option("--no-key", "list only recipes that need no API key or token")
+  .option(
+    "--no-key",
+    "list recipes needing no separately billed AI/model API key",
+  )
+  .option(
+    "--no-model-key",
+    "clear alias for --no-key; service tokens may still be required",
+  )
+  .option("--credential-free", "list recipes needing no credential of any kind")
   .action(
     async (
       id: string | undefined,
@@ -3572,23 +3580,27 @@ program
         approveRisk?: boolean;
         json?: boolean;
         key?: boolean;
+        modelKey?: boolean;
+        credentialFree?: boolean;
       },
     ) => {
       if (!id) {
         if (options.connect || options.verify || options.yes)
           throw new Error("Select an MCP recipe id for this operation");
-        const selected =
-          options.key === false
-            ? REVIEWED_MCP_RECIPES.filter(
-                (recipe) => recipe.environment.length === 0,
-              )
-            : REVIEWED_MCP_RECIPES;
+        const selected = REVIEWED_MCP_RECIPES.filter(
+          (recipe) =>
+            !(
+              (options.key === false || options.modelKey === false) &&
+              recipe.modelApiProviders.length > 0
+            ) && !(options.credentialFree && recipe.environment.length > 0),
+        );
         const listed = selected.map((recipe) => ({
           id: recipe.id,
           displayName: recipe.displayName,
           source: recipe.source,
           permissions: recipe.permissions,
           environment: recipe.environment,
+          modelApiProviders: recipe.modelApiProviders,
         }));
         console.log(
           options.json
@@ -3596,7 +3608,7 @@ program
             : listed
                 .map(
                   (recipe) =>
-                    `${recipe.id} — ${recipe.displayName} — ${recipe.environment.length ? `requires: ${recipe.environment.join(", ")}` : "No API key required"}`,
+                    `${recipe.id} — ${recipe.displayName} — ${recipe.modelApiProviders.length ? `AI API required: ${recipe.modelApiProviders.join(", ")}` : "No AI API key required"} · ${recipe.environment.length ? `${recipe.environment.includes("GITHUB_PERSONAL_ACCESS_TOKEN") ? "GitHub token required" : `service credential required: ${recipe.environment.join(", ")}`}` : "no other credential"}`,
                 )
                 .join("\n"),
         );

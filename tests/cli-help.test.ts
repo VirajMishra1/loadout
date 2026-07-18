@@ -80,13 +80,18 @@ describe("CLI contract", () => {
     expect(result.stdout).toContain("Graphify 0.9.17");
   });
 
-  it("clearly lists MCP recipes that need no API key", async () => {
+  it("distinguishes AI model keys from other service credentials", async () => {
     const result = await runCli("mcp-recipe", "--no-key");
     expect(result.code).toBe(0);
     expect(result.stdout).toContain("playwright");
     expect(result.stdout).toContain("chrome-devtools");
-    expect(result.stdout).not.toContain("github-readonly");
-    expect(result.stdout).toContain("No API key required");
+    expect(result.stdout).toContain("github-readonly");
+    expect(result.stdout).toContain("No AI API key required");
+    expect(result.stdout).toContain("GitHub token required");
+
+    const credentialFree = await runCli("mcp-recipe", "--credential-free");
+    expect(credentialFree.code).toBe(0);
+    expect(credentialFree.stdout).not.toContain("github-readonly");
   });
 
   it("makes the CLI setup flow the non-interactive default without mutating", async () => {

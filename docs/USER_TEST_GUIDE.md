@@ -130,16 +130,17 @@ checks every managed package, but never supplies `--yes`. Daily discovery can ad
 interesting repositories to the review queue; it cannot silently promote or install
 them.
 
-## 7. Test no-key MCP choices
+## 7. Test MCP choices without a model API key
 
 ```bash
 loadout mcp-recipe --no-key
 ```
 
-Expect Playwright MCP and Chrome DevTools MCP. These need no API key, but they can
-control a browser, so Loadout keeps configuration and real connection testing
-explicit. GitHub read-only is excluded because it needs a GitHub token. Graphify is a
-separate runtime tool, not an MCP server.
+Expect Playwright MCP, Chrome DevTools MCP, and GitHub read-only. None requires a
+separately billed AI/model API key. GitHub read-only still discloses that it needs a
+GitHub token; use `loadout mcp-recipe --credential-free` to exclude every service
+credential too. Browser configuration and real connection testing remain explicit.
+Graphify is a separate runtime tool, not an MCP server.
 
 ## 8. Preview complete cleanup
 

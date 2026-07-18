@@ -49,9 +49,10 @@ can test Loadout.
       evaluate both profile drift and every managed repository.
 - [x] `P18-11 [SOL+TERRA]` Add explicit bulk safe updates while holding disabled,
       risky, and failed packages for review; scheduled checks remain read-only.
-- [x] `P18-12 [TERRA]` Add a pinned Chrome DevTools MCP recipe and a clear no-key MCP
-      inventory alongside Playwright MCP.
-- [ ] `P18-13 [HUMAN+TERRA]` Publish `0.3.0`, then run Stable -> rollback -> Power ->
+- [x] `P18-12 [TERRA]` Add a pinned Chrome DevTools MCP recipe and distinguish
+      separately billed AI/model API keys from unrelated service credentials. The
+      no-model-key inventory includes GitHub read-only with its token disclosed.
+- [ ] `P18-13 [HUMAN+TERRA]` Publish `0.3.1`, then run Stable -> rollback -> Power ->
       rollback -> Maximum -> project optimization -> dashboard -> complete uninstall
       against the exact npm package.
 

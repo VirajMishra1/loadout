@@ -48,14 +48,13 @@ plans and contributor-specific plans have been consolidated here and removed.
       final verified bytes, conservatively attributes catalog review, deep-freezes
       previews, and accepts only the exact same-process planner-issued plan
       (`186daa0`, `09e0e0c`, `3f2cafe`, `10d6109`). No valuable work remains on local
-      or remote `dev/nitish`; both are approved for deletion after the second remote
-      synchronization.
+      or remote `dev/nitish`; both branches were deleted after synchronization while
+      the user's ignored `.superpowers/` directory was preserved.
 
-Items P18-01, P18-02, P18-04 through P18-07, and P18-09 through P18-14 are already
-on remote `main`. Items P18-15, P18-16, and P18-19 are committed on
-`codex/readme-truth`; the adoption fixes remain local pending the second
-synchronization and are not complete project state until the verified branch is
-integrated into GitHub's remote `main`.
+All intended P18 implementation and documentation work is on remote `main`. After
+cleanup, local `main`, `origin/main`, and GitHub's only branch resolved to
+`e74ba1676ee63cea48e6a22b08318580eebe8fda`; `main` remains the default branch and
+there are no open PRs.
 
 ### Deterministic repository verification
 
@@ -72,9 +71,10 @@ integrated into GitHub's remote `main`.
 - [x] Review all unique `origin/dev/nitish` and local `dev/nitish` history before
       deletion; the adoption gap above was the only remaining valuable intent.
 - [x] Reimplement and regression-test that intent in the current architecture.
-- [ ] Complete the second remote synchronization, confirm the four adoption commits
-      are reachable from remote `main`, then delete `origin/dev/nitish` and local
-      `dev/nitish` without touching unrelated untracked user files.
+- [x] Complete the second remote synchronization, confirm the four adoption commits
+      are reachable from remote `main`, and delete the superseded local and remote
+      branches. Only `main` remains locally and remotely; the temporary worktree was
+      removed and the unrelated ignored `.superpowers/` directory was preserved.
 
 ### Human and external work (not provable by local tests)
 
@@ -88,9 +88,12 @@ integrated into GitHub's remote `main`.
       metadata and a Git tag do not prove publication.
 - [ ] `P18-17 [HUMAN]` Resolve the GitHub account billing or spending-limit condition
       that prevents Actions jobs from starting, rerun CI and daily discovery on the
-      integrated commit, and record the result. The current failures have zero
-      executed steps and are external runner-account failures, not product test
-      failures.
+      integrated commit, and record the result. CI runs
+      [`29691581581`](https://github.com/VirajMishra1/loadout/actions/runs/29691581581)
+      (`4fdc473`) and [`29692535521`](https://github.com/VirajMishra1/loadout/actions/runs/29692535521)
+      (`e74ba16`) failed before any step ran; their annotations cite failed recent
+      account payments or a spending limit that must be increased. They are external
+      runner-account failures, not product-test failures.
 - [ ] `P18-18 [HUMAN]` Decide and configure appropriate `main` branch protection.
       GitHub currently returns 404 for the protection endpoint, so protection is
       absent or not observable; do not describe it as enabled.

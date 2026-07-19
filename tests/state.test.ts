@@ -77,4 +77,31 @@ describe("install state", () => {
       /Refusing symlink while hashing installed files/,
     );
   });
+
+  it("does not expose the mutable install record to the final verifier", async () => {
+    root = await mkdtemp(join(tmpdir(), "loadout-state-verifier-"));
+    process.env.LOADOUT_HOME = join(root, ".loadout");
+    const target = join(root, "skills", "demo");
+    await mkdir(target, { recursive: true });
+    await writeFile(join(target, "SKILL.md"), "real content");
+    const plan: InstallPlan = {
+      packageId: "demo",
+      targetAgents: ["codex"],
+      warnings: [],
+      files: [{ source: "source", target }],
+    };
+    let verifierArguments: unknown[] = [];
+    await recordInstall(
+      plan,
+      "snap",
+      {},
+      {
+        verifyBeforeWrite: async (...args: unknown[]) => {
+          verifierArguments = args;
+        },
+      },
+    );
+    expect(verifierArguments).toEqual([]);
+    expect((await readInstallState()).installs[0].packageId).toBe("demo");
+  });
 });

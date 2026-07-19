@@ -183,7 +183,7 @@ export async function recordInstall(
   metadata: InstallMetadata = {},
   options: {
     expectedFiles?: ReadonlyArray<{ path: string; sha256: string }>;
-    verifyBeforeWrite?: (record: InstallRecord) => Promise<void>;
+    verifyBeforeWrite?: () => Promise<void>;
   } = {},
 ): Promise<InstallRecord> {
   const record = await createInstallRecord(plan, snapshotId, metadata);
@@ -196,7 +196,7 @@ export async function recordInstall(
     state.activations,
     activationRecordsForPlan(plan, metadata),
   );
-  await options.verifyBeforeWrite?.(record);
+  await options.verifyBeforeWrite?.();
   if (options.expectedFiles) {
     const actual = [...record.files].sort((left, right) =>
       left.path.localeCompare(right.path),

@@ -114,6 +114,33 @@ function adoptionWarnings(exact: boolean, reviewed: boolean): string[] {
   ];
 }
 
+function derivedReviewState(
+  plan: Pick<AdoptionPlan, "provenance" | "treeEvidence">,
+): {
+  exact: boolean;
+  reviewed: boolean;
+} {
+  const exact = plan.provenance.kind === "catalog-exact";
+  const tree = plan.treeEvidence ?? [];
+  return {
+    exact,
+    reviewed:
+      exact &&
+      tree.length === 1 &&
+      tree[0].type === "file" &&
+      tree[0].path === "SKILL.md",
+  };
+}
+
+function deepFreeze<T>(value: T): T {
+  if (value && typeof value === "object" && !Object.isFrozen(value)) {
+    for (const child of Object.values(value as Record<string, unknown>))
+      deepFreeze(child);
+    Object.freeze(value);
+  }
+  return value;
+}
+
 function canonicalInstallPlan(
   packageId: string,
   agent: DetectedAgent,
@@ -139,12 +166,13 @@ function canonicalInstallPlan(
 }
 
 function assertInstallPlanIntegrity(plan: AdoptionPlan): void {
+  const review = derivedReviewState(plan);
   const expected = canonicalInstallPlan(
     plan.packageId,
     plan.agent,
     plan.name,
     plan.path,
-    adoptionWarnings(plan.provenance.kind === "catalog-exact", plan.reviewed),
+    adoptionWarnings(review.exact, review.reviewed),
   );
   if (JSON.stringify(plan.installPlan) !== JSON.stringify(expected))
     throw new Error(
@@ -220,14 +248,20 @@ export async function planSkillAdoption(
     treeEvidence[0].type === "file" &&
     treeEvidence[0].path === "SKILL.md";
   const warnings = adoptionWarnings(Boolean(exact), reviewed);
-  return {
+  const plan: AdoptionPlan = {
     packageId,
-    agent,
+    agent: { ...agent },
     name: match.name,
     path: match.path,
     fingerprint: match.fingerprint,
     treeEvidence,
-    provenance: match.provenance,
+    provenance: {
+      ...match.provenance,
+      evidence: [...match.provenance.evidence],
+      candidates: match.provenance.candidates.map((candidate) => ({
+        ...candidate,
+      })),
+    },
     reviewed,
     ...(exact
       ? { repository: exact.repository, resolvedCommit: exact.commit }
@@ -240,6 +274,7 @@ export async function planSkillAdoption(
       warnings,
     ),
   };
+  return deepFreeze(plan);
 }
 
 export async function applySkillAdoption(
@@ -262,6 +297,7 @@ export async function applySkillAdoption(
       return { targets: [installStatePath()], value: plan };
     },
     async (freshPlan, snapshot) => {
+      const review = derivedReviewState(freshPlan);
       await options.beforeRecord?.();
       await recordInstall(
         freshPlan.installPlan,
@@ -271,7 +307,7 @@ export async function applySkillAdoption(
           ...(freshPlan.resolvedCommit
             ? { resolvedCommit: freshPlan.resolvedCommit }
             : {}),
-          reviewed: freshPlan.reviewed,
+          reviewed: review.reviewed,
         },
         {
           expectedFiles: expectedRecordedFiles(freshPlan),
@@ -292,12 +328,13 @@ export async function applySkillAdoption(
 }
 
 export function formatAdoptionPlan(plan: AdoptionPlan): string {
+  const review = derivedReviewState(plan);
   return [
     `Adopt: ${plan.name} for ${plan.agent.displayName}`,
     `Path: ${plan.path}`,
     `Managed id: ${plan.packageId}`,
     `Provenance: ${plan.provenance.kind} (${plan.provenance.confidence})`,
-    `Review state: ${plan.reviewed ? "reviewed exact catalog match" : "unreviewed"}`,
+    `Review state: ${review.reviewed ? "reviewed exact catalog match" : "unreviewed"}`,
     `Bound tree entries: ${plan.treeEvidence?.length ?? 0}`,
     ...plan.installPlan.warnings.map((warning) => `Warning: ${warning}`),
   ].join("\n");

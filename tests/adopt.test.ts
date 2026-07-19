@@ -209,8 +209,13 @@ describe("explicit unmanaged skill adoption", () => {
       installed: true,
       skillsDirectory,
     };
-    const unsafe = await planSkillAdoption("my-skill", agent);
-    unsafe.treeEvidence = [{ path: "../outside", type: "file", sha256: "0" }];
+    const preview = await planSkillAdoption("my-skill", agent);
+    const unsafe = {
+      ...preview,
+      treeEvidence: [
+        { path: "../outside", type: "file" as const, sha256: "0" },
+      ],
+    };
     await expect(applySkillAdoption(unsafe)).rejects.toThrow(
       "unsafe tree evidence",
     );
@@ -274,7 +279,7 @@ describe("explicit unmanaged skill adoption", () => {
   });
 
   it.each(["packageId", "target", "source", "agent", "component"])(
-    "rejects a tampered nested install plan %s before ownership",
+    "prevents mutation of nested install plan %s",
     async (field) => {
       root = await mkdtemp(join(tmpdir(), "loadout-adopt-plan-"));
       process.env.LOADOUT_HOME = join(root, ".loadout");
@@ -292,20 +297,71 @@ describe("explicit unmanaged skill adoption", () => {
         skillsDirectory,
       };
       const plan = await planSkillAdoption("my-skill", agent);
-      if (field === "packageId") plan.installPlan.packageId = "tampered";
-      if (field === "target")
-        plan.installPlan.files[0].target = join(root, "victim");
-      if (field === "source")
-        plan.installPlan.files[0].source = join(root, "victim");
-      if (field === "agent") plan.installPlan.targetAgents = ["claude-code"];
-      if (field === "component")
-        plan.installPlan.files[0].componentType = "mcp";
-      await expect(applySkillAdoption(plan)).rejects.toThrow(
-        "install plan was tampered",
+      const changed =
+        field === "packageId"
+          ? Reflect.set(plan.installPlan, "packageId", "tampered")
+          : field === "target"
+            ? Reflect.set(
+                plan.installPlan.files[0],
+                "target",
+                join(root, "victim"),
+              )
+            : field === "source"
+              ? Reflect.set(
+                  plan.installPlan.files[0],
+                  "source",
+                  join(root, "victim"),
+                )
+              : field === "agent"
+                ? Reflect.set(plan.installPlan, "targetAgents", ["claude-code"])
+                : Reflect.set(
+                    plan.installPlan.files[0],
+                    "componentType",
+                    "mcp",
+                  );
+      expect(changed).toBe(false);
+      await applySkillAdoption(plan);
+      expect((await readInstallState()).installs[0].packageId).toBe(
+        plan.packageId,
       );
-      expect((await readInstallState()).installs).toEqual([]);
     },
   );
+
+  it("deep-freezes coordinated review, provenance, repository, path, and evidence mutation", async () => {
+    root = await mkdtemp(join(tmpdir(), "loadout-adopt-frozen-"));
+    process.env.LOADOUT_HOME = join(root, ".loadout");
+    const skillsDirectory = join(root, "skills");
+    const skillPath = join(skillsDirectory, "my-skill");
+    const content = "---\nname: my-skill\ndescription: Test\n---\n";
+    await mkdir(skillPath, { recursive: true });
+    await writeFile(join(skillPath, "SKILL.md"), content);
+    const agent: DetectedAgent = {
+      id: "codex",
+      displayName: "Codex",
+      installed: true,
+      skillsDirectory,
+    };
+    const plan = await planSkillAdoption(
+      "my-skill",
+      agent,
+      exactIndex(createHash("sha256").update(content).digest("hex")),
+    );
+    expect(Reflect.set(plan, "reviewed", false)).toBe(false);
+    expect(Reflect.set(plan.provenance, "kind", "unknown")).toBe(false);
+    expect(Reflect.set(plan, "repository", "https://evil.example/repo")).toBe(
+      false,
+    );
+    expect(Reflect.set(plan, "path", join(root, "victim"))).toBe(false);
+    expect(Reflect.set(plan.treeEvidence![0], "sha256", "0".repeat(64))).toBe(
+      false,
+    );
+    expect(Object.isFrozen(plan.provenance.candidates)).toBe(true);
+    expect(Object.isFrozen(plan.installPlan.files[0])).toBe(true);
+    await applySkillAdoption(plan);
+    expect((await readInstallState()).activations?.[0].reviewState).toBe(
+      "reviewed",
+    );
+  });
 
   it("rejects a mutation between preflight validation and ownership recording", async () => {
     root = await mkdtemp(join(tmpdir(), "loadout-adopt-race-"));

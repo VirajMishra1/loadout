@@ -1,0 +1,54 @@
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  viewBox="0 0 600 168"
+  role="img"
+  aria-labelledby="loadout-mark-title loadout-mark-description"
+>
+  <title id="loadout-mark-title">Loadout</title>
+  <desc id="loadout-mark-description">
+    Five outlined loadout slots with a terminal prompt in the selected center
+    slot.
+  </desc>
+  <style>
+    :root {
+      color: #24292f;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        color: #f0f6fc;
+      }
+    }
+  </style>
+
+  <g
+    fill="none"
+    stroke="currentColor"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  >
+    <path
+      d="M69 44h64a12 12 0 0 1 12 12v64a12 12 0 0 1-12 12H69a12 12 0 0 1-12-12V56a12 12 0 0 1 12-12Z"
+      stroke-width="6"
+    />
+    <path
+      d="M170 44h64a12 12 0 0 1 12 12v64a12 12 0 0 1-12 12h-64a12 12 0 0 1-12-12V56a12 12 0 0 1 12-12Z"
+      stroke-width="6"
+    />
+    <path
+      d="M271 32h58a18 18 0 0 1 18 18v76a18 18 0 0 1-18 18h-58a18 18 0 0 1-18-18V50a18 18 0 0 1 18-18Z"
+      stroke-width="8"
+    />
+    <path
+      d="M366 44h64a12 12 0 0 1 12 12v64a12 12 0 0 1-12 12h-64a12 12 0 0 1-12-12V56a12 12 0 0 1 12-12Z"
+      stroke-width="6"
+    />
+    <path
+      d="M467 44h64a12 12 0 0 1 12 12v64a12 12 0 0 1-12 12h-64a12 12 0 0 1-12-12V56a12 12 0 0 1 12-12Z"
+      stroke-width="6"
+    />
+
+    <path d="m276 75 18 13-18 13" stroke-width="8" />
+    <path d="M302 103h22" stroke-width="8" />
+  </g>
+</svg>

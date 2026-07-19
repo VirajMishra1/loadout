@@ -11,7 +11,12 @@ import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import type { Snapshot } from "../shared/types.js";
 import { ensureDirectory, loadoutHome } from "./paths.js";
-import { createSnapshot, readSnapshot, restoreSnapshot } from "./snapshot.js";
+import {
+  createSnapshot,
+  readSnapshot,
+  recordSnapshotPostMutationState,
+  restoreSnapshot,
+} from "./snapshot.js";
 import {
   acquireFileLock,
   withFileLock,
@@ -197,6 +202,7 @@ export async function runMutationTransaction<Prepared, Result>(
     });
     await markTransactionCommitting(transaction);
     const result = await mutate(prepared.value, snapshot);
+    await recordSnapshotPostMutationState(snapshot);
     await completeTransaction(transaction);
     return { snapshotId: snapshot.id, result };
   } catch (error) {

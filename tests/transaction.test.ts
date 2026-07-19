@@ -2,12 +2,13 @@ import { afterEach, describe, expect, it } from "vitest";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createSnapshot } from "../src/core/snapshot.js";
+import { createSnapshot, readSnapshot } from "../src/core/snapshot.js";
 import {
   beginTransaction,
   completeTransaction,
   markTransactionCommitting,
   recoverPendingTransactions,
+  runMutationTransaction,
   transactionRoot,
 } from "../src/core/transaction.js";
 
@@ -39,6 +40,24 @@ describe("durable transaction recovery", () => {
     expect(await readFile(first, "utf8")).toBe("before-first");
     expect(await readFile(second, "utf8")).toBe("before-second");
     await expect(readFile(transaction.directory)).rejects.toThrow();
+  });
+
+  it("records the committed post-mutation state for later explicit rollback preflight", async () => {
+    root = await mkdtemp(join(tmpdir(), "loadout-transaction-post-state-"));
+    process.env.LOADOUT_HOME = join(root, ".loadout");
+    const target = join(root, "agent", "state.txt");
+    await mkdir(join(root, "agent"), { recursive: true });
+    await writeFile(target, "before");
+
+    const applied = await runMutationTransaction(
+      async () => ({ targets: [target], value: "after" }),
+      async (value) => writeFile(target, value),
+    );
+
+    const persisted = await readSnapshot(applied.snapshotId);
+    expect(persisted.postMutationFiles).toEqual([
+      expect.objectContaining({ path: target, existed: true }),
+    ]);
   });
 
   it("preserves a corrupted staging journal and refuses unsafe recovery", async () => {

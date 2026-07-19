@@ -17,7 +17,7 @@ import {
 import { ensureDirectory } from "./paths.js";
 import { loadoutHome } from "./paths.js";
 import { withFileLock } from "./file-lock.js";
-import { createSnapshot } from "./snapshot.js";
+import { createSnapshot, recordSnapshotPostMutationState } from "./snapshot.js";
 import { verifyEnvelope, type SignedEnvelope } from "./signing.js";
 import {
   beginTransaction,
@@ -372,6 +372,7 @@ export async function applyCatalogRelease(
       );
       await markTransactionCommitting(transaction);
       await writeFileAtomically(target, `${JSON.stringify(state, null, 2)}\n`);
+      await recordSnapshotPostMutationState(snapshot);
       await completeTransaction(transaction, { releaseLock: false });
       await writeFileAtomically(
         catalogTrustPath(),

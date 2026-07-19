@@ -12,7 +12,12 @@ import {
   type RuntimeRecipePlatform,
   type RuntimeToolRecipe,
 } from "./runtime-tool-recipe.js";
-import { createSnapshot, readSnapshot, restoreSnapshot } from "./snapshot.js";
+import {
+  createSnapshot,
+  readSnapshot,
+  recordSnapshotPostMutationState,
+  restoreSnapshot,
+} from "./snapshot.js";
 
 export type { RuntimeToolRecipe } from "./runtime-tool-recipe.js";
 
@@ -596,7 +601,9 @@ export async function applyRuntimeToolPlan(
     if (!installed)
       throw new Error(`${plan.recipe.displayName} is not managed by Loadout`);
     const snapshot = await readSnapshot(installed.snapshotId);
-    await restoreSnapshot(snapshot);
+    await restoreSnapshot(snapshot, {
+      requireUnchangedPostMutationState: true,
+    });
     delete state.tools[plan.recipe.id];
     await writeState(state, plan.stateHome);
     return { action: "remove", snapshotId: snapshot.id };
@@ -650,6 +657,7 @@ export async function applyRuntimeToolPlan(
       agents: plan.agents.map((agent) => agent.id),
       runtimeRoot: plan.runtimeRoot,
     };
+    await recordSnapshotPostMutationState(snapshot);
     await writeState(state, plan.stateHome);
     return { action: "install", snapshotId: snapshot.id };
   } catch (error) {

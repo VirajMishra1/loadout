@@ -48,6 +48,91 @@ describe("rollback snapshots", () => {
     await expect(readFile(join(target, "new.txt"))).rejects.toThrow();
   });
 
+  it("restores an explicit snapshot only when current roots match its recorded post-mutation state", async () => {
+    root = await mkdtemp(join(tmpdir(), "loadout-explicit-snapshot-"));
+    process.env.LOADOUT_HOME = join(root, ".loadout");
+    const target = join(root, "target");
+    await mkdir(target, { recursive: true });
+    await writeFile(join(target, "file.txt"), "before");
+    const snapshot = await createSnapshot([target], { persist: false });
+    await writeFile(join(target, "file.txt"), "after");
+    const postMutation = await createSnapshot([target], { persist: false });
+    Object.assign(snapshot, { postMutationFiles: postMutation.files });
+
+    await restoreSnapshot(snapshot, {
+      requireUnchangedPostMutationState: true,
+    });
+
+    expect(await readFile(join(target, "file.txt"), "utf8")).toBe("before");
+  });
+
+  it.each([
+    [
+      "modified file",
+      async (target: string) =>
+        writeFile(join(target, "file.txt"), "user edit"),
+    ],
+    [
+      "new file",
+      async (target: string) =>
+        writeFile(join(target, "new.txt"), "user content"),
+    ],
+    [
+      "new directory",
+      async (target: string) => mkdir(join(target, "new-directory")),
+    ],
+    ["missing file", async (target: string) => rm(join(target, "file.txt"))],
+    [
+      "changed type",
+      async (target: string) => {
+        await rm(join(target, "file.txt"));
+        await mkdir(join(target, "file.txt"));
+      },
+    ],
+  ])(
+    "refuses explicit rollback on %s without changing any root",
+    async (_label, drift) => {
+      root = await mkdtemp(join(tmpdir(), "loadout-explicit-drift-"));
+      process.env.LOADOUT_HOME = join(root, ".loadout");
+      const first = join(root, "first");
+      const second = join(root, "second");
+      await mkdir(first, { recursive: true });
+      await mkdir(second, { recursive: true });
+      await writeFile(join(first, "file.txt"), "before-first");
+      await writeFile(join(second, "file.txt"), "before-second");
+      const snapshot = await createSnapshot([first, second], {
+        persist: false,
+      });
+      await writeFile(join(first, "file.txt"), "after-first");
+      await writeFile(join(second, "file.txt"), "after-second");
+      const postMutation = await createSnapshot([first, second], {
+        persist: false,
+      });
+      Object.assign(snapshot, { postMutationFiles: postMutation.files });
+      await drift(second);
+
+      await expect(
+        restoreSnapshot(snapshot, { requireUnchangedPostMutationState: true }),
+      ).rejects.toThrow(/rollback refused/i);
+      expect(await readFile(join(first, "file.txt"), "utf8")).toBe(
+        "after-first",
+      );
+    },
+  );
+
+  it("fails closed for explicit rollback of a legacy snapshot without post-mutation evidence", async () => {
+    root = await mkdtemp(join(tmpdir(), "loadout-explicit-legacy-"));
+    process.env.LOADOUT_HOME = join(root, ".loadout");
+    const target = join(root, "target.txt");
+    await writeFile(target, "current");
+    const snapshot = await createSnapshot([target], { persist: false });
+
+    await expect(
+      restoreSnapshot(snapshot, { requireUnchangedPostMutationState: true }),
+    ).rejects.toThrow(/post-mutation evidence/i);
+    expect(await readFile(target, "utf8")).toBe("current");
+  });
+
   it("rejects path traversal and malformed rollback data before mutation", async () => {
     root = await mkdtemp(join(tmpdir(), "loadout-snapshot-guard-"));
     process.env.LOADOUT_HOME = join(root, ".loadout");

@@ -437,3 +437,9 @@ export async function applyPreparedCatalogInstall(
           : {}),
       });
 }
+
+export function formatCatalogApplyGuidance(
+  riskApprovalRequired: boolean,
+): string {
+  return `Preview complete; nothing was changed. Re-run with --yes${riskApprovalRequired ? " --approve-risk" : ""} to install this exact screened plan.`;
+}

@@ -4,11 +4,12 @@ import {
   writeFile,
   mkdir,
   readdir,
+  rename,
   rm,
   lstat,
 } from "node:fs/promises";
 import { dirname, join, resolve, sep } from "node:path";
-import type { Snapshot } from "../shared/types.js";
+import type { Snapshot, SnapshotFile } from "../shared/types.js";
 import { loadoutHome, ensureDirectory, userHome } from "./paths.js";
 
 export async function createSnapshot(
@@ -54,7 +55,9 @@ export async function createSnapshot(
     if (!info.isDirectory())
       throw new Error(`Refusing unsupported snapshot target: ${path}`);
     snapshot.files.push({ path, existed: true, directory: true });
-    const entries = await readdir(path, { withFileTypes: true });
+    const entries = (await readdir(path, { withFileTypes: true })).sort(
+      (left, right) => left.name.localeCompare(right.name),
+    );
     for (const entry of entries) {
       const child = join(path, entry.name);
       if (entry.isSymbolicLink())
@@ -83,8 +86,13 @@ export async function createSnapshot(
   return snapshot;
 }
 
-export async function restoreSnapshot(snapshot: Snapshot): Promise<void> {
+export async function restoreSnapshot(
+  snapshot: Snapshot,
+  options: { requireUnchangedPostMutationState?: boolean } = {},
+): Promise<void> {
   validateSnapshot(snapshot);
+  if (options.requireUnchangedPostMutationState)
+    await assertUnchangedPostMutationState(snapshot);
   for (const root of snapshot.roots)
     await rm(root, { recursive: true, force: true });
   for (const directory of snapshot.files
@@ -101,6 +109,55 @@ export async function restoreSnapshot(snapshot: Snapshot): Promise<void> {
         : (file.content ?? ""),
     );
   }
+}
+
+/** Attach the committed state used to make later user-requested rollback safe. */
+export async function recordSnapshotPostMutationState(
+  snapshot: Snapshot,
+): Promise<void> {
+  const postMutation = await createSnapshot(snapshot.roots, { persist: false });
+  snapshot.postMutationFiles = postMutation.files;
+  validateSnapshot(snapshot);
+  const directory = join(loadoutHome(), "snapshots");
+  await ensureDirectory(directory);
+  const target = join(directory, `${snapshot.id}.json`);
+  const temporary = `${target}.${process.pid}.${Date.now()}.tmp`;
+  await writeFile(temporary, JSON.stringify(snapshot, null, 2), {
+    mode: 0o600,
+    flag: "wx",
+  });
+  await rename(temporary, target);
+}
+
+async function assertUnchangedPostMutationState(
+  snapshot: Snapshot,
+): Promise<void> {
+  if (!snapshot.postMutationFiles)
+    throw new Error(
+      "Explicit rollback refused: this legacy snapshot has no post-mutation evidence. Preserve current files and use a newer snapshot.",
+    );
+  let current: SnapshotFile[];
+  try {
+    current = (await createSnapshot(snapshot.roots, { persist: false })).files;
+  } catch (error) {
+    throw new Error(
+      `Explicit rollback refused because the current filesystem cannot be verified: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+  const expected = new Map(
+    snapshot.postMutationFiles.map((file) => [file.path, file]),
+  );
+  const actual = new Map(current.map((file) => [file.path, file]));
+  const changed = [...new Set([...expected.keys(), ...actual.keys()])]
+    .filter(
+      (path) =>
+        JSON.stringify(expected.get(path)) !== JSON.stringify(actual.get(path)),
+    )
+    .sort();
+  if (changed.length)
+    throw new Error(
+      `Explicit rollback refused because files changed after the snapshot: ${changed.slice(0, 10).join(", ")}. Preserve or review these changes before rollback.`,
+    );
 }
 
 export async function readSnapshot(id: string): Promise<Snapshot> {
@@ -205,8 +262,26 @@ export function validateSnapshot(value: unknown): Snapshot {
     )
       throw new Error("Snapshot roots must be unique and non-overlapping");
   }
+  validateSnapshotFiles(value.files, roots, "Snapshot");
+  if (value.postMutationFiles !== undefined) {
+    if (!Array.isArray(value.postMutationFiles))
+      throw new Error("Snapshot post-mutation files are invalid");
+    validateSnapshotFiles(
+      value.postMutationFiles,
+      roots,
+      "Snapshot post-mutation",
+    );
+  }
+  return value as unknown as Snapshot;
+}
+
+function validateSnapshotFiles(
+  files: unknown[],
+  roots: string[],
+  label: string,
+): void {
   const paths = new Set<string>();
-  for (const [index, file] of value.files.entries()) {
+  for (const [index, file] of files.entries()) {
     if (
       !isRecord(file) ||
       typeof file.path !== "string" ||
@@ -215,38 +290,39 @@ export function validateSnapshot(value: unknown): Snapshot {
       (file.content !== undefined && typeof file.content !== "string") ||
       (file.encoding !== undefined && file.encoding !== "base64")
     )
-      throw new Error(`Snapshot file ${index} is invalid`);
+      throw new Error(`${label} file ${index} is invalid`);
     const filePath = file.path;
     if (resolve(filePath) !== filePath)
       throw new Error(
-        `Snapshot file ${index} path must be absolute and normalized`,
+        `${label} file ${index} path must be absolute and normalized`,
       );
     if (paths.has(filePath))
-      throw new Error(`Snapshot file ${index} duplicates another path`);
+      throw new Error(`${label} file ${index} duplicates another path`);
     paths.add(filePath);
     if (!roots.some((root) => isInside(root, filePath)))
-      throw new Error(`Snapshot file ${index} escapes its declared roots`);
+      throw new Error(`${label} file ${index} escapes its declared roots`);
     if (!file.existed) {
       if (
         file.directory !== undefined ||
         file.content !== undefined ||
         file.encoding !== undefined
       )
-        throw new Error(`Missing snapshot file ${index} must not contain data`);
+        throw new Error(
+          `Missing ${label.toLowerCase()} file ${index} must not contain data`,
+        );
     } else if (file.directory) {
       if (file.content !== undefined || file.encoding !== undefined)
-        throw new Error(`Snapshot directory ${index} must not contain bytes`);
+        throw new Error(`${label} directory ${index} must not contain bytes`);
     } else if (
       typeof file.content !== "string" ||
       file.encoding !== "base64" ||
       !isCanonicalBase64(file.content)
     )
-      throw new Error(`Snapshot file ${index} bytes are invalid`);
+      throw new Error(`${label} file ${index} bytes are invalid`);
   }
   for (const [index, root] of roots.entries())
     if (!paths.has(root))
-      throw new Error(`Snapshot root ${index} has no matching file record`);
-  return value as unknown as Snapshot;
+      throw new Error(`${label} root ${index} has no matching file record`);
 }
 
 function isCanonicalBase64(value: string): boolean {

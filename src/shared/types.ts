@@ -218,17 +218,21 @@ export interface InstallPlan {
   conflicts?: ConflictDiagnostic[];
 }
 
+export interface SnapshotFile {
+  path: string;
+  existed: boolean;
+  directory?: boolean;
+  content?: string;
+  encoding?: "base64";
+}
+
 export interface Snapshot {
   id: string;
   createdAt: string;
   roots: string[];
-  files: Array<{
-    path: string;
-    existed: boolean;
-    directory?: boolean;
-    content?: string;
-    encoding?: "base64";
-  }>;
+  files: SnapshotFile[];
+  /** Exact filesystem state after a successful mutation, for explicit rollback drift checks. */
+  postMutationFiles?: SnapshotFile[];
 }
 
 export interface InstallRecord {

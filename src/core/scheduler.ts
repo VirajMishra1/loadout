@@ -4,7 +4,7 @@ import { dirname, win32, join } from "node:path";
 import { promisify } from "node:util";
 import { writeFileAtomically } from "./atomic-file.js";
 import { ensureDirectory, loadoutHome, userHome } from "./paths.js";
-import { createSnapshot } from "./snapshot.js";
+import { createSnapshot, recordSnapshotPostMutationState } from "./snapshot.js";
 import {
   beginTransaction,
   completeTransaction,
@@ -326,6 +326,7 @@ export async function applyNativeSchedulerBundle(
     if (plans[0].action === "unschedule")
       for (const file of plans.flatMap((plan) => plan.files))
         await rm(file.path, { force: true });
+    await recordSnapshotPostMutationState(snapshot);
     await completeTransaction(transaction);
   } catch (error) {
     for (const item of plans.flatMap((plan) => plan.rollbackCommands).reverse())

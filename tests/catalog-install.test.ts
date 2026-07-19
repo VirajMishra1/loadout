@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import {
   applyPreparedCatalogInstall,
+  formatCatalogApplyGuidance,
   formatPreparedCatalogInstall,
   prepareCatalogInstall,
 } from "../src/core/catalog-install.js";
@@ -14,6 +15,15 @@ import { applySkillInstallBatch, buildSkillPlan } from "../src/core/install.js";
 const commit = "a".repeat(40);
 
 describe("CLI-first catalog setup", () => {
+  it("includes every required approval flag in risky preview guidance", () => {
+    expect(formatCatalogApplyGuidance(false)).toBe(
+      "Preview complete; nothing was changed. Re-run with --yes to install this exact screened plan.",
+    );
+    expect(formatCatalogApplyGuidance(true)).toBe(
+      "Preview complete; nothing was changed. Re-run with --yes --approve-risk to install this exact screened plan.",
+    );
+  });
+
   let root = "";
   afterEach(async () => {
     if (root) await rm(root, { recursive: true, force: true });

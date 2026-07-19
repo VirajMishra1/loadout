@@ -102,6 +102,14 @@ describe("CLI contract", () => {
     expect(result.stdout).toContain("Nothing above changes your agents");
   });
 
+  it("rejects an unknown top-level command instead of running onboarding", async () => {
+    const result = await runCli("definitely-not-a-command");
+    expect(result.code).not.toBe(0);
+    expect(result.stderr).toContain("definitely-not-a-command");
+    expect(result.stderr).toContain("--help");
+    expect(result.stdout).not.toContain("START HERE");
+  });
+
   it("emits valid JSON when catalog JSON output is requested", async () => {
     const result = await runCli("catalog", "--json");
     expect(result.code).toBe(0);

@@ -152,6 +152,7 @@ import { formatCanaryResult, runCanary } from "./core/canary.js";
 import { startDashboardServer } from "./dashboard.js";
 import {
   applyPreparedCatalogInstall,
+  formatCatalogApplyGuidance,
   formatPreparedCatalogInstall,
   prepareCatalogInstall,
   type CatalogInstallProgress,
@@ -533,9 +534,7 @@ async function runSetup(options: SetupOptions): Promise<void> {
     let riskApproved = Boolean(options.approveRisk);
     if (!approved) {
       if (!interactive) {
-        console.log(
-          "Preview complete; nothing was changed. Re-run with --yes to install this exact screened plan.",
-        );
+        console.log(formatCatalogApplyGuidance(Boolean(risky)));
         return;
       }
       reader ??= createInterface({
@@ -4286,7 +4285,9 @@ program
         console.log(formatPreparedCatalogInstall(prepared));
         if (!options.yes) {
           console.log(
-            "Preview complete; nothing was changed. Use --yes after reviewing to install this exact plan.",
+            formatCatalogApplyGuidance(
+              prepared.entries.some((entry) => entry.safety.approvalRequired),
+            ),
           );
           return;
         }
@@ -4393,7 +4394,9 @@ program
       const snapshotIds = await listSnapshotIds();
       const chosen = options.snapshot ?? snapshotIds.at(-1);
       if (!chosen) throw new Error("No Loadout snapshots found");
-      await restoreSnapshot(await readSnapshot(chosen));
+      await restoreSnapshot(await readSnapshot(chosen), {
+        requireUnchangedPostMutationState: true,
+      });
       return chosen;
     });
     console.log(`Restored snapshot ${selected}`);
@@ -4698,7 +4701,14 @@ program.addHelpText(
   "\nStart here: `loadout guide` shows the safe everyday path. `loadout advanced` lists the retained maintainer and integration commands.\n",
 );
 
-program.action(printBeginnerGuide);
+program.argument("[unknown-command]");
+program.action((unknownCommand?: string) => {
+  if (unknownCommand)
+    throw new Error(
+      `Unknown command '${unknownCommand}'. Run 'loadout --help' to list available commands.`,
+    );
+  printBeginnerGuide();
+});
 
 try {
   await recoverPendingTransactions();

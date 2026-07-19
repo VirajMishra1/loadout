@@ -15,4 +15,12 @@ describe("npm release workflow", () => {
     );
     expect(workflow).toContain("npm publish --access public --provenance");
   });
+
+  it("pins third-party actions to immutable commits with version comments", async () => {
+    const workflow = await readFile(".github/workflows/release.yml", "utf8");
+
+    expect(workflow).toMatch(/actions\/checkout@[0-9a-f]{40}\s+# v5/);
+    expect(workflow).toMatch(/actions\/setup-node@[0-9a-f]{40}\s+# v6/);
+    expect(workflow).not.toMatch(/uses:\s+[^\s@]+@v\d+(?:\s|$)/m);
+  });
 });

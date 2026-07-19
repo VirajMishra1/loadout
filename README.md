@@ -33,10 +33,18 @@ It solves a simple problem: useful skills and MCP tools are scattered across hun
 
 ## Start here
 
-You need Node.js 20 or newer and Git.
+You need Node.js 20 or newer and Git. The repository package metadata is currently `0.3.2`, but the npm registry returned `404` for `loadout-ai@0.3.2` during the live check on 2026-07-19 UTC. Until that version is published, use an authorized source checkout; the following is the intended release command, not a claim that this exact version is currently downloadable:
 
 ```bash
 npm install --global loadout-ai@0.3.2
+```
+
+From an authorized checkout, install and expose the built CLI with:
+
+```bash
+npm ci
+npm run build
+npm link
 loadout --version
 loadout upgrade
 ```
@@ -325,6 +333,8 @@ npm run verify
 
 `verify` checks formatting, lint, types, catalog evidence, unit and integration tests, two real CLI product flows, an installed-package smoke test, and a 1,000-skill performance gate. The README-specific flow compiles an isolated disposable build, uses a local reviewed fixture and disposable `LOADOUT_HOME`/`LOADOUT_USER_HOME`, and removes all of them afterward. Its install, hash, manifest/lock, privacy-card, activation, and rollback assertions therefore require neither a pre-existing `dist` tree nor network access and cannot touch your real profile. Run `LOADOUT_TEST_LIVE_CATALOG=1 npm test -- tests/readme-product-flow.test.ts --run` separately to add a current pinned Stable-catalog installation check before the deterministic local journey; that opt-in check requires network access and is not part of `verify`.
 
+External state is checked separately and never silently treated as offline proof. `npm run check:live -- --npm --stable-install --github` reports each requested check as `verified`, `failed`, or `not-verified`. It checks current npm metadata and a disposable tarball install, the isolated pinned Stable install-and-rollback flow, and authenticated GitHub repository access plus default-branch protection. Missing network access or GitHub credentials is `not-verified`, not success; these checks are optional and are not part of `verify`.
+
 <!-- loadout:verification-summary:start -->
 
 `verify` invokes `format:check`, `lint`, `typecheck`, `check:evidence`, `test`, `test:e2e:cli`, `test:e2e:readme`, `test:package`, `test:performance` in that order. Use `npm run verify:full` to include the optional Playwright dashboard check.
@@ -346,6 +356,8 @@ No bundled source is called benchmarked until real isolated trials, signed evide
 - Public GitHub is the default source. Private GitHub discovery requires explicit authorization through an environment or native credential reference.
 - Skill components are the only components installed automatically by broad setup. MCP-only records require an explicit recipe or configuration target.
 - Executable tools are never included in broad setup. Graphify has a separately previewed, pinned, credential-isolated, reversible runtime recipe; additional runtime tools require the same reviewed-recipe treatment.
+- Signed catalog update envelopes are implemented and verified before application. The bundled `catalog/packages.json` itself is source-controlled and is not claimed to have a separate verified signature artifact.
+- Branch protection is required release policy, but repository code cannot enforce the GitHub setting. The authenticated live check on 2026-07-19 UTC reached this repository and received `404` for protection on `main`, so branch protection is currently not verified as enabled.
 
 <!-- loadout:current-limits:start -->
 

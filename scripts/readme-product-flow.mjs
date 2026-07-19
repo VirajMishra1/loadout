@@ -44,6 +44,8 @@ const environment = {
   NO_COLOR: "1",
 };
 let liveEvidence;
+let stableSnapshotId;
+let stablePackageIds;
 
 function parseJson(stdout, command) {
   try {
@@ -158,10 +160,11 @@ try {
         approveRisk: true,
       },
     );
+    stableSnapshotId = stableSnapshot;
+    stablePackageIds = new Set(stable.entries.map((entry) => entry.package.id));
     const stableState = await state.readInstallState();
-    const stableIds = new Set(stable.entries.map((entry) => entry.package.id));
     const stableRecords = stableState.installs.filter((entry) =>
-      stableIds.has(entry.packageId),
+      stablePackageIds.has(entry.packageId),
     );
     assert.equal(stableRecords.length, stable.entries.length);
     for (const record of stableRecords) {
@@ -336,6 +339,21 @@ try {
     "disabled",
   );
   assert.equal(await readFile(sentinel, "utf8"), sentinelBytes);
+
+  if (liveEvidence) {
+    assert.ok(stableSnapshotId);
+    assert.ok(stablePackageIds);
+    await runCli("rollback", "--snapshot", stableSnapshotId);
+    const stableRestoredState = await state.readInstallState();
+    assert.equal(
+      stableRestoredState.installs.some((entry) =>
+        stablePackageIds.has(entry.packageId),
+      ),
+      false,
+    );
+    assert.equal(await readFile(sentinel, "utf8"), sentinelBytes);
+    liveEvidence.rollback = true;
+  }
 
   const result = {
     build: "isolated",

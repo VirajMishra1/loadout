@@ -215,8 +215,9 @@ paths, tested filesystem behavior, operating-system evidence, and native-host ev
 Loadout stores cache, snapshots, transaction journals, managed-file hashes, install
 state, and the disabled library under `~/.loadout` by default. Agent-visible files and
 explicit MCP configuration remain in their agent-owned locations. State and managed
-files survive refreshes and process restarts until a remove, uninstall, or rollback
-changes them.
+files persist across CLI invocations and process restarts. Explicit mutations—such as
+installs, updates, removes, uninstalls, and rollbacks—can change or remove the relevant
+state and managed files.
 
 ```text
 Pinned catalog or explicit source

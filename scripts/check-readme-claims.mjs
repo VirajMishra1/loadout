@@ -274,6 +274,15 @@ function helpArguments(help) {
   };
 }
 
+function helpDescribesCommand(help, prefix) {
+  const usage = help.split(/\r?\n/, 1)[0] ?? "";
+  const words = usage.replace(/^Usage:\s+/, "").split(/\s+/);
+  const expected = ["loadout", ...prefix];
+  return expected.every((token, index) =>
+    (words[index] ?? "").split("|").includes(token),
+  );
+}
+
 function isoTimestamp(value) {
   if (typeof value !== "string") return false;
   try {
@@ -402,16 +411,25 @@ export async function auditDocumentedCommands({ readme, cliPath }) {
           }
           if (children.size) {
             if (!children.has(token)) {
-              failures.push(
-                failure(
-                  "product.scope",
-                  `Documented command '${command}' is absent from built CLI help at 'loadout ${prefix.join(" ") || "<root>"}'.`,
-                  `${cliPath} ${prefix.join(" ")} --help`.replace(/\s+/g, " "),
-                  "Correct the README command or register the command in the compiled Commander tree.",
-                ),
-              );
-              commandFailed = true;
-              break;
+              const hiddenChild = loadHelp([...prefix, token]);
+              if (
+                !hiddenChild.ok ||
+                !helpDescribesCommand(hiddenChild.help, [...prefix, token])
+              ) {
+                failures.push(
+                  failure(
+                    "product.scope",
+                    `Documented command '${command}' is absent from built CLI help at 'loadout ${prefix.join(" ") || "<root>"}'.`,
+                    `${cliPath} ${prefix.join(" ")} --help`.replace(
+                      /\s+/g,
+                      " ",
+                    ),
+                    "Correct the README command or register the command in the compiled Commander tree.",
+                  ),
+                );
+                commandFailed = true;
+                break;
+              }
             }
             prefix = [...prefix, token];
             index += 1;

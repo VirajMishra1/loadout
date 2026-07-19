@@ -78,6 +78,7 @@ import {
   personalizeRecommendations,
   profileManifestPackages,
   recommendPackages,
+  RECOMMENDATION_BOUNDARY,
   scanProject,
   TESTED_PROFILES,
 } from "./core/recommend.js";
@@ -1825,6 +1826,7 @@ program
               {
                 signals,
                 recommendations,
+                recommendationBoundary: RECOMMENDATION_BOUNDARY,
                 personalization: options.agent
                   ? {
                       agent: options.agent,

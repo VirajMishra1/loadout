@@ -53,9 +53,12 @@ describe("dashboard server", () => {
     expect(profiles.status).toBe(200);
     expect((await profiles.json()).profiles.stable).toBeTruthy();
     expect(recommendations.status).toBe(200);
-    expect((await recommendations.json()).recommendations).toBeInstanceOf(
-      Array,
-    );
+    const recommendationPayload = await recommendations.json();
+    expect(recommendationPayload.recommendations).toBeInstanceOf(Array);
+    expect(recommendationPayload.recommendationBoundary).toEqual({
+      selectionMethod: "deterministic-project-signal-rules",
+      qualityEvidence: "not-established",
+    });
     expect(registry.status).toBe(200);
     expect((await registry.json()).packages).toBeInstanceOf(Array);
     expect(catalog.status).toBe(200);

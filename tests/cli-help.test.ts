@@ -110,6 +110,21 @@ describe("CLI contract", () => {
     expect(catalog.some((entry) => entry.id === "superpowers")).toBe(true);
   });
 
+  it("bounds recommendation confidence in machine-readable output", async () => {
+    const result = await runCli("recommend", "--project", ".", "--json");
+    expect(result.code).toBe(0);
+    const output = JSON.parse(result.stdout) as {
+      recommendations: Array<{ packageId: string; confidence: string }>;
+      recommendationBoundary: Record<string, string>;
+    };
+    expect(output.recommendations.length).toBeGreaterThan(0);
+    expect(output.recommendations[0]).toHaveProperty("confidence");
+    expect(output.recommendationBoundary).toEqual({
+      selectionMethod: "deterministic-project-signal-rules",
+      qualityEvidence: "not-established",
+    });
+  });
+
   it("validates setup mode before fetching repositories", async () => {
     const result = await runCli("setup", "--mode", "unknown");
     expect(result.code).not.toBe(0);

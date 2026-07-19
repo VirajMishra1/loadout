@@ -15,6 +15,7 @@ import { buildUpdatePlan } from "./core/update.js";
 import { buildHealthReport } from "./core/health.js";
 import {
   recommendPackages,
+  RECOMMENDATION_BOUNDARY,
   scanProject,
   TESTED_PROFILES,
 } from "./core/recommend.js";
@@ -380,6 +381,7 @@ async function route(
       const signals = await scanProject(process.cwd());
       await sendJson(response, 200, {
         signals,
+        recommendationBoundary: RECOMMENDATION_BOUNDARY,
         recommendations: recommendPackages(
           signals,
           await loadEffectiveCatalog(),

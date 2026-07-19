@@ -29,6 +29,12 @@ const SIGNAL_FILES = new Set([
   ".git",
 ]);
 
+/** Additive machine-readable boundary for every rule-selected recommendation list. */
+export const RECOMMENDATION_BOUNDARY = Object.freeze({
+  selectionMethod: "deterministic-project-signal-rules",
+  qualityEvidence: "not-established",
+} as const);
+
 export async function scanProject(
   root = process.cwd(),
 ): Promise<ProjectSignals> {

@@ -21,15 +21,16 @@ No local commit was treated as remote merely because it existed in a worktree.
 
 ## Failure ledger
 
-| Failure                                           | Reproduction/evidence                                                                                       | Root cause/classification                       | Resolution/status                                                                      |
-| ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | ----------------------------------------------- | -------------------------------------------------------------------------------------- |
-| Risky setup preview omitted `--approve-risk`      | Prepared risky catalog plan printed an incomplete rerun command                                             | Product guidance defect                         | Fixed in `1f62a1b`; regression test derives guidance from the prepared plan            |
-| Unknown command ran default onboarding            | Unknown positional top-level command reached the root action                                                | CLI routing defect                              | Fixed in `1f62a1b`; unknown commands fail non-zero while bare invocation remains valid |
-| Explicit rollback could erase later user changes  | Persisted snapshots recorded only pre-mutation bytes                                                        | Product data-safety defect                      | Fixed in `1f62a1b`; committed post-state is checked before user-requested rollback     |
-| Dashboard and special-file rollback bypasses      | Default dashboard restore omitted the guard; nested FIFOs/sockets/devices were skipped                      | Product data-safety defect                      | Fixed in `6fd1a2c`; dashboard and unsupported-entry regressions pass                   |
-| Recent GitHub CI and discovery runs did not start | Runs `29644106296`, `29644332060`, `29647630817`, `29631639889`, and `29674978511` have zero executed steps | GitHub account billing/spending-limit condition | External failure; no product-test result was produced                                  |
-| `loadout-ai@0.3.2` unavailable                    | npm registry version list ends at `0.3.1`; bounded live evidence records the same result                    | Package publication                             | Not verified; publish and test the exact tarball externally                            |
-| `main` protection unavailable                     | GitHub branch-protection endpoint returns 404                                                               | Repository setting/authorization                | Absent or not observable; requires owner decision                                      |
+| Failure                                           | Reproduction/evidence                                                                                                                        | Root cause/classification                               | Resolution/status                                                                      |
+| ------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| Risky setup preview omitted `--approve-risk`      | Prepared risky catalog plan printed an incomplete rerun command                                                                              | Product guidance defect                                 | Fixed in `1f62a1b`; regression test derives guidance from the prepared plan            |
+| Unknown command ran default onboarding            | Unknown positional top-level command reached the root action                                                                                 | CLI routing defect                                      | Fixed in `1f62a1b`; unknown commands fail non-zero while bare invocation remains valid |
+| Explicit rollback could erase later user changes  | Persisted snapshots recorded only pre-mutation bytes                                                                                         | Product data-safety defect                              | Fixed in `1f62a1b`; committed post-state is checked before user-requested rollback     |
+| Dashboard and special-file rollback bypasses      | Default dashboard restore omitted the guard; nested FIFOs/sockets/devices were skipped                                                       | Product data-safety defect                              | Fixed in `6fd1a2c`; dashboard and unsupported-entry regressions pass                   |
+| Windows snapshot-root test used a POSIX fixture   | CI run `29502017220` executed at `41b53e0`; Windows reported “absolute normalized path” before the test's expected “filesystem root” message | Test portability defect, not a runtime rollback failure | `c5fe192` changed the fixture to the host filesystem root; rerun `29502324100` passed  |
+| Recent GitHub CI and discovery runs did not start | Runs `29644106296`, `29644332060`, `29647630817`, `29631639889`, and `29674978511` have zero executed steps                                  | GitHub account billing/spending-limit condition         | External failure; no product-test result was produced                                  |
+| `loadout-ai@0.3.2` unavailable                    | npm registry version list ends at `0.3.1`; bounded live evidence records the same result                                                     | Package publication                                     | Not verified; publish and test the exact tarball externally                            |
+| `main` protection unavailable                     | GitHub branch-protection endpoint returns 404                                                                                                | Repository setting/authorization                        | Absent or not observable; requires owner decision                                      |
 
 Internal failed-transaction recovery deliberately restores the pre-mutation snapshot
 without the later-drift guard. The guard applies to user-requested CLI, dashboard, and
@@ -40,16 +41,31 @@ runtime-tool rollback. Legacy snapshots fail closed for those explicit paths.
 The recent Viraj changes were inspected as code and exercised locally; commit messages
 were not used as proof.
 
-| Commit    | Implemented area                                      | Main/Actions evidence                                              |
-| --------- | ----------------------------------------------------- | ------------------------------------------------------------------ |
-| `cf406e8` | Safe Stable/profile setup reruns                      | In `main`; CI run `29588415904` passed                             |
-| `a016c0f` | Exact managed-profile reconciliation                  | In `main`; CI run `29590309101` passed                             |
-| `33225ef` | Large rollback-snapshot validation                    | In `main`; CI run `29591059217` passed                             |
-| `15f36e3` | Pinned Graphify generated fallback                    | In `main`; CI run `29591567247` passed                             |
-| `16b8a7e` | Beginner and advanced CLI routing                     | In `main`; covered by current CLI tests                            |
-| `31cb755` | Saved-profile updates and complete uninstall          | In `main`; its CI job never started because of billing             |
-| `56ab3af` | Separation of model API keys from service credentials | In `main`; its CI job never started because of billing             |
-| `189cb7a` | Recursively empty skill-directory recovery            | Current remote `main`; its CI job never started because of billing |
+| Commit    | Implemented area                                                                   | Main/Actions evidence                                                                             |
+| --------- | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `817c38f` | Public-beta CLI, package, credential, catalog, and release foundation              | In `main`; CI run `29486160804` passed                                                            |
+| `9798f1c` | Continuous discovery, generated catalog evidence, and snapshot hardening           | In `main`; CI run `29491118338` passed                                                            |
+| `6994d4e` | Candidate intelligence, signed catalog release, locking, and transaction hardening | In `main`; CI run `29497632211` passed                                                            |
+| `41b53e0` | Stable profile, daily autopilot, and release workflow                              | In `main`; CI run `29502017220` failed on the Windows-only test fixture described above           |
+| `c5fe192` | Host-portable snapshot root guard test                                             | In `main`; CI rerun `29502324100` passed                                                          |
+| `4e93f5d` | Cross-platform release-matrix documentation                                        | In `main`; CI run `29502646004` passed                                                            |
+| `05e52a4` | Expanded Stable profile and reviewed Graphify recipe                               | In `main`; CI run `29505093720` passed                                                            |
+| `f7f53fa` | Release-work documentation clarification                                           | In `main`; CI run `29505532691` was cancelled after a newer push; no product failure was produced |
+| `e35b8ff` | Upgrade, health-score, benchmark-campaign, and discovery foundation                | In `main`; CI run `29508916710` passed                                                            |
+| `3cb5505` | Trust, intelligence, benchmark, import, and skill-security systems                 | In `main`; CI run `29520771134` passed                                                            |
+| `8e80ab4` | npm beta metadata and package-smoke adjustment                                     | In `main`; CI run `29522705571` passed                                                            |
+| `1fe9890` | Codex Desktop installation detection                                               | In `main`; CI run `29524710934` and discovery run `29557150915` passed                            |
+| `e4e469e` | Credential-aware setup, Maximum quarantine, and managed update scoping             | In `main`; CI run `29583273859` passed                                                            |
+| `ebb8133` | Unit-level Power quarantine and onboarding rewrite                                 | In `main`; CI run `29585379546` passed                                                            |
+| `88466ef` | npm `0.2.0` verification documentation                                             | In `main`; CI run `29586111523` passed                                                            |
+| `cf406e8` | Safe Stable/profile setup reruns                                                   | In `main`; CI run `29588415904` passed                                                            |
+| `a016c0f` | Exact managed-profile reconciliation                                               | In `main`; CI run `29590309101` passed                                                            |
+| `33225ef` | Large rollback-snapshot validation                                                 | In `main`; CI run `29591059217` passed                                                            |
+| `15f36e3` | Pinned Graphify generated fallback                                                 | In `main`; CI run `29591567247` passed                                                            |
+| `16b8a7e` | Beginner and advanced CLI routing                                                  | In `main`; covered by current CLI tests                                                           |
+| `31cb755` | Saved-profile updates and complete uninstall                                       | In `main`; its CI job never started because of billing                                            |
+| `56ab3af` | Separation of model API keys from service credentials                              | In `main`; its CI job never started because of billing                                            |
+| `189cb7a` | Recursively empty skill-directory recovery                                         | Current remote `main`; its CI job never started because of billing                                |
 
 Earlier green runs prove their own commits only. They do not prove later commits that
 GitHub never executed. Current local verification and future post-integration Actions

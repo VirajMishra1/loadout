@@ -55,6 +55,8 @@
     "test:e2e:dashboard": "playwright test",
     "pretest:e2e:cli": "npm run build",
     "test:e2e:cli": "node scripts/cli-product-flow.mjs",
+    "pretest:e2e:readme": "npm run build",
+    "test:e2e:readme": "node scripts/readme-product-flow.mjs",
     "test:package": "node scripts/package-smoke.mjs",
     "pretest:performance": "npm run build",
     "test:performance": "node scripts/scan-benchmark.mjs",
@@ -64,7 +66,7 @@
     "check:readme-claims": "npm run build && node scripts/check-readme-claims.mjs",
     "check:evidence": "node scripts/check-catalog-attribution.mjs && node scripts/check-discovery-artifacts.mjs && npm run check:readme-claims && node --import tsx scripts/check-release-claims.ts",
     "feed:build": "node --import tsx scripts/build-intelligence-feed.ts",
-    "verify": "npm run format:check && npm run lint && npm run typecheck && npm run check:evidence && npm test -- --run && npm run test:e2e:cli && npm run test:package && npm run test:performance",
+    "verify": "npm run format:check && npm run lint && npm run typecheck && npm run check:evidence && npm test -- --run && npm run test:e2e:cli && npm run test:e2e:readme && npm run test:package && npm run test:performance",
     "verify:full": "npm run verify && npm run test:e2e:dashboard"
   },
   "dependencies": {

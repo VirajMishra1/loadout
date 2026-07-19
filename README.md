@@ -323,11 +323,11 @@ npm ci
 npm run verify
 ```
 
-`verify` checks formatting, lint, types, catalog evidence, unit and integration tests, a real CLI product flow, an installed-package smoke test, and a 1,000-skill performance gate.
+`verify` checks formatting, lint, types, catalog evidence, unit and integration tests, two real CLI product flows, an installed-package smoke test, and a 1,000-skill performance gate. The README-specific flow uses a local reviewed fixture and disposable `LOADOUT_HOME`/`LOADOUT_USER_HOME`, so its install, hash, manifest/lock, privacy-card, activation, and rollback assertions require no network and cannot touch your real profile. Run `npm run build && node scripts/readme-product-flow.mjs --live-catalog` separately to repeat the installation portion against the current pinned Stable catalog; that opt-in check requires network access and is not part of `verify`.
 
 <!-- loadout:verification-summary:start -->
 
-`verify` invokes `format:check`, `lint`, `typecheck`, `check:evidence`, `test`, `test:e2e:cli`, `test:package`, `test:performance` in that order. Use `npm run verify:full` to include the optional Playwright dashboard check.
+`verify` invokes `format:check`, `lint`, `typecheck`, `check:evidence`, `test`, `test:e2e:cli`, `test:e2e:readme`, `test:package`, `test:performance` in that order. Use `npm run verify:full` to include the optional Playwright dashboard check.
 
 <!-- loadout:verification-summary:end -->
 

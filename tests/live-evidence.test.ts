@@ -1,4 +1,5 @@
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { mkdir, readFile, symlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -12,6 +13,23 @@ const packageJson = {
   version: "0.3.2",
   repository: { url: "git+https://github.com/VirajMishra1/loadout.git" },
 };
+const fixtureTarball = Buffer.from("fixture npm tarball bytes");
+const fixtureIntegrity = `sha512-${createHash("sha512").update(fixtureTarball).digest("base64")}`;
+
+function npmArtifactFetch(tarball: string, urls: string[] = []) {
+  return async (input: string | URL | Request) => {
+    urls.push(String(input));
+    if (urls.length === 1)
+      return new Response(
+        JSON.stringify({
+          version: "0.3.2",
+          dist: { tarball, integrity: fixtureIntegrity },
+        }),
+        { status: 200 },
+      );
+    return new Response(fixtureTarball, { status: 200 });
+  };
+}
 
 describe("bounded live evidence", () => {
   it("reports unavailable network and authentication as not-verified", async () => {
@@ -60,19 +78,11 @@ describe("bounded live evidence", () => {
     }> = [];
     const tarball =
       "https://registry.npmjs.org/loadout-ai/-/loadout-ai-0.3.2.tgz";
+    const fetched: string[] = [];
     const report = await runLiveChecks({
       requested: ["npm"],
       packageJson,
-      fetchImpl: async () =>
-        new Response(
-          JSON.stringify({
-            version: "0.3.2",
-            dist: {
-              tarball,
-            },
-          }),
-          { status: 200 },
-        ),
+      fetchImpl: npmArtifactFetch(tarball, fetched),
       runCommand: async (file, args, options) => {
         calls.push({ file, args, options });
         if (args[0] === "install") {
@@ -90,14 +100,15 @@ describe("bounded live evidence", () => {
           await writeFile(join(installed, "dist", "src", "cli.js"), "fixture");
           return { stdout: "", stderr: "" };
         }
-        return { stdout: "0.3.2\n", stderr: "" };
+        throw new Error("downloaded code must never execute");
       },
     });
 
     expect(report.checks[0]).toMatchObject({ id: "npm", status: "verified" });
     const install = calls.find((call) => call.args[0] === "install")!;
     expect(install.args).toContain("--ignore-scripts");
-    expect(install.args).toContain(tarball);
+    expect(install.args.some((arg) => arg.endsWith(".tgz"))).toBe(true);
+    expect(install.args).not.toContain(tarball);
     expect(install.args).not.toContain("loadout-ai@0.3.2");
     expect(install.options?.env).toMatchObject({
       HOME: expect.stringContaining("loadout-live-npm-"),
@@ -107,21 +118,18 @@ describe("bounded live evidence", () => {
       npm_config_globalconfig: expect.stringContaining("loadout-live-npm-"),
     });
     expect(install.options?.cwd).toContain("loadout-live-npm-");
-    expect(calls.at(-1)?.args.at(-1)).toBe("--version");
+    expect(calls).toHaveLength(1);
+    expect(fetched).toEqual([
+      "https://registry.npmjs.org/loadout-ai/0.3.2",
+      tarball,
+    ]);
   });
 
   it("rejects an installed tarball whose CLI bin escapes the package", async () => {
     const report = await runLiveChecks({
       requested: ["npm"],
       packageJson,
-      fetchImpl: async () =>
-        new Response(
-          JSON.stringify({
-            version: "0.3.2",
-            dist: { tarball: "https://registry.npmjs.org/fixture.tgz" },
-          }),
-          { status: 200 },
-        ),
+      fetchImpl: npmArtifactFetch("https://registry.npmjs.org/fixture.tgz"),
       runCommand: async (_file, args) => {
         if (args[0] === "install") {
           const prefix = args[args.indexOf("--prefix") + 1]!;
@@ -138,7 +146,7 @@ describe("bounded live evidence", () => {
           );
           await writeFile(join(modules, "escape.js"), "fixture");
         }
-        return { stdout: "0.3.2\n", stderr: "" };
+        return { stdout: "", stderr: "" };
       },
     });
 
@@ -151,14 +159,7 @@ describe("bounded live evidence", () => {
       const report = await runLiveChecks({
         requested: ["npm"],
         packageJson,
-        fetchImpl: async () =>
-          new Response(
-            JSON.stringify({
-              version: "0.3.2",
-              dist: { tarball: "https://registry.npmjs.org/fixture.tgz" },
-            }),
-            { status: 200 },
-          ),
+        fetchImpl: npmArtifactFetch("https://registry.npmjs.org/fixture.tgz"),
         runCommand: async (_file, args) => {
           if (args[0] === "install") {
             const prefix = args[args.indexOf("--prefix") + 1]!;
@@ -179,7 +180,7 @@ describe("bounded live evidence", () => {
               await symlink(outside, cli);
             } else await mkdir(cli);
           }
-          return { stdout: "0.3.2\n", stderr: "" };
+          return { stdout: "", stderr: "" };
         },
       });
 

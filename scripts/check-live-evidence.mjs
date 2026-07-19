@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { execFile } from "node:child_process";
+import { createHash, timingSafeEqual } from "node:crypto";
 import {
   lstat,
   mkdtemp,
@@ -87,6 +88,15 @@ async function npmCheck({ packageJson, fetchImpl, runCommand }) {
       "failed",
       "npm metadata has no HTTPS distribution tarball",
     );
+  const integrity = /^(sha(?:256|384|512))-([A-Za-z0-9+/]+={0,2})$/.exec(
+    String(metadata.dist.integrity ?? ""),
+  );
+  if (!integrity)
+    return result(
+      "npm",
+      "failed",
+      "npm metadata has no supported sha256/sha384/sha512 integrity value",
+    );
 
   const temporary = await mkdtemp(join(tmpdir(), "loadout-live-npm-"));
   try {
@@ -119,6 +129,49 @@ async function npmCheck({ packageJson, fetchImpl, runCommand }) {
       NPM_CONFIG_GLOBALCONFIG: globalConfig,
       npm_config_registry: "https://registry.npmjs.org/",
     };
+    let tarballResponse;
+    try {
+      tarballResponse = await fetchImpl(metadata.dist.tarball, {
+        signal: AbortSignal.timeout(30_000),
+      });
+    } catch (error) {
+      return result(
+        "npm",
+        "not-verified",
+        `npm tarball was unavailable: ${error.message}`,
+      );
+    }
+    if (!tarballResponse.ok)
+      return result(
+        "npm",
+        tarballResponse.status >= 500 ? "not-verified" : "failed",
+        `npm tarball returned HTTP ${tarballResponse.status}`,
+      );
+    const tarballBytes = Buffer.from(await tarballResponse.arrayBuffer());
+    if (!tarballBytes.length || tarballBytes.length > 100 * 1024 * 1024)
+      return result(
+        "npm",
+        "failed",
+        `npm tarball size ${tarballBytes.length} is outside the bounded inspection limit`,
+      );
+    const observedDigest = createHash(integrity[1])
+      .update(tarballBytes)
+      .digest();
+    const expectedDigest = Buffer.from(integrity[2], "base64");
+    if (
+      observedDigest.length !== expectedDigest.length ||
+      !timingSafeEqual(observedDigest, expectedDigest)
+    )
+      return result(
+        "npm",
+        "failed",
+        `npm tarball content does not match metadata integrity ${integrity[1]}`,
+      );
+    const tarballPath = join(
+      temporary,
+      `${packageJson.name}-${packageJson.version}.tgz`,
+    );
+    await writeFile(tarballPath, tarballBytes, { mode: 0o600 });
     await runCommand(
       process.platform === "win32" ? "npm.cmd" : "npm",
       [
@@ -128,7 +181,7 @@ async function npmCheck({ packageJson, fetchImpl, runCommand }) {
         "--ignore-scripts",
         "--no-audit",
         "--no-fund",
-        metadata.dist.tarball,
+        tarballPath,
       ],
       {
         cwd: temporary,
@@ -190,19 +243,6 @@ async function npmCheck({ packageJson, fetchImpl, runCommand }) {
       throw new Error(
         "installed CLI must be a regular file inside the real package root",
       );
-    const cli = await runCommand(process.execPath, [cliPath, "--version"], {
-      cwd: temporary,
-      env: isolatedEnvironment,
-      timeout: 30_000,
-      maxBuffer: 1024 * 1024,
-      windowsHide: true,
-    });
-    if (cli.stdout.trim() !== packageJson.version)
-      return result(
-        "npm",
-        "failed",
-        `installed CLI reports ${cli.stdout.trim() || "no version"}; expected ${packageJson.version}`,
-      );
   } catch (error) {
     return result(
       "npm",
@@ -215,7 +255,7 @@ async function npmCheck({ packageJson, fetchImpl, runCommand }) {
   return result(
     "npm",
     "verified",
-    `${target} metadata matched; its exact HTTPS tarball installed in an environment/config-isolated profile and its CLI reported the expected version`,
+    `${target} metadata matched; the exact HTTPS tarball passed integrity verification and its package identity and non-symlink CLI file were inspected without invoking downloaded package or dependency executables`,
   );
 }
 

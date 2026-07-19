@@ -1,7 +1,14 @@
 #!/usr/bin/env node
 
 import { execFile } from "node:child_process";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import {
+  lstat,
+  mkdtemp,
+  readFile,
+  realpath,
+  rm,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
 import process from "node:process";
@@ -14,7 +21,7 @@ const checkIds = ["npm", "stable-install", "github"];
 
 function unavailable(error) {
   const text = `${error?.code ?? ""} ${error?.message ?? ""} ${error?.stderr ?? ""}`;
-  return /ENET|EAI_AGAIN|ENOTFOUND|ECONN|ETIMEDOUT|network|offline|timed out|TLS|certificate|socket|fetch failed|authentication|unauthorized|forbidden/i.test(
+  return /ENET|EAI_AGAIN|ENOTFOUND|ECONN|ETIMEDOUT|network|offline|timed out|could not resolve host(?:name)?|name resolution|DNS|SSL|TLS|certificate|socket|curl:\s*\((?:7|28|35)\)|failed to connect|fetch failed|authentication|unauthorized|forbidden/i.test(
     text,
   );
 }
@@ -164,7 +171,25 @@ async function npmCheck({ packageJson, fetchImpl, runCommand }) {
         "failed",
         "installed tarball does not expose a safe loadout CLI bin path",
       );
-    await readFile(cliPath);
+    const cliStat = await lstat(cliPath);
+    if (cliStat.isSymbolicLink() || !cliStat.isFile())
+      throw new Error(
+        "installed CLI must be a regular non-symlink file inside the package",
+      );
+    const [realInstalledRoot, realCliPath] = await Promise.all([
+      realpath(installedRoot),
+      realpath(cliPath),
+    ]);
+    const realCliRelative = relative(realInstalledRoot, realCliPath);
+    if (
+      !realCliRelative ||
+      isAbsolute(realCliRelative) ||
+      realCliRelative === ".." ||
+      realCliRelative.startsWith(`..${sep}`)
+    )
+      throw new Error(
+        "installed CLI must be a regular file inside the real package root",
+      );
     const cli = await runCommand(process.execPath, [cliPath, "--version"], {
       cwd: temporary,
       env: isolatedEnvironment,
@@ -190,7 +215,7 @@ async function npmCheck({ packageJson, fetchImpl, runCommand }) {
   return result(
     "npm",
     "verified",
-    `${target} metadata matched; its exact HTTPS tarball installed in a credential-isolated profile and its CLI reported the expected version`,
+    `${target} metadata matched; its exact HTTPS tarball installed in an environment/config-isolated profile and its CLI reported the expected version`,
   );
 }
 
@@ -228,7 +253,7 @@ async function stableCheck({ runCommand }) {
     return result(
       "stable-install",
       "verified",
-      `isolated Stable flow installed ${stable.packages} pinned packages and completed rollback assertions`,
+      `isolated Stable flow installed ${stable.packages} pinned packages and completed state and filesystem rollback assertions`,
     );
   } catch (error) {
     return result(
@@ -351,17 +376,41 @@ function exactKeys(value, expected, label) {
     throw new Error(`${label} has unexpected properties: ${extras.join(", ")}`);
 }
 
+function validDateTime(value) {
+  if (typeof value !== "string") return false;
+  const match =
+    /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d+)?(?:Z|([+-])(\d{2}):(\d{2}))$/.exec(
+      value,
+    );
+  if (!match || !Number.isFinite(Date.parse(value))) return false;
+  const [, year, month, day, hour, minute, second, , offsetHour, offsetMinute] =
+    match;
+  const daysInMonth = new Date(
+    Date.UTC(Number(year), Number(month), 0),
+  ).getUTCDate();
+  return (
+    Number(month) >= 1 &&
+    Number(month) <= 12 &&
+    Number(day) >= 1 &&
+    Number(day) <= daysInMonth &&
+    Number(hour) <= 23 &&
+    Number(minute) <= 59 &&
+    Number(second) <= 59 &&
+    (offsetHour === undefined ||
+      (Number(offsetHour) <= 23 && Number(offsetMinute) <= 59))
+  );
+}
+
 export function parseLiveCheckReport(value, expectedIds) {
   exactKeys(
     value,
     ["schemaVersion", "generatedAt", "checks"],
     "live-check report",
   );
-  if (
-    value?.schemaVersion !== 1 ||
-    !Number.isFinite(Date.parse(value?.generatedAt))
-  )
+  if (value?.schemaVersion !== 1)
     throw new Error("invalid live-check report header");
+  if (!validDateTime(value.generatedAt))
+    throw new Error("invalid live-check report date-time");
   if (!Array.isArray(value.checks))
     throw new Error("live-check report requires checks");
   const seen = new Set();

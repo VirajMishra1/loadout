@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, symlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
@@ -140,6 +140,48 @@ describe("bounded live evidence", () => {
     expect(report.checks[0]?.detail).toMatch(/safe.*bin path/i);
   });
 
+  it("rejects symlinked and non-regular installed CLI bins", async () => {
+    for (const kind of ["symlink", "directory"] as const) {
+      const report = await runLiveChecks({
+        requested: ["npm"],
+        packageJson,
+        fetchImpl: async () =>
+          new Response(
+            JSON.stringify({
+              version: "0.3.2",
+              dist: { tarball: "https://registry.npmjs.org/fixture.tgz" },
+            }),
+            { status: 200 },
+          ),
+        runCommand: async (_file, args) => {
+          if (args[0] === "install") {
+            const prefix = args[args.indexOf("--prefix") + 1]!;
+            const installed = join(prefix, "node_modules", "loadout-ai");
+            await mkdir(join(installed, "dist", "src"), { recursive: true });
+            await writeFile(
+              join(installed, "package.json"),
+              JSON.stringify({
+                name: "loadout-ai",
+                version: "0.3.2",
+                bin: { loadout: "dist/src/cli.js" },
+              }),
+            );
+            const cli = join(installed, "dist", "src", "cli.js");
+            if (kind === "symlink") {
+              const outside = join(prefix, "outside.js");
+              await writeFile(outside, "fixture");
+              await symlink(outside, cli);
+            } else await mkdir(cli);
+          }
+          return { stdout: "0.3.2\n", stderr: "" };
+        },
+      });
+
+      expect(report.checks[0]).toMatchObject({ id: "npm", status: "failed" });
+      expect(report.checks[0]?.detail).toMatch(/regular.*inside/i);
+    }
+  });
+
   it("classifies a successful isolated Stable install and rollback as verified", async () => {
     const report = await runLiveChecks({
       requested: ["stable-install"],
@@ -162,6 +204,30 @@ describe("bounded live evidence", () => {
       id: "stable-install",
       status: "verified",
     });
+  });
+
+  it("keeps common Git and curl transport failures in Stable checks not-verified", async () => {
+    for (const message of [
+      "fatal: unable to access repository: Could not resolve host: github.com",
+      "ssh: Could not resolve hostname github.com: nodename nor servname provided",
+      "curl: (35) SSL connect error",
+      "curl: (28) Operation timed out after 30000 milliseconds",
+      "curl: (7) Failed to connect: socket failure",
+    ]) {
+      const report = await runLiveChecks({
+        requested: ["stable-install"],
+        packageJson,
+        runCommand: async () => {
+          throw Object.assign(new Error("Stable command failed"), {
+            stderr: message,
+          });
+        },
+      });
+      expect(report.checks[0]).toMatchObject({
+        id: "stable-install",
+        status: "not-verified",
+      });
+    }
   });
 
   it("uses connected gh authentication and verifies observable branch protection", async () => {
@@ -223,7 +289,7 @@ describe("bounded live evidence", () => {
     }
   });
 
-  it("parses reports with schema-equivalent strictness", () => {
+  it("strictly parses reports and enforces requested-ID completeness", () => {
     const base = {
       schemaVersion: 1 as const,
       generatedAt: "2026-07-19T01:00:00.000Z",
@@ -250,6 +316,9 @@ describe("bounded live evidence", () => {
     expect(() => parseLiveCheckReport(base, ["npm", "github"])).toThrow(
       /missing/i,
     );
+    expect(() =>
+      parseLiveCheckReport({ ...base, generatedAt: "2026-07-19" }, ["npm"]),
+    ).toThrow(/date-time/i);
   });
 
   it("rejects tag-only GitHub Action references in every workflow", async () => {

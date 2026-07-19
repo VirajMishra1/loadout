@@ -10,6 +10,8 @@
     "generatedAt": { "type": "string", "format": "date-time" },
     "checks": {
       "type": "array",
+      "uniqueItems": true,
+      "$comment": "The JSON Schema rejects byte-equivalent duplicate result objects. scripts/check-live-evidence.mjs additionally enforces unique IDs and exact completeness for the checks requested at runtime; cross-item ID uniqueness and a caller-selected exact ID set are parser-only invariants.",
       "items": {
         "type": "object",
         "additionalProperties": false,

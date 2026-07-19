@@ -1,8 +1,185 @@
 # Loadout
 
-**One CLI that finds, installs, updates, and rolls back useful extensions for AI coding agents.**
+**One CLI to inspect, install, update, and roll back extensions for AI coding agents.**
 
-Loadout configures skill-directory targets for Codex, Claude Code, Cursor, Gemini CLI, OpenCode, Hermes, Windsurf, Cline, GitHub Copilot, Roo Code, Kiro CLI, and Junie. These are Loadout's adapter declarations, not proof that each native application recognizes the paths; the exact filesystem, platform, and native-application evidence boundaries are below.
+[![CI](https://github.com/VirajMishra1/loadout/actions/workflows/ci.yml/badge.svg)](https://github.com/VirajMishra1/loadout/actions/workflows/ci.yml)
+[![Node.js 20+](https://img.shields.io/badge/Node.js-%3E%3D20-339933?logo=node.js&logoColor=white)](./package.json)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
+
+Loadout catalogs pinned public sources, statically inspects selected content, previews
+managed filesystem changes, and snapshots supported mutations. It is a CLI-first beta,
+not a hosted service or a guarantee that third-party content is safe or useful.
+
+> [!IMPORTANT]
+> The repository metadata and Git tag are `0.3.2`, but the npm registry exposed versions
+> only through `0.3.1` during the bounded check on 2026-07-19 UTC. Do not run the intended
+> release command `npm install --global loadout-ai@0.3.2` until the registry publishes that
+> exact version. Use an authorized source checkout now.
+
+[Quickstart](#quickstart) · [Core journey](#preview-apply-inspect-and-roll-back) ·
+[Profiles](#choose-a-profile) · [Trust](#trust-and-data-boundaries) ·
+[Compatibility](#adapter-compatibility) · [Commands](#commands-by-job) ·
+[Limits](#current-beta-limits) · [Troubleshooting](#troubleshooting-and-uninstall) ·
+[Development](#development-and-verification)
+
+## Quickstart
+
+You need Node.js 20 or newer, Git, and access to this repository.
+
+```bash
+git clone https://github.com/VirajMishra1/loadout.git
+cd loadout
+npm ci
+npm run build
+npm link
+loadout --version
+```
+
+Start with a read-only guide and a disposable test drive:
+
+```bash
+loadout guide
+loadout demo
+```
+
+`loadout demo` uses a temporary profile and cleans it up; it does not write to your
+normal agent configuration.
+
+## Preview, apply, inspect, and roll back
+
+The shortest normal journey is preview-first:
+
+```bash
+loadout setup --mode stable
+loadout setup --mode stable --yes
+loadout list
+loadout rollback
+```
+
+The preview fetches pinned Stable sources, inspects selected skills, resolves target
+collisions, and prints findings and destinations without applying them. The apply step
+uses a snapshot-backed filesystem transaction and records managed hashes. Explicit
+rollback first verifies that the affected roots still match the committed post-change
+state; it refuses legacy snapshots and later user edits instead of deleting them.
+
+If a preview reports safety findings, use the exact rerun command it prints. That
+command includes `--approve-risk` when the prepared plan requires it. Do not add the
+flag without reviewing the findings.
+
+`loadout upgrade` offers the broader read-only path: it detects configured agents,
+checks existing managed state, reads bounded project signals, and proposes a screened
+upgrade. It changes nothing unless you rerun the displayed plan with approval.
+
+## Choose a profile
+
+| Mode        | Intended use               | Current behavior                                                                                             |
+| ----------- | -------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| **Stable**  | Bounded default            | Selects 30 skills from four pinned, policy-selected sources                                                  |
+| **Power**   | Broader active toolkit     | Selects cross-project skills from eight checked-in collections and quarantines invalid selected units        |
+| **Maximum** | Full skill-bearing library | Fetches valid skills into Loadout's managed library and keeps them disabled instead of activating everything |
+| **Custom**  | Exact package choices      | Selects only package IDs supplied by the user                                                                |
+
+Preview profiles before applying them:
+
+```bash
+loadout profiles
+loadout setup --mode stable
+loadout setup --mode power
+loadout setup --mode maximum
+```
+
+Maximum's exact skill count is computed from pinned repository contents at preview
+time after validation and duplicate resolution. MCP-only catalog entries remain
+separate because they can require credentials, software, or broader permissions.
+
+## Trust and data boundaries
+
+Loadout separates evidence stages instead of calling every catalog record “trusted.”
+
+- A pinned commit identifies source bytes; it does not prove that the source is
+  uncompromised, correctly licensed, useful, or compatible forever.
+- Static inspection reports scripts, hooks, binaries, domains, credential references,
+  and unsupported components. Broad setup does not execute arbitrary third-party
+  repository installers.
+- Stable is selected by checked-in policy. Policy selection is not human review,
+  benchmarking, or universal superiority.
+- `recommend` and `optimize` read bounded local metadata such as package manifests,
+  dependencies, frameworks, and test configuration. The documented local flow does
+  not upload project source.
+- Discovery, update checks, catalog fetches, and optional live verification use the
+  network where stated. Scheduled discovery and update jobs remain read-only.
+- Shared manifests store environment-variable or OS-keychain references, not secret
+  values. A model API subscription or key never grants permission to install an MCP
+  server.
+- Runtime tools and MCP configuration have separate preview and approval paths because
+  they can start processes, use credentials, or contact services.
+
+See the [security policy](./SECURITY.md),
+[catalog policy](./docs/CATALOG_POLICY.md), and
+[credential/update policy](./docs/CREDENTIAL_AND_UPDATE_POLICY.md).
+
+## Catalog, discovery, and recommendations
+
+Loadout discovers broadly, inspects actual pinned contents, records evidence, compares
+within categories, assigns bounded policy tiers, and keeps watching for candidates and
+changes. Stars are discovery signals, not quality proof.
+
+<!-- loadout:catalog-coverage:start -->
+
+The bundled catalog currently contains **50 credited public repositories** across **37 categories**: **31 have skill components** and **19 are MCP-only**. All 50 are technically screened and pinned; 4 sources are selected by the bounded Stable policy. See every linked source, license status, component type, and pinned commit in **[Catalog and upstream credits](./docs/CATALOG.md)**.
+
+<!-- loadout:catalog-coverage:end -->
+
+<!-- loadout:evidence-stages:start -->
+
+Current catalog evidence-stage counts:
+
+| Stage           | Records |
+| --------------- | ------: |
+| benchmarked     |       0 |
+| discovered      |       0 |
+| human-reviewed  |       0 |
+| inspected       |      46 |
+| policy-selected |       4 |
+
+<!-- loadout:evidence-stages:end -->
+
+Loadout does not claim there is one universally “best” configuration.
+Recommendations are rule-based proposals backed by bounded local and repository
+evidence:
+
+```bash
+loadout recommend --project .
+loadout optimize --project .
+loadout optimize --project . --limit 30 --yes
+```
+
+Daily discovery records review candidates separately from catalog promotion:
+
+```bash
+loadout discover --source all --queue
+loadout review-queue
+loadout candidate inspect owner/repository --output ./candidate-dossier.json
+loadout update
+```
+
+`loadout update` previews saved-profile and managed-package changes. `loadout update
+--yes` applies only eligible screened changes; disabled, risky, or failed entries remain
+held for review.
+
+<!-- loadout:daily-discovery:start -->
+
+**Discovery snapshot (generated 2026-07-17):** [242 repositories observed](./docs/DISCOVERED.md), including 219 uncataloged review candidates and 23 repositories already in the inspected catalog.
+<!-- loadout:daily-discovery:end -->
+
+The checked-in report proves that snapshot only. It does not prove every scheduled
+workflow run succeeds.
+
+## Adapter compatibility
+
+Loadout has configured skill-directory targets and disposable filesystem lifecycle
+coverage for 12 adapters. That is not the same as proving that every native
+application recognizes, loads, or executes those files.
 
 <!-- loadout:support-summary:start -->
 
@@ -29,338 +206,113 @@ Platform evidence source: `.github/workflows/ci.yml (cross-platform job)`.
 
 <!-- loadout:support-summary:end -->
 
-It solves a simple problem: useful skills and MCP tools are spread across many repositories. Loadout catalogs pinned public sources, statically inspects selected contents, previews managed filesystem changes, and snapshots supported mutations for rollback.
+Use `loadout capabilities --inspect` for the component matrix and local inventory.
+The [complete feature matrix](./docs/FEATURE_TEST_MATRIX.md) distinguishes configured
+paths, tested filesystem behavior, operating-system evidence, and native-host evidence.
 
-## Start here
+## State, persistence, and architecture
 
-You need Node.js 20 or newer and Git. The repository package metadata is currently `0.3.2`, but the npm registry returned `404` for `loadout-ai@0.3.2` during the live check on 2026-07-19 UTC. Until that version is published, use an authorized source checkout; the following is the intended release command, not a claim that this exact version is currently downloadable:
+Loadout stores cache, snapshots, transaction journals, managed-file hashes, install
+state, and the disabled library under `~/.loadout` by default. Agent-visible files and
+explicit MCP configuration remain in their agent-owned locations. State and managed
+files survive refreshes and process restarts until a remove, uninstall, or rollback
+changes them.
 
-```bash
-npm install --global loadout-ai@0.3.2
+```text
+Pinned catalog or explicit source
+              |
+              v
+    Static inspection + policy
+              |
+              v
+        Read-only preview
+              |
+              v
+      Snapshot + transaction
+              |
+              v
+ Agent targets + managed state
 ```
 
-From an authorized checkout, install and expose the built CLI with:
+Catalog/profile setup performs fetch, inspection, and duplicate resolution before its
+managed write. Other mutations have their own planners and boundaries; do not infer
+that every command fetches repositories or offers identical recovery. Empty leftover
+skill directories are treated as unoccupied only when recursively empty; files and
+symlinks still block replacement.
 
-```bash
-npm ci
-npm run build
-npm link
-loadout --version
-loadout upgrade
-```
+Portable `loadout.json` manifests are schema-validated desired-state declarations.
+`loadout.lock` records resolved state. Neither format is intended to contain secret
+values.
 
-`loadout upgrade` is a read-only preview. It detects your installed agents, checks what you already have, scans the current project, recommends useful additions, and shows the exact files it would change.
+## Credentials, MCP, and executable tools
 
-When the preview looks right:
-
-```bash
-loadout upgrade --yes
-```
-
-Every applied setup or update creates a snapshot. Undo the latest supported managed mutation with:
-
-```bash
-loadout rollback
-```
-
-Remove one package with `loadout remove <package>`. Remove everything Loadout owns
-with a preview-first command:
-
-```bash
-loadout uninstall
-loadout uninstall --yes
-loadout uninstall --yes --remove-cli
-```
-
-The first command changes nothing. Complete uninstall preserves unmanaged files and
-stops if a Loadout-managed file contains your edits unless you explicitly add
-`--force`.
-
-## Choose how much you want
-
-| Mode        | Best for                              | What happens                                                                                                                        |
-| ----------- | ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| **Stable**  | The bounded default                   | Installs 30 policy-selected skills from four pinned sources.                                                                        |
-| **Power**   | A larger active toolkit               | Selects cross-project skills from eight checked-in collections and quarantines invalid selected skill units.                        |
-| **Maximum** | The full current catalog library      | Fetches every skill-bearing catalog source and keeps valid discovered skills in a disabled library rather than activating them all. |
-| **Custom**  | Users who know exactly what they want | Installs only the package IDs they choose.                                                                                          |
-
-Preview any mode first:
-
-```bash
-loadout setup --mode stable
-loadout setup --mode power
-loadout setup --mode maximum
-```
-
-Apply the chosen plan only after reading it:
-
-```bash
-loadout setup --mode stable --yes
-loadout setup --mode power --yes --approve-risk
-loadout setup --mode maximum --yes --approve-risk
-```
-
-Maximum's exact skill-directory count is determined from the pinned repositories at preview time after validation and duplicate resolution; the checked-in catalog alone does not prove a fixed directory total. Nineteen MCP-only repositories remain separate setup choices because MCP servers may need credentials, local software, or broader permissions.
-
-## How Loadout chooses repositories
-
-Loadout does not install every repository above an arbitrary star count. Stars help discovery, but popularity alone cannot show whether a repository is maintained, duplicated, unsafe, incompatible, or even useful for your work.
-
-The selection process is:
-
-1. **Discover broadly.** Search GitHub, Hacker News, skills.sh, and the official MCP Registry.
-2. **Inspect the real contents.** Find skills, MCP declarations, plugins, commands, agents, and executable setup requirements.
-3. **Check trust evidence.** Record the exact Git commit, license status, source paths, maintenance signals, overlaps, and static safety findings.
-4. **Compare like with like.** A testing tool is compared with testing tools, not with an unrelated design skill.
-5. **Choose a tier.** Stable is Loadout's bounded policy selection; Power is broader; Maximum keeps the full inspected library available.
-6. **Keep watching.** Scheduled discovery and update jobs can record candidates and changes, but they do not promote or install them.
-
-The bundled catalog contains **50 credited public repositories** across 37 categories. Thirty-one contain skills and 19 are MCP-only. See every source, direct repository link, pinned commit, component type, and license status in **[Catalog and upstream credits](./docs/CATALOG.md)**.
-
-<!-- loadout:catalog-coverage:start -->
-
-The bundled catalog currently contains **50 credited public repositories** across **37 categories**: **31 have skill components** and **19 are MCP-only**. All 50 are technically screened and pinned; 4 sources are selected by the bounded Stable policy. See every linked source, license status, component type, and pinned commit in **[Catalog and upstream credits](./docs/CATALOG.md)**.
-
-<!-- loadout:catalog-coverage:end -->
-
-<!-- loadout:evidence-stages:start -->
-
-Current catalog evidence-stage counts:
-
-| Stage           | Records |
-| --------------- | ------: |
-| benchmarked     |       0 |
-| discovered      |       0 |
-| human-reviewed  |       0 |
-| inspected       |      46 |
-| policy-selected |       4 |
-
-<!-- loadout:evidence-stages:end -->
-
-Loadout does not claim there is one universally “best” configuration. Stable is selected by deterministic Loadout rules from pinned, inspected records. That policy selection is distinct from human review and benchmarking, both of which currently have zero catalog records.
-
-## Get recommendations for the current project
-
-Yes—Loadout can inspect a project and recommend what belongs in its working set.
-
-```bash
-loadout recommend --project .
-```
-
-This reads local project metadata such as `package.json`, `pyproject.toml`, `go.mod`, `Cargo.toml`, framework dependencies, and test configuration. It does not upload your code.
-
-If you downloaded Maximum, use rule-based project signals to propose inspected skills for activation:
-
-```bash
-loadout optimize --project .             # preview
-loadout optimize --project . --limit 30  # preview with a smaller cap
-loadout optimize --project . --limit 30 --yes
-```
-
-You can still override the result:
-
-```bash
-loadout optimize --project . --pin package-id/skill-name
-loadout enable package-id/skill-name --yes
-loadout disable package-id/skill-name --yes
-```
-
-## Find new and changed options with scheduled checks
-
-Loadout has two separate daily checks:
-
-- **Discovery radar** finds new and fast-growing repositories and puts them in a review queue.
-- **Update radar** checks installed Loadout packages for a newer reviewed commit, archive status, staleness, file drift, and permission changes.
-
-Enable both at a local time of your choice:
-
-```bash
-loadout autopilot --time 09:00       # preview
-loadout autopilot --time 09:00 --yes # enable
-loadout autopilot --remove --yes     # remove
-```
-
-Autopilot uses the native scheduler on macOS, Linux, or Windows. Scheduled jobs are read-only: they can discover and report, but they cannot install, promote, execute, or update anything.
-
-Check the results with:
-
-```bash
-loadout review-queue
-loadout candidate list --limit 20
-loadout alerts --updates
-loadout update
-```
-
-`loadout update` checks the saved Stable, Power, Maximum, or Custom profile plus every
-managed repository. It is read-only. `loadout update --yes` applies reviewed profile
-changes and safe screened updates; anything disabled, risky, or failed is held for
-review. Daily checks never include `--yes`.
-
-The wording matters:
-
-- A **new lead** is interesting enough to inspect, not “must install.”
-- An **available update** is a different reviewed commit, not automatically better.
-- A **replacement alert** appears only when category-specific comparison evidence supports it.
-
-Loadout does not call a repository better just because its star count jumped. Pinning, static inspection, and scoped safety findings provide review evidence, but they cannot prove that an upstream repository or pinned commit is uncompromised.
-
-The repository configures a daily workflow to refresh a public discovery report. The snapshot below proves the checked-in result, not that every scheduled run succeeds:
-
-<!-- loadout:daily-discovery:start -->
-
-**Discovery snapshot (generated 2026-07-17):** [242 repositories observed](./docs/DISCOVERED.md), including 219 uncataloged review candidates and 23 repositories already in the inspected catalog.
-<!-- loadout:daily-discovery:end -->
-
-See **[today's generated discovery report](./docs/DISCOVERED.md)** for direct links, observed star velocity, age, license metadata, and the searches that found each repository. The GitHub README updates when the daily workflow commits new evidence; an already-installed npm package keeps its own versioned documentation until the next npm release.
-
-Inspect a promising lead without running its code:
-
-```bash
-loadout discover --source all --queue
-loadout review-queue
-loadout candidate inspect owner/repository --output ./candidate-dossier.json
-```
-
-The dossier records what the repository contains, its exact commit, its license signal, possible overlaps, and static findings. Promotion into the catalog still requires review.
-
-## Chat subscriptions and API keys
-
-A ChatGPT Plus/Pro or Claude Pro/Max subscription is not the same as separately billed API access. You do **not** need an OpenAI, Anthropic, or OpenRouter API key for Stable, Power, Maximum, discovery, project recommendations, updates, or rollback.
-
-Tell non-interactive setup what separately billed API access is available without passing a secret:
+Stable, Power, Maximum, discovery, recommendations, updates, and rollback do not
+require an OpenAI, Anthropic, or OpenRouter model API key. Declare access without
+passing a secret:
 
 ```bash
 loadout setup --mode stable --api-access none
-loadout setup --mode maximum --api-access openai,anthropic
-```
-
-Loadout never treats API access as permission to install an MCP server. Credentialed MCP tools remain explicit setup steps, and configuration stores an environment-variable or OS-keychain reference rather than the secret value.
-
-See the reviewed MCP recipes that need no separately billed AI/model API key:
-
-```bash
 loadout mcp-recipe --no-key
+loadout mcp-recipe --credential-free
 ```
 
-This includes Playwright MCP, Chrome DevTools MCP, and GitHub's read-only MCP. Loadout
-shows non-AI credentials separately: GitHub MCP needs a GitHub token, while the two
-browser recipes need no credential. Use `loadout mcp-recipe --credential-free` for the
-stricter zero-credential list. Browser control and service authorization remain
-explicit.
+The no-model-key list can still include non-model service credentials. For example,
+GitHub's read-only MCP recipe requires a GitHub token; Playwright and Chrome DevTools
+recipes require no credential. MCP configuration remains an explicit preview/apply
+flow.
+
+Graphify is a separate checked-in executable recipe with a pinned version and artifact
+hash, isolated runtime, explicit approval, and rollback path. This repository evidence
+is not an independent security review of Graphify.
 
 ```bash
-export LOADOUT_GITHUB_TOKEN="$GITHUB_PERSONAL_ACCESS_TOKEN"
-
-loadout mcp-recipe github-readonly --config ./mcp.json \
-  --credential GITHUB_PERSONAL_ACCESS_TOKEN=env:LOADOUT_GITHUB_TOKEN
-
-loadout mcp-recipe github-readonly --config ./mcp.json \
-  --credential GITHUB_PERSONAL_ACCESS_TOKEN=env:LOADOUT_GITHUB_TOKEN \
-  --yes
-```
-
-## Graphify and other executable tools
-
-Graphify is included as a separate checked-in executable recipe, not disguised as a portable skill. Its setup code uses a pinned version and artifact hash, an isolated Loadout runtime, an exact preview, and rollback; this repository evidence is not a current independent security review of Graphify.
-
-```bash
-loadout tool
 loadout tool graphify --agents codex
 loadout tool graphify --agents codex --yes --approve-risk
 loadout tool graphify --remove
 loadout tool graphify --remove --yes --approve-risk
 ```
 
-Executable tools and MCP servers receive separate treatment because they can run processes, use credentials, or open network connections. Broad setup never runs third-party repository installers.
+## Commands by job
 
-## Useful commands
+| Goal                                 | Command                                       |
+| ------------------------------------ | --------------------------------------------- |
+| Guided read-only path                | `loadout guide`                               |
+| Preview an upgrade                   | `loadout upgrade`                             |
+| Preview a profile                    | `loadout setup --mode stable\|power\|maximum` |
+| List managed packages                | `loadout list`                                |
+| Inspect library and activation state | `loadout library`                             |
+| Check agents, packages, and drift    | `loadout health --explain`                    |
+| Browse or search the catalog         | `loadout catalog`; `loadout search <words>`   |
+| Recommend for a project              | `loadout recommend --project .`               |
+| Preview or apply eligible updates    | `loadout update`; `loadout update --yes`      |
+| Undo the latest supported mutation   | `loadout rollback`                            |
+| Remove one managed package           | `loadout remove <package>`                    |
+| Preview complete removal             | `loadout uninstall`                           |
+| Test in a disposable profile         | `loadout demo`                                |
+| Show advanced commands               | `loadout advanced`                            |
 
-| Goal                                      | Command                                       |
-| ----------------------------------------- | --------------------------------------------- |
-| See the guided upgrade                    | `loadout upgrade`                             |
-| Install a loadout                         | `loadout setup --mode stable\|power\|maximum` |
-| See detected agents and installed skills  | `loadout status`                              |
-| Inspect health and evidence               | `loadout health --explain`                    |
-| Browse the inspected catalog              | `loadout catalog`                             |
-| Search by capability                      | `loadout search <words>`                      |
-| Recommend for a project                   | `loadout recommend --project .`               |
-| Activate relevant library skills          | `loadout optimize --project .`                |
-| Find new repositories                     | `loadout discover --source all --queue`       |
-| Read the discovery queue                  | `loadout review-queue`                        |
-| Check installed changes                   | `loadout alerts --updates`                    |
-| Preview updates                           | `loadout update`                              |
-| Apply all safe reviewed updates           | `loadout update --yes`                        |
-| Undo the latest applied change            | `loadout rollback`                            |
-| Completely remove Loadout                 | `loadout uninstall`                           |
-| Test safely without touching your profile | `loadout demo`                                |
-| See every command                         | `loadout --help`                              |
-
-Shell completion is available for Bash, Zsh, Fish, and PowerShell:
-
-```bash
-loadout completion zsh > ~/.zfunc/_loadout
-```
-
-## What Loadout changes
-
-Catalog/profile setup has preparation steps that do not apply to every Loadout
-mutation: it fetches the catalog's pinned commit, inspects selected skill contents,
-resolves duplicate targets, and prints the resulting findings and destinations. An
-applied catalog/profile install then requires explicit approval, snapshots the affected
-managed state, applies its batch through the filesystem transaction layer, and records
-managed hashes for drift checks and rollback.
-
-Other mutating commands—such as activation, removal, MCP configuration, scheduler
-changes, runtime-tool setup, and complete uninstall—have their own planners, approval
-flags, snapshot boundaries, and documented exceptions. They must not be inferred to
-fetch a repository, resolve skill duplicates, or offer identical rollback guarantees;
-the [complete feature matrix](./docs/FEATURE_TEST_MATRIX.md) states each boundary.
-
-Loadout state lives under `~/.loadout` by default. It never executes arbitrary third-party install scripts during broad setup. Maximum stores additional skills in a disabled library, and invalid individual skills are quarantined without discarding their safe siblings.
-
-## Test the product
-
-Run a real install-and-rollback flow in a temporary Codex profile:
-
-```bash
-loadout demo
-```
-
-For contributors:
-
-```bash
-npm ci
-npm run verify
-```
-
-`verify` checks formatting, lint, types, catalog evidence, unit and integration tests, one CLI product flow, one mixed core-integration/CLI flow, an installed-package smoke test, and a 1,000-skill performance gate. The README-specific mixed flow compiles an isolated disposable build, uses a local reviewed fixture and disposable `LOADOUT_HOME`/`LOADOUT_USER_HOME`, and removes all of them afterward. Direct core calls cover fixture planning, library installation, manifest/lock generation, and audit; CLI subprocesses cover optimize preview/apply, card rendering, and rollback. Its install, hash, manifest/lock, privacy-card, activation, and rollback assertions therefore require neither a pre-existing `dist` tree nor network access and cannot touch your real profile. Run `LOADOUT_TEST_LIVE_CATALOG=1 npm test -- tests/readme-product-flow.test.ts --run` separately to add a current pinned Stable-catalog installation check before the deterministic local journey; that opt-in check requires network access and is not part of `verify`.
-
-External state is checked separately and never silently treated as offline proof. `npm run check:live -- --npm --stable-install --github` reports each requested check as `verified`, `failed`, or `not-verified`. It checks current npm metadata, downloads that metadata's exact HTTPS tarball, verifies its declared SHA integrity, and installs it with lifecycle scripts disabled in a temporary HOME/cache with empty user and global npm configuration. It then inspects the installed package identity and real non-symlink CLI path without invoking downloaded package or dependency executables. This isolates npm environment and configuration inputs; it is not an operating-system sandbox and does not prove runtime behavior. The other checks cover an isolated pinned Stable install plus filesystem rollback, and authenticated GitHub repository access plus default-branch protection. Missing network access or GitHub credentials is `not-verified`, not success; these checks are optional and are not part of `verify`.
-
-<!-- loadout:verification-summary:start -->
-
-`verify` invokes `format:check`, `lint`, `typecheck`, `check:evidence`, `test`, `test:e2e:cli`, `test:e2e:readme`, `test:package`, `test:performance` in that order. Use `npm run verify:full` to include the optional Playwright dashboard check.
-
-<!-- loadout:verification-summary:end -->
-
-Use the **[product testing guide](./docs/TESTING.md)** for Power, Maximum, project optimization, credentials, and rollback. Use the **[complete feature matrix](./docs/FEATURE_TEST_MATRIX.md)** when you want to exercise every CLI feature and understand which commands read files, use the network, start processes, or write state.
-
-No bundled source is called benchmarked until real isolated trials, signed evidence, and human approval exist.
+Every command remains discoverable through `loadout --help` or `loadout <command>
+--help`. Shell completion supports Bash, Zsh, Fish, and PowerShell.
 
 ## Current beta limits
 
-- Daily discovery creates leads; it does not automatically make them trusted catalog entries.
-- Replacement alerts need real comparison evidence. Loadout does not invent a winner from stars or recency.
-- MCP-only records need explicit configuration and may need external credentials or software.
-- Graphify is the first checked-in executable recipe; other runtime tools need equivalent pinned, previewed, reversible recipe work and their own review.
-- Six catalog records currently have `NOASSERTION` license metadata and should be reviewed before relying on their license status.
-- The bundled catalog is technically screened and finite; Stable is a deterministic policy-selected subset, not a human-reviewed or benchmark-proven winner, and discovery leads do not auto-promote themselves.
-- Public GitHub is the default source. Private GitHub discovery requires explicit authorization through an environment or native credential reference.
-- Skill components are the only components installed automatically by broad setup. MCP-only records require an explicit recipe or configuration target.
-- Executable tools are never included in broad setup. Graphify has a separately previewed, pinned, credential-isolated, reversible runtime recipe; additional runtime tools require the same reviewed-recipe treatment.
-- Signed catalog update envelopes are implemented and verified before application. The bundled `catalog/packages.json` itself is source-controlled and is not claimed to have a separate verified signature artifact.
-- Branch protection is required release policy, but repository code cannot enforce the GitHub setting. The authenticated live check on 2026-07-19 UTC reached this repository and received `404` for protection on `main`, so branch protection is currently not verified as enabled.
+- npm `loadout-ai@0.3.2` is not verified as published; source checkout is the current
+  usable path for authorized collaborators.
+- Native application recognition is not verified for every configured adapter.
+- Stable is policy-selected; current catalog evidence has zero human-reviewed and zero
+  benchmarked records.
+- Static inspection and pinned commits reduce uncertainty but cannot guarantee a
+  repository is uncompromised, correctly licensed, or useful.
+- MCP-only records require explicit configuration and can require credentials or local
+  software. Broad setup installs skill components only.
+- The local registry works for development and self-hosting; no hosted Loadout registry
+  service exists.
+- The loopback dashboard is optional diagnostics, not a hosted product.
+- GitHub Actions jobs on recent remote-main commits did not start because of the
+  account billing/spending-limit condition. This is not a passing or failing product
+  test result.
+- GitHub returned 404 for `main` branch protection during the authenticated check on
+  2026-07-19 UTC, so protection is absent or not observable.
 
 <!-- loadout:current-limits:start -->
 
@@ -368,80 +320,91 @@ No bundled source is called benchmarked until real isolated trials, signed evide
 
 <!-- loadout:current-limits:end -->
 
-- The local registry works for development and self-hosting; there is no hosted Loadout registry service yet.
-- The optional dashboard exists for diagnostics, but the complete product is CLI-first.
+No bundled source is called benchmarked until isolated real trials, signed evidence,
+and human approval exist.
 
-## More detail
+## Troubleshooting and uninstall
 
-<details>
-<summary><strong>All 50 upstream projects credited by Loadout</strong></summary>
+- **`loadout` is not found after linking:** confirm Node 20+ and that npm's global bin
+  directory is on `PATH`; rerun `npm run build` and `npm link` from the checkout.
+- **A plan asks for `--approve-risk`:** inspect the reported findings, then use the
+  exact rerun command printed by Loadout. Do not treat the flag as routine setup.
+- **Removal or rollback is refused:** a managed path changed, disappeared, changed
+  type, gained new content, or uses a legacy snapshot without post-mutation evidence.
+  Preserve and review current files before choosing another recovery path.
+- **Network checks fail or time out:** offline/local commands remain separate. A failed
+  or unavailable live check is not converted into verified evidence.
+- **Need diagnostics:** run `loadout doctor`, `loadout health --explain`, and `loadout
+status` before sharing a redacted issue report.
 
-- [Superpowers](https://github.com/obra/superpowers)
-- [Context7](https://github.com/upstash/context7)
-- [Playwright MCP](https://github.com/microsoft/playwright-mcp)
-- [UI UX Pro Max](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill)
-- [GitHub MCP Server](https://github.com/github/github-mcp-server)
-- [OpenAI Skills Catalog](https://github.com/openai/skills)
-- [Anthropic Skills](https://github.com/anthropics/skills)
-- [Agent Skills Marketplace](https://github.com/wshobson/agents)
-- [Vercel Agent Skills](https://github.com/vercel-labs/agent-skills)
-- [Vercel Skills](https://github.com/vercel-labs/skills)
-- [Cloudflare MCP Server](https://github.com/cloudflare/mcp-server-cloudflare)
-- [Supabase MCP](https://github.com/supabase/mcp)
-- [Sentry MCP](https://github.com/getsentry/sentry-mcp)
-- [Exa MCP Server](https://github.com/exa-labs/exa-mcp-server)
-- [Firecrawl MCP Server](https://github.com/firecrawl/firecrawl-mcp-server)
-- [Azure DevOps MCP](https://github.com/microsoft/azure-devops-mcp)
-- [Docker MCP Gateway](https://github.com/docker/mcp-gateway)
-- [Hugging Face MCP Server](https://github.com/huggingface/hf-mcp-server)
-- [Awesome Copilot](https://github.com/github/awesome-copilot)
-- [OpenAI Codex Skills](https://github.com/openai/codex)
-- [Ponytail](https://github.com/DietrichGebert/ponytail)
-- [Addy Osmani Agent Skills](https://github.com/addyosmani/agent-skills)
-- [Scientific Agent Skills](https://github.com/K-Dense-AI/scientific-agent-skills)
-- [Planning with Files](https://github.com/OthmanAdi/planning-with-files)
-- [PM Skills](https://github.com/phuryn/pm-skills)
-- [Baoyu Skills](https://github.com/JimLiu/baoyu-skills)
-- [Trail of Bits Skills](https://github.com/trailofbits/skills)
-- [Antfu Skills](https://github.com/antfu/skills)
-- [.NET Skills](https://github.com/dotnet/skills)
-- [Microsoft Skills](https://github.com/microsoft/skills)
-- [Web Quality Skills](https://github.com/addyosmani/web-quality-skills)
-- [Softaworks Agent Toolkit](https://github.com/softaworks/agent-toolkit)
-- [Draw.io Skill](https://github.com/Agents365-ai/drawio-skill)
-- [Chrome DevTools MCP](https://github.com/ChromeDevTools/chrome-devtools-mcp)
-- [Serena](https://github.com/oraios/serena)
-- [Model Context Protocol Servers](https://github.com/modelcontextprotocol/servers)
-- [AWS MCP Servers](https://github.com/awslabs/mcp)
-- [DBHub](https://github.com/bytebase/dbhub)
-- [FastAPI MCP](https://github.com/tadata-org/fastapi_mcp)
-- [Browser MCP](https://github.com/BrowserMCP/mcp)
-- [AntV Chart MCP](https://github.com/antvis/mcp-server-chart)
-- [Excel MCP Server](https://github.com/haris-musa/excel-mcp-server)
-- [arXiv MCP Server](https://github.com/blazickjp/arxiv-mcp-server)
-- [Google Workspace MCP](https://github.com/taylorwilsdon/google_workspace_mcp)
-- [MongoDB MCP Server](https://github.com/mongodb-js/mongodb-mcp-server)
-- [Redis MCP Server](https://github.com/redis/mcp-redis)
-- [Stripe AI](https://github.com/stripe/ai)
-- [MCP Toolbox for Databases](https://github.com/googleapis/mcp-toolbox)
-- [Browserbase MCP Server](https://github.com/browserbase/mcp-server-browserbase)
-- [Bright Data MCP](https://github.com/brightdata/brightdata-mcp)
+Remove one package with `loadout remove <package>`. Complete uninstall is preview-first:
 
-Thank you to every maintainer and contributor. Inclusion is attribution and discovery metadata, not ownership, endorsement, or relicensing.
+```bash
+loadout uninstall
+loadout uninstall --yes
+loadout uninstall --yes --remove-cli
+```
 
-</details>
+Complete uninstall removes Loadout-managed files, runtime tools, scheduled jobs, cache,
+snapshots, and state. It preserves unmanaged content and stops on modified managed
+files unless the user explicitly supplies the uninstall command's `--force` override.
 
-- [Catalog and all upstream credits](./docs/CATALOG.md)
-- [Daily generated discovery report](./docs/DISCOVERED.md)
-- [How candidates are inspected and promoted](./docs/CANDIDATE_INTELLIGENCE.md)
-- [Catalog ranking and conflict policy](./docs/CATALOG_POLICY.md)
-- [Security policy](./SECURITY.md)
+## Development and verification
+
+```bash
+npm ci
+npm run verify
+npm run verify:full
+```
+
+`verify` contains one CLI product flow and one mixed core-integration/CLI flow. The
+README-specific mixed flow builds in isolation with disposable state and a local
+reviewed fixture. Direct core calls cover fixture planning, library installation,
+manifest/lock generation, and audit; CLI subprocesses cover optimize preview/apply,
+card rendering, and rollback. It does not use a pre-existing `dist` tree, the network,
+or a real user profile.
+
+<!-- loadout:verification-summary:start -->
+
+`verify` invokes `format:check`, `lint`, `typecheck`, `check:evidence`, `test`, `test:e2e:cli`, `test:e2e:readme`, `test:package`, `test:performance` in that order. Use `npm run verify:full` to include the optional Playwright dashboard check.
+
+<!-- loadout:verification-summary:end -->
+
+Run the live catalog extension separately:
+
+```bash
+LOADOUT_TEST_LIVE_CATALOG=1 npm test -- tests/readme-product-flow.test.ts --run
+npm run check:live -- --npm --stable-install --github
+```
+
+Live checks report `verified`, `failed`, or `not-verified`. They do not silently turn
+missing network access, credentials, publication, or repository settings into success.
+See the [testing guide](./docs/TESTING.md),
+[release review](./docs/RELEASE_REVIEW.md), and
+[stabilization record](./docs/REPOSITORY_STABILIZATION.md).
+
+Before contributing, keep changes scoped, add regression coverage for behavior changes,
+and run `npm run verify:full`. Report security issues through the process in
+[SECURITY.md](./SECURITY.md); do not attach credentials, private source, or unredacted
+state. General bugs and proposals belong in the
+[GitHub issue tracker](https://github.com/VirajMishra1/loadout/issues).
+
+## Documentation and attribution
+
+- [Catalog and upstream credits](./docs/CATALOG.md)
+- [Daily discovery snapshot](./docs/DISCOVERED.md)
+- [Candidate inspection and promotion](./docs/CANDIDATE_INTELLIGENCE.md)
+- [Catalog policy](./docs/CATALOG_POLICY.md)
 - [Testing guide](./docs/TESTING.md)
-- [Complete CLI feature test matrix](./docs/FEATURE_TEST_MATRIX.md)
+- [Feature and evidence matrix](./docs/FEATURE_TEST_MATRIX.md)
+- [Repository stabilization record](./docs/REPOSITORY_STABILIZATION.md)
 - [Engineering master plan](./MASTER_PLAN.md)
+- [Changelog](./CHANGELOG.md)
+
+Catalog inclusion is attribution and discovery metadata, not ownership, endorsement,
+or relicensing.
 
 ## License
 
-Loadout is licensed under the [MIT License](./LICENSE). Catalog entries keep their own upstream licenses and terms; Loadout links and credits them but does not relicense them.
-
-Built for the OpenAI Build Week **Developer Tools** category.
+Loadout is licensed under the [MIT License](./LICENSE). Catalog entries retain their
+upstream licenses and terms.

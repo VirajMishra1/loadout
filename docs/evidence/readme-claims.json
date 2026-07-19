@@ -15,7 +15,7 @@
     },
     {
       "id": "catalog.coverage",
-      "section": "How Loadout chooses repositories",
+      "section": "Catalog, discovery, and recommendations",
       "summary": "The bundled catalog exposes generated coverage facts from pinned public records.",
       "evidenceClass": "structural",
       "status": "proven",
@@ -27,7 +27,7 @@
     },
     {
       "id": "selection.stable",
-      "section": "Choose how much you want",
+      "section": "Choose a profile",
       "summary": "Stable selection is defined by the checked-in policy and allowlist.",
       "evidenceClass": "policy-selected",
       "status": "proven",
@@ -35,7 +35,7 @@
     },
     {
       "id": "selection.power",
-      "section": "Choose how much you want",
+      "section": "Choose a profile",
       "summary": "Power selection is defined by the checked-in policy and allowlist.",
       "evidenceClass": "policy-selected",
       "status": "proven",
@@ -43,7 +43,7 @@
     },
     {
       "id": "selection.maximum",
-      "section": "Choose how much you want",
+      "section": "Choose a profile",
       "summary": "Maximum selection keeps optional components in Loadout's managed library rather than activating every component.",
       "evidenceClass": "integration-verified",
       "status": "bounded",
@@ -51,7 +51,7 @@
     },
     {
       "id": "agents.support",
-      "section": "Introduction",
+      "section": "Adapter compatibility",
       "summary": "Supported-agent adapters are limited to checked-in definitions and tested filesystem operations.",
       "evidenceClass": "integration-verified",
       "status": "bounded",
@@ -63,7 +63,7 @@
     },
     {
       "id": "platforms.support",
-      "section": "Introduction",
+      "section": "Adapter compatibility",
       "summary": "Platform support is bounded to tested local filesystem behavior and does not imply native application execution.",
       "evidenceClass": "platform-verified",
       "status": "bounded",
@@ -74,7 +74,7 @@
     },
     {
       "id": "installation.transaction",
-      "section": "Start here",
+      "section": "Preview, apply, inspect, and roll back",
       "summary": "Managed installation plans and applies transactional filesystem changes with snapshots.",
       "evidenceClass": "integration-verified",
       "status": "proven",
@@ -86,7 +86,7 @@
     },
     {
       "id": "updates.preview",
-      "section": "Find new and changed options with scheduled checks",
+      "section": "Catalog, discovery, and recommendations",
       "summary": "Update workflows present a bounded local plan before an explicit apply step.",
       "evidenceClass": "integration-verified",
       "status": "proven",
@@ -94,7 +94,7 @@
     },
     {
       "id": "updates.saved-profile",
-      "section": "Find new and changed options with scheduled checks",
+      "section": "Catalog, discovery, and recommendations",
       "summary": "Update evaluates the saved Stable, Power, Maximum, or Custom profile and applies only reviewed, eligible changes after explicit approval.",
       "evidenceClass": "integration-verified",
       "status": "proven",
@@ -107,7 +107,7 @@
     },
     {
       "id": "installation.empty-target-recovery",
-      "section": "What Loadout changes",
+      "section": "State, persistence, and architecture",
       "summary": "Managed installation treats recursively empty leftover skill directories as unoccupied while retaining collision protection for files and symlinks.",
       "evidenceClass": "integration-verified",
       "status": "proven",
@@ -115,7 +115,7 @@
     },
     {
       "id": "rollback.snapshot",
-      "section": "Start here",
+      "section": "Preview, apply, inspect, and roll back",
       "summary": "Rollback restores managed snapshot state within Loadout's supported transaction boundary.",
       "evidenceClass": "integration-verified",
       "status": "proven",
@@ -127,7 +127,7 @@
     },
     {
       "id": "recommendations.evidence",
-      "section": "Get recommendations for the current project",
+      "section": "Catalog, discovery, and recommendations",
       "summary": "Recommendations expose bounded repository and local evidence rather than universal quality claims.",
       "evidenceClass": "unit-verified",
       "status": "bounded",
@@ -135,7 +135,7 @@
     },
     {
       "id": "trust.stages",
-      "section": "How Loadout chooses repositories",
+      "section": "Catalog, discovery, and recommendations",
       "summary": "Trust-stage labels distinguish evidence without promoting one stage to another.",
       "evidenceClass": "structural",
       "status": "proven",
@@ -147,7 +147,7 @@
     },
     {
       "id": "discovery.read-only",
-      "section": "Find new and changed options with scheduled checks",
+      "section": "Catalog, discovery, and recommendations",
       "summary": "Discovery records candidates separately from catalog promotion and installation.",
       "evidenceClass": "integration-verified",
       "status": "proven",
@@ -159,7 +159,7 @@
     },
     {
       "id": "credentials.references",
-      "section": "Chat subscriptions and API keys",
+      "section": "Credentials, MCP, and executable tools",
       "summary": "Shared configuration stores credential references rather than secret values.",
       "evidenceClass": "structural",
       "status": "proven",
@@ -171,7 +171,7 @@
     },
     {
       "id": "credentials.separation",
-      "section": "Chat subscriptions and API keys",
+      "section": "Credentials, MCP, and executable tools",
       "summary": "Model API access declarations are separated from non-model service credential requirements in setup and MCP recipe output.",
       "evidenceClass": "unit-verified",
       "status": "proven",
@@ -184,7 +184,7 @@
     },
     {
       "id": "mcp.configuration",
-      "section": "Chat subscriptions and API keys",
+      "section": "Credentials, MCP, and executable tools",
       "summary": "MCP configuration uses explicit plans and keeps credentials outside persisted shared manifests.",
       "evidenceClass": "integration-verified",
       "status": "proven",
@@ -192,7 +192,7 @@
     },
     {
       "id": "manifests.portability",
-      "section": "What Loadout changes",
+      "section": "State, persistence, and architecture",
       "summary": "Loadout manifests are schema-validated portable declarations and do not contain secret values.",
       "evidenceClass": "structural",
       "status": "proven",
@@ -204,7 +204,7 @@
     },
     {
       "id": "benchmarks.protocol",
-      "section": "Test the product",
+      "section": "Development and verification",
       "summary": "Benchmark planning and protocol artifacts do not by themselves prove a source is benchmarked.",
       "evidenceClass": "structural",
       "status": "bounded",
@@ -224,7 +224,7 @@
     },
     {
       "id": "uninstall.complete",
-      "section": "Start here",
+      "section": "Troubleshooting and uninstall",
       "summary": "Complete uninstall previews and removes Loadout-managed files, runtime tools, scheduled jobs, and state while preserving unmanaged files and blocking drift unless forced.",
       "evidenceClass": "integration-verified",
       "status": "bounded",
@@ -236,7 +236,7 @@
     },
     {
       "id": "distribution.npm",
-      "section": "Start here",
+      "section": "Quickstart",
       "summary": "npm distribution wording is time-bounded because offline verification cannot prove current registry availability.",
       "evidenceClass": "live-verified",
       "status": "bounded",
@@ -249,7 +249,7 @@
     },
     {
       "id": "release.state",
-      "section": "Start here",
+      "section": "Quickstart",
       "summary": "Release and beta wording is bounded to release-review artifacts and is not proof of current public publication.",
       "evidenceClass": "structural",
       "status": "bounded",
@@ -264,7 +264,7 @@
     },
     {
       "id": "testing.deterministic",
-      "section": "Test the product",
+      "section": "Development and verification",
       "summary": "The repository contains deterministic automated tests for supported local behaviors.",
       "evidenceClass": "unit-verified",
       "status": "proven",

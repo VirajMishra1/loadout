@@ -42,11 +42,20 @@ plans and contributor-specific plans have been consolidated here and removed.
       closed when files changed after a mutation or when a legacy snapshot lacks
       post-mutation evidence. Internal failed-transaction recovery remains
       authoritative.
+- [x] `P18-19 [SOL+TERRA]` Re-audit `dev/nitish` before deletion and preserve its
+      one valuable adoption-safety intent in the current architecture. Adoption now
+      binds the complete safe tree, rejects drift and special entries, records only
+      final verified bytes, conservatively attributes catalog review, deep-freezes
+      previews, and accepts only the exact same-process planner-issued plan
+      (`186daa0`, `09e0e0c`, `3f2cafe`, `10d6109`). No valuable work remains on local
+      or remote `dev/nitish`; both are approved for deletion after the second remote
+      synchronization.
 
 Items P18-01, P18-02, P18-04 through P18-07, and P18-09 through P18-14 are already
-on remote `main`. Items P18-15 and P18-16 are committed on `codex/readme-truth`; they
-are not complete project state until the verified branch is integrated into GitHub's
-remote `main`.
+on remote `main`. Items P18-15, P18-16, and P18-19 are committed on
+`codex/readme-truth`; the adoption fixes remain local pending the second
+synchronization and are not complete project state until the verified branch is
+integrated into GitHub's remote `main`.
 
 ### Deterministic repository verification
 
@@ -54,9 +63,18 @@ remote `main`.
       documentation consolidation, including formatting, lint, type checking, build,
       evidence checks, unit and integration tests, CLI and README product flows,
       package smoke, performance, dashboard Playwright, package contents, and
-      `git diff --check`. The July 19 local gate passed 112 test files with 571 tests
+      `git diff --check`. The July 19 local gate passed 112 test files with 589 tests
       passing and one intentionally skipped, both product flows, package smoke, the
-      1,000-skill performance gate at 235.7 ms p95, and both dashboard viewports.
+      1,000-skill performance gate at 246.5 ms p95, and both dashboard viewports.
+
+### Branch cleanup status
+
+- [x] Review all unique `origin/dev/nitish` and local `dev/nitish` history before
+      deletion; the adoption gap above was the only remaining valuable intent.
+- [x] Reimplement and regression-test that intent in the current architecture.
+- [ ] Complete the second remote synchronization, confirm the four adoption commits
+      are reachable from remote `main`, then delete `origin/dev/nitish` and local
+      `dev/nitish` without touching unrelated untracked user files.
 
 ### Human and external work (not provable by local tests)
 

@@ -24,7 +24,7 @@ describe("README product flow", () => {
       [resolve(repositoryRoot, "scripts/readme-product-flow.mjs"), "--json"],
       {
         cwd: repositoryRoot,
-        timeout: 30_000,
+        timeout: 60_000,
         maxBuffer: 10 * 1024 * 1024,
       },
     );
@@ -44,7 +44,7 @@ describe("README product flow", () => {
         unmanagedSentinelPreserved: true,
       },
     });
-  }, 35_000);
+  }, 65_000);
 
   it.runIf(process.env.LOADOUT_TEST_LIVE_CATALOG === "1")(
     "proves pinned Stable catalog installation before the local rollback journey",

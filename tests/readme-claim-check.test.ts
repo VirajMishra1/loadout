@@ -365,7 +365,11 @@ function expectActionable(
 }
 
 beforeAll(() => {
-  execFileSync("npm", ["run", "build"], { stdio: "pipe" });
+  execFileSync(
+    process.platform === "win32" ? "npm.cmd" : "npm",
+    ["run", "build"],
+    { stdio: "pipe" },
+  );
 });
 
 afterAll(async () => {

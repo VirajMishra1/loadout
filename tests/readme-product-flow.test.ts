@@ -1,4 +1,5 @@
 import { execFile } from "node:child_process";
+import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { promisify } from "node:util";
 import { describe, expect, it } from "vitest";
@@ -7,6 +8,15 @@ const execFileAsync = promisify(execFile);
 const repositoryRoot = resolve(import.meta.dirname, "..");
 
 describe("README product flow", () => {
+  it("describes the harness as mixed core integration and CLI coverage", async () => {
+    const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
+    expect(readme).toContain("mixed core-integration/CLI flow");
+    expect(readme).toContain(
+      "Direct core calls cover fixture planning, library installation, manifest/lock generation, and audit; CLI subprocesses cover optimize preview/apply, card rendering, and rollback.",
+    );
+    expect(readme).not.toContain("two real CLI product flows");
+  });
+
   it("builds independently of repository dist and proves the documented outcomes offline", async () => {
     const { stdout } = await execFileAsync(
       process.execPath,

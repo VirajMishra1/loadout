@@ -203,7 +203,7 @@ The wording matters:
 - An **available update** is a different reviewed commit, not automatically better.
 - A **replacement alert** appears only when category-specific comparison evidence supports it.
 
-Loadout will never call a viral repository better just because its star count jumped. That protects users from hype, compromised repositories, and tools that solve a completely different problem.
+Loadout does not call a repository better just because its star count jumped. Pinning, static inspection, and scoped safety findings provide review evidence, but they cannot prove that an upstream repository or pinned commit is uncompromised.
 
 The repository configures a daily workflow to refresh a public discovery report. The snapshot below proves the checked-in result, not that every scheduled run succeeds:
 
@@ -304,16 +304,18 @@ loadout completion zsh > ~/.zfunc/_loadout
 
 ## What Loadout changes
 
-Before any managed write, Loadout:
+Catalog/profile setup has preparation steps that do not apply to every Loadout
+mutation: it fetches the catalog's pinned commit, inspects selected skill contents,
+resolves duplicate targets, and prints the resulting findings and destinations. An
+applied catalog/profile install then requires explicit approval, snapshots the affected
+managed state, applies its batch through the filesystem transaction layer, and records
+managed hashes for drift checks and rollback.
 
-1. fetches the exact reviewed Git commit;
-2. inspects the selected contents;
-3. resolves duplicate target names;
-4. prints safety findings and every destination;
-5. waits for explicit approval;
-6. snapshots the old state;
-7. applies the change as one transaction;
-8. records hashes for later drift checks and rollback.
+Other mutating commands—such as activation, removal, MCP configuration, scheduler
+changes, runtime-tool setup, and complete uninstall—have their own planners, approval
+flags, snapshot boundaries, and documented exceptions. They must not be inferred to
+fetch a repository, resolve skill duplicates, or offer identical rollback guarantees;
+the [complete feature matrix](./docs/FEATURE_TEST_MATRIX.md) states each boundary.
 
 Loadout state lives under `~/.loadout` by default. It never executes arbitrary third-party install scripts during broad setup. Maximum stores additional skills in a disabled library, and invalid individual skills are quarantined without discarding their safe siblings.
 

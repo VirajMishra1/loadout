@@ -837,6 +837,30 @@ export async function auditReadmeClaims({
       ),
     );
 
+  if (/before any managed write,\s*loadout\s*:/i.test(readme))
+    failures.push(
+      failure(
+        "installation.transaction",
+        "README presents catalog fetch, inspection, and duplicate resolution as steps before any managed write, although those steps belong to catalog/profile installation rather than every mutation path.",
+        "src/core/catalog-install.ts, src/core/install.ts, src/core/transaction.ts, and mutation-specific planners",
+        "Describe catalog/profile preparation separately, then state only the preview, approval, snapshot, transaction, and ownership guarantees shared by their actual supported mutation paths.",
+      ),
+    );
+
+  if (
+    /protects?\s+(?:users?\s+)?from[^.\n]*compromised repositor(?:y|ies)/i.test(
+      readme,
+    )
+  )
+    failures.push(
+      failure(
+        "recommendations.evidence",
+        "README claims the popularity/ranking policy protects against compromised repositories, but pinning and static inspection cannot guarantee that an upstream commit is uncompromised.",
+        "src/core/ranking.ts, src/core/safety.ts, and README.md",
+        "State that popularity alone is not a quality signal and explicitly bound pinning/static checks as risk-reduction evidence, not proof that a source is uncompromised.",
+      ),
+    );
+
   if (claims.some((claim) => claim.id === "catalog.coverage")) {
     const expected = `${facts.catalog.records} credited public repositories`;
     if (!readme.includes(expected))

@@ -395,6 +395,30 @@ describe("README claim evidence gate", () => {
     );
   });
 
+  it("rejects install-only lifecycle steps presented as universal managed-write behavior", async () => {
+    const result = await audit({
+      readme: [
+        "Install with `npm install --global loadout-ai@0.1.2`.",
+        "Before any managed write, Loadout:",
+        "1. fetches the exact reviewed Git commit;",
+        "2. resolves duplicate target names.",
+      ].join("\n"),
+    });
+
+    expectActionable(result, "installation.transaction", /any managed write/i);
+  });
+
+  it("rejects claims that popularity policy protects users from compromised repositories", async () => {
+    const result = await audit({
+      readme: [
+        "Install with `npm install --global loadout-ai@0.1.2`.",
+        "Loadout does not rank a repository from stars alone. That protects users from compromised repositories.",
+      ].join("\n"),
+    });
+
+    expectActionable(result, "recommendations.evidence", /compromised/i);
+  });
+
   it("rejects absent authoritative evidence paths", async () => {
     const result = await audit({
       claims: [claim({ evidence: ["missing-evidence.json"] })],

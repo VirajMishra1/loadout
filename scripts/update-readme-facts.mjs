@@ -71,7 +71,7 @@ async function sourceFacts() {
     { buildCatalogCoverage },
     { POWER_SKILL_ALLOWLIST, STABLE_SKILL_ALLOWLIST },
     { deriveReadmeFacts },
-    { buildAdapterConformanceMatrix },
+    { buildAdapterConformanceMatrix, platformEvidenceFromCiWorkflow },
   ] = await Promise.all([
     import("../src/core/adapters.ts"),
     import("../src/core/catalog.ts"),
@@ -86,6 +86,9 @@ async function sourceFacts() {
   const catalog = await loadCatalog(
     resolve(projectRoot, "catalog/packages.json"),
   );
+  const platformEvidence = platformEvidenceFromCiWorkflow(
+    await readFile(resolve(projectRoot, ".github/workflows/ci.yml"), "utf8"),
+  );
   return {
     coverage: buildCatalogCoverage(catalog),
     facts: deriveReadmeFacts({
@@ -98,7 +101,7 @@ async function sourceFacts() {
       },
     }),
     packageJson,
-    conformance: buildAdapterConformanceMatrix(),
+    conformance: buildAdapterConformanceMatrix(undefined, platformEvidence),
   };
 }
 
@@ -108,9 +111,10 @@ export function renderReadmeFactBlocksFromSources({
   packageJson,
   conformance,
 }) {
-  const supportedAgents = [...facts.agents.supportedNames].sort(
-    (left, right) => (left < right ? -1 : left > right ? 1 : 0),
-  );
+  if (!Array.isArray(conformance))
+    throw new Error(
+      "Conformance evidence is required for README support rendering.",
+    );
   const evidenceRows = Object.entries(coverage.trustStages)
     .map(([stage, records]) => [
       stage === "recommended" ? "policy-selected" : stage,
@@ -118,16 +122,39 @@ export function renderReadmeFactBlocksFromSources({
     ])
     .sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0));
   const commands = verificationCommands(packageJson.scripts.verify);
-  const supportRows = (
-    conformance ??
-    supportedAgents.map((displayName) => ({ displayName, pathKnown: true }))
-  ).map((entry) => [
+  const supportEvidence = [...conformance].sort((left, right) =>
+    left.displayName < right.displayName
+      ? -1
+      : left.displayName > right.displayName
+        ? 1
+        : 0,
+  );
+  const supportRows = supportEvidence.map((entry) => [
     entry.displayName,
-    entry.pathKnown ? "Known" : "Not known",
-    "Required test: `tests/adapter-conformance.test.ts`",
-    "Not verified",
-    "Configured, manually triggered CI: Linux, macOS, Windows",
+    entry.pathKnown ? "Loadout-configured" : "Not configured",
+    entry.filesystemVerified ? "Verified" : "Not verified",
+    entry.nativeApplicationVerified ? "Verified" : "Not verified",
+    entry.platformEvidence.length
+      ? entry.platformEvidence
+          .map(
+            (evidence) =>
+              `${
+                evidence.platform === "macos"
+                  ? "macOS"
+                  : evidence.platform[0].toUpperCase() +
+                    evidence.platform.slice(1)
+              } (${evidence.kind === "ci-configured" ? "CI configured" : "current test host"})`,
+          )
+          .join(", ")
+      : "None",
   ]);
+  const platformSources = [
+    ...new Set(
+      supportEvidence.flatMap((entry) =>
+        entry.platformEvidence.map((evidence) => evidence.source),
+      ),
+    ),
+  ].sort();
 
   return {
     "catalog-coverage": [
@@ -139,7 +166,7 @@ export function renderReadmeFactBlocksFromSources({
       ...markdownEvidenceTable(evidenceRows),
     ].join("\n"),
     "support-summary": [
-      `Loadout's adapter capability matrix currently declares native skill-directory support for **${supportedAgents.length} agents**: ${supportedAgents.join(", ")}.`,
+      `Loadout's adapter capability matrix currently declares configured skill-directory targets for **${supportEvidence.length} agents**: ${supportEvidence.map((entry) => entry.displayName).join(", ")}.`,
       "",
       ...markdownTable(
         [
@@ -152,7 +179,9 @@ export function renderReadmeFactBlocksFromSources({
         supportRows,
       ),
       "",
-      "The required disposable suite plans, applies, inspects, disables, re-enables, and rolls back one skill for every row. Native application execution is not verified by that filesystem simulation. The cross-platform workflow is manually triggered, so its configuration is evidence of coverage intent, not evidence that a current run passed.",
+      `Platform evidence source${platformSources.length === 1 ? "" : "s"}: ${platformSources.length ? platformSources.map((source) => `\`${source}\``).join(", ") : "none"}.`,
+      "",
+      "`tests/adapter-conformance.test.ts` plans, applies, inspects, disables, re-enables, and rolls back one skill for every row when the suite runs. A configured target path does not prove that the native application recognizes or executes it. Native application execution is not inferred from filesystem simulation. Configured CI platforms describe a manually triggered workflow, not evidence that a current run passed.",
     ].join("\n"),
     "verification-summary": [
       `\`verify\` invokes ${markdownList(commands)} in that order. Use \`npm run verify:full\` to include the optional Playwright dashboard check.`,

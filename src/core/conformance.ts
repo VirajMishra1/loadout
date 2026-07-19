@@ -7,23 +7,47 @@ import type {
 import { ADAPTER_CAPABILITIES, agentComponentDirectory } from "./adapters.js";
 import { AGENT_DEFINITIONS, agentSkillsDirectory } from "./paths.js";
 
-const CONFIGURED_PLATFORM_EVIDENCE: AdapterPlatformEvidence[] = [
-  {
-    platform: "linux",
-    kind: "ci-configured",
-    source: ".github/workflows/ci.yml#cross-platform",
-  },
-  {
-    platform: "macos",
-    kind: "ci-configured",
-    source: ".github/workflows/ci.yml#cross-platform",
-  },
-  {
-    platform: "windows",
-    kind: "ci-configured",
-    source: ".github/workflows/ci.yml#cross-platform",
-  },
-];
+const PLATFORM_BY_RUNNER = {
+  "ubuntu-latest": "linux",
+  "macos-latest": "macos",
+  "windows-latest": "windows",
+} as const;
+
+/** Derive bounded platform evidence from the manually triggered CI job. */
+export function platformEvidenceFromCiWorkflow(
+  workflow: string,
+): AdapterPlatformEvidence[] {
+  const jobStart = workflow.search(/^ {2}cross-platform:\s*$/m);
+  const dispatchConfigured = /^ {2}workflow_dispatch:\s*$/m.test(workflow);
+  if (jobStart < 0 || !dispatchConfigured)
+    throw new Error(
+      "The cross-platform CI job and workflow_dispatch trigger are required before platform evidence can be claimed.",
+    );
+  const afterStart = workflow.slice(jobStart + 1);
+  const nextJob = afterStart.search(/^ {2}[a-zA-Z0-9_-]+:\s*$/m);
+  const job = nextJob < 0 ? afterStart : afterStart.slice(0, nextJob);
+  if (!/if:\s*github\.event_name\s*==\s*['"]workflow_dispatch['"]/.test(job))
+    throw new Error(
+      "The cross-platform CI job must remain explicitly bounded to workflow_dispatch.",
+    );
+  const match = job.match(/^\s+os:\s*\[([^\]]+)\]\s*$/m);
+  if (!match)
+    throw new Error("The cross-platform CI job has no explicit OS matrix.");
+  const runners = match[1].split(",").map((value) => value.trim());
+  return runners.map((runner) => {
+    const platform =
+      PLATFORM_BY_RUNNER[runner as keyof typeof PLATFORM_BY_RUNNER];
+    if (!platform)
+      throw new Error(
+        `The cross-platform CI job uses an unrecognized runner '${runner}'.`,
+      );
+    return {
+      platform,
+      kind: "ci-configured" as const,
+      source: ".github/workflows/ci.yml (cross-platform job)",
+    };
+  });
+}
 
 function declaredAgents(): DetectedAgent[] {
   return AGENT_DEFINITIONS.map((definition) => ({
@@ -40,6 +64,7 @@ function declaredAgents(): DetectedAgent[] {
  */
 export function buildAdapterConformanceMatrix(
   agents: readonly DetectedAgent[] = declaredAgents(),
+  platformEvidence: readonly AdapterPlatformEvidence[] = [],
 ): AdapterConformanceEvidence[] {
   const detected = new Map(agents.map((agent) => [agent.id, agent]));
   return ADAPTER_CAPABILITIES.map((adapter) => {
@@ -53,7 +78,7 @@ export function buildAdapterConformanceMatrix(
         adapter.components.skill === "native",
       filesystemVerified: false,
       nativeApplicationVerified: false,
-      platformEvidence: CONFIGURED_PLATFORM_EVIDENCE.map((item) => ({
+      platformEvidence: platformEvidence.map((item) => ({
         ...item,
       })),
     };

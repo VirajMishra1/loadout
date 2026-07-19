@@ -122,10 +122,13 @@ describe("README fact generator", () => {
       /\| Agent\s+\| Skill path\s+\| Disposable filesystem lifecycle/,
     );
     expect(blocks["support-summary"]).toContain(
-      "Configured, manually triggered CI: Linux, macOS, Windows",
+      "Linux (CI configured), macOS (CI configured), Windows (CI configured)",
     );
     expect(blocks["support-summary"]).toContain(
-      "Native application execution is not verified",
+      "`.github/workflows/ci.yml (cross-platform job)`",
+    );
+    expect(blocks["support-summary"]).toContain(
+      "Native application execution is not inferred",
     );
   });
 
@@ -155,6 +158,30 @@ describe("README fact generator", () => {
       packageJson: {
         scripts: { verify: "npm run check:evidence && npm test" },
       },
+      conformance: [
+        {
+          agent: "codex",
+          displayName: "Alpha",
+          pathKnown: false,
+          filesystemVerified: true,
+          nativeApplicationVerified: false,
+          platformEvidence: [],
+        },
+        {
+          agent: "claude-code",
+          displayName: "Zulu",
+          pathKnown: true,
+          filesystemVerified: false,
+          nativeApplicationVerified: true,
+          platformEvidence: [
+            {
+              platform: "linux",
+              kind: "ci-configured",
+              source: ".github/workflows/ci.yml (cross-platform job)",
+            },
+          ],
+        },
+      ],
     });
 
     expect(blocks["catalog-coverage"]).toContain(
@@ -164,6 +191,38 @@ describe("README fact generator", () => {
       "| policy-selected |       7 |",
     );
     expect(blocks["evidence-stages"]).not.toContain("| recommended");
-    expect(blocks["support-summary"]).toContain("Alpha, Zulu, äther");
+    expect(blocks["support-summary"]).toContain(
+      "configured skill-directory targets for **2 agents**: Alpha, Zulu",
+    );
+    expect(blocks["support-summary"]).toMatch(
+      /\| Alpha\s+\| Not configured\s+\| Verified\s+\| Not verified\s+\| None/,
+    );
+    expect(blocks["support-summary"]).toMatch(
+      /\| Zulu\s+\| Loadout-configured\s+\| Not verified\s+\| Verified\s+\| Linux \(CI configured\)/,
+    );
+  });
+
+  it("requires explicit conformance evidence instead of fabricating support rows", () => {
+    expect(() =>
+      // @ts-expect-error Deliberately omit required evidence to verify runtime callers fail closed.
+      renderReadmeFactBlocksFromSources({
+        coverage: {
+          technicallyScreenedRecords: 0,
+          recommendedRecords: 0,
+          trustStages: {},
+        },
+        facts: {
+          catalog: {
+            records: 0,
+            categories: 0,
+            components: { skill: 0 },
+            installShapes: { mcpOnly: 0 },
+            noAssertionLicenses: 0,
+          },
+          agents: { supportedNames: [] },
+        },
+        packageJson: { scripts: { verify: "npm test" } },
+      }),
+    ).toThrow(/conformance evidence is required/i);
   });
 });

@@ -25,6 +25,18 @@ export interface ReadmeFactBlockSources {
     agents: { supportedNames: string[] };
   };
   packageJson: { scripts: { verify: string } };
+  conformance: Array<{
+    agent: string;
+    displayName: string;
+    pathKnown: boolean;
+    filesystemVerified: boolean;
+    nativeApplicationVerified: boolean;
+    platformEvidence: Array<{
+      platform: "linux" | "macos" | "windows";
+      kind: "ci-configured" | "current-test-host";
+      source: string;
+    }>;
+  }>;
 }
 
 export function renderReadmeFactBlocks(): Promise<Record<string, string>>;

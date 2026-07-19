@@ -16,6 +16,7 @@ import {
 import {
   buildAdapterConformanceMatrix,
   markFilesystemConformanceVerified,
+  platformEvidenceFromCiWorkflow,
 } from "../src/core/conformance.js";
 import {
   applyActivationChange,
@@ -75,7 +76,7 @@ describe("adapter filesystem conformance evidence", () => {
         skillsDirectory: agentSkillsDirectory(adapter.agent, home),
       };
 
-      const initial = buildAdapterConformanceMatrix([agent]);
+      const initial = buildAdapterConformanceMatrix([agent], []);
       expect(initial).toContainEqual(
         expect.objectContaining({
           agent: adapter.agent,
@@ -136,8 +137,10 @@ describe("adapter filesystem conformance evidence", () => {
     },
   );
 
-  it("reports platform evidence as configured CI, not native-app verification", () => {
-    const matrix = buildAdapterConformanceMatrix();
+  it("derives configured platform evidence from the actual cross-platform CI job", async () => {
+    const workflow = await readFile(".github/workflows/ci.yml", "utf8");
+    const evidence = platformEvidenceFromCiWorkflow(workflow);
+    const matrix = buildAdapterConformanceMatrix(undefined, evidence);
     expect(matrix).toHaveLength(ADAPTER_CAPABILITIES.length);
     expect(matrix.every((entry) => entry.pathKnown)).toBe(true);
     expect(matrix.every((entry) => !entry.filesystemVerified)).toBe(true);
@@ -154,5 +157,16 @@ describe("adapter filesystem conformance evidence", () => {
         expect.objectContaining({ platform: "windows", kind: "ci-configured" }),
       ]),
     );
+  });
+
+  it("rejects CI drift instead of retaining unconditional platform evidence", () => {
+    expect(() =>
+      platformEvidenceFromCiWorkflow(`
+on: [push]
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+`),
+    ).toThrow(/cross-platform.*workflow_dispatch/i);
   });
 });

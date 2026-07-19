@@ -2,28 +2,30 @@
 
 **One CLI that finds, installs, updates, and rolls back useful extensions for AI coding agents.**
 
-Loadout declares documented skill-directory paths for Codex, Claude Code, Cursor, Gemini CLI, OpenCode, Hermes, Windsurf, Cline, GitHub Copilot, Roo Code, Kiro CLI, and Junie. Path generation targets macOS, Linux, and Windows; the exact filesystem and native-application evidence boundaries are below.
+Loadout configures skill-directory targets for Codex, Claude Code, Cursor, Gemini CLI, OpenCode, Hermes, Windsurf, Cline, GitHub Copilot, Roo Code, Kiro CLI, and Junie. These are Loadout's adapter declarations, not proof that each native application recognizes the paths; the exact filesystem, platform, and native-application evidence boundaries are below.
 
 <!-- loadout:support-summary:start -->
 
-Loadout's adapter capability matrix currently declares native skill-directory support for **12 agents**: Claude Code, Cline, Codex, Cursor, Gemini CLI, GitHub Copilot, Hermes, Junie, Kiro CLI, OpenCode, Roo Code, Windsurf.
+Loadout's adapter capability matrix currently declares configured skill-directory targets for **12 agents**: Claude Code, Cline, Codex, Cursor, Gemini CLI, GitHub Copilot, Hermes, Junie, Kiro CLI, OpenCode, Roo Code, Windsurf.
 
-| Agent          | Skill path | Disposable filesystem lifecycle                    | Native application | Platform evidence                                        |
-| -------------- | ---------- | -------------------------------------------------- | ------------------ | -------------------------------------------------------- |
-| Claude Code    | Known      | Required test: `tests/adapter-conformance.test.ts` | Not verified       | Configured, manually triggered CI: Linux, macOS, Windows |
-| Codex          | Known      | Required test: `tests/adapter-conformance.test.ts` | Not verified       | Configured, manually triggered CI: Linux, macOS, Windows |
-| Cursor         | Known      | Required test: `tests/adapter-conformance.test.ts` | Not verified       | Configured, manually triggered CI: Linux, macOS, Windows |
-| Gemini CLI     | Known      | Required test: `tests/adapter-conformance.test.ts` | Not verified       | Configured, manually triggered CI: Linux, macOS, Windows |
-| OpenCode       | Known      | Required test: `tests/adapter-conformance.test.ts` | Not verified       | Configured, manually triggered CI: Linux, macOS, Windows |
-| Hermes         | Known      | Required test: `tests/adapter-conformance.test.ts` | Not verified       | Configured, manually triggered CI: Linux, macOS, Windows |
-| Windsurf       | Known      | Required test: `tests/adapter-conformance.test.ts` | Not verified       | Configured, manually triggered CI: Linux, macOS, Windows |
-| Cline          | Known      | Required test: `tests/adapter-conformance.test.ts` | Not verified       | Configured, manually triggered CI: Linux, macOS, Windows |
-| GitHub Copilot | Known      | Required test: `tests/adapter-conformance.test.ts` | Not verified       | Configured, manually triggered CI: Linux, macOS, Windows |
-| Roo Code       | Known      | Required test: `tests/adapter-conformance.test.ts` | Not verified       | Configured, manually triggered CI: Linux, macOS, Windows |
-| Kiro CLI       | Known      | Required test: `tests/adapter-conformance.test.ts` | Not verified       | Configured, manually triggered CI: Linux, macOS, Windows |
-| Junie          | Known      | Required test: `tests/adapter-conformance.test.ts` | Not verified       | Configured, manually triggered CI: Linux, macOS, Windows |
+| Agent          | Skill path         | Disposable filesystem lifecycle | Native application | Platform evidence                                                     |
+| -------------- | ------------------ | ------------------------------- | ------------------ | --------------------------------------------------------------------- |
+| Claude Code    | Loadout-configured | Not verified                    | Not verified       | Linux (CI configured), macOS (CI configured), Windows (CI configured) |
+| Cline          | Loadout-configured | Not verified                    | Not verified       | Linux (CI configured), macOS (CI configured), Windows (CI configured) |
+| Codex          | Loadout-configured | Not verified                    | Not verified       | Linux (CI configured), macOS (CI configured), Windows (CI configured) |
+| Cursor         | Loadout-configured | Not verified                    | Not verified       | Linux (CI configured), macOS (CI configured), Windows (CI configured) |
+| Gemini CLI     | Loadout-configured | Not verified                    | Not verified       | Linux (CI configured), macOS (CI configured), Windows (CI configured) |
+| GitHub Copilot | Loadout-configured | Not verified                    | Not verified       | Linux (CI configured), macOS (CI configured), Windows (CI configured) |
+| Hermes         | Loadout-configured | Not verified                    | Not verified       | Linux (CI configured), macOS (CI configured), Windows (CI configured) |
+| Junie          | Loadout-configured | Not verified                    | Not verified       | Linux (CI configured), macOS (CI configured), Windows (CI configured) |
+| Kiro CLI       | Loadout-configured | Not verified                    | Not verified       | Linux (CI configured), macOS (CI configured), Windows (CI configured) |
+| OpenCode       | Loadout-configured | Not verified                    | Not verified       | Linux (CI configured), macOS (CI configured), Windows (CI configured) |
+| Roo Code       | Loadout-configured | Not verified                    | Not verified       | Linux (CI configured), macOS (CI configured), Windows (CI configured) |
+| Windsurf       | Loadout-configured | Not verified                    | Not verified       | Linux (CI configured), macOS (CI configured), Windows (CI configured) |
 
-The required disposable suite plans, applies, inspects, disables, re-enables, and rolls back one skill for every row. Native application execution is not verified by that filesystem simulation. The cross-platform workflow is manually triggered, so its configuration is evidence of coverage intent, not evidence that a current run passed.
+Platform evidence source: `.github/workflows/ci.yml (cross-platform job)`.
+
+`tests/adapter-conformance.test.ts` plans, applies, inspects, disables, re-enables, and rolls back one skill for every row when the suite runs. A configured target path does not prove that the native application recognizes or executes it. Native application execution is not inferred from filesystem simulation. Configured CI platforms describe a manually triggered workflow, not evidence that a current run passed.
 
 <!-- loadout:support-summary:end -->
 

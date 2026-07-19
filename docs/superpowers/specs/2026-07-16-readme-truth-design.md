@@ -1,6 +1,6 @@
 # README Truth Alignment Design
 
-**Date:** 2026-07-16  
+**Date:** 2026-07-16
 **Status:** Approved direction; written specification pending user review
 
 ## Objective

@@ -64,7 +64,7 @@ describe("README claim manifest", () => {
 
 - [ ] **Step 2: Run the focused test and confirm RED**
 
-Run: `npm test -- tests/readme-claims.test.ts --run`  
+Run: `npm test -- tests/readme-claims.test.ts --run`
 Expected: FAIL because `src/core/readme-claims.ts` does not exist.
 
 - [ ] **Step 3: Add strict types and Zod schemas**
@@ -77,7 +77,7 @@ Enumerate claims for product scope, catalog coverage, Stable/Power/Maximum selec
 
 - [ ] **Step 5: Run focused and schema suites**
 
-Run: `npm test -- tests/readme-claims.test.ts tests/schemas.test.ts --run`  
+Run: `npm test -- tests/readme-claims.test.ts tests/schemas.test.ts --run`
 Expected: PASS.
 
 - [ ] **Step 6: Commit**
@@ -116,7 +116,7 @@ it("derives catalog facts without duplicated README constants", () => {
 
 - [ ] **Step 2: Run and confirm RED**
 
-Run: `npm test -- tests/readme-facts.test.ts --run`  
+Run: `npm test -- tests/readme-facts.test.ts --run`
 Expected: FAIL because `deriveReadmeFacts` is missing.
 
 - [ ] **Step 3: Implement pure fact derivation**
@@ -129,7 +129,7 @@ Assert the current derived values are 50 records, 37 categories, 31 records with
 
 - [ ] **Step 5: Run focused tests**
 
-Run: `npm test -- tests/readme-facts.test.ts tests/catalog-coverage.test.ts tests/adapters.test.ts tests/profiles.test.ts --run`  
+Run: `npm test -- tests/readme-facts.test.ts tests/catalog-coverage.test.ts tests/adapters.test.ts tests/profiles.test.ts --run`
 Expected: PASS.
 
 - [ ] **Step 6: Commit**
@@ -159,7 +159,7 @@ Test that `--check` reports a stale block, duplicate/missing markers are rejecte
 
 - [ ] **Step 2: Run and confirm RED**
 
-Run: `npm test -- tests/readme-facts-script.test.ts --run`  
+Run: `npm test -- tests/readme-facts-script.test.ts --run`
 Expected: FAIL because the script is missing.
 
 - [ ] **Step 3: Implement guarded rendering**
@@ -172,7 +172,7 @@ Retain explanatory prose but move changing counts/matrices into guarded sections
 
 - [ ] **Step 5: Verify idempotence**
 
-Run twice: `npm run readme:update && git diff -- README.md && npm run readme:update && npm run readme:check`  
+Run twice: `npm run readme:update && git diff -- README.md && npm run readme:update && npm run readme:check`
 Expected: second update makes no changes; check exits 0.
 
 - [ ] **Step 6: Commit**
@@ -202,7 +202,7 @@ Cover stale npm wording, absent evidence paths, duplicate claim IDs, an `unfulfi
 
 - [ ] **Step 2: Run and confirm RED**
 
-Run: `npm test -- tests/readme-claim-check.test.ts --run`  
+Run: `npm test -- tests/readme-claim-check.test.ts --run`
 Expected: FAIL because the verifier is missing.
 
 - [ ] **Step 3: Implement actionable verification**
@@ -215,7 +215,7 @@ Add the check after catalog/discovery validation and before unit tests. Ensure i
 
 - [ ] **Step 5: Run focused and evidence gates**
 
-Run: `npm test -- tests/readme-claim-check.test.ts --run && npm run check:evidence`  
+Run: `npm test -- tests/readme-claim-check.test.ts --run && npm run check:evidence`
 Expected: PASS.
 
 - [ ] **Step 6: Commit**
@@ -254,7 +254,7 @@ Assert that Stable output says “Loadout policy selection,” recommendation ou
 
 - [ ] **Step 2: Run and confirm RED**
 
-Run: `npm test -- tests/profiles.test.ts tests/catalog-coverage.test.ts tests/recommend.test.ts tests/agent-health-score.test.ts tests/dashboard.test.ts --run`  
+Run: `npm test -- tests/profiles.test.ts tests/catalog-coverage.test.ts tests/recommend.test.ts tests/agent-health-score.test.ts tests/dashboard.test.ts --run`
 Expected: FAIL on current stronger wording.
 
 - [ ] **Step 3: Implement precise labels and explanations**
@@ -263,12 +263,12 @@ Keep useful policy selection while removing “strongest,” empirical “tested
 
 - [ ] **Step 4: Regenerate README facts and verify UI text**
 
-Run: `npm run readme:update && npm run readme:check`  
+Run: `npm run readme:update && npm run readme:check`
 Expected: PASS.
 
 - [ ] **Step 5: Run affected suites**
 
-Run the focused command from Step 2.  
+Run the focused command from Step 2.
 Expected: PASS.
 
 - [ ] **Step 6: Commit**
@@ -300,7 +300,7 @@ For Codex, Claude Code, Cursor, Gemini CLI, OpenCode, Hermes, Windsurf, Cline, G
 
 - [ ] **Step 2: Run and confirm RED**
 
-Run: `npm test -- tests/adapter-conformance.test.ts --run`  
+Run: `npm test -- tests/adapter-conformance.test.ts --run`
 Expected: FAIL because evidence-aware conformance output is missing or exposes an adapter defect.
 
 - [ ] **Step 3: Implement evidence-aware conformance matrix and fix defects**
@@ -313,7 +313,7 @@ Replace broad “supports on all platforms” prose with filesystem support, add
 
 - [ ] **Step 5: Run adapter and native filesystem suites**
 
-Run: `npm test -- tests/adapter-conformance.test.ts tests/adapters.test.ts tests/agent-inspection.test.ts tests/native-filesystem-smoke.test.ts tests/paths.test.ts --run`  
+Run: `npm test -- tests/adapter-conformance.test.ts tests/adapters.test.ts tests/agent-inspection.test.ts tests/native-filesystem-smoke.test.ts tests/paths.test.ts --run`
 Expected: PASS.
 
 - [ ] **Step 6: Commit**
@@ -343,7 +343,7 @@ Assert the harness verifies directory creation, install records, hashes, snapsho
 
 - [ ] **Step 2: Run and confirm RED**
 
-Run: `npm test -- tests/readme-product-flow.test.ts --run`  
+Run: `npm test -- tests/readme-product-flow.test.ts --run`
 Expected: FAIL because the harness is missing.
 
 - [ ] **Step 3: Implement the disposable core journey**
@@ -356,7 +356,7 @@ For each defect, add a focused test in the owning subsystem, confirm RED, implem
 
 - [ ] **Step 5: Add deterministic flow to `verify`**
 
-Run: `npm run build && npm run test:e2e:readme`  
+Run: `npm run build && npm run test:e2e:readme`
 Expected: PASS without external network.
 
 - [ ] **Step 6: Commit**
@@ -390,7 +390,7 @@ Test that absent network/auth returns `not-verified`, upstream incompatibility r
 
 - [ ] **Step 2: Run and confirm RED**
 
-Run: `npm test -- tests/live-evidence.test.ts --run`  
+Run: `npm test -- tests/live-evidence.test.ts --run`
 Expected: FAIL because the live checker is missing.
 
 - [ ] **Step 3: Implement bounded live checks**
@@ -407,7 +407,7 @@ Remove the stale unpublished statement. State that signed catalog update envelop
 
 - [ ] **Step 6: Run focused tests and live checks available on the host**
 
-Run: `npm test -- tests/live-evidence.test.ts tests/release-workflow.test.ts --run && npm run check:live -- --npm --stable-install --github`  
+Run: `npm test -- tests/live-evidence.test.ts tests/release-workflow.test.ts --run && npm run check:live -- --npm --stable-install --github`
 Expected: focused tests PASS; each requested live check is explicitly `verified`, `failed`, or `not-verified`.
 
 - [ ] **Step 7: Commit**
@@ -437,22 +437,22 @@ For each entry, inspect its evidence path/command and set only `proven` or `boun
 
 - [ ] **Step 2: Run the deterministic claim gate**
 
-Run: `npm run readme:check && npm run check:evidence`  
+Run: `npm run readme:check && npm run check:evidence`
 Expected: PASS with zero contradictory, missing, or unsupported claims.
 
 - [ ] **Step 3: Run complete repository verification**
 
-Run: `npm run verify:full`  
+Run: `npm run verify:full`
 Expected: formatting, lint, typecheck, evidence checks, all unit/integration tests, CLI flows, package smoke, performance gate, and Playwright dashboard check PASS.
 
 - [ ] **Step 4: Run clean package and real Stable verification**
 
-Run: `npm run test:package && npm run check:live -- --npm --stable-install --github`  
+Run: `npm run test:package && npm run check:live -- --npm --stable-install --github`
 Expected: package smoke PASS; live evidence reports explicit current states with npm and Stable install `verified` when network is available.
 
 - [ ] **Step 5: Inspect final repository state**
 
-Run: `git diff --check && git status --short && git log --oneline origin/main..HEAD`  
+Run: `git diff --check && git status --short && git log --oneline origin/main..HEAD`
 Expected: no whitespace errors, only intentional tracked changes, and scoped commits for every task.
 
 - [ ] **Step 6: Commit final evidence alignment**

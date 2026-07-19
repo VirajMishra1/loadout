@@ -40,6 +40,32 @@ fixture and build:
 npm run test:e2e:readme
 ```
 
+### README product-flow verification contract
+
+The README gate is a mixed core-integration/CLI flow, not a claim that two complete
+native-agent journeys run end to end. It deliberately:
+
+- compiles into an isolated temporary build instead of trusting the repository's
+  existing `dist` tree;
+- redirects Loadout state, user-home, and project paths to disposable directories;
+- uses a checked-in offline fixture, so its normal result does not depend on the
+  network or mutable upstream repositories;
+- calls the core planner and installer directly to verify fixture planning, library
+  installation, manifest and lock generation, recorded hashes, and audit state; and
+- starts CLI subprocesses to verify optimize preview/apply, privacy-safe card
+  rendering, and rollback restoration through the packaged command boundary.
+
+The executable outcome assertions also require isolated-build and offline-fixture
+mode, created state directories, persisted install records, file hashes, snapshots,
+library transitions, manifest/lock consistency, an unmanaged sentinel that survives,
+and byte restoration after rollback.
+
+These checks prove Loadout's behavior against disposable filesystem targets. They do
+not prove that every native agent recognizes or executes an installed skill, that a
+live catalog is reachable, that npm `0.3.2` is published, or that third-party content
+is universally safe. The opt-in `LOADOUT_TEST_LIVE_CATALOG=1` extension separately
+checks the current pinned Stable sources and remains network-dependent.
+
 Run `npm run verify` for formatting, lint, types, deterministic evidence checks, all
 Vitest suites, both CLI journeys, package smoke, and the performance gate. Run
 `npm run verify:full` only when Playwright Chromium is installed and the optional

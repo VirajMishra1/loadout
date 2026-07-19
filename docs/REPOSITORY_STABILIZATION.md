@@ -120,45 +120,44 @@ Operational contracts such as `docs/TESTING.md`, `docs/FEATURE_TEST_MATRIX.md`,
 
 ## README research and redesign evidence
 
-Current upstream READMEs inspected:
+The redesign research is recorded at immutable commits rather than mutable default
+branches:
 
-- [Ponytail](https://github.com/DietrichGebert/ponytail#readme): strong outcome,
-  before/after, reproducible benchmark links, corrections, and host-specific removal;
-  reject absolute safety jokes and its long uncollapsed install wall.
-- [uv](https://github.com/astral-sh/uv#readme): adopt concise highlights,
-  platform-specific install paths, real transcripts, and readiness/version links.
-- [mise](https://github.com/jdx/mise#readme): adopt compact navigation; do not hide
-  Loadout's safety boundaries behind an ultra-thin documentation handoff.
-- [pnpm](https://github.com/pnpm/pnpm#readme): adopt mechanism-backed benefits and
-  linked benchmarks; avoid sponsor clutter and unbounded platform language.
-- [Semgrep](https://github.com/semgrep/semgrep#readme): adopt explicit security,
-  local-data, metrics, and capability boundaries; avoid marketing-stat density.
-- [Aider](https://github.com/Aider-AI/aider#readme): adopt a real workflow visual and
-  feature-to-documentation links; avoid testimonial walls and stale model advice.
-- [ripgrep](https://github.com/BurntSushi/ripgrep#readme): adopt precise defaults,
-  exclusions, overrides, and platform wording.
+| Repository | Immutable README reference                                                                                      |
+| ---------- | --------------------------------------------------------------------------------------------------------------- |
+| Ponytail   | [`16f2980`](https://github.com/DietrichGebert/ponytail/blob/16f29800fd2681bdf24f3eb4ccffe38be3baec6b/README.md) |
+| uv         | [`1535a67`](https://github.com/astral-sh/uv/blob/1535a6767e5ebd77eac2ace0f6cf1a3edc5f681c/README.md)            |
+| bat        | [`7895139`](https://github.com/sharkdp/bat/blob/78951393e29bfd2f2a45f4326b9d2bb5e737dd2a/README.md)             |
+| fzf        | [`b163463`](https://github.com/junegunn/fzf/blob/b163463079e6254b8582b05acefcf187ec160d9b/README.md)            |
+| ripgrep    | [`227381d`](https://github.com/BurntSushi/ripgrep/blob/227381db0ee83dfa4341f1e27ff9617c0f5ad992/README.md)      |
+| mise       | [`126e775`](https://github.com/jdx/mise/blob/126e7755cc22e36c3d206b650de613951146b5e3/README.md)                |
+| Gum        | [`716d8b5`](https://github.com/charmbracelet/gum/blob/716d8b5d0221558f944b5a078dbbcca8572534fb/README.md)       |
+| Starship   | [`8f28dfc`](https://github.com/starship/starship/blob/8f28dfcb1ca3242fba00a3cf98c10ee24605c3ed/README.md)       |
 
-The recommended Loadout order is: one-sentence outcome and status; compact navigation;
-source-checkout quickstart while npm `0.3.2` is unavailable; a tested
-preview/apply/list/rollback transcript; modes; trust/data boundaries; compatibility;
-state and architecture; commands; limitations/evidence; troubleshooting/uninstall;
-development, security reporting, attribution, and license. The full 12-agent matrix
-belongs below the quickstart, not before it. Use one reproducible terminal recording,
-not a decorative or mocked dashboard image.
+`docs/README_RESEARCH.md` records the adopted principles and rejected patterns. The
+front page should present the bounded product journey and link to evidence, not repeat
+an exhaustive manual. In particular, the complete adapter table belongs in
+`docs/FEATURE_TEST_MATRIX.md`, not on the front page. A compact front-page support
+summary must continue to distinguish configured target paths and disposable
+filesystem tests from unverified native-agent recognition and execution.
 
 ## Current external truth
 
-- GitHub default branch: `main`; local `main`, `origin/main`, and the remote branch all
-  contain tested commit `5f8e38e`. The final documentation-only synchronization
-  commits follow it on the same branch.
-- Branches and PRs: only `main` exists locally and remotely; there are no open PRs.
+- GitHub repository: the active private fork is `reddynitish/loadout`; its default
+  branch is `main` at `18757d4` before the README-redesign branch. The earlier
+  `VirajMishra1/loadout` observations in this record describe the upstream repository
+  at the time of consolidation, not current fork status.
+- Branches and PRs: `codex/readme-redesign` is the current local work branch; the
+  authenticated check found no open pull requests in the fork.
 - npm: versions through `0.3.1`; `0.3.2` is not verified as published.
-- GitHub Actions: CI run [`29693243964`](https://github.com/VirajMishra1/loadout/actions/runs/29693243964)
-  for the fresh-clone-verified remote state at `788ac60`, like the earlier blocked
-  runs, failed before any step ran. Its annotation states that recent
-  account payments failed or the spending limit must be increased. These runs provide
-  no product-test result.
-- Branch protection: 404 from the protection endpoint; absent or not observable.
+- GitHub Actions: fork CI run
+  [`29704170975`](https://github.com/reddynitish/loadout/actions/runs/29704170975) passed
+  for `main` at `18757d4`. The upstream billing-blocked runs above remain historical
+  evidence only and do not describe the fork's current CI capability.
+- Branch protection: the authenticated protection endpoint returned HTTP 403 stating
+  that the private repository requires GitHub Pro or public visibility for the
+  feature. Protection is therefore unavailable under the current repository plan;
+  this is not a product-runtime result.
 - Native application consumption of every configured adapter path remains unverified;
   disposable filesystem lifecycle evidence must not be promoted into a native-host
   support claim.

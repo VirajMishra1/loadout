@@ -8,14 +8,9 @@ const execFileAsync = promisify(execFile);
 const repositoryRoot = resolve(import.meta.dirname, "..");
 
 describe("README product flow", () => {
-  it("describes the harness as mixed core integration and CLI coverage", async () => {
+  it("links concise README verification guidance to the detailed testing contract", async () => {
     const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
-    const prose = readme.replace(/\s+/g, " ");
-    expect(prose).toContain("mixed core-integration/CLI flow");
-    expect(prose).toContain(
-      "Direct core calls cover fixture planning, library installation, manifest/lock generation, and audit; CLI subprocesses cover optimize preview/apply, card rendering, and rollback.",
-    );
-    expect(prose).not.toContain("two real CLI product flows");
+    expect(readme).toMatch(/\[[^\]]*testing[^\]]*\]\(\.\/docs\/TESTING\.md\)/i);
   });
 
   it("builds independently of repository dist and proves the documented outcomes offline", async () => {

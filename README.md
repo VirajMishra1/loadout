@@ -132,15 +132,7 @@ The bundled catalog currently contains **50 credited public repositories** acros
 
 <!-- loadout:evidence-stages:start -->
 
-Current catalog evidence-stage counts:
-
-| Stage           | Records |
-| --------------- | ------: |
-| benchmarked     |       0 |
-| discovered      |       0 |
-| human-reviewed  |       0 |
-| inspected       |      46 |
-| policy-selected |       4 |
+Catalog evidence-stage counts: **0 benchmarked**, **0 discovered**, **0 human-reviewed**, **46 inspected**, **4 policy-selected**. Stage definitions and Stable selection criteria are in the [catalog policy](./docs/CATALOG_POLICY.md).
 
 <!-- loadout:evidence-stages:end -->
 
@@ -183,26 +175,15 @@ application recognizes, loads, or executes those files.
 
 <!-- loadout:support-summary:start -->
 
-Loadout's adapter capability matrix currently declares configured skill-directory targets for **12 agents**: Claude Code, Cline, Codex, Cursor, Gemini CLI, GitHub Copilot, Hermes, Junie, Kiro CLI, OpenCode, Roo Code, Windsurf.
+Loadout's adapter capability matrix currently covers **12 agents**: Claude Code, Cline, Codex, Cursor, Gemini CLI, GitHub Copilot, Hermes, Junie, Kiro CLI, OpenCode, Roo Code, Windsurf. See the [complete feature matrix](./docs/FEATURE_TEST_MATRIX.md) for configured paths, filesystem lifecycle, platform, and native-host evidence.
 
-| Agent          | Skill path         | Disposable filesystem lifecycle | Native application | Platform evidence                                                     |
-| -------------- | ------------------ | ------------------------------- | ------------------ | --------------------------------------------------------------------- |
-| Claude Code    | Loadout-configured | Not verified                    | Not verified       | Linux (CI configured), macOS (CI configured), Windows (CI configured) |
-| Cline          | Loadout-configured | Not verified                    | Not verified       | Linux (CI configured), macOS (CI configured), Windows (CI configured) |
-| Codex          | Loadout-configured | Not verified                    | Not verified       | Linux (CI configured), macOS (CI configured), Windows (CI configured) |
-| Cursor         | Loadout-configured | Not verified                    | Not verified       | Linux (CI configured), macOS (CI configured), Windows (CI configured) |
-| Gemini CLI     | Loadout-configured | Not verified                    | Not verified       | Linux (CI configured), macOS (CI configured), Windows (CI configured) |
-| GitHub Copilot | Loadout-configured | Not verified                    | Not verified       | Linux (CI configured), macOS (CI configured), Windows (CI configured) |
-| Hermes         | Loadout-configured | Not verified                    | Not verified       | Linux (CI configured), macOS (CI configured), Windows (CI configured) |
-| Junie          | Loadout-configured | Not verified                    | Not verified       | Linux (CI configured), macOS (CI configured), Windows (CI configured) |
-| Kiro CLI       | Loadout-configured | Not verified                    | Not verified       | Linux (CI configured), macOS (CI configured), Windows (CI configured) |
-| OpenCode       | Loadout-configured | Not verified                    | Not verified       | Linux (CI configured), macOS (CI configured), Windows (CI configured) |
-| Roo Code       | Loadout-configured | Not verified                    | Not verified       | Linux (CI configured), macOS (CI configured), Windows (CI configured) |
-| Windsurf       | Loadout-configured | Not verified                    | Not verified       | Linux (CI configured), macOS (CI configured), Windows (CI configured) |
+`tests/adapter-conformance.test.ts` plans, applies, inspects, disables, re-enables, and rolls back one skill for every configured target when the suite runs. A configured target path does not prove that the native application recognizes or executes it. Native application execution is not inferred from filesystem simulation.
+
+Configured platform evidence: Linux (CI configured), macOS (CI configured), Windows (CI configured).
 
 Platform evidence source: `.github/workflows/ci.yml (cross-platform job)`.
 
-`tests/adapter-conformance.test.ts` plans, applies, inspects, disables, re-enables, and rolls back one skill for every row when the suite runs. A configured target path does not prove that the native application recognizes or executes it. Native application execution is not inferred from filesystem simulation. Configured CI platforms describe a manually triggered workflow, not evidence that a current run passed.
+Configured CI platforms describe a manually triggered workflow, not evidence that a current run passed.
 
 <!-- loadout:support-summary:end -->
 

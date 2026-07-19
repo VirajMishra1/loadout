@@ -32,38 +32,6 @@ function verificationCommands(script) {
   return commands;
 }
 
-function markdownEvidenceTable(rows) {
-  const stageWidth = Math.max(
-    "Stage".length,
-    ...rows.map(([stage]) => stage.length),
-  );
-  const recordsWidth = Math.max(
-    "Records".length,
-    ...rows.map(([, records]) => String(records).length),
-  );
-  return [
-    `| ${"Stage".padEnd(stageWidth)} | ${"Records".padEnd(recordsWidth)} |`,
-    `| ${"-".repeat(stageWidth)} | ${"-".repeat(recordsWidth - 1)}: |`,
-    ...rows.map(
-      ([stage, records]) =>
-        `| ${stage.padEnd(stageWidth)} | ${String(records).padStart(recordsWidth)} |`,
-    ),
-  ];
-}
-
-function markdownTable(headers, rows) {
-  const widths = headers.map((header, index) =>
-    Math.max(header.length, ...rows.map((row) => row[index].length)),
-  );
-  const render = (row) =>
-    `| ${row.map((cell, index) => cell.padEnd(widths[index])).join(" | ")} |`;
-  return [
-    render(headers),
-    render(widths.map((width) => "-".repeat(width))),
-    ...rows.map(render),
-  ];
-}
-
 async function sourceFacts() {
   const [
     { ADAPTER_CAPABILITIES },
@@ -129,25 +97,21 @@ export function renderReadmeFactBlocksFromSources({
         ? 1
         : 0,
   );
-  const supportRows = supportEvidence.map((entry) => [
-    entry.displayName,
-    entry.pathKnown ? "Loadout-configured" : "Not configured",
-    entry.filesystemVerified ? "Verified" : "Not verified",
-    entry.nativeApplicationVerified ? "Verified" : "Not verified",
-    entry.platformEvidence.length
-      ? entry.platformEvidence
-          .map(
-            (evidence) =>
-              `${
-                evidence.platform === "macos"
-                  ? "macOS"
-                  : evidence.platform[0].toUpperCase() +
-                    evidence.platform.slice(1)
-              } (${evidence.kind === "ci-configured" ? "CI configured" : "current test host"})`,
-          )
-          .join(", ")
-      : "None",
-  ]);
+  const configuredPlatforms = [
+    ...new Set(
+      supportEvidence.flatMap((entry) =>
+        entry.platformEvidence.map(
+          (evidence) =>
+            `${
+              evidence.platform === "macos"
+                ? "macOS"
+                : evidence.platform[0].toUpperCase() +
+                  evidence.platform.slice(1)
+            } (${evidence.kind === "ci-configured" ? "CI configured" : "current test host"})`,
+        ),
+      ),
+    ),
+  ];
   const platformSources = [
     ...new Set(
       supportEvidence.flatMap((entry) =>
@@ -161,27 +125,18 @@ export function renderReadmeFactBlocksFromSources({
       `The bundled catalog currently contains **${facts.catalog.records} credited public repositories** across **${facts.catalog.categories} categories**: **${facts.catalog.components.skill} have skill components** and **${facts.catalog.installShapes.mcpOnly} are MCP-only**. All ${coverage.technicallyScreenedRecords} are technically screened and pinned; ${coverage.recommendedRecords} sources are selected by the bounded Stable policy. See every linked source, license status, component type, and pinned commit in **[Catalog and upstream credits](./docs/CATALOG.md)**.`,
     ].join("\n"),
     "evidence-stages": [
-      "Current catalog evidence-stage counts:",
-      "",
-      ...markdownEvidenceTable(evidenceRows),
+      `Catalog evidence-stage counts: ${evidenceRows.map(([stage, records]) => `**${records} ${stage}**`).join(", ")}. Stage definitions and Stable selection criteria are in the [catalog policy](./docs/CATALOG_POLICY.md).`,
     ].join("\n"),
     "support-summary": [
-      `Loadout's adapter capability matrix currently declares configured skill-directory targets for **${supportEvidence.length} agents**: ${supportEvidence.map((entry) => entry.displayName).join(", ")}.`,
+      `Loadout's adapter capability matrix currently covers **${supportEvidence.length} agents**: ${supportEvidence.map((entry) => entry.displayName).join(", ")}. See the [complete feature matrix](./docs/FEATURE_TEST_MATRIX.md) for configured paths, filesystem lifecycle, platform, and native-host evidence.`,
       "",
-      ...markdownTable(
-        [
-          "Agent",
-          "Skill path",
-          "Disposable filesystem lifecycle",
-          "Native application",
-          "Platform evidence",
-        ],
-        supportRows,
-      ),
+      "`tests/adapter-conformance.test.ts` plans, applies, inspects, disables, re-enables, and rolls back one skill for every configured target when the suite runs. A configured target path does not prove that the native application recognizes or executes it. Native application execution is not inferred from filesystem simulation.",
+      "",
+      `Configured platform evidence: ${configuredPlatforms.length ? configuredPlatforms.join(", ") : "none"}.`,
       "",
       `Platform evidence source${platformSources.length === 1 ? "" : "s"}: ${platformSources.length ? platformSources.map((source) => `\`${source}\``).join(", ") : "none"}.`,
       "",
-      "`tests/adapter-conformance.test.ts` plans, applies, inspects, disables, re-enables, and rolls back one skill for every row when the suite runs. A configured target path does not prove that the native application recognizes or executes it. Native application execution is not inferred from filesystem simulation. Configured CI platforms describe a manually triggered workflow, not evidence that a current run passed.",
+      "Configured CI platforms describe a manually triggered workflow, not evidence that a current run passed.",
     ].join("\n"),
     "verification-summary": [
       `\`verify\` invokes ${markdownList(commands)} in that order. Use \`npm run verify:full\` to include the optional Playwright dashboard check.`,

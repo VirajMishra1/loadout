@@ -109,18 +109,24 @@ describe("README fact generator", () => {
     expect(after).toContain(`${start}\n\nnew\n\n${end}`);
   });
 
-  it("keeps the verification commands in the order verify executes them", async () => {
+  it("keeps verification commands ordered and README facts compact", async () => {
     const blocks = await renderReadmeFactBlocks();
 
     expect(blocks["verification-summary"]).toContain(
       "`check:evidence`, `test`, `test:e2e:cli`",
     );
     expect(blocks["evidence-stages"]).toContain(
-      "| Stage           | Records |\n| --------------- | ------: |",
+      "[catalog policy](./docs/CATALOG_POLICY.md)",
     );
-    expect(blocks["support-summary"]).toMatch(
-      /\| Agent\s+\| Skill path\s+\| Disposable filesystem lifecycle/,
+    expect(blocks["evidence-stages"]).not.toMatch(/^\|/m);
+    expect(blocks["support-summary"]).toContain("**12 agents**");
+    expect(blocks["support-summary"]).toContain(
+      "[complete feature matrix](./docs/FEATURE_TEST_MATRIX.md)",
     );
+    expect(blocks["support-summary"]).toContain(
+      "A configured target path does not prove that the native application recognizes or executes it.",
+    );
+    expect(blocks["support-summary"]).not.toMatch(/^\|/m);
     expect(blocks["support-summary"]).toContain(
       "Linux (CI configured), macOS (CI configured), Windows (CI configured)",
     );
@@ -187,19 +193,16 @@ describe("README fact generator", () => {
     expect(blocks["catalog-coverage"]).toContain(
       "7 sources are selected by the bounded Stable policy",
     );
-    expect(blocks["evidence-stages"]).toContain(
-      "| policy-selected |       7 |",
-    );
-    expect(blocks["evidence-stages"]).not.toContain("| recommended");
+    expect(blocks["evidence-stages"]).toContain("**7 policy-selected**");
+    expect(blocks["evidence-stages"]).not.toContain("recommended");
     expect(blocks["support-summary"]).toContain(
-      "configured skill-directory targets for **2 agents**: Alpha, Zulu",
+      "covers **2 agents**: Alpha, Zulu",
     );
-    expect(blocks["support-summary"]).toMatch(
-      /\| Alpha\s+\| Not configured\s+\| Verified\s+\| Not verified\s+\| None/,
+    expect(blocks["support-summary"]).toContain("**2 agents**");
+    expect(blocks["support-summary"]).toContain(
+      "[complete feature matrix](./docs/FEATURE_TEST_MATRIX.md)",
     );
-    expect(blocks["support-summary"]).toMatch(
-      /\| Zulu\s+\| Loadout-configured\s+\| Not verified\s+\| Verified\s+\| Linux \(CI configured\)/,
-    );
+    expect(blocks["support-summary"]).not.toMatch(/^\|/m);
   });
 
   it("requires explicit conformance evidence instead of fabricating support rows", () => {

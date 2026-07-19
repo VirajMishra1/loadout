@@ -34,6 +34,18 @@ export interface AdoptionApplyOptions {
   beforeRecord?: () => Promise<void> | void;
 }
 
+interface IssuedAdoptionPlan {
+  packageId: string;
+  path: string;
+  treeEvidence: AdoptionTreeEntry[];
+  installPlan: InstallPlan;
+  repository?: string;
+  resolvedCommit?: string;
+  reviewed: boolean;
+}
+
+const issuedAdoptionPlans = new WeakMap<AdoptionPlan, IssuedAdoptionPlan>();
+
 function safeRelativePath(root: string, path: string): string {
   const value = relative(root, path).split(sep).join("/");
   if (!value || isAbsolute(value) || value === ".." || value.startsWith("../"))
@@ -165,26 +177,13 @@ function canonicalInstallPlan(
   };
 }
 
-function assertInstallPlanIntegrity(plan: AdoptionPlan): void {
-  const review = derivedReviewState(plan);
-  const expected = canonicalInstallPlan(
-    plan.packageId,
-    plan.agent,
-    plan.name,
-    plan.path,
-    adoptionWarnings(review.exact, review.reviewed),
-  );
-  if (JSON.stringify(plan.installPlan) !== JSON.stringify(expected))
-    throw new Error(
-      "The adoption install plan was tampered with; preview again.",
-    );
-}
-
-function expectedRecordedFiles(plan: AdoptionPlan): Array<{
+function expectedRecordedFiles(
+  plan: Pick<IssuedAdoptionPlan, "path" | "treeEvidence">,
+): Array<{
   path: string;
   sha256: string;
 }> {
-  return (plan.treeEvidence ?? [])
+  return plan.treeEvidence
     .filter(
       (entry): entry is AdoptionTreeEntry & { sha256: string } =>
         entry.type === "file" && Boolean(entry.sha256),
@@ -274,30 +273,42 @@ export async function planSkillAdoption(
       warnings,
     ),
   };
-  return deepFreeze(plan);
+  deepFreeze(plan);
+  issuedAdoptionPlans.set(
+    plan,
+    deepFreeze({
+      packageId: plan.packageId,
+      path: plan.path,
+      treeEvidence: plan.treeEvidence!,
+      installPlan: plan.installPlan,
+      ...(plan.repository ? { repository: plan.repository } : {}),
+      ...(plan.resolvedCommit ? { resolvedCommit: plan.resolvedCommit } : {}),
+      reviewed: derivedReviewState(plan).reviewed,
+    }),
+  );
+  return plan;
 }
 
 export async function applySkillAdoption(
   plan: AdoptionPlan,
   options: AdoptionApplyOptions = {},
 ): Promise<string> {
+  const issued = issuedAdoptionPlans.get(plan);
+  if (!issued)
+    throw new Error(
+      "The adoption plan was not issued by this planner process; preview again.",
+    );
   const applied = await runMutationTransaction(
     async () => {
-      if (!plan.treeEvidence)
-        throw new Error(
-          "The adoption preview lacks complete tree evidence; preview again.",
-        );
-      validateTreeEvidence(plan.treeEvidence);
-      assertInstallPlanIntegrity(plan);
-      const current = await captureAdoptionTree(plan.path);
-      if (JSON.stringify(current) !== JSON.stringify(plan.treeEvidence))
+      validateTreeEvidence(issued.treeEvidence);
+      const current = await captureAdoptionTree(issued.path);
+      if (JSON.stringify(current) !== JSON.stringify(issued.treeEvidence))
         throw new Error(
           "The skill changed after preview; scan again before adopting it.",
         );
-      return { targets: [installStatePath()], value: plan };
+      return { targets: [installStatePath()], value: issued };
     },
     async (freshPlan, snapshot) => {
-      const review = derivedReviewState(freshPlan);
       await options.beforeRecord?.();
       await recordInstall(
         freshPlan.installPlan,
@@ -307,7 +318,7 @@ export async function applySkillAdoption(
           ...(freshPlan.resolvedCommit
             ? { resolvedCommit: freshPlan.resolvedCommit }
             : {}),
-          reviewed: review.reviewed,
+          reviewed: freshPlan.reviewed,
         },
         {
           expectedFiles: expectedRecordedFiles(freshPlan),

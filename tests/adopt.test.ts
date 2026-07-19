@@ -193,7 +193,7 @@ describe("explicit unmanaged skill adoption", () => {
     },
   );
 
-  it("rejects tampered path evidence and repeat adoption", async () => {
+  it("rejects copied plans and repeat adoption", async () => {
     root = await mkdtemp(join(tmpdir(), "loadout-adopt-repeat-"));
     process.env.LOADOUT_HOME = join(root, ".loadout");
     const skillsDirectory = join(root, "skills");
@@ -216,14 +216,39 @@ describe("explicit unmanaged skill adoption", () => {
         { path: "../outside", type: "file" as const, sha256: "0" },
       ],
     };
-    await expect(applySkillAdoption(unsafe)).rejects.toThrow(
-      "unsafe tree evidence",
-    );
+    await expect(applySkillAdoption(unsafe)).rejects.toThrow("not issued");
     const plan = await planSkillAdoption("my-skill", agent);
     await applySkillAdoption(plan);
     await expect(planSkillAdoption("my-skill", agent)).rejects.toThrow(
       "already managed",
     );
+  });
+
+  it("rejects a structured-cloned plan with coordinated provenance forgery", async () => {
+    root = await mkdtemp(join(tmpdir(), "loadout-adopt-clone-"));
+    process.env.LOADOUT_HOME = join(root, ".loadout");
+    const skillsDirectory = join(root, "skills");
+    const skillPath = join(skillsDirectory, "my-skill");
+    await mkdir(skillPath, { recursive: true });
+    await writeFile(
+      join(skillPath, "SKILL.md"),
+      "---\nname: my-skill\ndescription: Test\n---\n",
+    );
+    const agent: DetectedAgent = {
+      id: "codex",
+      displayName: "Codex",
+      installed: true,
+      skillsDirectory,
+    };
+    const preview = await planSkillAdoption("my-skill", agent);
+    const forged = structuredClone(preview);
+    forged.reviewed = true;
+    forged.repository = "https://evil.example/repository.git";
+    forged.resolvedCommit = "f".repeat(40);
+    forged.provenance.kind = "catalog-exact";
+    forged.provenance.confidence = "exact";
+    await expect(applySkillAdoption(forged)).rejects.toThrow("not issued");
+    expect((await readInstallState()).installs).toEqual([]);
   });
 
   it("does not mark catalog-matching SKILL.md as reviewed when auxiliary bytes exist", async () => {

@@ -1,7 +1,10 @@
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   mkdir,
   mkdtemp,
+  lstat,
   readFile,
   readdir,
   rm,
@@ -132,6 +135,30 @@ describe("rollback snapshots", () => {
     ).rejects.toThrow(/post-mutation evidence/i);
     expect(await readFile(target, "utf8")).toBe("current");
   });
+
+  it.skipIf(process.platform === "win32")(
+    "refuses explicit rollback when an unsupported FIFO appears and preserves it",
+    async () => {
+      root = await mkdtemp(join(tmpdir(), "loadout-explicit-fifo-"));
+      process.env.LOADOUT_HOME = join(root, ".loadout");
+      const target = join(root, "target");
+      await mkdir(target, { recursive: true });
+      await writeFile(join(target, "file.txt"), "before");
+      const snapshot = await createSnapshot([target], { persist: false });
+      await writeFile(join(target, "file.txt"), "after");
+      const postMutation = await createSnapshot([target], { persist: false });
+      Object.assign(snapshot, { postMutationFiles: postMutation.files });
+      const fifo = join(target, "user.pipe");
+      await promisify(execFile)("mkfifo", [fifo]);
+
+      await expect(
+        restoreSnapshot(snapshot, { requireUnchangedPostMutationState: true }),
+      ).rejects.toThrow(/unsupported snapshot target/i);
+      await expect(lstat(fifo).then((info) => info.isFIFO())).resolves.toBe(
+        true,
+      );
+    },
+  );
 
   it("rejects path traversal and malformed rollback data before mutation", async () => {
     root = await mkdtemp(join(tmpdir(), "loadout-snapshot-guard-"));

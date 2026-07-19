@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { readFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { request as httpRequest } from "node:http";
 import { join } from "node:path";
+import { tmpdir } from "node:os";
+import {
+  createSnapshot,
+  recordSnapshotPostMutationState,
+} from "../src/core/snapshot.js";
 import {
   createDashboardServer,
   startDashboardServer,
@@ -146,6 +151,53 @@ describe("dashboard server", () => {
     await new Promise<void>((resolve, reject) =>
       server.close((error) => (error ? reject(error) : resolve())),
     );
+  });
+
+  it("uses drift-safe rollback in the default dashboard route", async () => {
+    const root = await mkdtemp(join(tmpdir(), "loadout-dashboard-rollback-"));
+    const previousHome = process.env.LOADOUT_HOME;
+    process.env.LOADOUT_HOME = join(root, ".loadout");
+    const target = join(root, "managed.txt");
+    await writeFile(target, "before");
+    const safe = await createSnapshot([target]);
+    await writeFile(target, "after");
+    await recordSnapshotPostMutationState(safe);
+    await writeFile(target, "user edit");
+    const legacy = await createSnapshot([join(root, "legacy.txt")]);
+    const server = createDashboardServer();
+    try {
+      await new Promise<void>((resolve) =>
+        server.listen(0, "127.0.0.1", resolve),
+      );
+      const address = server.address();
+      if (!address || typeof address === "string")
+        throw new Error("server did not bind");
+      const base = `http://127.0.0.1:${address.port}`;
+      const token = (await (await fetch(`${base}/api/session`)).json()).token;
+      const rollback = (snapshotId: string) =>
+        fetch(`${base}/api/rollback`, {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            "x-loadout-token": token,
+          },
+          body: JSON.stringify({ snapshotId }),
+        });
+
+      const drifted = await rollback(safe.id);
+      expect(drifted.status).toBe(500);
+      expect((await drifted.json()).error).toMatch(/rollback refused/i);
+      expect(await readFile(target, "utf8")).toBe("user edit");
+
+      const old = await rollback(legacy.id);
+      expect(old.status).toBe(500);
+      expect((await old.json()).error).toMatch(/post-mutation evidence/i);
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+      if (previousHome === undefined) delete process.env.LOADOUT_HOME;
+      else process.env.LOADOUT_HOME = previousHome;
+      await rm(root, { recursive: true, force: true });
+    }
   });
 
   it("keeps mutation endpoints loopback-only and same-origin", async () => {

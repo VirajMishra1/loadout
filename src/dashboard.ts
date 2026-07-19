@@ -439,7 +439,9 @@ export function createDashboardServer(options: DashboardOptions = {}) {
       options.rollback ??
       (async (snapshotId) =>
         withMutationLock(async () =>
-          restoreSnapshot(await readSnapshot(snapshotId)),
+          restoreSnapshot(await readSnapshot(snapshotId), {
+            requireUnchangedPostMutationState: true,
+          }),
         )),
     token: randomBytes(32).toString("hex"),
   };

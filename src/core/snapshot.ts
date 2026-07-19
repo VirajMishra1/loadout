@@ -70,6 +70,7 @@ export async function createSnapshot(
           content: (await readFile(child)).toString("base64"),
           encoding: "base64",
         });
+      else throw new Error(`Refusing unsupported snapshot target: ${child}`);
     }
   }
   for (const path of snapshot.roots) await capture(path);

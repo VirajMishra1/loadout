@@ -190,7 +190,10 @@ describe("deterministic Agent Health Score", () => {
     const output = formatAgentHealthScore(
       buildAgentHealthScore(mixedHealthEvidence),
     );
-    expect(output).toContain("Agent Health Score: 62.52/100");
+    expect(output).toContain(
+      "Evidence coverage and managed-state hygiene: 62.52/100",
+    );
+    expect(output).not.toMatch(/task quality score|package quality/i);
     expect(output.match(/Evidence:/g)).toHaveLength(12);
     expect(output.match(/Uncertainty:/g)?.length).toBeGreaterThanOrEqual(10);
     expect(output.match(/Remediation:/g)).toHaveLength(10);

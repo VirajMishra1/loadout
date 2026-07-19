@@ -137,7 +137,7 @@ export function explainCatalogScore(
   };
 }
 
-/** A deterministic ordering: review tier first, then explainable evidence, then id. */
+/** A deterministic policy ordering: declared tier, bounded evidence score, then id. */
 export function compareCatalogPackages(
   a: CatalogPackage,
   b: CatalogPackage,

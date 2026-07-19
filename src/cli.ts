@@ -123,7 +123,11 @@ import {
   planCodexMcpConfig,
 } from "./core/codex-mcp.js";
 import { formatDemoResult, runIsolatedDemo } from "./core/demo.js";
-import { catalogTrustStage, resolveCatalogProfile } from "./core/profiles.js";
+import {
+  catalogTrustStage,
+  formatCatalogTrustStage,
+  resolveCatalogProfile,
+} from "./core/profiles.js";
 import { discoverHackerNewsRepositories } from "./core/community.js";
 import { discoverPrivateRepositories } from "./core/private-discovery.js";
 import {
@@ -470,7 +474,7 @@ async function runSetup(options: SetupOptions): Promise<void> {
     if (!mode) {
       if (!interactive) {
         console.log(
-          "Loadout is CLI-first. Run `loadout setup --mode stable` for the recommended daily driver, `--mode power` for broader opt-in skills, or `--mode maximum` to download the screened library without activating it.",
+          "Loadout is CLI-first. Run `loadout setup --mode stable` for Loadout's bounded policy selection, `--mode power` for broader opt-in skills, or `--mode maximum` to download the screened library without activating it.",
         );
         return;
       }
@@ -480,7 +484,7 @@ async function runSetup(options: SetupOptions): Promise<void> {
       });
       const answer = (
         await reader.question(
-          "Choose a loadout: [1] Stable Daily Driver (recommended), [2] Power Boost, [3] Maximum Library, [4] Custom: ",
+          "Choose a loadout: [1] Stable Daily Driver (Loadout policy selection), [2] Power Boost, [3] Maximum Library, [4] Custom: ",
         )
       ).trim();
       mode =
@@ -1320,8 +1324,8 @@ for (const workflow of ["activate", "optimize"] as const) {
     .command(workflow)
     .description(
       workflow === "activate"
-        ? "Select and activate reviewed library skills for a project"
-        : "Scan a project and propose the best reviewed active-set additions",
+        ? "Select and activate inspected library skills for a project"
+        : "Scan a project and propose rule-selected inspected active-set additions",
     )
     .option("--project <path>", "project directory to scan", ".")
     .option("--agents <ids>", "comma-separated agent ids")
@@ -1838,7 +1842,7 @@ program
 
 program
   .command("profiles")
-  .description("List tested Loadout profiles or inspect one profile")
+  .description("List Loadout policy profiles or inspect one profile")
   .argument("[name]", "profile name")
   .option("--json", "emit machine-readable JSON")
   .option(
@@ -2056,7 +2060,7 @@ program
   )
   .argument("<skill>", "installed skill name, directory name, or exact path")
   .requiredOption("--agent <id>", "agent that owns the installed skill")
-  .option("--refresh-provenance", "rebuild the reviewed catalog skill index")
+  .option("--refresh-provenance", "rebuild the inspected catalog skill index")
   .option("--yes", "record ownership; otherwise show a dry-run plan")
   .option("--json", "emit machine-readable JSON")
   .action(
@@ -2115,7 +2119,7 @@ program
     "installed skill name, directory name, or catalog package id",
   )
   .option("--agent <id>", "select one installed agent when names are ambiguous")
-  .option("--refresh", "rebuild the reviewed catalog skill index")
+  .option("--refresh", "rebuild the inspected catalog skill index")
   .option("--offline", "never fetch; use the existing local index only")
   .option("--limit <count>", "maximum alternatives to show", "10")
   .option("--json", "emit the complete machine-readable comparison")
@@ -2644,6 +2648,7 @@ program
                 category: pkg.category,
                 tier: pkg.tier,
                 trustStage: catalogTrustStage(pkg),
+                evidenceLabel: formatCatalogTrustStage(catalogTrustStage(pkg)),
               },
               ranking: explainCatalogScore(pkg),
             },
@@ -2672,7 +2677,7 @@ program
           ? ` — updated ${pkg.lastUpdatedAt.slice(0, 10)}`
           : "";
         console.log(
-          `${pkg.displayName} [${pkg.tier}; ${catalogTrustStage(pkg)}] ★${pkg.stars ?? "?"} — ${pkg.repository}${topics}${updated}`,
+          `${pkg.displayName} [${pkg.tier}; ${formatCatalogTrustStage(catalogTrustStage(pkg))}] ★${pkg.stars ?? "?"} — ${pkg.repository}${topics}${updated}`,
         );
       }
       for (const failure of result.failures)
@@ -2786,7 +2791,7 @@ candidate
   )
   .argument("<dossier>", "persisted candidate dossier JSON")
   .requiredOption("--id <id>", "lowercase kebab-case catalog id")
-  .requiredOption("--category <category>", "reviewed catalog category")
+  .requiredOption("--category <category>", "inspected catalog category")
   .requiredOption(
     "--platforms <ids>",
     "explicitly reviewed comma-separated platforms: windows,macos,linux",

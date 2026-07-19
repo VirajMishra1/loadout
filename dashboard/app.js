@@ -331,7 +331,7 @@ function renderHealth(data) {
   setMarkupState(
     health,
     `health-list ${state}`,
-    `<div class="metric-row"><strong>${Number(report.installedPackages) || 0}</strong><span>packages</span><strong>${report.updatesChecked ? Number(report.updatesAvailable) || 0 : "—"}</strong><span>${report.updatesChecked ? "updates" : "updates not checked"}</span><strong>${Number(report.driftedFiles) || 0}</strong><span>drifted files</span><strong>${Number(report.driftedMcpServers) || 0}</strong><span>drifted MCP</span></div>${findings.map((finding) => `<p><span class="finding-level">${escapeHtml(finding.level || "info")}</span>${escapeHtml(finding.message || "")}</p>`).join("")}`,
+    `<p><strong>Evidence coverage and managed-state hygiene</strong></p><div class="metric-row"><strong>${Number(report.installedPackages) || 0}</strong><span>packages</span><strong>${report.updatesChecked ? Number(report.updatesAvailable) || 0 : "—"}</strong><span>${report.updatesChecked ? "updates" : "updates not checked"}</span><strong>${Number(report.driftedFiles) || 0}</strong><span>drifted files</span><strong>${Number(report.driftedMcpServers) || 0}</strong><span>drifted MCP</span></div>${findings.map((finding) => `<p><span class="finding-level">${escapeHtml(finding.level || "info")}</span>${escapeHtml(finding.message || "")}</p>`).join("")}`,
   );
 }
 
@@ -363,12 +363,12 @@ function renderRecommendations(data) {
   setMarkupState(
     recommendations,
     "grid",
-    items
+    `<p><strong>Rule-based project suggestions</strong>: detected project signals select catalog entries; this is not empirical quality evidence.</p>${items
       .map((item, index) => {
         const headingId = `recommendation-${index}`;
         return `<article aria-labelledby="${headingId}"><div class="card-heading"><h3 id="${headingId}">${escapeHtml(item.packageId || "Unknown package")}</h3><span class="badge">${escapeHtml(item.confidence || "unknown")}</span></div><p>${escapeHtml(item.reason || "No recommendation reason available.")}</p></article>`;
       })
-      .join(""),
+      .join("")}`,
   );
 }
 
@@ -378,7 +378,7 @@ function renderProfiles(data) {
       ? Object.entries(data.profiles)
       : [];
   if (!entries.length)
-    return setTextState(profiles, "No tested profiles are available.");
+    return setTextState(profiles, "No Loadout policy profiles are available.");
   setMarkupState(
     profiles,
     "grid",

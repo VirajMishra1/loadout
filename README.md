@@ -86,14 +86,14 @@ The selection process is:
 2. **Inspect the real contents.** Find skills, MCP declarations, plugins, commands, agents, and executable setup requirements.
 3. **Check trust evidence.** Record the exact Git commit, license status, source paths, maintenance signals, overlaps, and static safety findings.
 4. **Compare like with like.** A testing tool is compared with testing tools, not with an unrelated design skill.
-5. **Choose a tier.** Stable is the strongest bounded default; Power is broader; Maximum keeps the full reviewed library available.
+5. **Choose a tier.** Stable is Loadout's bounded policy selection; Power is broader; Maximum keeps the full inspected library available.
 6. **Keep watching.** New candidates and changes are recorded every day, but nothing is silently promoted or installed.
 
 The bundled catalog contains **50 credited public repositories** across 37 categories. Thirty-one contain skills and 19 are MCP-only. See every source, direct repository link, pinned commit, component type, and license status in **[Catalog and upstream credits](./docs/CATALOG.md)**.
 
 <!-- loadout:catalog-coverage:start -->
 
-The bundled catalog currently contains **50 credited public repositories** across **37 categories**: **31 have skill components** and **19 are MCP-only**. All 50 are technically screened and pinned; 4 sources currently satisfy the stricter Stable recommendation policy. See every linked source, license status, component type, and pinned commit in **[Catalog and upstream credits](./docs/CATALOG.md)**.
+The bundled catalog currently contains **50 credited public repositories** across **37 categories**: **31 have skill components** and **19 are MCP-only**. All 50 are technically screened and pinned; 4 sources are selected by the bounded Stable policy. See every linked source, license status, component type, and pinned commit in **[Catalog and upstream credits](./docs/CATALOG.md)**.
 
 <!-- loadout:catalog-coverage:end -->
 
@@ -101,17 +101,17 @@ The bundled catalog currently contains **50 credited public repositories** acros
 
 Current catalog evidence-stage counts:
 
-| Stage          | Records |
-| -------------- | ------: |
-| benchmarked    |       0 |
-| discovered     |       0 |
-| human-reviewed |       0 |
-| inspected      |      46 |
-| recommended    |       4 |
+| Stage           | Records |
+| --------------- | ------: |
+| benchmarked     |       0 |
+| discovered      |       0 |
+| human-reviewed  |       0 |
+| inspected       |      46 |
+| policy-selected |       4 |
 
 <!-- loadout:evidence-stages:end -->
 
-Loadout does not claim there is one universally “best” configuration. “Recommended” means the strongest choice supported by the evidence and policy currently stored in Loadout, not a permanent verdict for every person or project.
+Loadout does not claim there is one universally “best” configuration. Stable is selected by deterministic Loadout rules from pinned, inspected records. That policy selection is distinct from human review and benchmarking, both of which currently have zero catalog records.
 
 ## Get recommendations for the current project
 
@@ -123,7 +123,7 @@ loadout recommend --project .
 
 This reads local project metadata such as `package.json`, `pyproject.toml`, `go.mod`, `Cargo.toml`, framework dependencies, and test configuration. It does not upload your code.
 
-If you downloaded Maximum, use project-aware optimization to activate only the most relevant reviewed skills:
+If you downloaded Maximum, use rule-based project signals to propose inspected skills for activation:
 
 ```bash
 loadout optimize --project .             # preview
@@ -182,7 +182,7 @@ The repository also refreshes a public discovery report every day:
 
 <!-- loadout:daily-discovery:start -->
 
-**Discovery snapshot (generated 2026-07-17):** [242 repositories observed](./docs/DISCOVERED.md), including 219 uncataloged review candidates and 23 repositories already in the reviewed catalog.
+**Discovery snapshot (generated 2026-07-17):** [242 repositories observed](./docs/DISCOVERED.md), including 219 uncataloged review candidates and 23 repositories already in the inspected catalog.
 <!-- loadout:daily-discovery:end -->
 
 See **[today's generated discovery report](./docs/DISCOVERED.md)** for direct links, observed star velocity, age, license metadata, and the searches that found each repository. The GitHub README updates when the daily workflow commits new evidence; an already-installed npm package keeps its own versioned documentation until the next npm release.
@@ -254,7 +254,7 @@ Executable tools and MCP servers receive separate treatment because they can run
 | Install a loadout                         | `loadout setup --mode stable\|power\|maximum` |
 | See detected agents and installed skills  | `loadout status`                              |
 | Inspect health and evidence               | `loadout health --explain`                    |
-| Browse the reviewed catalog               | `loadout catalog`                             |
+| Browse the inspected catalog              | `loadout catalog`                             |
 | Search by capability                      | `loadout search <words>`                      |
 | Recommend for a project                   | `loadout recommend --project .`               |
 | Activate relevant library skills          | `loadout optimize --project .`                |
@@ -323,7 +323,7 @@ No bundled source is called benchmarked until real isolated trials, signed evide
 - MCP-only records need explicit configuration and may need external credentials or software.
 - Graphify is the first fully reviewed executable recipe; other runtime tools need equivalent recipe work.
 - Six catalog records currently have `NOASSERTION` license metadata and should be reviewed before relying on their license status.
-- The bundled catalog is technically screened and finite; only the stricter Stable subset is currently marked recommended, and discovery leads do not auto-promote themselves.
+- The bundled catalog is technically screened and finite; Stable is a deterministic policy-selected subset, not a human-reviewed or benchmark-proven winner, and discovery leads do not auto-promote themselves.
 - Public GitHub is the default source. Private GitHub discovery requires explicit authorization through an environment or native credential reference.
 - Skill components are the only components installed automatically by broad setup. MCP-only records require an explicit recipe or configuration target.
 - Executable tools are never included in broad setup. Graphify has a separately previewed, pinned, credential-isolated, reversible runtime recipe; additional runtime tools require the same reviewed-recipe treatment.
@@ -333,6 +333,7 @@ No bundled source is called benchmarked until real isolated trials, signed evide
 - **6 catalog records** currently have `NOASSERTION` license status and need upstream-license review before a public release decision.
 
 <!-- loadout:current-limits:end -->
+
 - The local registry works for development and self-hosting; there is no hosted Loadout registry service yet.
 - The optional dashboard exists for diagnostics, but the complete product is CLI-first.
 

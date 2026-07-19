@@ -495,7 +495,7 @@ function activeSetCapacity(
           `Disable or consolidate at least ${active - capacity} active skill(s), prioritizing duplicates and weak evidence.`,
         ]
       : [
-          "Keep nonessential packages in the reviewed library and re-check capacity after activation changes.",
+          "Keep nonessential packages in the inspected library and re-check capacity after activation changes.",
         ],
   );
 }
@@ -826,7 +826,7 @@ export function buildAgentHealthScore(
 
 export function formatAgentHealthScore(score: AgentHealthScore): string {
   const lines = [
-    `Agent Health Score: ${score.score}/${score.maximumScore} (${score.rating}; evidence coverage ${score.evidenceCoverage}%)`,
+    `Evidence coverage and managed-state hygiene: ${score.score}/${score.maximumScore} (${score.rating}; evidence coverage ${score.evidenceCoverage}%)`,
     `Agent: ${score.agent}${score.asOf ? ` · observed ${score.asOf}` : ""}`,
   ];
   for (const item of score.dimensions) {

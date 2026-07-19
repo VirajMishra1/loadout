@@ -481,7 +481,7 @@ The machine-readable evidence, query counts, bounded observation history, and ca
 }
 
 export function renderReadmeDiscoveryStatus(artifact) {
-  return `${README_START}\n\n**Discovery snapshot (generated ${artifact.generatedAt.slice(0, 10)}):** [${artifact.statistics.currentRepositories} repositories observed](./docs/DISCOVERED.md), including ${artifact.statistics.uncatalogedCandidates} uncataloged review candidates and ${artifact.statistics.reviewedRepositories} repositories already in the reviewed catalog.\n${README_END}`;
+  return `${README_START}\n\n**Discovery snapshot (generated ${artifact.generatedAt.slice(0, 10)}):** [${artifact.statistics.currentRepositories} repositories observed](./docs/DISCOVERED.md), including ${artifact.statistics.uncatalogedCandidates} uncataloged review candidates and ${artifact.statistics.reviewedRepositories} repositories already in the inspected catalog.\n${README_END}`;
 }
 
 /** Replace exactly one machine-owned block while preserving all human prose. */

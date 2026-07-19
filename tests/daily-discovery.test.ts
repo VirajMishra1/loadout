@@ -211,6 +211,8 @@ describe("daily GitHub discovery artifact", () => {
     expect(after).toContain("generated 2026-07-16");
     expect(after).toContain("1 repositories observed");
     expect(after).toContain("1 uncataloged review candidates");
+    expect(after).toContain("repositories already in the inspected catalog");
+    expect(after).not.toContain("repositories already in the reviewed catalog");
     expect(after).toContain(renderReadmeDiscoveryStatus(artifact));
   });
 

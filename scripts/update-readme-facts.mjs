@@ -94,14 +94,17 @@ export function renderReadmeFactBlocksFromSources({
   const supportedAgents = [...facts.agents.supportedNames].sort(
     (left, right) => (left < right ? -1 : left > right ? 1 : 0),
   );
-  const evidenceRows = Object.entries(coverage.trustStages).sort(
-    ([left], [right]) => (left < right ? -1 : left > right ? 1 : 0),
-  );
+  const evidenceRows = Object.entries(coverage.trustStages)
+    .map(([stage, records]) => [
+      stage === "recommended" ? "policy-selected" : stage,
+      records,
+    ])
+    .sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0));
   const commands = verificationCommands(packageJson.scripts.verify);
 
   return {
     "catalog-coverage": [
-      `The bundled catalog currently contains **${facts.catalog.records} credited public repositories** across **${facts.catalog.categories} categories**: **${facts.catalog.components.skill} have skill components** and **${facts.catalog.installShapes.mcpOnly} are MCP-only**. All ${coverage.technicallyScreenedRecords} are technically screened and pinned; ${coverage.recommendedRecords} sources currently satisfy the stricter Stable recommendation policy. See every linked source, license status, component type, and pinned commit in **[Catalog and upstream credits](./docs/CATALOG.md)**.`,
+      `The bundled catalog currently contains **${facts.catalog.records} credited public repositories** across **${facts.catalog.categories} categories**: **${facts.catalog.components.skill} have skill components** and **${facts.catalog.installShapes.mcpOnly} are MCP-only**. All ${coverage.technicallyScreenedRecords} are technically screened and pinned; ${coverage.recommendedRecords} sources are selected by the bounded Stable policy. See every linked source, license status, component type, and pinned commit in **[Catalog and upstream credits](./docs/CATALOG.md)**.`,
     ].join("\n"),
     "evidence-stages": [
       "Current catalog evidence-stage counts:",

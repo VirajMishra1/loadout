@@ -27,7 +27,7 @@ export interface ProfileResolution {
 }
 
 /**
- * Stable is Loadout's recommended daily driver: broad enough to improve normal
+ * Stable is Loadout's bounded policy-selected daily driver: broad enough to improve normal
  * engineering work immediately, but bounded at skill granularity and restricted
  * to catalog sources with an identified SPDX license. Maximum remains the
  * explicit broad-library mode.
@@ -81,7 +81,8 @@ export type CatalogTrustStage =
 /**
  * Trust is deliberately separate from popularity and publisher tier. No
  * bundled record is labelled human-reviewed or benchmarked until that evidence
- * is actually stored; Stable is the policy-recommended subset.
+ * is actually stored; Stable is the policy-selected subset. The stored
+ * `recommended` value remains for schema compatibility.
  */
 export function catalogTrustStage(pkg: CatalogPackage): CatalogTrustStage {
   if (
@@ -94,6 +95,11 @@ export function catalogTrustStage(pkg: CatalogPackage): CatalogTrustStage {
     return "recommended";
   if (pkg.source?.commit && pkg.source.evidencePaths.length) return "inspected";
   return "discovered";
+}
+
+/** Keep stored `recommended` values compatible while naming their evidence honestly. */
+export function formatCatalogTrustStage(stage: CatalogTrustStage): string {
+  return stage === "recommended" ? "policy-selected" : stage;
 }
 
 export function isStableSkillSelected(
@@ -309,7 +315,7 @@ export function resolveCatalogProfile(
         deferred.push(secondary);
       }
       warnings.push(
-        `Stable Boost selected ${primary.displayName}; deferred ${members
+        `Loadout policy selection for Stable chose ${primary.displayName}; deferred ${members
           .slice(1)
           .map((pkg) => pkg.displayName)
           .join(", ")} because they overlap in ${family.label}.`,
@@ -320,7 +326,7 @@ export function resolveCatalogProfile(
       );
     } else {
       warnings.push(
-        `${selection.mode === "power" ? "Power Boost" : "Maximum Library"} retains the soft overlap in ${family.label}. ${primary.displayName} is the recommended default; review each package before installation.`,
+        `${selection.mode === "power" ? "Power Boost" : "Maximum Library"} retains the soft overlap in ${family.label}. Loadout policy orders ${primary.displayName} first; review each package before installation.`,
       );
     }
   }

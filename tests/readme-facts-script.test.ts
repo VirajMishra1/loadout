@@ -116,7 +116,7 @@ describe("README fact generator", () => {
       "`check:evidence`, `test`, `test:e2e:cli`",
     );
     expect(blocks["evidence-stages"]).toContain(
-      "| Stage          | Records |\n| -------------- | ------: |",
+      "| Stage           | Records |\n| --------------- | ------: |",
     );
   });
 
@@ -149,9 +149,12 @@ describe("README fact generator", () => {
     });
 
     expect(blocks["catalog-coverage"]).toContain(
-      "7 sources currently satisfy the stricter Stable recommendation policy",
+      "7 sources are selected by the bounded Stable policy",
     );
-    expect(blocks["evidence-stages"]).toContain("| recommended    |       7 |");
+    expect(blocks["evidence-stages"]).toContain(
+      "| policy-selected |       7 |",
+    );
+    expect(blocks["evidence-stages"]).not.toContain("| recommended");
     expect(blocks["support-summary"]).toContain("Alpha, Zulu, äther");
   });
 });

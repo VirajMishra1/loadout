@@ -26,7 +26,12 @@ describe("catalog capability coverage", () => {
     });
     expect(report.components.skill).toBeGreaterThan(0);
     expect(report.components.mcp).toBeGreaterThan(0);
-    expect(formatCatalogCoverage(report)).toContain("immutable pins");
+    const output = formatCatalogCoverage(report);
+    expect(output).toContain("immutable pins");
+    expect(output).toContain("Policy selection: 4 Stable sources");
+    expect(output).toContain("0 human-reviewed");
+    expect(output).toContain("0 benchmarked");
+    expect(output).not.toMatch(/Recommendation trust|tested winner/i);
   });
 
   it("keeps missing activity and NOASSERTION licenses explicit", () => {

@@ -3,6 +3,7 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
+  formatRecommendations,
   personalizeRecommendations,
   recommendPackages,
   scanProject,
@@ -40,6 +41,13 @@ describe("project recommendations", () => {
     expect(
       recommendPackages(signals, catalog).map((item) => item.packageId),
     ).toEqual(ids);
+    const output = formatRecommendations(
+      signals,
+      recommendPackages(signals, catalog),
+    );
+    expect(output).toContain("Rule-based project suggestions:");
+    expect(output).toContain("Rules use detected project signals");
+    expect(output).not.toMatch(/empirically|tested winner|best package/i);
   });
 
   it("uses agent-scoped local outcomes without introducing new packages", async () => {

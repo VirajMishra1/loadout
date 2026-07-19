@@ -73,6 +73,17 @@ describe("dashboard server", () => {
     );
   }, 15_000);
 
+  it("labels policy suggestions, evidence health, and profiles without empirical claims", async () => {
+    const [app, html] = await Promise.all([
+      readFile(join(process.cwd(), "dashboard", "app.js"), "utf8"),
+      readFile(join(process.cwd(), "dashboard", "index.html"), "utf8"),
+    ]);
+    expect(app).toContain("Rule-based project suggestions");
+    expect(app).toContain("Evidence coverage and managed-state hygiene");
+    expect(app).toContain("policy profiles");
+    expect(`${app}\n${html}`).not.toMatch(/tested setups|tested profiles/i);
+  });
+
   it("requires a session token for apply and rollback mutations", async () => {
     let restored = "";
     const plan = {

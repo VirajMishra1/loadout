@@ -4,6 +4,7 @@ import {
   STABLE_BOOST_PACKAGE_IDS,
   STABLE_SKILL_ALLOWLIST,
   catalogTrustStage,
+  formatCatalogTrustStage,
   isPowerSkillSelected,
   isStableSkillSelected,
   resolveCatalogProfile,
@@ -50,7 +51,9 @@ describe("catalog profile conflict resolution", () => {
       defaultPackageId: "first",
       severity: "soft",
     });
-    expect(result.warnings.join(" ")).toMatch(/Stable Boost selected first/);
+    expect(result.warnings.join(" ")).toMatch(
+      /Loadout policy selection for Stable chose first/,
+    );
   });
 
   it("keeps an intentional soft overlap in Custom mode with a warning", () => {
@@ -148,6 +151,19 @@ describe("catalog profile conflict resolution", () => {
       }),
     ).toBe("recommended");
     expect(catalogTrustStage(popularExtra)).toBe("discovered");
+    expect(formatCatalogTrustStage("recommended")).toBe("policy-selected");
+  });
+
+  it("describes Stable as a Loadout policy selection, not an empirical winner", () => {
+    const first = item("first", "stable", 1000);
+    const second = item("second", "stable", 10);
+    const result = resolveCatalogProfile(
+      [first, second],
+      { mode: "stable" },
+      families,
+    );
+    expect(result.warnings.join(" ")).toContain("Loadout policy selection");
+    expect(result.warnings.join(" ")).not.toMatch(/strongest|tested|winner/i);
   });
 
   it("selects broad Power collections but filters them at skill granularity", () => {

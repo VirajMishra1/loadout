@@ -200,7 +200,7 @@ export const TESTED_PROFILES: Record<
 > = {
   stable: {
     description:
-      "Recommended 30-skill daily driver from four pinned, SPDX-identified sources with no extra static-risk approvals.",
+      "Loadout policy selection: 30 skills from four pinned, SPDX-identified sources with no extra static-risk approvals.",
     packages: [...STABLE_BOOST_PACKAGE_IDS],
   },
   web: {
@@ -214,7 +214,7 @@ export const TESTED_PROFILES: Record<
   },
   maximum: {
     description:
-      "Broad reviewed toolkit; always review MCP permissions before applying.",
+      "Broad inspected toolkit; always review MCP permissions before applying.",
     packages: [
       "superpowers",
       "context7",
@@ -253,7 +253,8 @@ export function formatRecommendations(
     `Project: ${basename(signals.root)}`,
     `Detected: ${[...signals.languages, ...signals.frameworks].join(", ") || "no known project signals"}`,
     "",
-    "Recommendations:",
+    "Rule-based project suggestions:",
+    "Rules use detected project signals and catalog membership; they do not prove package quality.",
   ];
   if (!recommendations.length)
     lines.push("  No matching catalog packages found.");

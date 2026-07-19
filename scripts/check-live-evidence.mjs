@@ -19,6 +19,7 @@ import { promisify } from "node:util";
 const execFileAsync = promisify(execFile);
 const repositoryRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const checkIds = ["npm", "stable-install", "github"];
+const defaultMaxTarballBytes = 100 * 1024 * 1024;
 
 function unavailable(error) {
   const text = `${error?.code ?? ""} ${error?.message ?? ""} ${error?.stderr ?? ""}`;
@@ -31,7 +32,50 @@ function result(id, status, detail) {
   return { id, status, detail };
 }
 
-async function npmCheck({ packageJson, fetchImpl, runCommand }) {
+async function readBoundedResponseBody(response, maxBytes) {
+  const declared = response.headers.get("content-length");
+  if (/^\d+$/.test(declared ?? "")) {
+    const declaredBytes = Number(declared);
+    if (Number.isSafeInteger(declaredBytes) && declaredBytes > maxBytes) {
+      await response.body?.cancel("declared tarball exceeds size limit");
+      throw new Error(
+        `npm tarball declared size ${declaredBytes} exceeds ${maxBytes}-byte size limit`,
+      );
+    }
+  }
+  if (!response.body || typeof response.body.getReader !== "function")
+    throw new Error("npm tarball response has no safely streamable body");
+
+  const reader = response.body.getReader();
+  const chunks = [];
+  let total = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (!(value instanceof Uint8Array))
+        throw new Error("npm tarball stream returned a non-byte chunk");
+      total += value.byteLength;
+      if (total > maxBytes) {
+        await reader.cancel("tarball exceeds size limit");
+        throw new Error(
+          `npm tarball streamed size exceeds ${maxBytes}-byte size limit`,
+        );
+      }
+      chunks.push(Buffer.from(value));
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  return Buffer.concat(chunks, total);
+}
+
+async function npmCheck({
+  packageJson,
+  fetchImpl,
+  runCommand,
+  maxTarballBytes,
+}) {
   const target = `${packageJson.name}@${packageJson.version}`;
   let response;
   try {
@@ -147,13 +191,12 @@ async function npmCheck({ packageJson, fetchImpl, runCommand }) {
         tarballResponse.status >= 500 ? "not-verified" : "failed",
         `npm tarball returned HTTP ${tarballResponse.status}`,
       );
-    const tarballBytes = Buffer.from(await tarballResponse.arrayBuffer());
-    if (!tarballBytes.length || tarballBytes.length > 100 * 1024 * 1024)
-      return result(
-        "npm",
-        "failed",
-        `npm tarball size ${tarballBytes.length} is outside the bounded inspection limit`,
-      );
+    const tarballBytes = await readBoundedResponseBody(
+      tarballResponse,
+      maxTarballBytes,
+    );
+    if (!tarballBytes.length)
+      return result("npm", "failed", "npm tarball is empty");
     const observedDigest = createHash(integrity[1])
       .update(tarballBytes)
       .digest();
@@ -486,7 +529,10 @@ export async function runLiveChecks({
   env = process.env,
   fetchImpl = globalThis.fetch,
   runCommand = execFileAsync,
+  maxTarballBytes = defaultMaxTarballBytes,
 } = {}) {
+  if (!Number.isSafeInteger(maxTarballBytes) || maxTarballBytes <= 0)
+    throw new Error("maxTarballBytes must be a positive safe integer");
   const boundRepositoryCommit =
     repositoryCommit ??
     (
@@ -500,7 +546,14 @@ export async function runLiveChecks({
   for (const id of requested) {
     if (!checkIds.includes(id)) throw new Error(`unknown live check: ${id}`);
     if (id === "npm")
-      checks.push(await npmCheck({ packageJson, fetchImpl, runCommand }));
+      checks.push(
+        await npmCheck({
+          packageJson,
+          fetchImpl,
+          runCommand,
+          maxTarballBytes,
+        }),
+      );
     if (id === "stable-install") checks.push(await stableCheck({ runCommand }));
     if (id === "github")
       checks.push(

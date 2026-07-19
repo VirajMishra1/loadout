@@ -125,6 +125,91 @@ describe("bounded live evidence", () => {
     ]);
   });
 
+  it("cancels a streamed npm tarball immediately when bytes exceed the cap", async () => {
+    let requests = 0;
+    let cancelled = false;
+    let installCalled = false;
+    const report = await runLiveChecks({
+      requested: ["npm"],
+      packageJson,
+      maxTarballBytes: 8,
+      fetchImpl: async () => {
+        requests += 1;
+        if (requests === 1)
+          return new Response(
+            JSON.stringify({
+              version: "0.3.2",
+              dist: {
+                tarball: "https://registry.npmjs.org/fixture.tgz",
+                integrity: fixtureIntegrity,
+              },
+            }),
+            { status: 200 },
+          );
+        let chunk = 0;
+        return new Response(
+          new ReadableStream<Uint8Array>({
+            pull(controller) {
+              controller.enqueue(new Uint8Array(chunk++ === 0 ? 5 : 4));
+            },
+            cancel() {
+              cancelled = true;
+            },
+          }),
+          { status: 200 },
+        );
+      },
+      runCommand: async () => {
+        installCalled = true;
+        return { stdout: "", stderr: "" };
+      },
+    });
+
+    expect(report.checks[0]).toMatchObject({ id: "npm", status: "failed" });
+    expect(report.checks[0]?.detail).toMatch(/size.*limit/i);
+    expect(cancelled).toBe(true);
+    expect(installCalled).toBe(false);
+  });
+
+  it("rejects a trustworthy oversized Content-Length before reading the body", async () => {
+    let requests = 0;
+    let pulled = false;
+    const report = await runLiveChecks({
+      requested: ["npm"],
+      packageJson,
+      maxTarballBytes: 8,
+      fetchImpl: async () => {
+        requests += 1;
+        if (requests === 1)
+          return new Response(
+            JSON.stringify({
+              version: "0.3.2",
+              dist: {
+                tarball: "https://registry.npmjs.org/fixture.tgz",
+                integrity: fixtureIntegrity,
+              },
+            }),
+            { status: 200 },
+          );
+        return {
+          ok: true,
+          status: 200,
+          headers: new Headers({ "content-length": "9" }),
+          body: {
+            getReader() {
+              pulled = true;
+              throw new Error("body must not be read");
+            },
+            async cancel() {},
+          },
+        } as unknown as Response;
+      },
+    });
+
+    expect(report.checks[0]).toMatchObject({ id: "npm", status: "failed" });
+    expect(pulled).toBe(false);
+  });
+
   it("rejects an installed tarball whose CLI bin escapes the package", async () => {
     const report = await runLiveChecks({
       requested: ["npm"],

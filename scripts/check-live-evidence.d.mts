@@ -36,6 +36,8 @@ interface LiveCheckOptions {
     args: string[],
     options?: Record<string, unknown>,
   ) => Promise<CommandResult>;
+  /** Override the 100 MiB streaming cap for deterministic tests. */
+  maxTarballBytes?: number;
 }
 
 export function parseLiveCheckReport(

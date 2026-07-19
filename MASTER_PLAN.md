@@ -50,11 +50,16 @@ plans and contributor-specific plans have been consolidated here and removed.
       (`186daa0`, `09e0e0c`, `3f2cafe`, `10d6109`). No valuable work remains on local
       or remote `dev/nitish`; both branches were deleted after synchronization while
       the user's ignored `.superpowers/` directory was preserved.
+- [x] `P18-20 [SOL+TERRA]` Fix the fresh-clone live Stable rollback regression
+      without weakening drift protection. `5f8e38e` records installed-profile state
+      inside the catalog transaction before post-mutation evidence and makes the live
+      evidence journey roll Stable back before unrelated fixture transactions. An
+      unsafe proposal to ignore `state.json` drift was rejected because it could
+      orphan later installations.
 
-All intended P18 implementation and documentation work is on remote `main`. After
-cleanup, local `main`, `origin/main`, and GitHub's only branch resolved to
-`e74ba1676ee63cea48e6a22b08318580eebe8fda`; `main` remains the default branch and
-there are no open PRs.
+All intended work through P18-19 is on remote `main`. Tested commit `5f8e38e` for
+P18-20 is on local `main` and pending remote synchronization. GitHub's only branch
+remains `main`, and there are no open PRs.
 
 ### Deterministic repository verification
 
@@ -64,7 +69,9 @@ there are no open PRs.
       package smoke, performance, dashboard Playwright, package contents, and
       `git diff --check`. The July 19 local gate passed 112 test files with 589 tests
       passing and one intentionally skipped, both product flows, package smoke, the
-      1,000-skill performance gate at 246.5 ms p95, and both dashboard viewports.
+      1,000-skill performance gate at 240.5 ms p95, and both dashboard viewports.
+      The additional live Stable gate installed four pinned packages and completed
+      state and filesystem rollback assertions at `5f8e38e`.
 
 ### Branch cleanup status
 

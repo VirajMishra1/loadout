@@ -2,7 +2,7 @@
 
 **One CLI to inspect, install, update, and roll back extensions for AI coding agents.**
 
-[![CI](https://github.com/VirajMishra1/loadout/actions/workflows/ci.yml/badge.svg)](https://github.com/VirajMishra1/loadout/actions/workflows/ci.yml)
+[![CI](https://github.com/reddynitish/loadout/actions/workflows/ci.yml/badge.svg)](https://github.com/reddynitish/loadout/actions/workflows/ci.yml)
 [![Node.js 20+](https://img.shields.io/badge/Node.js-%3E%3D20-339933?logo=node.js&logoColor=white)](./package.json)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
 
@@ -27,7 +27,7 @@ not a hosted service or a guarantee that third-party content is safe or useful.
 You need Node.js 20 or newer, Git, and access to this repository.
 
 ```bash
-git clone https://github.com/VirajMishra1/loadout.git
+git clone https://github.com/reddynitish/loadout.git
 cd loadout
 npm ci
 npm run build
@@ -388,7 +388,7 @@ Before contributing, keep changes scoped, add regression coverage for behavior c
 and run `npm run verify:full`. Report security issues through the process in
 [SECURITY.md](./SECURITY.md); do not attach credentials, private source, or unredacted
 state. General bugs and proposals belong in the
-[GitHub issue tracker](https://github.com/VirajMishra1/loadout/issues).
+[GitHub issue tracker](https://github.com/reddynitish/loadout/issues).
 
 ## Documentation and attribution
 

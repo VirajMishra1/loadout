@@ -86,25 +86,6 @@ async function fixture() {
     writeFile(join(root, "evidence.txt"), "authoritative\n", "utf8"),
     writeFile(join(root, "fake-review.json"), "{}\n", "utf8"),
     writeFile(
-      join(root, "valid-review.json"),
-      `${JSON.stringify(
-        {
-          schemaVersion: 1,
-          attestation: "human-reviewed",
-          claimId: "release.review",
-          reviewer: "test-fixture-reviewer",
-          reviewedAt: "2026-07-16T12:00:00.000Z",
-          reviewedSourceCommit: "0123456789abcdef0123456789abcdef01234567",
-          scope: "Temporary verifier fixture only.",
-          findings: ["The synthetic artifact satisfies the verifier schema."],
-          decision: "approved-with-boundaries",
-        },
-        null,
-        2,
-      )}\n`,
-      "utf8",
-    ),
-    writeFile(
       join(root, "docs", "RELEASE_REVIEW.md"),
       "# Release review — 2026-07-16\n\nScope, findings, and bounded decision.\n",
       "utf8",
@@ -115,6 +96,44 @@ async function fixture() {
       "utf8",
     ),
   ]);
+  execFileSync("git", ["init", "--quiet", root]);
+  execFileSync("git", ["-C", root, "add", "."]);
+  execFileSync("git", [
+    "-C",
+    root,
+    "-c",
+    "user.name=README verifier fixture",
+    "-c",
+    "user.email=fixture@example.invalid",
+    "commit",
+    "--quiet",
+    "-m",
+    "fixture source",
+  ]);
+  const reviewedSourceCommit = execFileSync(
+    "git",
+    ["-C", root, "rev-parse", "HEAD"],
+    { encoding: "utf8" },
+  ).trim();
+  await writeFile(
+    join(root, "valid-review.json"),
+    `${JSON.stringify(
+      {
+        schemaVersion: 1,
+        attestation: "human-reviewed",
+        claimId: "release.review",
+        reviewer: "test-fixture-reviewer",
+        reviewedAt: "2026-07-16T12:00:00.000Z",
+        reviewedSourceCommit,
+        scope: "Temporary verifier fixture only.",
+        findings: ["The synthetic artifact satisfies the verifier schema."],
+        decision: "approved-with-boundaries",
+      },
+      null,
+      2,
+    )}\n`,
+    "utf8",
+  );
   return root;
 }
 
@@ -514,6 +533,51 @@ describe("README claim evidence gate", () => {
     expect(result.failures).toEqual([]);
   });
 
+  it("rejects a human review bound to a present but unreachable commit", async () => {
+    const result = await audit({
+      claims: [
+        claim({
+          id: "release.review",
+          evidenceClass: "human-reviewed",
+          status: "bounded",
+          evidence: ["valid-review.json"],
+        }),
+      ],
+      setup: async (root) => {
+        const unrelatedCommit = execFileSync(
+          "git",
+          [
+            "-C",
+            root,
+            "-c",
+            "user.name=README verifier fixture",
+            "-c",
+            "user.email=fixture@example.invalid",
+            "commit-tree",
+            "HEAD^{tree}",
+            "-m",
+            "unrelated source",
+          ],
+          { encoding: "utf8" },
+        ).trim();
+        const valid = JSON.parse(
+          await readFile(join(root, "valid-review.json"), "utf8"),
+        );
+        await writeFile(
+          join(root, "valid-review.json"),
+          `${JSON.stringify(
+            { ...valid, reviewedSourceCommit: unrelatedCommit },
+            null,
+            2,
+          )}\n`,
+          "utf8",
+        );
+      },
+    });
+
+    expectActionable(result, "release.review", /review artifact/i);
+  });
+
   it("rejects human reviews with unsupported decisions, attestations, scopes, or fields", async () => {
     const invalidReviews = [
       { decision: "rejected" },
@@ -521,6 +585,7 @@ describe("README claim evidence gate", () => {
       { claimId: "different.claim" },
       { extra: "not allowed" },
       { reviewedSourceCommit: "a".repeat(39) },
+      { reviewedSourceCommit: "0123456789abcdef0123456789abcdef01234567" },
     ];
     for (const override of invalidReviews) {
       const result = await audit({

@@ -575,6 +575,21 @@ async function hasStructuredHumanReview(root, evidence, claim) {
       /^(?!([a-f0-9])\1{39}$)[a-f0-9]{40}$/i.test(
         review.reviewedSourceCommit,
       ) &&
+      // A review binds to current source when its exact commit is present and
+      // reachable from HEAD. Equality is allowed; an ancestor represents a
+      // review of an earlier snapshot retained in the current history.
+      spawnSync(
+        "git",
+        [
+          "-C",
+          root,
+          "merge-base",
+          "--is-ancestor",
+          review.reviewedSourceCommit,
+          "HEAD",
+        ],
+        { stdio: "ignore", timeout: 5_000 },
+      ).status === 0 &&
       typeof review.scope === "string" &&
       review.scope === review.scope.trim() &&
       review.scope.length > 0 &&

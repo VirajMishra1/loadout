@@ -30,6 +30,7 @@ import {
   type UpdateSafetyAnalysis,
 } from "./safety.js";
 import { formatModelApiAccess, type SetupAccessProfile } from "./access.js";
+import { recordInstalledProfile } from "./profile-state.js";
 
 export const RECOMMENDED_ACTIVE_SKILL_LIMIT = 30;
 
@@ -428,13 +429,18 @@ export async function applyPreparedCatalogInstall(
       `Additional risk approval is required for: ${risky.map((entry) => entry.package.id).join(", ")}. Review the plan, then use --approve-risk.`,
     );
   return prepared.selection.mode === "maximum"
-    ? applySkillLibraryBatch(prepared.entries)
+    ? applySkillLibraryBatch(prepared.entries, {
+        afterRecord: () =>
+          recordInstalledProfile(prepared).then(() => undefined),
+      })
     : applySkillInstallBatch(prepared.entries, [], {
         replaceManagedTargets: true,
         reconcileManagedTargets: true,
         ...(prepared.reconciliation
           ? { expectedReconciliation: prepared.reconciliation }
           : {}),
+        afterRecord: () =>
+          recordInstalledProfile(prepared).then(() => undefined),
       });
 }
 

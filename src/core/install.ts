@@ -399,6 +399,7 @@ export async function applySkillInstallBatch(
     replaceManagedTargets?: boolean;
     reconcileManagedTargets?: boolean;
     expectedReconciliation?: ManagedProfileReconciliation;
+    afterRecord?: () => Promise<void>;
   } = {},
 ): Promise<string> {
   if (!entries.length) throw new Error("Installation batch is empty");
@@ -493,6 +494,7 @@ export async function applySkillInstallBatch(
             );
       await recordInstallBatch(freshEntries, snapshot.id);
       await recordManagedProfileReconciliation(reconciliation);
+      await options.afterRecord?.();
     },
   );
   return applied.snapshotId;
@@ -504,6 +506,7 @@ export async function applySkillInstallBatch(
  */
 export async function applySkillLibraryBatch(
   entries: InstallBatchEntry[],
+  options: { afterRecord?: () => Promise<void> } = {},
 ): Promise<string> {
   if (!entries.length) throw new Error("Library batch is empty");
   const conflicts = detectInstallConflicts(entries.map((entry) => entry.plan));
@@ -595,6 +598,7 @@ export async function applySkillLibraryBatch(
         }
       }
       await recordLibraryInstallBatch(freshEntries, snapshot.id);
+      await options.afterRecord?.();
     },
   );
   return applied.snapshotId;

@@ -71,7 +71,6 @@ import {
 import {
   evaluateInstalledProfile,
   formatInstalledProfileStatus,
-  recordInstalledProfile,
 } from "./core/profile-state.js";
 import {
   formatRecommendations,
@@ -578,7 +577,6 @@ async function runSetup(options: SetupOptions): Promise<void> {
     const snapshotId = await applyPreparedCatalogInstall(prepared, {
       approveRisk: riskApproved,
     });
-    await recordInstalledProfile(prepared);
     console.log(
       `\nLoadout installed ${prepared.entries.length} repositories for ${prepared.agents.length} agent(s). Snapshot: ${snapshotId}`,
     );
@@ -4294,7 +4292,6 @@ program
         const snapshotId = await applyPreparedCatalogInstall(prepared, {
           approveRisk: options.approveRisk,
         });
-        await recordInstalledProfile(prepared);
         console.log(
           `Installed ${prepared.entries.length} repositories as one transaction. Snapshot: ${snapshotId}`,
         );
@@ -4460,7 +4457,6 @@ program
         profileSnapshotId = await applyPreparedCatalogInstall(prepared, {
           approveRisk: options.approveRisk,
         });
-        await recordInstalledProfile(prepared);
         if (!options.json)
           console.log(
             `Applied reviewed ${saved.mode} profile changes. Snapshot: ${profileSnapshotId}`,

@@ -11,6 +11,7 @@ import {
 import type { CatalogPackage, DetectedAgent } from "../src/shared/types.js";
 import { activationLibraryPath, readInstallState } from "../src/core/state.js";
 import { applySkillInstallBatch, buildSkillPlan } from "../src/core/install.js";
+import { readSnapshot, restoreSnapshot } from "../src/core/snapshot.js";
 
 const commit = "a".repeat(40);
 
@@ -116,6 +117,10 @@ describe("CLI-first catalog setup", () => {
       code: "ENOENT",
     });
     const state = await readInstallState();
+    expect(state.profile).toMatchObject({
+      mode: "maximum",
+      agents: ["codex"],
+    });
     expect(state.activations).toEqual([
       expect.objectContaining({
         packageId: "useful-skill",
@@ -128,6 +133,10 @@ describe("CLI-first catalog setup", () => {
       findingCount: 0,
       policy: "install-safety-v1",
     });
+    await restoreSnapshot(await readSnapshot(snapshot), {
+      requireUnchangedPostMutationState: true,
+    });
+    expect((await readInstallState()).installs).toEqual([]);
   });
 
   it("previews active managed skills that an exact profile will retire", async () => {

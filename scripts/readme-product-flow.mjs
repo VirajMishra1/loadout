@@ -205,6 +205,23 @@ try {
       fileHashes: true,
       snapshot: true,
     };
+    await runCli("rollback", "--snapshot", stableSnapshotId);
+    const stableRestoredState = await state.readInstallState();
+    assert.equal(
+      stableRestoredState.installs.some((entry) =>
+        stablePackageIds.has(entry.packageId),
+      ),
+      false,
+    );
+    for (const file of stableInstalledFiles) {
+      assert.ok(file.bytes.length, `${file.path} must contain installed bytes`);
+      assert.equal(await exists(file.path), false);
+    }
+    for (const path of stableLibraryPaths)
+      assert.equal(await exists(path), false);
+    assert.equal(await readFile(sentinel, "utf8"), sentinelBytes);
+    liveEvidence.rollback = true;
+    liveEvidence.filesystemRestoration = true;
   }
 
   const plan = await install.buildSkillPlan(fixtureSource, "readme-fixture", [
@@ -347,38 +364,6 @@ try {
     "disabled",
   );
   assert.equal(await readFile(sentinel, "utf8"), sentinelBytes);
-
-  if (liveEvidence) {
-    assert.ok(stableSnapshotId);
-    assert.ok(stablePackageIds);
-    assert.ok(stableInstalledFiles);
-    assert.ok(stableLibraryPaths);
-    await runCli("rollback", "--snapshot", stableSnapshotId);
-    const stableRestoredState = await state.readInstallState();
-    assert.equal(
-      stableRestoredState.installs.some((entry) =>
-        stablePackageIds.has(entry.packageId),
-      ),
-      false,
-    );
-    for (const file of stableInstalledFiles) {
-      assert.ok(file.bytes.length, `${file.path} must contain installed bytes`);
-      assert.equal(
-        await exists(file.path),
-        false,
-        `${file.path} must be removed by Stable rollback`,
-      );
-    }
-    for (const path of stableLibraryPaths)
-      assert.equal(
-        await exists(path),
-        false,
-        `${path} must be removed by Stable rollback`,
-      );
-    assert.equal(await readFile(sentinel, "utf8"), sentinelBytes);
-    liveEvidence.rollback = true;
-    liveEvidence.filesystemRestoration = true;
-  }
 
   const result = {
     build: "isolated",

@@ -12,19 +12,32 @@ function expectOrderedReadmeStructure(
   sections: readonly string[],
   markerNames: readonly string[],
 ): void {
+  const markdownHeadings: string[] = [];
+  let fence: "`" | "~" | undefined;
+  for (const line of readme.split(/\r?\n/)) {
+    const fenceMatch = /^\s*(`{3,}|~{3,})/.exec(line);
+    if (fenceMatch) {
+      const delimiter = fenceMatch[1][0] as "`" | "~";
+      if (fence === undefined) fence = delimiter;
+      else if (fence === delimiter) fence = undefined;
+      continue;
+    }
+    if (fence === undefined && /^#{1,6} /.test(line)) {
+      markdownHeadings.push(line);
+    }
+  }
+
   let previousSection = -1;
   for (const section of sections) {
-    const index = readme.indexOf(section);
-    if (
-      index === -1 ||
-      index !== readme.lastIndexOf(section) ||
-      index <= previousSection
-    ) {
+    const matches = markdownHeadings.flatMap((heading, index) =>
+      heading === section ? [index] : [],
+    );
+    if (matches.length !== 1 || matches[0] <= previousSection) {
       throw new Error(
         "README sections must appear exactly once in approved order",
       );
     }
-    previousSection = index;
+    previousSection = matches[0];
   }
 
   let previousEnd = -1;
@@ -64,6 +77,15 @@ describe("README product flow", () => {
         ["catalog-coverage", "evidence-stages"],
       ),
     ).toThrow(/ordered and non-overlapping/i);
+  });
+
+  it.each([
+    ["wrong level", "### How it works\n"],
+    ["fenced code", "```markdown\n## How it works\n```\n"],
+  ])("rejects an expected heading in %s", (_label, fixture) => {
+    expect(() =>
+      expectOrderedReadmeStructure(fixture, ["## How it works"], []),
+    ).toThrow(/sections must appear exactly once/i);
   });
 
   it("presents the approved proof-first product journey", async () => {

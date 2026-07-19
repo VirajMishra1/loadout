@@ -240,7 +240,11 @@
       "summary": "npm distribution wording is time-bounded because offline verification cannot prove current registry availability.",
       "evidenceClass": "live-verified",
       "status": "bounded",
-      "evidence": ["package.json", "README.md"],
+      "evidence": [
+        "package.json",
+        "README.md",
+        "docs/evidence/live-checks-2026-07-19.json"
+      ],
       "externalPrerequisites": ["Current npm registry availability"]
     },
     {
@@ -249,7 +253,11 @@
       "summary": "Release and beta wording is bounded to release-review artifacts and is not proof of current public publication.",
       "evidenceClass": "structural",
       "status": "bounded",
-      "evidence": ["docs/RELEASE_REVIEW.md", "package.json"],
+      "evidence": [
+        "docs/RELEASE_REVIEW.md",
+        "docs/evidence/live-checks-2026-07-19.json",
+        "package.json"
+      ],
       "externalPrerequisites": [
         "Current package publication and release review"
       ]

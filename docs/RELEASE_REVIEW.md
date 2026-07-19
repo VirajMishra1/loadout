@@ -6,21 +6,24 @@ The sections below preserve the evidence recorded for the earlier 0.1.0 review; 
 old package version, catalog count, and test totals are historical and must not be read
 as current 0.3.2 results. The checked-in package is now 0.3.2 with a 50-record catalog.
 
-On 2026-07-19, the current branch's focused v0.3.x regression run passed 58 tests
-covering the unified upgrade, saved-profile updates, complete uninstall, separation of
-model API access from service credentials, and recursively empty skill-directory
-recovery. `npm run verify:full` then passed its deterministic evidence gate, 550 tests
+On 2026-07-19, the focused v0.3.x regression run passed 58 tests covering the unified
+upgrade, saved-profile updates, complete uninstall, separation of model API access from
+service credentials, and recursively empty skill-directory recovery. The later
+`npm run verify:full` result is bound to exact tested commit
+`8f8eccdd20272ebb88d0339087fc9cd3828e65c9`: its deterministic evidence gate, 552 tests
 with one explicit skip, both CLI product journeys, package smoke, the 1,000-skill
-performance gate, and two Playwright dashboard projects. These local results establish
-the tested repository behaviors only; they do not retroactively establish native-agent
-recognition, current npm publication, branch protection, or an independent security
-review.
+performance gate, and two Playwright dashboard projects passed. The evidence-only
+follow-up commit that records this statement was not represented as part of that tested
+commit. These local results establish the tested repository behaviors only; they do not
+retroactively establish native-agent recognition, current npm publication, branch
+protection, or an independent security review.
 
-The separate live check on 2026-07-19 verified a pinned Stable install and rollback.
-The npm check failed because `loadout-ai@0.3.2` returned 404. Authenticated GitHub access
-reached the repository, but branch protection for `main` returned 404, so protection is
-not verified as enabled. Live results are time-bounded external observations, not part
-of the deterministic offline gate.
+The separate [sanitized live-check report](./evidence/live-checks-2026-07-19.json) was
+generated at `2026-07-19T13:45:14.945Z`. At that historical observation time, the pinned
+Stable install and rollback were verified; npm returned 404 for `loadout-ai@0.3.2`; and
+authenticated GitHub access reached the repository but branch protection for `main`
+returned 404. These results can change after the timestamp and are not part of the
+deterministic offline gate.
 
 At the time it was written, this review covered the then-current Loadout
 implementation, not an aspirational roadmap. It was performed after the transaction,

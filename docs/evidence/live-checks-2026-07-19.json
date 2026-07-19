@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-07-19T13:45:14.945Z",
+  "checks": [
+    {
+      "id": "npm",
+      "status": "failed",
+      "detail": "npm registry returned HTTP 404 for loadout-ai@0.3.2"
+    },
+    {
+      "id": "stable-install",
+      "status": "verified",
+      "detail": "isolated Stable flow installed 4 pinned packages and completed state and filesystem rollback assertions"
+    },
+    {
+      "id": "github",
+      "status": "failed",
+      "detail": "GitHub branch protection is not verified for main (HTTP 404)"
+    }
+  ]
+}

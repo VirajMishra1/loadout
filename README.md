@@ -323,7 +323,7 @@ npm ci
 npm run verify
 ```
 
-`verify` checks formatting, lint, types, catalog evidence, unit and integration tests, two real CLI product flows, an installed-package smoke test, and a 1,000-skill performance gate. The README-specific flow uses a local reviewed fixture and disposable `LOADOUT_HOME`/`LOADOUT_USER_HOME`, so its install, hash, manifest/lock, privacy-card, activation, and rollback assertions require no network and cannot touch your real profile. Run `npm run build && node scripts/readme-product-flow.mjs --live-catalog` separately to repeat the installation portion against the current pinned Stable catalog; that opt-in check requires network access and is not part of `verify`.
+`verify` checks formatting, lint, types, catalog evidence, unit and integration tests, two real CLI product flows, an installed-package smoke test, and a 1,000-skill performance gate. The README-specific flow compiles an isolated disposable build, uses a local reviewed fixture and disposable `LOADOUT_HOME`/`LOADOUT_USER_HOME`, and removes all of them afterward. Its install, hash, manifest/lock, privacy-card, activation, and rollback assertions therefore require neither a pre-existing `dist` tree nor network access and cannot touch your real profile. Run `LOADOUT_TEST_LIVE_CATALOG=1 npm test -- tests/readme-product-flow.test.ts --run` separately to add a current pinned Stable-catalog installation check before the deterministic local journey; that opt-in check requires network access and is not part of `verify`.
 
 <!-- loadout:verification-summary:start -->
 

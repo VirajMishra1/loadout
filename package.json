@@ -55,7 +55,6 @@
     "test:e2e:dashboard": "playwright test",
     "pretest:e2e:cli": "npm run build",
     "test:e2e:cli": "node scripts/cli-product-flow.mjs",
-    "pretest:e2e:readme": "npm run build",
     "test:e2e:readme": "node scripts/readme-product-flow.mjs",
     "test:package": "node scripts/package-smoke.mjs",
     "pretest:performance": "npm run build",

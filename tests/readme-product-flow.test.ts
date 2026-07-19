@@ -7,7 +7,7 @@ const execFileAsync = promisify(execFile);
 const repositoryRoot = resolve(import.meta.dirname, "..");
 
 describe("README product flow", () => {
-  it("proves the documented install, library, activation, privacy, and rollback outcomes offline", async () => {
+  it("builds independently of repository dist and proves the documented outcomes offline", async () => {
     const { stdout } = await execFileAsync(
       process.execPath,
       [resolve(repositoryRoot, "scripts/readme-product-flow.mjs"), "--json"],
@@ -19,6 +19,7 @@ describe("README product flow", () => {
     );
 
     expect(JSON.parse(stdout)).toMatchObject({
+      build: "isolated",
       mode: "offline-fixture",
       verified: {
         stateDirectories: true,
@@ -33,4 +34,36 @@ describe("README product flow", () => {
       },
     });
   }, 35_000);
+
+  it.runIf(process.env.LOADOUT_TEST_LIVE_CATALOG === "1")(
+    "proves pinned Stable catalog installation before the local rollback journey",
+    async () => {
+      const { stdout } = await execFileAsync(
+        process.execPath,
+        [
+          resolve(repositoryRoot, "scripts/readme-product-flow.mjs"),
+          "--live-catalog",
+          "--json",
+        ],
+        {
+          cwd: repositoryRoot,
+          timeout: 240_000,
+          maxBuffer: 10 * 1024 * 1024,
+        },
+      );
+      const result = JSON.parse(stdout);
+      expect(result).toMatchObject({
+        build: "isolated",
+        mode: "live-catalog",
+        liveCatalog: {
+          pinnedCommits: true,
+          persistedRecords: true,
+          fileHashes: true,
+          snapshot: true,
+        },
+      });
+      expect(result.liveCatalog.packages).toBeGreaterThan(0);
+    },
+    245_000,
+  );
 });

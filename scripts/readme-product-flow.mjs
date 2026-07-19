@@ -12,15 +12,16 @@ import {
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import process from "node:process";
-import { fileURLToPath, URL } from "node:url";
+import { fileURLToPath, pathToFileURL, URL } from "node:url";
 import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
 const repositoryRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
-const cli = join(repositoryRoot, "dist", "src", "cli.js");
 const liveCatalog = process.argv.includes("--live-catalog");
 const jsonOutput = process.argv.includes("--json");
 const temporary = await mkdtemp(join(tmpdir(), "loadout-readme-flow-"));
+const buildRoot = await mkdtemp(join(repositoryRoot, ".readme-build-"));
+const cli = join(buildRoot, "src", "cli.js");
 const userHome = join(temporary, "user");
 const stateHome = join(temporary, "state");
 const project = join(temporary, "project");
@@ -42,6 +43,7 @@ const environment = {
   USERPROFILE: userHome,
   NO_COLOR: "1",
 };
+let liveEvidence;
 
 function parseJson(stdout, command) {
   try {
@@ -80,6 +82,22 @@ async function exists(path) {
 }
 
 try {
+  await execFileAsync(
+    process.execPath,
+    [
+      join(repositoryRoot, "node_modules", "typescript", "bin", "tsc"),
+      "-p",
+      join(repositoryRoot, "tsconfig.json"),
+      "--outDir",
+      buildRoot,
+    ],
+    {
+      cwd: repositoryRoot,
+      timeout: 30_000,
+      maxBuffer: 10 * 1024 * 1024,
+      windowsHide: true,
+    },
+  );
   Object.assign(process.env, environment);
   await Promise.all([
     mkdir(join(fixtureSource, "skills", "readme-proof"), { recursive: true }),
@@ -100,13 +118,15 @@ try {
 
   const [paths, install, catalogInstall, state, activeSet, manifest, audit] =
     await Promise.all([
-      import("../dist/src/core/paths.js"),
-      import("../dist/src/core/install.js"),
-      import("../dist/src/core/catalog-install.js"),
-      import("../dist/src/core/state.js"),
-      import("../dist/src/core/active-set.js"),
-      import("../dist/src/core/manifest.js"),
-      import("../dist/src/core/audit.js"),
+      import(pathToFileURL(join(buildRoot, "src", "core", "paths.js"))),
+      import(pathToFileURL(join(buildRoot, "src", "core", "install.js"))),
+      import(
+        pathToFileURL(join(buildRoot, "src", "core", "catalog-install.js"))
+      ),
+      import(pathToFileURL(join(buildRoot, "src", "core", "state.js"))),
+      import(pathToFileURL(join(buildRoot, "src", "core", "active-set.js"))),
+      import(pathToFileURL(join(buildRoot, "src", "core", "manifest.js"))),
+      import(pathToFileURL(join(buildRoot, "src", "core", "audit.js"))),
     ]);
   const codex = (await paths.detectAgents()).find(
     (agent) => agent.id === "codex" && agent.installed,
@@ -119,9 +139,61 @@ try {
       { mode: "stable", packageIds: [] },
       { detectedAgents: [codex] },
     );
-    await catalogInstall.applyPreparedCatalogInstall(stable, {
-      approveRisk: false,
-    });
+    assert.ok(
+      stable.entries.length,
+      "the pinned Stable profile must prepare packages",
+    );
+    assert.ok(
+      stable.entries.every(
+        (entry) =>
+          entry.package.source?.commit &&
+          entry.metadata?.resolvedCommit?.toLowerCase() ===
+            entry.package.source.commit.toLowerCase(),
+      ),
+      "every live Stable package must resolve to its reviewed pinned commit",
+    );
+    const stableSnapshot = await catalogInstall.applyPreparedCatalogInstall(
+      stable,
+      {
+        approveRisk: true,
+      },
+    );
+    const stableState = await state.readInstallState();
+    const stableIds = new Set(stable.entries.map((entry) => entry.package.id));
+    const stableRecords = stableState.installs.filter((entry) =>
+      stableIds.has(entry.packageId),
+    );
+    assert.equal(stableRecords.length, stable.entries.length);
+    for (const record of stableRecords) {
+      assert.ok(
+        record.files.length,
+        `${record.packageId} must persist file hashes`,
+      );
+      for (const file of record.files) {
+        const bytes = await readFile(
+          activeSet.managedFileReadPath(
+            record.packageId,
+            file.path,
+            stableState.activations ?? [],
+          ),
+        );
+        assert.equal(
+          createHash("sha256").update(bytes).digest("hex"),
+          file.sha256,
+        );
+      }
+    }
+    assert.equal(
+      await exists(join(stateHome, "snapshots", `${stableSnapshot}.json`)),
+      true,
+    );
+    liveEvidence = {
+      packages: stable.entries.length,
+      pinnedCommits: true,
+      persistedRecords: true,
+      fileHashes: true,
+      snapshot: true,
+    };
   }
 
   const plan = await install.buildSkillPlan(fixtureSource, "readme-fixture", [
@@ -176,7 +248,7 @@ try {
     "--agents",
     "codex",
     "--limit",
-    "1",
+    liveCatalog ? "200" : "1",
     "--pin",
     "readme-fixture/readme-proof",
     "--json",
@@ -266,7 +338,9 @@ try {
   assert.equal(await readFile(sentinel, "utf8"), sentinelBytes);
 
   const result = {
+    build: "isolated",
     mode: liveCatalog ? "live-catalog" : "offline-fixture",
+    ...(liveEvidence ? { liveCatalog: liveEvidence } : {}),
     verified: {
       stateDirectories:
         (await exists(stateHome)) &&
@@ -291,5 +365,8 @@ try {
       : `README product flow passed (${result.mode}): library install -> activate -> manifest/lock audit -> privacy card -> rollback.\n`,
   );
 } finally {
-  await rm(temporary, { recursive: true, force: true });
+  await Promise.all([
+    rm(temporary, { recursive: true, force: true }),
+    rm(buildRoot, { recursive: true, force: true }),
+  ]);
 }

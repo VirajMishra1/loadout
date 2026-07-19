@@ -1,8 +1,25 @@
 #!/usr/bin/env node
 
 import { spawnSync } from "node:child_process";
-import { access, readFile } from "node:fs/promises";
-import { dirname, relative, resolve, sep } from "node:path";
+import {
+  lstat,
+  mkdir,
+  mkdtemp,
+  readFile,
+  realpath,
+  rm,
+} from "node:fs/promises";
+import { tmpdir } from "node:os";
+import {
+  dirname,
+  join,
+  parse,
+  posix,
+  relative,
+  resolve,
+  sep,
+  win32,
+} from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 
@@ -17,9 +34,10 @@ function portablePath(path) {
   return (
     typeof path === "string" &&
     path.length > 0 &&
-    !path.startsWith("/") &&
+    !posix.isAbsolute(path) &&
+    !win32.isAbsolute(path) &&
     !path.includes("\\") &&
-    !path.split("/").includes("..")
+    !path.split(/[\\/]/).includes("..")
   );
 }
 
@@ -44,6 +62,48 @@ function normalizeProse(value) {
   return value.replace(/\s+/g, " ").trim().toLowerCase();
 }
 
+const claimMatchingStopWords = new Set([
+  "a",
+  "an",
+  "and",
+  "between",
+  "for",
+  "from",
+  "in",
+  "of",
+  "on",
+  "the",
+  "to",
+  "with",
+]);
+
+function materialWords(value) {
+  return new Set(
+    normalizeProse(value)
+      .match(/[a-z0-9]+/g)
+      ?.filter(
+        (word) => word.length > 2 && !claimMatchingStopWords.has(word),
+      ) ?? [],
+  );
+}
+
+function readmePresentsClaim(readme, summary) {
+  const normalizedSummary = normalizeProse(summary);
+  if (!normalizedSummary || !presentCapability(summary)) return false;
+  if (normalizeProse(readme).includes(normalizedSummary)) return true;
+
+  const summaryWords = materialWords(summary);
+  if (summaryWords.size < 3) return false;
+  return readme.split(/(?<=[.!?])\s+|\r?\n+/).some((sentence) => {
+    if (!presentCapability(sentence)) return false;
+    const sentenceWords = materialWords(sentence);
+    const shared = [...summaryWords].filter((word) =>
+      sentenceWords.has(word),
+    ).length;
+    return shared >= 3 && shared / summaryWords.size >= 0.6;
+  });
+}
+
 function logicalShellLines(block) {
   const logical = [];
   let current = "";
@@ -62,6 +122,92 @@ function logicalShellLines(block) {
   return logical;
 }
 
+function shellSegments(line) {
+  const segments = [];
+  let current = "";
+  let quote;
+  let escaped = false;
+  const flush = () => {
+    if (current.trim()) segments.push(current.trim());
+    current = "";
+  };
+  for (let index = 0; index < line.length; index += 1) {
+    const character = line[index];
+    if (escaped) {
+      current += character;
+      escaped = false;
+      continue;
+    }
+    if (character === "\\" && quote !== "'") {
+      current += character;
+      escaped = true;
+      continue;
+    }
+    if (quote) {
+      current += character;
+      if (character === quote) quote = undefined;
+      continue;
+    }
+    if (character === "'" || character === '"') {
+      quote = character;
+      current += character;
+      continue;
+    }
+    if (character === "#" && (index === 0 || /\s/.test(line[index - 1]))) {
+      break;
+    }
+    if (character === ";" || character === "|" || character === "&") {
+      flush();
+      if (line[index + 1] === character) index += 1;
+      continue;
+    }
+    current += character;
+  }
+  flush();
+  return segments;
+}
+
+function shellWords(command) {
+  const words = [];
+  let current = "";
+  let quote;
+  let escaped = false;
+  const flush = () => {
+    if (current) words.push(current);
+    current = "";
+  };
+  for (let index = 0; index < command.length; index += 1) {
+    const character = command[index];
+    if (escaped) {
+      current += character;
+      escaped = false;
+      continue;
+    }
+    if (character === "\\" && quote !== "'") {
+      escaped = true;
+      continue;
+    }
+    if (quote) {
+      if (character === quote) quote = undefined;
+      else current += character;
+      continue;
+    }
+    if (character === "'" || character === '"') {
+      quote = character;
+      continue;
+    }
+    if (character === ">" && (index === 0 || /\s/.test(command[index - 1])))
+      break;
+    if (/\s/.test(character)) {
+      flush();
+      continue;
+    }
+    current += character;
+  }
+  flush();
+  return words;
+}
+
 /** Extract documented Loadout invocations only from shell code fences. */
 export function documentedLoadoutCommands(readme) {
   const commands = [];
@@ -69,10 +215,9 @@ export function documentedLoadoutCommands(readme) {
     /```(?:bash|sh|shell)?[ \t]*\r?\n([\s\S]*?)```/gi,
   )) {
     for (const line of logicalShellLines(fence[1])) {
-      const uncommented = line.split(/\s+#\s*/u, 1)[0];
-      for (const segment of uncommented.split(/\s+(?:\||&&|;)\s*/u)) {
-        const start = segment.search(/\bloadout(?=\s|$)/);
-        if (start !== -1) commands.push(segment.slice(start).trim());
+      for (const segment of shellSegments(line)) {
+        const invocation = segment.replace(/^\$\s+/, "");
+        if (/^loadout(?:\s|$)/.test(invocation)) commands.push(invocation);
       }
     }
   }
@@ -97,6 +242,38 @@ function helpCommands(help) {
   return commands;
 }
 
+function helpOptions(help) {
+  const lines = help.split(/\r?\n/);
+  const start = lines.findIndex((line) => line === "Options:");
+  const options = new Map();
+  if (start === -1) return options;
+  for (const line of lines.slice(start + 1)) {
+    if (/^\S/.test(line)) break;
+    if (!/^ {2}-/.test(line)) continue;
+    const specification = line.trim().split(/\s{2,}/, 1)[0];
+    const takesValue = /(?:<[^>]+>|\[[^\]]+\])/.test(specification);
+    for (const name of specification.match(/--?[A-Za-z0-9-]+/g) ?? [])
+      options.set(name, { takesValue });
+  }
+  return options;
+}
+
+function helpArguments(help) {
+  const usage = help.split(/\r?\n/, 1)[0] ?? "";
+  const specifications = [
+    ...usage.replace("[options]", "").matchAll(/<([^>]+)>|\[([^\]]+)\]/g),
+  ].map((match) => ({
+    required: Boolean(match[1]),
+    variadic: (match[1] ?? match[2] ?? "").endsWith("..."),
+  }));
+  return {
+    minimum: specifications.filter((item) => item.required).length,
+    maximum: specifications.some((item) => item.variadic)
+      ? Number.POSITIVE_INFINITY
+      : specifications.length,
+  };
+}
+
 function isoTimestamp(value) {
   if (typeof value !== "string") return false;
   try {
@@ -106,24 +283,48 @@ function isoTimestamp(value) {
   }
 }
 
-function commandTokens(command) {
-  return command
-    .trim()
-    .split(/\s+/)
-    .slice(1)
-    .filter((token) => token && !token.startsWith("-"));
+function isolatedHelpEnvironment(directory) {
+  const userHome = join(directory, "user-home");
+  const loadoutState = join(directory, "loadout-home");
+  const windowsHome = parse(userHome);
+  return {
+    userHome,
+    loadoutState,
+    env: {
+      ...process.env,
+      LOADOUT_HOME: loadoutState,
+      LOADOUT_USER_HOME: userHome,
+      HOME: userHome,
+      USERPROFILE: userHome,
+      APPDATA: join(userHome, "AppData", "Roaming"),
+      LOCALAPPDATA: join(userHome, "AppData", "Local"),
+      XDG_CONFIG_HOME: join(userHome, ".config"),
+      XDG_DATA_HOME: join(userHome, ".local", "share"),
+      XDG_STATE_HOME: join(userHome, ".local", "state"),
+      XDG_CACHE_HOME: join(userHome, ".cache"),
+      HOMEDRIVE: windowsHome.root.replace(/[\\/]$/, "") || "C:",
+      HOMEPATH: userHome.slice(windowsHome.root.length - 1),
+      NO_COLOR: "1",
+    },
+  };
 }
 
 /** Validate command paths by executing the compiled Commander's help tree. */
-export function auditDocumentedCommands({ readme, cliPath }) {
+export async function auditDocumentedCommands({ readme, cliPath }) {
   const failures = [];
   const helpCache = new Map();
+  const directory = await mkdtemp(join(tmpdir(), "loadout-readme-help-"));
+  const isolated = isolatedHelpEnvironment(directory);
+  await Promise.all([
+    mkdir(isolated.userHome, { recursive: true }),
+    mkdir(isolated.loadoutState, { recursive: true }),
+  ]);
   const loadHelp = (prefix) => {
     const key = prefix.join("\u0000");
     if (helpCache.has(key)) return helpCache.get(key);
     const result = spawnSync(process.execPath, [cliPath, ...prefix, "--help"], {
       encoding: "utf8",
-      env: { ...process.env, NO_COLOR: "1" },
+      env: isolated.env,
       timeout: 30_000,
     });
     const loaded =
@@ -138,39 +339,169 @@ export function auditDocumentedCommands({ readme, cliPath }) {
     return loaded;
   };
 
-  for (const command of documentedLoadoutCommands(readme)) {
-    const tokens = commandTokens(command);
-    let prefix = [];
-    for (const token of tokens) {
-      const loaded = loadHelp(prefix);
-      if (!loaded.ok) {
-        failures.push(
-          failure(
-            "product.scope",
-            `Could not read built CLI help for 'loadout ${prefix.join(" ") || "--help"}': ${loaded.error}`,
-            cliPath,
-            "Run `npm run build`, then correct the CLI build or the documented command.",
-          ),
-        );
+  try {
+    for (const command of documentedLoadoutCommands(readme)) {
+      const tokens = shellWords(command).slice(1);
+      let prefix = [];
+      let index = 0;
+      let commandFailed = false;
+      while (index <= tokens.length && !commandFailed) {
+        const loaded = loadHelp(prefix);
+        if (!loaded.ok) {
+          failures.push(
+            failure(
+              "product.scope",
+              `Could not read built CLI help for 'loadout ${prefix.join(" ") || "--help"}': ${loaded.error}`,
+              cliPath,
+              "Run `npm run build`, then correct the CLI build or the documented command.",
+            ),
+          );
+          break;
+        }
+        const children = helpCommands(loaded.help);
+        const options = helpOptions(loaded.help);
+        const positionals = [];
+        let descended = false;
+        while (index < tokens.length) {
+          const token = tokens[index];
+          if (token.startsWith("-")) {
+            const [name, inlineValue] = token.split("=", 2);
+            const option = options.get(name);
+            if (!option) {
+              failures.push(
+                failure(
+                  "product.scope",
+                  `Documented option '${name}' in '${command}' is absent from built CLI help at 'loadout ${prefix.join(" ") || "<root>"}'.`,
+                  `${cliPath} ${prefix.join(" ")} --help`.replace(/\s+/g, " "),
+                  "Correct the README option or register it in the compiled Commander command.",
+                ),
+              );
+              commandFailed = true;
+              break;
+            }
+            index += 1;
+            if (option.takesValue && inlineValue === undefined) {
+              if (index >= tokens.length) {
+                failures.push(
+                  failure(
+                    "product.scope",
+                    `Documented option '${name}' in '${command}' has no value.`,
+                    `${cliPath} ${prefix.join(" ")} --help`.replace(
+                      /\s+/g,
+                      " ",
+                    ),
+                    "Add the documented option value or remove the option.",
+                  ),
+                );
+                commandFailed = true;
+                break;
+              }
+              index += 1;
+            }
+            continue;
+          }
+          if (children.size) {
+            if (!children.has(token)) {
+              failures.push(
+                failure(
+                  "product.scope",
+                  `Documented command '${command}' is absent from built CLI help at 'loadout ${prefix.join(" ") || "<root>"}'.`,
+                  `${cliPath} ${prefix.join(" ")} --help`.replace(/\s+/g, " "),
+                  "Correct the README command or register the command in the compiled Commander tree.",
+                ),
+              );
+              commandFailed = true;
+              break;
+            }
+            prefix = [...prefix, token];
+            index += 1;
+            descended = true;
+            break;
+          }
+          positionals.push(token);
+          index += 1;
+        }
+        if (commandFailed || descended) continue;
+        const expected = helpArguments(loaded.help);
+        if (
+          positionals.length < expected.minimum ||
+          positionals.length > expected.maximum
+        )
+          failures.push(
+            failure(
+              "product.scope",
+              `Documented command '${command}' has ${positionals.length} positional argument(s), outside built CLI usage '${loaded.help.split(/\r?\n/, 1)[0]}'.`,
+              `${cliPath} ${prefix.join(" ")} --help`.replace(/\s+/g, " "),
+              "Correct the README arguments to match the compiled Commander usage.",
+            ),
+          );
         break;
       }
-      const children = helpCommands(loaded.help);
-      if (children.size === 0) break;
-      if (!children.has(token)) {
-        failures.push(
-          failure(
-            "product.scope",
-            `Documented command '${command}' is absent from built CLI help at 'loadout ${prefix.join(" ") || "<root>"}'.`,
-            `${cliPath} ${prefix.join(" ")} --help`.replace(/\s+/g, " "),
-            "Correct the README command or register the command in the compiled Commander tree.",
-          ),
-        );
-        break;
-      }
-      prefix = [...prefix, token];
     }
+  } finally {
+    await rm(directory, { recursive: true, force: true });
   }
   return failures;
+}
+
+function containedPath(root, target) {
+  const fromRoot = relative(root, target);
+  return (
+    fromRoot === "" || (!fromRoot.startsWith(`..${sep}`) && fromRoot !== "..")
+  );
+}
+
+async function validateEvidenceFile({ root, rootRealPath, reference }) {
+  if (!portablePath(reference))
+    return {
+      error: `Evidence path '${reference}' is not a safe repository-relative path.`,
+      source: "docs/evidence/readme-claims.json",
+      remediation:
+        "Use a portable path to a regular file inside the repository.",
+    };
+  const target = resolve(root, reference);
+  if (!containedPath(root, target))
+    return {
+      error: `Evidence path '${reference}' escapes the repository root.`,
+      source: "docs/evidence/readme-claims.json",
+      remediation: "Use a repository-owned regular evidence file.",
+    };
+  let current = root;
+  try {
+    for (const component of reference.split("/")) {
+      current = resolve(current, component);
+      const information = await lstat(current);
+      if (information.isSymbolicLink())
+        return {
+          error: `Evidence path '${reference}' traverses a symlink at '${relative(root, current)}'.`,
+          source: reference,
+          remediation:
+            "Reference a checked-in regular file without symlink components.",
+        };
+    }
+  } catch {
+    return {
+      error: `Authoritative evidence path is absent: '${reference}'.`,
+      source: reference,
+      remediation: "Restore the evidence artifact or narrow/remove the claim.",
+    };
+  }
+  const information = await lstat(target);
+  if (!information.isFile())
+    return {
+      error: `Evidence path '${reference}' is not a regular file.`,
+      source: reference,
+      remediation: "Reference a checked-in regular evidence file.",
+    };
+  const targetRealPath = await realpath(target);
+  if (!containedPath(rootRealPath, targetRealPath))
+    return {
+      error: `Evidence real path '${targetRealPath}' escapes repository real path '${rootRealPath}'.`,
+      source: reference,
+      remediation:
+        "Reference a non-symlinked regular file contained by the repository real path.",
+    };
+  return { path: reference };
 }
 
 async function hasSignedBenchmarkRun(root, evidence) {
@@ -193,6 +524,7 @@ async function hasSignedBenchmarkRun(root, evidence) {
         const publicKey = await readFile(resolve(root, keyPath), "utf8");
         const evidenceValue = verifyBenchmarkTrustEvidence(envelope, publicKey);
         if (
+          evidenceValue.summary.protocolConformant === true &&
           evidenceValue.events.some(
             (event) => event.payload.type === "run-completed",
           )
@@ -206,7 +538,19 @@ async function hasSignedBenchmarkRun(root, evidence) {
   return false;
 }
 
-async function hasStructuredHumanReview(root, evidence) {
+async function hasStructuredHumanReview(root, evidence, claim) {
+  const requiredKeys = [
+    "attestation",
+    "claimId",
+    "decision",
+    "findings",
+    "reviewedAt",
+    "reviewedSourceCommit",
+    "reviewer",
+    "schemaVersion",
+    "scope",
+  ];
+  const supportiveDecisions = new Set(["approved", "approved-with-boundaries"]);
   for (const path of evidence.filter((value) => /\.json$/i.test(value))) {
     let review;
     try {
@@ -215,60 +559,34 @@ async function hasStructuredHumanReview(root, evidence) {
       continue;
     }
     if (
+      review &&
+      typeof review === "object" &&
+      !Array.isArray(review) &&
+      Object.keys(review).sort().join("\u0000") ===
+        [...requiredKeys].sort().join("\u0000") &&
       review?.schemaVersion === 1 &&
+      review.attestation === "human-reviewed" &&
+      review.claimId === claim.id &&
       typeof review.reviewer === "string" &&
-      review.reviewer.trim().length > 0 &&
+      review.reviewer === review.reviewer.trim() &&
+      review.reviewer.length > 0 &&
       isoTimestamp(review.reviewedAt) &&
       typeof review.reviewedSourceCommit === "string" &&
-      /^[a-f0-9]{40}$/i.test(review.reviewedSourceCommit) &&
+      /^(?!([a-f0-9])\1{39}$)[a-f0-9]{40}$/i.test(
+        review.reviewedSourceCommit,
+      ) &&
       typeof review.scope === "string" &&
-      review.scope.trim().length > 0 &&
+      review.scope === review.scope.trim() &&
+      review.scope.length > 0 &&
       Array.isArray(review.findings) &&
       review.findings.length > 0 &&
       review.findings.every(
         (finding) => typeof finding === "string" && finding.trim().length > 0,
       ) &&
-      typeof review.decision === "string" &&
-      review.decision.trim().length > 0
+      supportiveDecisions.has(review.decision) &&
+      claim.status === "bounded"
     )
       return true;
-  }
-  return false;
-}
-
-async function hasSignedDatedLiveEvidence(root, evidence) {
-  const envelopePaths = evidence.filter((path) => /\.json$/i.test(path));
-  const keyPaths = evidence.filter((path) => /\.(?:pem|pub)$/i.test(path));
-  if (!envelopePaths.length || !keyPaths.length) return false;
-  const { verifyEnvelope } = await import("../src/core/signing.ts");
-  for (const envelopePath of envelopePaths) {
-    let envelope;
-    try {
-      envelope = JSON.parse(
-        await readFile(resolve(root, envelopePath), "utf8"),
-      );
-    } catch {
-      continue;
-    }
-    for (const keyPath of keyPaths) {
-      try {
-        const publicKey = await readFile(resolve(root, keyPath), "utf8");
-        if (!verifyEnvelope(envelope, publicKey).valid) continue;
-        const payload = envelope.payload;
-        if (
-          payload?.schemaVersion === 1 &&
-          payload.evidenceVersion === "loadout-live-verification-v1" &&
-          payload.result === "verified" &&
-          typeof payload.target === "string" &&
-          payload.target.trim().length > 0 &&
-          isoTimestamp(payload.verifiedAt) &&
-          envelope.createdAt === payload.verifiedAt
-        )
-          return true;
-      } catch {
-        // Missing keys and invalid signatures remain explicitly unverified.
-      }
-    }
   }
   return false;
 }
@@ -321,6 +639,7 @@ export async function auditReadmeClaims({
   cliPath,
 }) {
   const failures = [];
+  const rootRealPath = await realpath(root);
   const claims = Array.isArray(manifest?.claims) ? manifest.claims : [];
   const seen = new Set();
   for (const claim of claims) {
@@ -353,6 +672,7 @@ export async function auditReadmeClaims({
   }
 
   for (const claim of claims) {
+    const verifiedEvidence = [];
     for (const reference of claim.evidence ?? []) {
       if (isRepositoryCommand(reference)) {
         const script = referencedNpmScript(reference);
@@ -367,48 +687,26 @@ export async function auditReadmeClaims({
           );
         continue;
       }
-      if (!portablePath(reference)) {
+      const validation = await validateEvidenceFile({
+        root,
+        rootRealPath,
+        reference,
+      });
+      if (validation.error)
         failures.push(
           failure(
             claim.id,
-            `Evidence path '${reference}' is not a safe repository-relative path.`,
-            "docs/evidence/readme-claims.json",
-            "Use a portable path inside the repository.",
+            validation.error,
+            validation.source,
+            validation.remediation,
           ),
         );
-        continue;
-      }
-      const target = resolve(root, reference);
-      const fromRoot = relative(root, target);
-      if (fromRoot.startsWith(`..${sep}`) || fromRoot === "..") {
-        failures.push(
-          failure(
-            claim.id,
-            `Evidence path '${reference}' escapes the repository root.`,
-            "docs/evidence/readme-claims.json",
-            "Use a repository-owned evidence path.",
-          ),
-        );
-        continue;
-      }
-      try {
-        await access(target);
-      } catch {
-        failures.push(
-          failure(
-            claim.id,
-            `Authoritative evidence path is absent: '${reference}'.`,
-            reference,
-            "Restore the evidence artifact or narrow/remove the claim.",
-          ),
-        );
-      }
+      else verifiedEvidence.push(validation.path);
     }
 
     if (
       claim.status === "unfulfilled" &&
-      presentCapability(claim.summary ?? "") &&
-      normalizeProse(readme).includes(normalizeProse(claim.summary ?? ""))
+      readmePresentsClaim(readme, claim.summary ?? "")
     )
       failures.push(
         failure(
@@ -421,7 +719,7 @@ export async function auditReadmeClaims({
 
     if (
       claim.evidenceClass === "human-reviewed" &&
-      !(await hasStructuredHumanReview(root, claim.evidence ?? []))
+      !(await hasStructuredHumanReview(root, verifiedEvidence, claim))
     )
       failures.push(
         failure(
@@ -434,7 +732,7 @@ export async function auditReadmeClaims({
 
     if (
       claim.evidenceClass === "benchmarked" &&
-      !(await hasSignedBenchmarkRun(root, claim.evidence ?? []))
+      !(await hasSignedBenchmarkRun(root, verifiedEvidence))
     )
       failures.push(
         failure(
@@ -449,30 +747,17 @@ export async function auditReadmeClaims({
       const boundedWithPrerequisites =
         claim.status === "bounded" &&
         Array.isArray(claim.externalPrerequisites) &&
-        claim.externalPrerequisites.length > 0;
-      if (
-        claim.status === "bounded" &&
-        !boundedWithPrerequisites &&
-        !(await hasSignedDatedLiveEvidence(root, claim.evidence ?? []))
-      )
-        failures.push(
-          failure(
-            claim.id,
-            "Bounded live-verified claim has no external prerequisite and no verifiable signed dated live evidence.",
-            "docs/evidence/readme-claims.json#externalPrerequisites",
-            "List the current external prerequisite, or reference genuine signed dated live-verification evidence plus its public key.",
-          ),
+        claim.externalPrerequisites.length > 0 &&
+        claim.externalPrerequisites.every(
+          (item) => typeof item === "string" && item.trim().length > 0,
         );
-      if (
-        claim.status !== "bounded" &&
-        !(await hasSignedDatedLiveEvidence(root, claim.evidence ?? []))
-      )
+      if (!boundedWithPrerequisites)
         failures.push(
           failure(
             claim.id,
-            "Live-verified claim has no verifiable signed dated live evidence.",
-            "docs/evidence/readme-claims.json and referenced live evidence",
-            "Reference genuine signed dated live-verification evidence plus its public key, or mark the claim bounded with explicit external prerequisites.",
+            "Live-verified README claims must remain bounded with explicit external prerequisites; arbitrary self-signed artifacts cannot establish current live state offline.",
+            "docs/evidence/readme-claims.json#status,externalPrerequisites",
+            "Mark the claim bounded and list each external prerequisite; use a future claim-bound trusted-signer/freshness design before promoting it.",
           ),
         );
     }
@@ -545,7 +830,7 @@ export async function auditReadmeClaims({
   }
 
   failures.push(...releaseCommandFailures(releaseIndex, packageJson));
-  failures.push(...auditDocumentedCommands({ readme, cliPath }));
+  failures.push(...(await auditDocumentedCommands({ readme, cliPath })));
   failures.sort(
     (left, right) =>
       left.claimId.localeCompare(right.claimId) ||
@@ -622,17 +907,52 @@ function isEntrypoint() {
   return process.argv[1] && resolve(process.argv[1]) === scriptPath;
 }
 
+export function runVerifierSubprocess({
+  script = scriptPath,
+  argumentsList = [],
+  timeoutMs = 120_000,
+  stdio = "inherit",
+} = {}) {
+  const result = spawnSync(
+    process.execPath,
+    ["--import", "tsx", script, ...argumentsList],
+    {
+      env: { ...process.env, LOADOUT_README_CLAIMS_TSX: "1" },
+      stdio,
+      timeout: timeoutMs,
+    },
+  );
+  if (result.error?.code === "ETIMEDOUT")
+    return {
+      status: 1,
+      failure: failure(
+        "verifier.runtime",
+        `Verifier subprocess exceeded its ${timeoutMs} ms timeout.`,
+        script,
+        "Inspect the verifier for a stuck subprocess or raise the bounded timeout only with reviewed evidence.",
+      ),
+    };
+  if (result.error)
+    return {
+      status: 1,
+      failure: failure(
+        "verifier.runtime",
+        `Verifier subprocess could not start: ${result.error.message}`,
+        script,
+        "Restore the Node/tsx runtime and rerun the offline verifier.",
+      ),
+    };
+  return { status: result.status ?? 1 };
+}
+
 if (isEntrypoint()) {
   if (!process.env.LOADOUT_README_CLAIMS_TSX) {
-    const result = spawnSync(
-      process.execPath,
-      ["--import", "tsx", scriptPath, ...process.argv.slice(2)],
-      {
-        env: { ...process.env, LOADOUT_README_CLAIMS_TSX: "1" },
-        stdio: "inherit",
-      },
-    );
-    process.exitCode = result.status ?? 1;
+    const result = runVerifierSubprocess({
+      argumentsList: process.argv.slice(2),
+    });
+    if (result.failure)
+      process.stderr.write(`${formatReadmeClaimFailures([result.failure])}\n`);
+    process.exitCode = result.status;
   } else {
     main().catch((error) => {
       process.stderr.write(

@@ -39,7 +39,7 @@ export function documentedLoadoutCommands(readme: string): string[];
 export function auditDocumentedCommands(options: {
   readme: string;
   cliPath: string;
-}): ReadmeClaimFailure[];
+}): Promise<ReadmeClaimFailure[]>;
 
 export function auditReadmeClaims(
   options: ReadmeClaimAuditOptions,
@@ -48,3 +48,10 @@ export function auditReadmeClaims(
 export function formatReadmeClaimFailures(
   failures: ReadmeClaimFailure[],
 ): string;
+
+export function runVerifierSubprocess(options?: {
+  script?: string;
+  argumentsList?: string[];
+  timeoutMs?: number;
+  stdio?: "inherit" | "pipe";
+}): { status: number; failure?: ReadmeClaimFailure };

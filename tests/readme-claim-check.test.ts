@@ -1,6 +1,13 @@
 import { execFileSync } from "node:child_process";
 import { generateKeyPairSync } from "node:crypto";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import {
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  symlink,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -19,8 +26,11 @@ import {
 } from "../src/core/benchmark-trust.js";
 import { signPayload } from "../src/core/signing.js";
 import {
+  auditDocumentedCommands,
   auditReadmeClaims,
+  documentedLoadoutCommands,
   formatReadmeClaimFailures,
+  runVerifierSubprocess,
 } from "../scripts/check-readme-claims.mjs";
 
 const roots: string[] = [];
@@ -80,12 +90,14 @@ async function fixture() {
       `${JSON.stringify(
         {
           schemaVersion: 1,
+          attestation: "human-reviewed",
+          claimId: "release.review",
           reviewer: "test-fixture-reviewer",
           reviewedAt: "2026-07-16T12:00:00.000Z",
-          reviewedSourceCommit: "a".repeat(40),
+          reviewedSourceCommit: "0123456789abcdef0123456789abcdef01234567",
           scope: "Temporary verifier fixture only.",
           findings: ["The synthetic artifact satisfies the verifier schema."],
-          decision: "Accepted for this temporary verifier test only.",
+          decision: "approved-with-boundaries",
         },
         null,
         2,
@@ -126,7 +138,13 @@ async function audit(options: {
   });
 }
 
-async function writeTimestampMismatchedBenchmarkEvidence(root: string) {
+async function writeBenchmarkEvidence(
+  root: string,
+  options: {
+    timestampMismatch?: boolean;
+    protocolConformant?: boolean;
+  } = {},
+) {
   const sha = (character: string) => character.repeat(64);
   const commit = (character: string) => character.repeat(40);
   const campaign: BenchmarkCampaignV1 = {
@@ -235,12 +253,13 @@ async function writeTimestampMismatchedBenchmarkEvidence(root: string) {
         outputSha256,
       },
     });
-    judgments.push({
-      requestId: request.requestId,
-      outputSha256,
-      score: request.role === "candidate" ? 90 : 60,
-      blockingSafetyFailure: false,
-    });
+    if (options.protocolConformant !== false || request.pairIndex < 4)
+      judgments.push({
+        requestId: request.requestId,
+        outputSha256,
+        score: request.role === "candidate" ? 90 : 60,
+        blockingSafetyFailure: false,
+      });
   }
   add({ type: "run-completed" });
   const evidence = createBenchmarkTrustEvidence(
@@ -259,7 +278,7 @@ async function writeTimestampMismatchedBenchmarkEvidence(root: string) {
   const envelope = signPayload(
     evidence,
     privateKey,
-    "2026-07-16T10:05:00.000Z",
+    options.timestampMismatch ? "2026-07-16T10:05:00.000Z" : evidence.createdAt,
   );
   await Promise.all([
     writeFile(
@@ -268,6 +287,46 @@ async function writeTimestampMismatchedBenchmarkEvidence(root: string) {
       "utf8",
     ),
     writeFile(join(root, "benchmark-public.pem"), publicKey, "utf8"),
+  ]);
+}
+
+async function writeTimestampMismatchedBenchmarkEvidence(root: string) {
+  await writeBenchmarkEvidence(root, { timestampMismatch: true });
+}
+
+async function writeNonconformantBenchmarkEvidence(root: string) {
+  await writeBenchmarkEvidence(root, { protocolConformant: false });
+}
+
+async function writeSelfSignedLiveEvidence(
+  root: string,
+  options: { target: string; verifiedAt: string },
+) {
+  const pair = generateKeyPairSync("ed25519");
+  const privateKey = pair.privateKey
+    .export({ type: "pkcs8", format: "pem" })
+    .toString();
+  const publicKey = pair.publicKey
+    .export({ type: "spki", format: "pem" })
+    .toString();
+  const envelope = signPayload(
+    {
+      schemaVersion: 1,
+      evidenceVersion: "loadout-live-verification-v1",
+      result: "verified",
+      target: options.target,
+      verifiedAt: options.verifiedAt,
+    },
+    privateKey,
+    options.verifiedAt,
+  );
+  await Promise.all([
+    writeFile(
+      join(root, "live-evidence.json"),
+      `${JSON.stringify(envelope, null, 2)}\n`,
+      "utf8",
+    ),
+    writeFile(join(root, "live-public.pem"), publicKey, "utf8"),
   ]);
 }
 
@@ -325,6 +384,64 @@ describe("README claim evidence gate", () => {
     expectActionable(result, "product.scope", /missing-evidence\.json/);
   });
 
+  it("rejects POSIX, Windows drive, and UNC absolute evidence paths", async () => {
+    for (const path of [
+      "/tmp/evidence.json",
+      "C:\\evidence\\review.json",
+      "C:/evidence/review.json",
+      "\\\\server\\share\\review.json",
+      "//server/share/review.json",
+    ]) {
+      const result = await audit({ claims: [claim({ evidence: [path] })] });
+      expectActionable(result, "product.scope", /repository-relative path/i);
+    }
+  });
+
+  it.skipIf(process.platform === "win32")(
+    "rejects symlinks, non-regular files, and symlink-parent escapes",
+    async () => {
+      const result = await audit({
+        claims: [
+          claim({
+            evidence: [
+              "evidence-link.txt",
+              "evidence-directory",
+              "escape-link/outside.txt",
+            ],
+          }),
+        ],
+        setup: async (root) => {
+          const outside = await mkdtemp(
+            join(tmpdir(), "loadout-readme-outside-"),
+          );
+          roots.push(outside);
+          await Promise.all([
+            mkdir(join(root, "evidence-directory")),
+            writeFile(join(outside, "outside.txt"), "outside\n", "utf8"),
+          ]);
+          await Promise.all([
+            symlink("evidence.txt", join(root, "evidence-link.txt")),
+            symlink(outside, join(root, "escape-link"), "dir"),
+          ]);
+        },
+      });
+
+      expect(result.failures).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            observed: expect.stringMatching(/symlink/i),
+          }),
+          expect.objectContaining({
+            observed: expect.stringMatching(/regular file/i),
+          }),
+          expect.objectContaining({
+            observed: expect.stringMatching(/symlink|real path|escapes/i),
+          }),
+        ]),
+      );
+    },
+  );
+
   it("rejects duplicate manifest claim IDs", async () => {
     const result = await audit({
       claims: [claim(), claim({ summary: "A duplicate claim." })],
@@ -341,6 +458,23 @@ describe("README claim evidence gate", () => {
         claim({
           id: "future.teleportation",
           summary,
+          status: "unfulfilled",
+          evidence: [],
+        }),
+      ],
+    });
+
+    expectActionable(result, "future.teleportation", /current capability/i);
+  });
+
+  it("rejects a paraphrased unfulfilled claim presented as a current capability", async () => {
+    const result = await audit({
+      readme:
+        "# Product\n\nLoadout currently supports teleporting skills across computers.\n\nInstall with `npm install --global loadout-ai@0.1.2`.\n",
+      claims: [
+        claim({
+          id: "future.teleportation",
+          summary: "Loadout supports teleporting skills between machines.",
           status: "unfulfilled",
           evidence: [],
         }),
@@ -380,6 +514,64 @@ describe("README claim evidence gate", () => {
     expect(result.failures).toEqual([]);
   });
 
+  it("rejects human reviews with unsupported decisions, attestations, scopes, or fields", async () => {
+    const invalidReviews = [
+      { decision: "rejected" },
+      { attestation: "self-reviewed" },
+      { claimId: "different.claim" },
+      { extra: "not allowed" },
+      { reviewedSourceCommit: "a".repeat(39) },
+    ];
+    for (const override of invalidReviews) {
+      const result = await audit({
+        claims: [
+          claim({
+            id: "release.review",
+            evidenceClass: "human-reviewed",
+            status: "bounded",
+            evidence: ["review-under-test.json"],
+          }),
+        ],
+        setup: async (root) => {
+          const valid = JSON.parse(
+            await readFile(join(root, "valid-review.json"), "utf8"),
+          );
+          await writeFile(
+            join(root, "review-under-test.json"),
+            `${JSON.stringify({ ...valid, ...override }, null, 2)}\n`,
+            "utf8",
+          );
+        },
+      });
+      expectActionable(result, "release.review", /review artifact/i);
+    }
+  });
+
+  it("keeps human-reviewed claims bounded even with an approved decision", async () => {
+    const result = await audit({
+      claims: [
+        claim({
+          id: "release.review",
+          evidenceClass: "human-reviewed",
+          status: "proven",
+          evidence: ["valid-review.json"],
+        }),
+      ],
+      setup: async (root) => {
+        const valid = JSON.parse(
+          await readFile(join(root, "valid-review.json"), "utf8"),
+        );
+        await writeFile(
+          join(root, "valid-review.json"),
+          `${JSON.stringify({ ...valid, decision: "approved" }, null, 2)}\n`,
+          "utf8",
+        );
+      },
+    });
+
+    expectActionable(result, "release.review", /review artifact/i);
+  });
+
   it("rejects benchmarked claims without verifiable signed run evidence even when bounded", async () => {
     const result = await audit({
       claims: [
@@ -411,7 +603,23 @@ describe("README claim evidence gate", () => {
     expectActionable(result, "benchmark.result", /signed run evidence/i);
   });
 
-  it("requires live claims to be explicitly bounded or backed by signed dated evidence", async () => {
+  it("rejects a signed completed benchmark run that is not protocol-conformant", async () => {
+    const result = await audit({
+      claims: [
+        claim({
+          id: "benchmark.result",
+          evidenceClass: "benchmarked",
+          status: "bounded",
+          evidence: ["benchmark-evidence.json", "benchmark-public.pem"],
+        }),
+      ],
+      setup: writeNonconformantBenchmarkEvidence,
+    });
+
+    expectActionable(result, "benchmark.result", /signed run evidence/i);
+  });
+
+  it("requires every live claim to remain bounded with explicit external prerequisites", async () => {
     const proven = await audit({
       claims: [
         claim({
@@ -421,7 +629,7 @@ describe("README claim evidence gate", () => {
         }),
       ],
     });
-    expectActionable(proven, "distribution.live", /dated live evidence/i);
+    expectActionable(proven, "distribution.live", /remain bounded/i);
 
     const unbounded = await audit({
       claims: [
@@ -447,6 +655,37 @@ describe("README claim evidence gate", () => {
       ],
     });
     expect(bounded.failures).toEqual([]);
+  });
+
+  it("does not promote unrelated, stale, or future self-signed live artifacts", async () => {
+    const cases = [
+      {
+        target: "https://registry.example/unrelated-package",
+        verifiedAt: "2020-01-01T00:00:00.000Z",
+      },
+      {
+        target: "https://registry.npmjs.org/loadout-ai",
+        verifiedAt: "2020-01-01T00:00:00.000Z",
+      },
+      {
+        target: "https://registry.npmjs.org/loadout-ai",
+        verifiedAt: "2099-01-01T00:00:00.000Z",
+      },
+    ];
+    for (const liveCase of cases) {
+      const result = await audit({
+        claims: [
+          claim({
+            id: "distribution.live",
+            evidenceClass: "live-verified",
+            status: "proven",
+            evidence: ["live-evidence.json", "live-public.pem"],
+          }),
+        ],
+        setup: (root) => writeSelfSignedLiveEvidence(root, liveCase),
+      });
+      expectActionable(result, "distribution.live", /remain bounded/i);
+    }
   });
 
   it("rejects a documented command absent from built CLI help", async () => {
@@ -478,5 +717,105 @@ describe("README claim evidence gate", () => {
     });
 
     expect(result.failures).toEqual([]);
+  });
+
+  it("rejects unknown options instead of mistaking their values for nested commands", async () => {
+    const result = await audit({
+      readme: [
+        "Install with `npm install --global loadout-ai@0.1.2`.",
+        "```bash",
+        "loadout candidate --not-a-real-option list",
+        "```",
+      ].join("\n"),
+    });
+
+    expectActionable(
+      result,
+      "product.scope",
+      /not-a-real-option.*built CLI help/i,
+    );
+  });
+
+  it("extracts adjacent shell operators without splitting quoted option values", () => {
+    const commands = documentedLoadoutCommands(
+      [
+        "```bash",
+        'loadout search "skill|mcp";loadout status|loadout health&&loadout doctor||loadout versions',
+        "```",
+      ].join("\n"),
+    );
+
+    expect(commands).toEqual([
+      "loadout doctor",
+      "loadout health",
+      'loadout search "skill|mcp"',
+      "loadout status",
+      "loadout versions",
+    ]);
+  });
+
+  it("uses disposable homes for built CLI help and leaves real pending state untouched", async () => {
+    const root = await fixture();
+    const realState = join(root, "real-loadout-home");
+    const realUser = join(root, "real-user-home");
+    const pending = join(
+      realState,
+      "staging",
+      "1234567890-aaaaaaaaaaaa",
+      "transaction.json",
+    );
+    const userSentinel = join(realUser, "keep.txt");
+    await Promise.all([
+      mkdir(join(pending, ".."), { recursive: true }),
+      mkdir(realUser, { recursive: true }),
+    ]);
+    await Promise.all([
+      writeFile(pending, "corrupt real pending state\n", "utf8"),
+      writeFile(userSentinel, "real user state\n", "utf8"),
+    ]);
+    const previousLoadoutHome = process.env.LOADOUT_HOME;
+    const previousUserHome = process.env.LOADOUT_USER_HOME;
+    process.env.LOADOUT_HOME = realState;
+    process.env.LOADOUT_USER_HOME = realUser;
+    try {
+      const failures = await auditDocumentedCommands({
+        readme: "```bash\nloadout status\n```\n",
+        cliPath: builtCli,
+      });
+      expect(failures).toEqual([]);
+      expect(await readFile(pending, "utf8")).toBe(
+        "corrupt real pending state\n",
+      );
+      expect(await readFile(userSentinel, "utf8")).toBe("real user state\n");
+    } finally {
+      if (previousLoadoutHome === undefined) delete process.env.LOADOUT_HOME;
+      else process.env.LOADOUT_HOME = previousLoadoutHome;
+      if (previousUserHome === undefined) delete process.env.LOADOUT_USER_HOME;
+      else process.env.LOADOUT_USER_HOME = previousUserHome;
+    }
+  });
+
+  it("times out the outer verifier subprocess with actionable diagnostics", async () => {
+    const root = await fixture();
+    const hangingScript = join(root, "hang.mjs");
+    await writeFile(
+      hangingScript,
+      "await new Promise(() => undefined);\n",
+      "utf8",
+    );
+
+    const result = runVerifierSubprocess({
+      script: hangingScript,
+      timeoutMs: 50,
+      stdio: "pipe",
+    });
+
+    expect(result.status).toBe(1);
+    expect(result.failure).toMatchObject({
+      claimId: "verifier.runtime",
+      authoritativeSource: hangingScript,
+    });
+    expect(result.failure?.observed).toMatch(/exceeded.*50 ms/i);
+    expect(result.failure?.remediation).toMatch(/timeout|stuck/i);
   });
 });

@@ -42,13 +42,13 @@ plans and contributor-specific plans have been consolidated here and removed.
       closed when files changed after a mutation or when a legacy snapshot lacks
       post-mutation evidence. Internal failed-transaction recovery remains
       authoritative.
-- [x] `P18-19 [SOL+TERRA]` Re-audit `dev/nitish` before deletion and preserve its
+- [x] `P18-19 [SOL+TERRA]` Re-audit the final unmerged development branch before deletion and preserve its
       one valuable adoption-safety intent in the current architecture. Adoption now
       binds the complete safe tree, rejects drift and special entries, records only
       final verified bytes, conservatively attributes catalog review, deep-freezes
       previews, and accepts only the exact same-process planner-issued plan
-      (`186daa0`, `09e0e0c`, `3f2cafe`, `10d6109`). No valuable work remains on local
-      or remote `dev/nitish`; both branches were deleted after synchronization while
+      (`186daa0`, `09e0e0c`, `3f2cafe`, `10d6109`). No valuable work remains on the
+      retired branch; its local and remote copies were deleted after synchronization while
       the user's ignored `.superpowers/` directory was preserved.
 - [x] `P18-20 [SOL+TERRA]` Fix the fresh-clone live Stable rollback regression
       without weakening drift protection. `5f8e38e` records installed-profile state
@@ -57,9 +57,8 @@ plans and contributor-specific plans have been consolidated here and removed.
       unsafe proposal to ignore `state.json` drift was rejected because it could
       orphan later installations.
 
-All intended work through P18-19 is on remote `main`. Tested commit `5f8e38e` for
-P18-20 is on local `main` and pending remote synchronization. GitHub's only branch
-remains `main`, and there are no open PRs.
+All intended work through P18-20 is on remote `main`. GitHub's only branch remains
+`main`, and there are no open PRs.
 
 ### Deterministic repository verification
 
@@ -75,7 +74,7 @@ remains `main`, and there are no open PRs.
 
 ### Branch cleanup status
 
-- [x] Review all unique `origin/dev/nitish` and local `dev/nitish` history before
+- [x] Review all unique history on the final unmerged development branch before
       deletion; the adoption gap above was the only remaining valuable intent.
 - [x] Reimplement and regression-test that intent in the current architecture.
 - [x] Complete the second remote synchronization, confirm the four adoption commits

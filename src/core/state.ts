@@ -181,6 +181,10 @@ export async function recordInstall(
   plan: InstallPlan,
   snapshotId: string,
   metadata: InstallMetadata = {},
+  options: {
+    expectedFiles?: ReadonlyArray<{ path: string; sha256: string }>;
+    verifyBeforeWrite?: (record: InstallRecord) => Promise<void>;
+  } = {},
 ): Promise<InstallRecord> {
   const record = await createInstallRecord(plan, snapshotId, metadata);
   const state = await readInstallState();
@@ -192,6 +196,19 @@ export async function recordInstall(
     state.activations,
     activationRecordsForPlan(plan, metadata),
   );
+  await options.verifyBeforeWrite?.(record);
+  if (options.expectedFiles) {
+    const actual = [...record.files].sort((left, right) =>
+      left.path.localeCompare(right.path),
+    );
+    const expected = [...options.expectedFiles].sort((left, right) =>
+      left.path.localeCompare(right.path),
+    );
+    if (JSON.stringify(actual) !== JSON.stringify(expected))
+      throw new Error(
+        "Installed files changed before ownership could be recorded.",
+      );
+  }
   await writeInstallState(state);
   return record;
 }

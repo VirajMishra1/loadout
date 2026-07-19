@@ -14,6 +14,29 @@ import { afterEach, describe, expect, it } from "vitest";
 import { applySkillAdoption, planSkillAdoption } from "../src/core/adopt.js";
 import { readInstallState } from "../src/core/state.js";
 import type { DetectedAgent } from "../src/shared/types.js";
+import type { CatalogSkillIndex } from "../src/core/provenance.js";
+
+function exactIndex(fingerprint: string): CatalogSkillIndex {
+  return {
+    schemaVersion: 1,
+    catalogDigest: "catalog",
+    generatedAt: new Date(0).toISOString(),
+    failures: [],
+    records: [
+      {
+        packageId: "catalog-skill",
+        packageDisplayName: "Catalog Skill",
+        repository: "https://example.com/catalog.git",
+        commit: "a".repeat(40),
+        tier: "stable",
+        category: "test",
+        skillName: "my-skill",
+        skillPath: "my-skill/SKILL.md",
+        fingerprint,
+      },
+    ],
+  };
+}
 
 describe("explicit unmanaged skill adoption", () => {
   let root = "";
@@ -196,5 +219,116 @@ describe("explicit unmanaged skill adoption", () => {
     await expect(planSkillAdoption("my-skill", agent)).rejects.toThrow(
       "already managed",
     );
+  });
+
+  it("does not mark catalog-matching SKILL.md as reviewed when auxiliary bytes exist", async () => {
+    root = await mkdtemp(join(tmpdir(), "loadout-adopt-review-"));
+    process.env.LOADOUT_HOME = join(root, ".loadout");
+    const skillsDirectory = join(root, "skills");
+    const skillPath = join(skillsDirectory, "my-skill");
+    const content = "---\nname: my-skill\ndescription: Test\n---\n";
+    await mkdir(skillPath, { recursive: true });
+    await writeFile(join(skillPath, "SKILL.md"), content);
+    await writeFile(join(skillPath, "unreviewed.js"), "unknown()");
+    const agent: DetectedAgent = {
+      id: "codex",
+      displayName: "Codex",
+      installed: true,
+      skillsDirectory,
+    };
+    const plan = await planSkillAdoption(
+      "my-skill",
+      agent,
+      exactIndex(createHash("sha256").update(content).digest("hex")),
+    );
+    expect(plan.provenance.kind).toBe("catalog-exact");
+    expect(plan.reviewed).toBe(false);
+    expect(plan.installPlan.warnings.join(" ")).toContain("auxiliary");
+    await applySkillAdoption(plan);
+    expect((await readInstallState()).activations?.[0].reviewState).toBe(
+      "unreviewed",
+    );
+  });
+
+  it("marks a catalog-exact SKILL.md-only tree as reviewed", async () => {
+    root = await mkdtemp(join(tmpdir(), "loadout-adopt-exact-"));
+    process.env.LOADOUT_HOME = join(root, ".loadout");
+    const skillsDirectory = join(root, "skills");
+    const skillPath = join(skillsDirectory, "my-skill");
+    const content = "---\nname: my-skill\ndescription: Test\n---\n";
+    await mkdir(skillPath, { recursive: true });
+    await writeFile(join(skillPath, "SKILL.md"), content);
+    const agent: DetectedAgent = {
+      id: "codex",
+      displayName: "Codex",
+      installed: true,
+      skillsDirectory,
+    };
+    const plan = await planSkillAdoption(
+      "my-skill",
+      agent,
+      exactIndex(createHash("sha256").update(content).digest("hex")),
+    );
+    expect(plan.reviewed).toBe(true);
+    expect(plan.installPlan.warnings).toEqual([]);
+  });
+
+  it.each(["packageId", "target", "source", "agent", "component"])(
+    "rejects a tampered nested install plan %s before ownership",
+    async (field) => {
+      root = await mkdtemp(join(tmpdir(), "loadout-adopt-plan-"));
+      process.env.LOADOUT_HOME = join(root, ".loadout");
+      const skillsDirectory = join(root, "skills");
+      const skillPath = join(skillsDirectory, "my-skill");
+      await mkdir(skillPath, { recursive: true });
+      await writeFile(
+        join(skillPath, "SKILL.md"),
+        "---\nname: my-skill\ndescription: Test\n---\n",
+      );
+      const agent: DetectedAgent = {
+        id: "codex",
+        displayName: "Codex",
+        installed: true,
+        skillsDirectory,
+      };
+      const plan = await planSkillAdoption("my-skill", agent);
+      if (field === "packageId") plan.installPlan.packageId = "tampered";
+      if (field === "target")
+        plan.installPlan.files[0].target = join(root, "victim");
+      if (field === "source")
+        plan.installPlan.files[0].source = join(root, "victim");
+      if (field === "agent") plan.installPlan.targetAgents = ["claude-code"];
+      if (field === "component")
+        plan.installPlan.files[0].componentType = "mcp";
+      await expect(applySkillAdoption(plan)).rejects.toThrow(
+        "install plan was tampered",
+      );
+      expect((await readInstallState()).installs).toEqual([]);
+    },
+  );
+
+  it("rejects a mutation between preflight validation and ownership recording", async () => {
+    root = await mkdtemp(join(tmpdir(), "loadout-adopt-race-"));
+    process.env.LOADOUT_HOME = join(root, ".loadout");
+    const skillsDirectory = join(root, "skills");
+    const skillPath = join(skillsDirectory, "my-skill");
+    await mkdir(skillPath, { recursive: true });
+    await writeFile(
+      join(skillPath, "SKILL.md"),
+      "---\nname: my-skill\ndescription: Test\n---\n",
+    );
+    const agent: DetectedAgent = {
+      id: "codex",
+      displayName: "Codex",
+      installed: true,
+      skillsDirectory,
+    };
+    const plan = await planSkillAdoption("my-skill", agent);
+    await expect(
+      applySkillAdoption(plan, {
+        beforeRecord: () => writeFile(join(skillPath, "late.txt"), "late"),
+      }),
+    ).rejects.toThrow("changed after preview");
+    expect((await readInstallState()).installs).toEqual([]);
   });
 });

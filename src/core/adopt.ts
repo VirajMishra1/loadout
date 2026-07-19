@@ -29,6 +29,11 @@ export interface AdoptionTreeEntry {
   sha256?: string;
 }
 
+export interface AdoptionApplyOptions {
+  /** Test/integration seam that runs after preflight and before final recording. */
+  beforeRecord?: () => Promise<void> | void;
+}
+
 function safeRelativePath(root: string, path: string): string {
   const value = relative(root, path).split(sep).join("/");
   if (!value || isAbsolute(value) || value === ".." || value.startsWith("../"))
@@ -98,6 +103,71 @@ function validateTreeEvidence(entries: AdoptionTreeEntry[]): void {
   }
 }
 
+function adoptionWarnings(exact: boolean, reviewed: boolean): string[] {
+  if (reviewed) return [];
+  if (exact)
+    return [
+      "SKILL.md matches the reviewed catalog, but auxiliary local entries are not covered by catalog evidence; adoption remains unreviewed.",
+    ];
+  return [
+    "The installed bytes do not exactly match the reviewed catalog; adoption records ownership but does not mark them reviewed.",
+  ];
+}
+
+function canonicalInstallPlan(
+  packageId: string,
+  agent: DetectedAgent,
+  name: string,
+  path: string,
+  warnings: string[],
+): InstallPlan {
+  return {
+    packageId,
+    targetAgents: [agent.id],
+    warnings,
+    files: [
+      {
+        source: path,
+        target: path,
+        targetAgent: agent.id,
+        componentType: "skill",
+        compatibility: "native",
+        skillName: name,
+      },
+    ],
+  };
+}
+
+function assertInstallPlanIntegrity(plan: AdoptionPlan): void {
+  const expected = canonicalInstallPlan(
+    plan.packageId,
+    plan.agent,
+    plan.name,
+    plan.path,
+    adoptionWarnings(plan.provenance.kind === "catalog-exact", plan.reviewed),
+  );
+  if (JSON.stringify(plan.installPlan) !== JSON.stringify(expected))
+    throw new Error(
+      "The adoption install plan was tampered with; preview again.",
+    );
+}
+
+function expectedRecordedFiles(plan: AdoptionPlan): Array<{
+  path: string;
+  sha256: string;
+}> {
+  return (plan.treeEvidence ?? [])
+    .filter(
+      (entry): entry is AdoptionTreeEntry & { sha256: string } =>
+        entry.type === "file" && Boolean(entry.sha256),
+    )
+    .map((entry) => ({
+      path: join(plan.path, entry.path),
+      sha256: entry.sha256,
+    }))
+    .sort((left, right) => left.path.localeCompare(right.path));
+}
+
 function slug(value: string): string {
   return (
     value
@@ -144,6 +214,12 @@ export async function planSkillAdoption(
       : undefined;
   const packageId = `adopted-${agent.id}-${slug(match.name)}`;
   const treeEvidence = await captureAdoptionTree(match.path);
+  const reviewed =
+    Boolean(exact) &&
+    treeEvidence.length === 1 &&
+    treeEvidence[0].type === "file" &&
+    treeEvidence[0].path === "SKILL.md";
+  const warnings = adoptionWarnings(Boolean(exact), reviewed);
   return {
     packageId,
     agent,
@@ -152,33 +228,24 @@ export async function planSkillAdoption(
     fingerprint: match.fingerprint,
     treeEvidence,
     provenance: match.provenance,
-    reviewed: Boolean(exact),
+    reviewed,
     ...(exact
       ? { repository: exact.repository, resolvedCommit: exact.commit }
       : {}),
-    installPlan: {
+    installPlan: canonicalInstallPlan(
       packageId,
-      targetAgents: [agent.id],
-      warnings: exact
-        ? []
-        : [
-            "The installed bytes do not exactly match the reviewed catalog; adoption records ownership but does not mark them reviewed.",
-          ],
-      files: [
-        {
-          source: match.path,
-          target: match.path,
-          targetAgent: agent.id,
-          componentType: "skill",
-          compatibility: "native",
-          skillName: match.name,
-        },
-      ],
-    },
+      agent,
+      match.name,
+      match.path,
+      warnings,
+    ),
   };
 }
 
-export async function applySkillAdoption(plan: AdoptionPlan): Promise<string> {
+export async function applySkillAdoption(
+  plan: AdoptionPlan,
+  options: AdoptionApplyOptions = {},
+): Promise<string> {
   const applied = await runMutationTransaction(
     async () => {
       if (!plan.treeEvidence)
@@ -186,6 +253,7 @@ export async function applySkillAdoption(plan: AdoptionPlan): Promise<string> {
           "The adoption preview lacks complete tree evidence; preview again.",
         );
       validateTreeEvidence(plan.treeEvidence);
+      assertInstallPlanIntegrity(plan);
       const current = await captureAdoptionTree(plan.path);
       if (JSON.stringify(current) !== JSON.stringify(plan.treeEvidence))
         throw new Error(
@@ -194,13 +262,30 @@ export async function applySkillAdoption(plan: AdoptionPlan): Promise<string> {
       return { targets: [installStatePath()], value: plan };
     },
     async (freshPlan, snapshot) => {
-      await recordInstall(freshPlan.installPlan, snapshot.id, {
-        ...(freshPlan.repository ? { repository: freshPlan.repository } : {}),
-        ...(freshPlan.resolvedCommit
-          ? { resolvedCommit: freshPlan.resolvedCommit }
-          : {}),
-        reviewed: freshPlan.reviewed,
-      });
+      await options.beforeRecord?.();
+      await recordInstall(
+        freshPlan.installPlan,
+        snapshot.id,
+        {
+          ...(freshPlan.repository ? { repository: freshPlan.repository } : {}),
+          ...(freshPlan.resolvedCommit
+            ? { resolvedCommit: freshPlan.resolvedCommit }
+            : {}),
+          reviewed: freshPlan.reviewed,
+        },
+        {
+          expectedFiles: expectedRecordedFiles(freshPlan),
+          verifyBeforeWrite: async () => {
+            const current = await captureAdoptionTree(freshPlan.path);
+            if (
+              JSON.stringify(current) !== JSON.stringify(freshPlan.treeEvidence)
+            )
+              throw new Error(
+                "The skill changed after preview; scan again before adopting it.",
+              );
+          },
+        },
+      );
     },
   );
   return applied.snapshotId;

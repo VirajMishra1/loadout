@@ -6,13 +6,14 @@ Category: Developer Tools
 Team size: 3  
 Target submission: July 21, 2026 at 5:00 PM Pacific / July 22 at 4:00 AM Dubai
 
-## Current remaining work (July 18, 2026)
+## Current status and remaining work (July 19, 2026)
 
 This is the authoritative active list. The long phase history below is retained as
-an engineering record, not a command to build every speculative system before users
-can test Loadout.
+an archival engineering record, not a second active plan and not a command to build
+every speculative system before users can test Loadout. Completed implementation
+plans and contributor-specific plans have been consolidated here and removed.
 
-### Required before calling the CLI polished for public testing
+### Implemented product work
 
 - [x] `P18-01 [TERRA]` Make the first CLI screen beginner-readable: a read-only
       `loadout guide`, concise default library summary, focused first-screen help,
@@ -21,9 +22,6 @@ can test Loadout.
 - [x] `P18-02 [TERRA]` Make core machine output honest: `catalog --json` returns
       JSON, and `update --package <id>` checks only that package rather than every
       tracked installation.
-- [ ] `P18-03 [HUMAN+TERRA]` Run the founder acceptance path in
-      `docs/USER_TEST_GUIDE.md` on the real Codex and Claude profiles. Record each
-      observed failure and turn reproducible ones into regression tests.
 - [x] `P18-04 [TERRA]` Bound and explain live network checks in `health --updates`
       and `watch --once`; they must show progress, a clear timeout, and an actionable
       result even when a large Maximum library is present.
@@ -36,9 +34,48 @@ can test Loadout.
 - [x] `P18-07 [TERRA]` Add a concise beginner section to README that links to the
       testing guide and explains Stable, Power, Maximum, project recommendations,
       daily discovery, and rollback in plain language.
-- [ ] `P18-08 [HUMAN+TERRA]` Run the full verification gate, publish the next npm
-      patch/minor only after founder acceptance, and test that exact tarball in a
-      fresh terminal.
+- [x] `P18-15 [TERRA]` Bind material README claims to checked repository evidence,
+      add generated facts and adapter lifecycle coverage, test the documented product
+      flow, and separate deterministic, live, and human evidence.
+- [x] `P18-16 [TERRA]` Make risky setup previews include every required approval
+      flag, reject unknown top-level commands, and make user-requested rollback fail
+      closed when files changed after a mutation or when a legacy snapshot lacks
+      post-mutation evidence. Internal failed-transaction recovery remains
+      authoritative.
+
+Items P18-01, P18-02, P18-04 through P18-07, and P18-09 through P18-14 are already
+on remote `main`. Items P18-15 and P18-16 are committed on `codex/readme-truth`; they
+are not complete project state until the verified branch is integrated into GitHub's
+remote `main`.
+
+### Deterministic repository verification
+
+- [x] `P18-08 [TERRA]` Run the complete clean-state verification gate after plan and
+      documentation consolidation, including formatting, lint, type checking, build,
+      evidence checks, unit and integration tests, CLI and README product flows,
+      package smoke, performance, dashboard Playwright, package contents, and
+      `git diff --check`. The July 19 local gate passed 112 test files with 571 tests
+      passing and one intentionally skipped, both product flows, package smoke, the
+      1,000-skill performance gate at 235.7 ms p95, and both dashboard viewports.
+
+### Human and external work (not provable by local tests)
+
+- [ ] `P18-03 [HUMAN+TERRA]` Run the founder acceptance path in
+      `docs/USER_TEST_GUIDE.md` on real Codex and Claude profiles. Record each
+      observed failure and turn reproducible ones into regression tests.
+- [ ] `P18-13 [HUMAN+TERRA]` Publish `loadout-ai@0.3.2` to npm, then test that exact
+      registry tarball in a fresh terminal through Stable -> rollback -> Power ->
+      rollback -> Maximum -> project optimization -> dashboard -> complete uninstall.
+      The registry currently exposes versions only through `0.3.1`; local package
+      metadata and a Git tag do not prove publication.
+- [ ] `P18-17 [HUMAN]` Resolve the GitHub account billing or spending-limit condition
+      that prevents Actions jobs from starting, rerun CI and daily discovery on the
+      integrated commit, and record the result. The current failures have zero
+      executed steps and are external runner-account failures, not product test
+      failures.
+- [ ] `P18-18 [HUMAN]` Decide and configure appropriate `main` branch protection.
+      GitHub currently returns 404 for the protection endpoint, so protection is
+      absent or not observable; do not describe it as enabled.
 
 ### Release 0.3 lifecycle hardening
 
@@ -52,9 +89,6 @@ can test Loadout.
 - [x] `P18-12 [TERRA]` Add a pinned Chrome DevTools MCP recipe and distinguish
       separately billed AI/model API keys from unrelated service credentials. The
       no-model-key inventory includes GitHub read-only with its token disclosed.
-- [ ] `P18-13 [HUMAN+TERRA]` Publish `0.3.2`, then run Stable -> rollback -> Power ->
-      rollback -> Maximum -> project optimization -> dashboard -> complete uninstall
-      against the exact npm package.
 - [x] `P18-14 [TERRA]` Treat recursively empty directories from legacy cleanup as
       unoccupied without weakening unmanaged-file protection, and make complete
       uninstall remove empty nested directory shells.
@@ -68,6 +102,12 @@ can test Loadout.
   third-party installers.
 - A universal quality score, social-network scraping, or support claims for an agent
   that has not passed a real adapter test.
+
+## Archived implementation history
+
+Sections 1–20 below preserve the original product design, allocation, completed work,
+and deferred exploration. They are historical context. Only the current-status section
+above defines active work.
 
 ## 1. Executive summary
 

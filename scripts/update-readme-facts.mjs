@@ -51,6 +51,19 @@ function markdownEvidenceTable(rows) {
   ];
 }
 
+function markdownTable(headers, rows) {
+  const widths = headers.map((header, index) =>
+    Math.max(header.length, ...rows.map((row) => row[index].length)),
+  );
+  const render = (row) =>
+    `| ${row.map((cell, index) => cell.padEnd(widths[index])).join(" | ")} |`;
+  return [
+    render(headers),
+    render(widths.map((width) => "-".repeat(width))),
+    ...rows.map(render),
+  ];
+}
+
 async function sourceFacts() {
   const [
     { ADAPTER_CAPABILITIES },
@@ -58,12 +71,14 @@ async function sourceFacts() {
     { buildCatalogCoverage },
     { POWER_SKILL_ALLOWLIST, STABLE_SKILL_ALLOWLIST },
     { deriveReadmeFacts },
+    { buildAdapterConformanceMatrix },
   ] = await Promise.all([
     import("../src/core/adapters.ts"),
     import("../src/core/catalog.ts"),
     import("../src/core/catalog-coverage.ts"),
     import("../src/core/profiles.ts"),
     import("../src/core/readme-facts.ts"),
+    import("../src/core/conformance.ts"),
   ]);
   const packageJson = JSON.parse(
     await readFile(resolve(projectRoot, "package.json"), "utf8"),
@@ -83,6 +98,7 @@ async function sourceFacts() {
       },
     }),
     packageJson,
+    conformance: buildAdapterConformanceMatrix(),
   };
 }
 
@@ -90,6 +106,7 @@ export function renderReadmeFactBlocksFromSources({
   coverage,
   facts,
   packageJson,
+  conformance,
 }) {
   const supportedAgents = [...facts.agents.supportedNames].sort(
     (left, right) => (left < right ? -1 : left > right ? 1 : 0),
@@ -101,6 +118,16 @@ export function renderReadmeFactBlocksFromSources({
     ])
     .sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0));
   const commands = verificationCommands(packageJson.scripts.verify);
+  const supportRows = (
+    conformance ??
+    supportedAgents.map((displayName) => ({ displayName, pathKnown: true }))
+  ).map((entry) => [
+    entry.displayName,
+    entry.pathKnown ? "Known" : "Not known",
+    "Required test: `tests/adapter-conformance.test.ts`",
+    "Not verified",
+    "Configured, manually triggered CI: Linux, macOS, Windows",
+  ]);
 
   return {
     "catalog-coverage": [
@@ -113,6 +140,19 @@ export function renderReadmeFactBlocksFromSources({
     ].join("\n"),
     "support-summary": [
       `Loadout's adapter capability matrix currently declares native skill-directory support for **${supportedAgents.length} agents**: ${supportedAgents.join(", ")}.`,
+      "",
+      ...markdownTable(
+        [
+          "Agent",
+          "Skill path",
+          "Disposable filesystem lifecycle",
+          "Native application",
+          "Platform evidence",
+        ],
+        supportRows,
+      ),
+      "",
+      "The required disposable suite plans, applies, inspects, disables, re-enables, and rolls back one skill for every row. Native application execution is not verified by that filesystem simulation. The cross-platform workflow is manually triggered, so its configuration is evidence of coverage intent, not evidence that a current run passed.",
     ].join("\n"),
     "verification-summary": [
       `\`verify\` invokes ${markdownList(commands)} in that order. Use \`npm run verify:full\` to include the optional Playwright dashboard check.`,

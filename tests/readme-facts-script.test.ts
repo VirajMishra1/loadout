@@ -118,6 +118,15 @@ describe("README fact generator", () => {
     expect(blocks["evidence-stages"]).toContain(
       "| Stage           | Records |\n| --------------- | ------: |",
     );
+    expect(blocks["support-summary"]).toMatch(
+      /\| Agent\s+\| Skill path\s+\| Disposable filesystem lifecycle/,
+    );
+    expect(blocks["support-summary"]).toContain(
+      "Configured, manually triggered CI: Linux, macOS, Windows",
+    );
+    expect(blocks["support-summary"]).toContain(
+      "Native application execution is not verified",
+    );
   });
 
   it("uses catalog evidence for Stable policy counts and code-point support sorting", () => {

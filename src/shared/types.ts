@@ -131,6 +131,28 @@ export type ComponentType =
   "skill" | "rule" | "command" | "agent" | "mcp" | "plugin" | "root";
 export type ComponentCompatibility = "native" | "adapted" | "unsupported";
 
+export type AdapterEvidencePlatform = "linux" | "macos" | "windows";
+
+/** Evidence from repository automation; configured CI is not a successful run. */
+export interface AdapterPlatformEvidence {
+  platform: AdapterEvidencePlatform;
+  kind: "ci-configured" | "current-test-host";
+  source: string;
+}
+
+/**
+ * Evidence state for one adapter. Filesystem verification can only be promoted
+ * by the disposable lifecycle harness; it never implies the native app ran.
+ */
+export interface AdapterConformanceEvidence {
+  agent: AgentId;
+  displayName: string;
+  pathKnown: boolean;
+  filesystemVerified: boolean;
+  nativeApplicationVerified: boolean;
+  platformEvidence: AdapterPlatformEvidence[];
+}
+
 /** A non-executable entry observed below an agent-owned Loadout directory. */
 export interface ManagedComponentEntry {
   /** Path relative to the inspected component directory. */

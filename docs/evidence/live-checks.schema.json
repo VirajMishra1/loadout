@@ -4,10 +4,11 @@
   "title": "Loadout bounded live-check report",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schemaVersion", "generatedAt", "checks"],
+  "required": ["schemaVersion", "generatedAt", "repositoryCommit", "checks"],
   "properties": {
     "schemaVersion": { "const": 1 },
     "generatedAt": { "type": "string", "format": "date-time" },
+    "repositoryCommit": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
     "checks": {
       "type": "array",
       "uniqueItems": true,

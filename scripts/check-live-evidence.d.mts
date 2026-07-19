@@ -10,6 +10,7 @@ export interface LiveCheckResult {
 export interface LiveCheckReport {
   schemaVersion: 1;
   generatedAt: string;
+  repositoryCommit: string;
   checks: LiveCheckResult[];
 }
 
@@ -27,6 +28,7 @@ interface CommandResult {
 interface LiveCheckOptions {
   requested?: LiveCheckId[];
   packageJson: PackageMetadata;
+  repositoryCommit?: string;
   env?: NodeJS.ProcessEnv;
   fetchImpl?: typeof fetch;
   runCommand?: (

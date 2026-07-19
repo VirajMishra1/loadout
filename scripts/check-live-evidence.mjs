@@ -404,13 +404,15 @@ function validDateTime(value) {
 export function parseLiveCheckReport(value, expectedIds) {
   exactKeys(
     value,
-    ["schemaVersion", "generatedAt", "checks"],
+    ["schemaVersion", "generatedAt", "repositoryCommit", "checks"],
     "live-check report",
   );
   if (value?.schemaVersion !== 1)
     throw new Error("invalid live-check report header");
   if (!validDateTime(value.generatedAt))
     throw new Error("invalid live-check report date-time");
+  if (!/^[0-9a-f]{40}$/.test(value.repositoryCommit))
+    throw new Error("invalid live-check report repository commit");
   if (!Array.isArray(value.checks))
     throw new Error("live-check report requires checks");
   const seen = new Set();
@@ -440,10 +442,20 @@ export function parseLiveCheckReport(value, expectedIds) {
 export async function runLiveChecks({
   requested = checkIds,
   packageJson,
+  repositoryCommit,
   env = process.env,
   fetchImpl = globalThis.fetch,
   runCommand = execFileAsync,
 } = {}) {
+  const boundRepositoryCommit =
+    repositoryCommit ??
+    (
+      await execFileAsync(
+        "git",
+        ["-C", repositoryRoot, "rev-parse", "--verify", "HEAD^{commit}"],
+        { timeout: 10_000, windowsHide: true },
+      )
+    ).stdout.trim();
   const checks = [];
   for (const id of requested) {
     if (!checkIds.includes(id)) throw new Error(`unknown live check: ${id}`);
@@ -459,6 +471,7 @@ export async function runLiveChecks({
     {
       schemaVersion: 1,
       generatedAt: new Date().toISOString(),
+      repositoryCommit: boundRepositoryCommit,
       checks,
     },
     requested,

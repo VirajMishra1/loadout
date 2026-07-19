@@ -19,11 +19,12 @@ retroactively establish native-agent recognition, current npm publication, branc
 protection, or an independent security review.
 
 The separate [sanitized live-check report](./evidence/live-checks-2026-07-19.json) was
-generated at `2026-07-19T13:45:14.945Z`. At that historical observation time, the pinned
-Stable install and rollback were verified; npm returned 404 for `loadout-ai@0.3.2`; and
-authenticated GitHub access reached the repository but branch protection for `main`
-returned 404. These results can change after the timestamp and are not part of the
-deterministic offline gate.
+generated at `2026-07-19T13:45:14.945Z` and records the same repository commit
+`8f8eccdd20272ebb88d0339087fc9cd3828e65c9` as the deterministic run above. At that
+historical observation time, the pinned Stable install and rollback were verified; npm
+returned 404 for `loadout-ai@0.3.2`; and authenticated GitHub access reached the
+repository but branch protection for `main` returned 404. These results can change
+after the timestamp and are not part of the deterministic offline gate.
 
 At the time it was written, this review covered the then-current Loadout
 implementation, not an aspirational roadmap. It was performed after the transaction,

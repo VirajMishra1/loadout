@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { mkdir, readFile, symlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -30,6 +31,11 @@ describe("bounded live evidence", () => {
       expect.objectContaining({ id: "npm", status: "not-verified" }),
       expect.objectContaining({ id: "github", status: "not-verified" }),
     ]);
+    expect(report.repositoryCommit).toBe(
+      execFileSync("git", ["rev-parse", "--verify", "HEAD^{commit}"], {
+        encoding: "utf8",
+      }).trim(),
+    );
     expect(() => parseLiveCheckReport(report)).not.toThrow();
   });
 
@@ -293,6 +299,7 @@ describe("bounded live evidence", () => {
     const base = {
       schemaVersion: 1 as const,
       generatedAt: "2026-07-19T01:00:00.000Z",
+      repositoryCommit: "a".repeat(40),
       checks: [
         { id: "npm" as const, status: "verified" as const, detail: "ok" },
       ],
@@ -319,6 +326,31 @@ describe("bounded live evidence", () => {
     expect(() =>
       parseLiveCheckReport({ ...base, generatedAt: "2026-07-19" }, ["npm"]),
     ).toThrow(/date-time/i);
+    expect(() =>
+      parseLiveCheckReport(
+        {
+          schemaVersion: 1,
+          generatedAt: base.generatedAt,
+          checks: base.checks,
+        },
+        ["npm"],
+      ),
+    ).toThrow(/repository commit/i);
+    expect(() =>
+      parseLiveCheckReport({ ...base, repositoryCommit: "not-a-sha" }, ["npm"]),
+    ).toThrow(/repository commit/i);
+  });
+
+  it("binds generated reports to the supplied repository commit", async () => {
+    const repositoryCommit = "b".repeat(40);
+    const report = await runLiveChecks({
+      requested: ["npm"],
+      packageJson,
+      repositoryCommit,
+      fetchImpl: async () => new Response("missing", { status: 404 }),
+    });
+
+    expect(report.repositoryCommit).toBe(repositoryCommit);
   });
 
   it("rejects tag-only GitHub Action references in every workflow", async () => {

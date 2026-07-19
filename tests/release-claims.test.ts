@@ -1,7 +1,10 @@
 import { execFileSync } from "node:child_process";
-import { readFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { parseLiveCheckReport } from "../scripts/check-live-evidence.mjs";
+import { assertRepositoryCommitIsAncestor } from "../scripts/check-release-claims.js";
 import {
   RELEASE_CLAIMS,
   auditReleaseClaims,
@@ -59,9 +62,7 @@ describe("release claim evidence gate", () => {
     )?.[1];
     expect(testedCommit).toBeTruthy();
     expect(() =>
-      execFileSync("git", ["cat-file", "-e", `${testedCommit}^{commit}`], {
-        stdio: "pipe",
-      }),
+      assertRepositoryCommitIsAncestor(process.cwd(), testedCommit!),
     ).not.toThrow();
 
     const live = JSON.parse(
@@ -70,7 +71,60 @@ describe("release claim evidence gate", () => {
     expect(() =>
       parseLiveCheckReport(live, ["npm", "stable-install", "github"]),
     ).not.toThrow();
+    expect(() =>
+      assertRepositoryCommitIsAncestor(process.cwd(), live.repositoryCommit),
+    ).not.toThrow();
     expect(review).toContain("./evidence/live-checks-2026-07-19.json");
     expect(review).toContain(live.generatedAt);
+  });
+
+  it("rejects nonexistent and unreachable evidence commits", async () => {
+    const root = await mkdtemp(join(tmpdir(), "loadout-release-commit-"));
+    try {
+      execFileSync("git", ["init", "--quiet", root]);
+      await writeFile(join(root, "main.txt"), "main\n");
+      execFileSync("git", ["-C", root, "add", "main.txt"]);
+      execFileSync("git", [
+        "-C",
+        root,
+        "-c",
+        "user.name=fixture",
+        "-c",
+        "user.email=fixture@example.invalid",
+        "commit",
+        "--quiet",
+        "-m",
+        "main",
+      ]);
+      const main = execFileSync("git", ["-C", root, "rev-parse", "HEAD"], {
+        encoding: "utf8",
+      }).trim();
+      execFileSync("git", ["-C", root, "checkout", "--orphan", "side"], {
+        stdio: "pipe",
+      });
+      await writeFile(join(root, "side.txt"), "side\n");
+      execFileSync("git", ["-C", root, "add", "side.txt"]);
+      execFileSync("git", [
+        "-C",
+        root,
+        "-c",
+        "user.name=fixture",
+        "-c",
+        "user.email=fixture@example.invalid",
+        "commit",
+        "--quiet",
+        "-m",
+        "side",
+      ]);
+
+      expect(() =>
+        assertRepositoryCommitIsAncestor(root, "f".repeat(40)),
+      ).toThrow(/does not exist/i);
+      expect(() => assertRepositoryCommitIsAncestor(root, main)).toThrow(
+        /not an ancestor/i,
+      );
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
   });
 });

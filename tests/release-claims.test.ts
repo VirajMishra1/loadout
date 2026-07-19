@@ -1,10 +1,13 @@
 import { execFileSync } from "node:child_process";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { parseLiveCheckReport } from "../scripts/check-live-evidence.mjs";
-import { assertRepositoryCommitIsAncestor } from "../scripts/check-release-claims.js";
+import {
+  assertRepositoryCommitIsAncestor,
+  validateReleaseEvidenceBindings,
+} from "../scripts/check-release-claims.js";
 import {
   RELEASE_CLAIMS,
   auditReleaseClaims,
@@ -122,6 +125,74 @@ describe("release claim evidence gate", () => {
       ).toThrow(/does not exist/i);
       expect(() => assertRepositoryCommitIsAncestor(root, main)).toThrow(
         /not an ancestor/i,
+      );
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects a live artifact bound to a different valid ancestor than the deterministic run", async () => {
+    const root = await mkdtemp(join(tmpdir(), "loadout-release-mismatch-"));
+    try {
+      execFileSync("git", ["init", "--quiet", root]);
+      await writeFile(join(root, "first.txt"), "first\n");
+      execFileSync("git", ["-C", root, "add", "first.txt"]);
+      const commit = (message: string) =>
+        execFileSync("git", [
+          "-C",
+          root,
+          "-c",
+          "user.name=fixture",
+          "-c",
+          "user.email=fixture@example.invalid",
+          "commit",
+          "--quiet",
+          "-m",
+          message,
+        ]);
+      commit("first");
+      const testedCommit = execFileSync(
+        "git",
+        ["-C", root, "rev-parse", "HEAD"],
+        { encoding: "utf8" },
+      ).trim();
+      await writeFile(join(root, "second.txt"), "second\n");
+      execFileSync("git", ["-C", root, "add", "second.txt"]);
+      commit("second");
+      const liveCommit = execFileSync(
+        "git",
+        ["-C", root, "rev-parse", "HEAD"],
+        { encoding: "utf8" },
+      ).trim();
+      await mkdir(join(root, "docs", "evidence"), { recursive: true });
+      await writeFile(
+        join(root, "docs", "RELEASE_REVIEW.md"),
+        `Exact tested commit \`${testedCommit}\`.\n`,
+      );
+      await writeFile(
+        join(root, "docs", "evidence", "live-checks-2026-07-19.json"),
+        JSON.stringify({
+          schemaVersion: 1,
+          generatedAt: "2026-07-19T13:45:14.945Z",
+          repositoryCommit: liveCommit,
+          checks: [
+            { id: "npm", status: "failed", detail: "historical fixture" },
+            {
+              id: "stable-install",
+              status: "verified",
+              detail: "historical fixture",
+            },
+            {
+              id: "github",
+              status: "failed",
+              detail: "historical fixture",
+            },
+          ],
+        }),
+      );
+
+      await expect(validateReleaseEvidenceBindings(root)).rejects.toThrow(
+        /same repository commit/i,
       );
     } finally {
       await rm(root, { recursive: true, force: true });

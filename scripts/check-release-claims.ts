@@ -42,7 +42,9 @@ export function assertRepositoryCommitIsAncestor(
   }
 }
 
-async function validateReleaseEvidenceBindings(root: string): Promise<void> {
+export async function validateReleaseEvidenceBindings(
+  root: string,
+): Promise<void> {
   const [review, liveValue] = await Promise.all([
     readFile(resolve(root, "docs/RELEASE_REVIEW.md"), "utf8"),
     readFile(
@@ -62,6 +64,10 @@ async function validateReleaseEvidenceBindings(root: string): Promise<void> {
   ]);
   assertRepositoryCommitIsAncestor(root, testedCommit);
   assertRepositoryCommitIsAncestor(root, live.repositoryCommit);
+  if (live.repositoryCommit !== testedCommit)
+    throw new Error(
+      `Deterministic and live evidence must bind to the same repository commit: deterministic=${testedCommit}, live=${live.repositoryCommit}`,
+    );
 }
 
 /** Build the release-claim index for reuse by deterministic evidence gates. */

@@ -36,7 +36,10 @@ interface LiveCheckOptions {
   ) => Promise<CommandResult>;
 }
 
-export function parseLiveCheckReport(value: unknown): LiveCheckReport;
+export function parseLiveCheckReport(
+  value: unknown,
+  expectedIds?: LiveCheckId[],
+): LiveCheckReport;
 export function runLiveChecks(
   options: LiveCheckOptions,
 ): Promise<LiveCheckReport>;

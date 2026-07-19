@@ -61,6 +61,7 @@ describe("README product flow", () => {
           fileHashes: true,
           snapshot: true,
           rollback: true,
+          filesystemRestoration: true,
         },
       });
       expect(result.liveCatalog.packages).toBeGreaterThan(0);

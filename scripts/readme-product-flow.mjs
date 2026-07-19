@@ -46,6 +46,8 @@ const environment = {
 let liveEvidence;
 let stableSnapshotId;
 let stablePackageIds;
+let stableInstalledFiles;
+let stableLibraryPaths;
 
 function parseJson(stdout, command) {
   try {
@@ -166,6 +168,7 @@ try {
     const stableRecords = stableState.installs.filter((entry) =>
       stablePackageIds.has(entry.packageId),
     );
+    stableInstalledFiles = [];
     assert.equal(stableRecords.length, stable.entries.length);
     for (const record of stableRecords) {
       assert.ok(
@@ -173,19 +176,24 @@ try {
         `${record.packageId} must persist file hashes`,
       );
       for (const file of record.files) {
-        const bytes = await readFile(
-          activeSet.managedFileReadPath(
-            record.packageId,
-            file.path,
-            stableState.activations ?? [],
-          ),
+        const path = activeSet.managedFileReadPath(
+          record.packageId,
+          file.path,
+          stableState.activations ?? [],
         );
+        const bytes = await readFile(path);
+        stableInstalledFiles.push({ path, bytes });
         assert.equal(
           createHash("sha256").update(bytes).digest("hex"),
           file.sha256,
         );
       }
     }
+    stableLibraryPaths = (stableState.activations ?? [])
+      .filter((entry) => stablePackageIds.has(entry.packageId))
+      .map((entry) => entry.libraryPath);
+    assert.ok(stableInstalledFiles.length);
+    assert.ok(stableLibraryPaths.length);
     assert.equal(
       await exists(join(stateHome, "snapshots", `${stableSnapshot}.json`)),
       true,
@@ -343,6 +351,8 @@ try {
   if (liveEvidence) {
     assert.ok(stableSnapshotId);
     assert.ok(stablePackageIds);
+    assert.ok(stableInstalledFiles);
+    assert.ok(stableLibraryPaths);
     await runCli("rollback", "--snapshot", stableSnapshotId);
     const stableRestoredState = await state.readInstallState();
     assert.equal(
@@ -351,8 +361,23 @@ try {
       ),
       false,
     );
+    for (const file of stableInstalledFiles) {
+      assert.ok(file.bytes.length, `${file.path} must contain installed bytes`);
+      assert.equal(
+        await exists(file.path),
+        false,
+        `${file.path} must be removed by Stable rollback`,
+      );
+    }
+    for (const path of stableLibraryPaths)
+      assert.equal(
+        await exists(path),
+        false,
+        `${path} must be removed by Stable rollback`,
+      );
     assert.equal(await readFile(sentinel, "utf8"), sentinelBytes);
     liveEvidence.rollback = true;
+    liveEvidence.filesystemRestoration = true;
   }
 
   const result = {

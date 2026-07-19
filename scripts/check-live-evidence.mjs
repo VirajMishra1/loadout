@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 
 import { execFile } from "node:child_process";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { isAbsolute, join, relative, resolve, sep } from "node:path";
 import process from "node:process";
 import { fileURLToPath, URL } from "node:url";
 import { promisify } from "node:util";
@@ -14,7 +14,7 @@ const checkIds = ["npm", "stable-install", "github"];
 
 function unavailable(error) {
   const text = `${error?.code ?? ""} ${error?.message ?? ""} ${error?.stderr ?? ""}`;
-  return /ENET|EAI_AGAIN|ECONN|ETIMEDOUT|network|offline|timed out|authentication|unauthorized|forbidden/i.test(
+  return /ENET|EAI_AGAIN|ENOTFOUND|ECONN|ETIMEDOUT|network|offline|timed out|TLS|certificate|socket|fetch failed|authentication|unauthorized|forbidden/i.test(
     text,
   );
 }
@@ -83,6 +83,35 @@ async function npmCheck({ packageJson, fetchImpl, runCommand }) {
 
   const temporary = await mkdtemp(join(tmpdir(), "loadout-live-npm-"));
   try {
+    const userConfig = join(temporary, "npmrc");
+    const globalConfig = join(temporary, "global-npmrc");
+    await Promise.all([
+      writeFile(userConfig, "", { mode: 0o600 }),
+      writeFile(globalConfig, "", { mode: 0o600 }),
+    ]);
+    const isolatedEnvironment = {
+      PATH: process.env.PATH,
+      SystemRoot: process.env.SystemRoot,
+      COMSPEC: process.env.COMSPEC,
+      PATHEXT: process.env.PATHEXT,
+      TMPDIR: process.env.TMPDIR,
+      TEMP: process.env.TEMP,
+      TMP: process.env.TMP,
+      HTTP_PROXY: process.env.HTTP_PROXY,
+      HTTPS_PROXY: process.env.HTTPS_PROXY,
+      NO_PROXY: process.env.NO_PROXY,
+      http_proxy: process.env.http_proxy,
+      https_proxy: process.env.https_proxy,
+      no_proxy: process.env.no_proxy,
+      HOME: temporary,
+      USERPROFILE: temporary,
+      npm_config_cache: join(temporary, "npm-cache"),
+      npm_config_userconfig: userConfig,
+      NPM_CONFIG_USERCONFIG: userConfig,
+      npm_config_globalconfig: globalConfig,
+      NPM_CONFIG_GLOBALCONFIG: globalConfig,
+      npm_config_registry: "https://registry.npmjs.org/",
+    };
     await runCommand(
       process.platform === "win32" ? "npm.cmd" : "npm",
       [
@@ -92,10 +121,63 @@ async function npmCheck({ packageJson, fetchImpl, runCommand }) {
         "--ignore-scripts",
         "--no-audit",
         "--no-fund",
-        target,
+        metadata.dist.tarball,
       ],
-      { timeout: 120_000, maxBuffer: 10 * 1024 * 1024, windowsHide: true },
+      {
+        cwd: temporary,
+        env: isolatedEnvironment,
+        timeout: 120_000,
+        maxBuffer: 10 * 1024 * 1024,
+        windowsHide: true,
+      },
     );
+    const installedRoot = join(temporary, "node_modules", packageJson.name);
+    const installed = JSON.parse(
+      await readFile(join(installedRoot, "package.json"), "utf8"),
+    );
+    if (
+      installed.name !== packageJson.name ||
+      installed.version !== packageJson.version
+    )
+      return result(
+        "npm",
+        "failed",
+        `installed tarball identity ${String(installed.name)}@${String(installed.version)} does not match ${target}`,
+      );
+    const bin =
+      typeof installed.bin === "string"
+        ? installed.bin
+        : installed.bin?.loadout;
+    const cliPath =
+      typeof bin === "string" ? resolve(installedRoot, bin) : undefined;
+    const cliRelative = cliPath ? relative(installedRoot, cliPath) : "";
+    if (
+      typeof bin !== "string" ||
+      !cliPath ||
+      !cliRelative ||
+      isAbsolute(cliRelative) ||
+      cliRelative === ".." ||
+      cliRelative.startsWith(`..${sep}`)
+    )
+      return result(
+        "npm",
+        "failed",
+        "installed tarball does not expose a safe loadout CLI bin path",
+      );
+    await readFile(cliPath);
+    const cli = await runCommand(process.execPath, [cliPath, "--version"], {
+      cwd: temporary,
+      env: isolatedEnvironment,
+      timeout: 30_000,
+      maxBuffer: 1024 * 1024,
+      windowsHide: true,
+    });
+    if (cli.stdout.trim() !== packageJson.version)
+      return result(
+        "npm",
+        "failed",
+        `installed CLI reports ${cli.stdout.trim() || "no version"}; expected ${packageJson.version}`,
+      );
   } catch (error) {
     return result(
       "npm",
@@ -108,7 +190,7 @@ async function npmCheck({ packageJson, fetchImpl, runCommand }) {
   return result(
     "npm",
     "verified",
-    `${target} metadata matched and its tarball installed without lifecycle scripts`,
+    `${target} metadata matched; its exact HTTPS tarball installed in a credential-isolated profile and its CLI reported the expected version`,
   );
 }
 
@@ -135,7 +217,8 @@ async function stableCheck({ runCommand }) {
       !stable ||
       !(stable.packages > 0) ||
       stable.pinnedCommits !== true ||
-      stable.rollback !== true
+      stable.rollback !== true ||
+      stable.filesystemRestoration !== true
     )
       return result(
         "stable-install",
@@ -204,6 +287,12 @@ async function githubCheck({ packageJson, env, fetchImpl, runCommand }) {
         "not-verified",
         `GitHub access was not authorized (HTTP ${repositoryResponse.status})`,
       );
+    if (repositoryResponse.status >= 500)
+      return result(
+        "github",
+        "not-verified",
+        `GitHub repository service was unavailable (HTTP ${repositoryResponse.status})`,
+      );
     if (!repositoryResponse.ok)
       return result(
         "github",
@@ -228,6 +317,12 @@ async function githubCheck({ packageJson, env, fetchImpl, runCommand }) {
         "not-verified",
         `GitHub branch-protection access was unavailable (HTTP ${protectionResponse.status})`,
       );
+    if (protectionResponse.status >= 500)
+      return result(
+        "github",
+        "not-verified",
+        `GitHub branch-protection service was unavailable (HTTP ${protectionResponse.status})`,
+      );
     if (!protectionResponse.ok)
       return result(
         "github",
@@ -248,7 +343,20 @@ async function githubCheck({ packageJson, env, fetchImpl, runCommand }) {
   }
 }
 
-export function parseLiveCheckReport(value) {
+function exactKeys(value, expected, label) {
+  if (!value || typeof value !== "object" || Array.isArray(value))
+    throw new Error(`invalid ${label}`);
+  const extras = Object.keys(value).filter((key) => !expected.includes(key));
+  if (extras.length)
+    throw new Error(`${label} has unexpected properties: ${extras.join(", ")}`);
+}
+
+export function parseLiveCheckReport(value, expectedIds) {
+  exactKeys(
+    value,
+    ["schemaVersion", "generatedAt", "checks"],
+    "live-check report",
+  );
   if (
     value?.schemaVersion !== 1 ||
     !Number.isFinite(Date.parse(value?.generatedAt))
@@ -256,7 +364,9 @@ export function parseLiveCheckReport(value) {
     throw new Error("invalid live-check report header");
   if (!Array.isArray(value.checks))
     throw new Error("live-check report requires checks");
+  const seen = new Set();
   for (const check of value.checks) {
+    exactKeys(check, ["id", "status", "detail"], "live-check result");
     if (
       !checkIds.includes(check?.id) ||
       !["verified", "failed", "not-verified"].includes(check?.status) ||
@@ -264,6 +374,16 @@ export function parseLiveCheckReport(value) {
       !check.detail
     )
       throw new Error("invalid live-check result");
+    if (seen.has(check.id))
+      throw new Error(`duplicate live-check result: ${check.id}`);
+    seen.add(check.id);
+  }
+  if (expectedIds) {
+    for (const id of expectedIds)
+      if (!seen.has(id)) throw new Error(`missing requested live check: ${id}`);
+    for (const id of seen)
+      if (!expectedIds.includes(id))
+        throw new Error(`unexpected unrequested live check: ${id}`);
   }
   return value;
 }
@@ -286,11 +406,14 @@ export async function runLiveChecks({
         await githubCheck({ packageJson, env, fetchImpl, runCommand }),
       );
   }
-  return parseLiveCheckReport({
-    schemaVersion: 1,
-    generatedAt: new Date().toISOString(),
-    checks,
-  });
+  return parseLiveCheckReport(
+    {
+      schemaVersion: 1,
+      generatedAt: new Date().toISOString(),
+      checks,
+    },
+    requested,
+  );
 }
 
 async function main() {

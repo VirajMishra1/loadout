@@ -29,7 +29,7 @@ Platform evidence source: `.github/workflows/ci.yml (cross-platform job)`.
 
 <!-- loadout:support-summary:end -->
 
-It solves a simple problem: useful skills and MCP tools are scattered across hundreds of repositories. Loadout brings them into one place, checks what is actually inside, shows every change before making it, and keeps a snapshot so you can undo it.
+It solves a simple problem: useful skills and MCP tools are spread across many repositories. Loadout catalogs pinned public sources, statically inspects selected contents, previews managed filesystem changes, and snapshots supported mutations for rollback.
 
 ## Start here
 
@@ -57,7 +57,7 @@ When the preview looks right:
 loadout upgrade --yes
 ```
 
-Every applied change creates a snapshot. Undo the latest change with:
+Every applied setup or update creates a snapshot. Undo the latest supported managed mutation with:
 
 ```bash
 loadout rollback
@@ -78,12 +78,12 @@ stops if a Loadout-managed file contains your edits unless you explicitly add
 
 ## Choose how much you want
 
-| Mode        | Best for                                     | What happens                                                                                                                                            |
-| ----------- | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Stable**  | Almost everyone                              | Installs 30 high-value everyday skills from four selected sources. This is the default.                                                                 |
-| **Power**   | Users who want a larger active toolkit       | Selects cross-project skills from eight major collections. The current preview prepares 50 skill directories and quarantines flagged individual skills. |
-| **Maximum** | People who want the largest possible library | Downloads every usable skill in the 50-repository catalog into a disabled library. It does not flood every agent with 1,000+ active skills.             |
-| **Custom**  | Users who know exactly what they want        | Installs only the package IDs they choose.                                                                                                              |
+| Mode        | Best for                              | What happens                                                                                                                        |
+| ----------- | ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| **Stable**  | The bounded default                   | Installs 30 policy-selected skills from four pinned sources.                                                                        |
+| **Power**   | A larger active toolkit               | Selects cross-project skills from eight checked-in collections and quarantines invalid selected skill units.                        |
+| **Maximum** | The full current catalog library      | Fetches every skill-bearing catalog source and keeps valid discovered skills in a disabled library rather than activating them all. |
+| **Custom**  | Users who know exactly what they want | Installs only the package IDs they choose.                                                                                          |
 
 Preview any mode first:
 
@@ -101,7 +101,7 @@ loadout setup --mode power --yes --approve-risk
 loadout setup --mode maximum --yes --approve-risk
 ```
 
-Maximum currently finds 1,158 usable skill directories across 29 skill repositories and keeps them disabled until needed. Nineteen MCP-only repositories remain separate setup choices because MCP servers may need credentials, local software, or broader permissions.
+Maximum's exact skill-directory count is determined from the pinned repositories at preview time after validation and duplicate resolution; the checked-in catalog alone does not prove a fixed directory total. Nineteen MCP-only repositories remain separate setup choices because MCP servers may need credentials, local software, or broader permissions.
 
 ## How Loadout chooses repositories
 
@@ -114,7 +114,7 @@ The selection process is:
 3. **Check trust evidence.** Record the exact Git commit, license status, source paths, maintenance signals, overlaps, and static safety findings.
 4. **Compare like with like.** A testing tool is compared with testing tools, not with an unrelated design skill.
 5. **Choose a tier.** Stable is Loadout's bounded policy selection; Power is broader; Maximum keeps the full inspected library available.
-6. **Keep watching.** New candidates and changes are recorded every day, but nothing is silently promoted or installed.
+6. **Keep watching.** Scheduled discovery and update jobs can record candidates and changes, but they do not promote or install them.
 
 The bundled catalog contains **50 credited public repositories** across 37 categories. Thirty-one contain skills and 19 are MCP-only. See every source, direct repository link, pinned commit, component type, and license status in **[Catalog and upstream credits](./docs/CATALOG.md)**.
 
@@ -166,7 +166,7 @@ loadout enable package-id/skill-name --yes
 loadout disable package-id/skill-name --yes
 ```
 
-## Find new and better options every day
+## Find new and changed options with scheduled checks
 
 Loadout has two separate daily checks:
 
@@ -205,7 +205,7 @@ The wording matters:
 
 Loadout will never call a viral repository better just because its star count jumped. That protects users from hype, compromised repositories, and tools that solve a completely different problem.
 
-The repository also refreshes a public discovery report every day:
+The repository configures a daily workflow to refresh a public discovery report. The snapshot below proves the checked-in result, not that every scheduled run succeeds:
 
 <!-- loadout:daily-discovery:start -->
 
@@ -262,13 +262,14 @@ loadout mcp-recipe github-readonly --config ./mcp.json \
 
 ## Graphify and other executable tools
 
-Graphify is included as a separate reviewed tool recipe, not disguised as a portable skill. Its setup uses a pinned version and artifact hash, an isolated runtime, an exact preview, and rollback.
+Graphify is included as a separate checked-in executable recipe, not disguised as a portable skill. Its setup code uses a pinned version and artifact hash, an isolated Loadout runtime, an exact preview, and rollback; this repository evidence is not a current independent security review of Graphify.
 
 ```bash
 loadout tool
 loadout tool graphify --agents codex
 loadout tool graphify --agents codex --yes --approve-risk
 loadout tool graphify --remove
+loadout tool graphify --remove --yes --approve-risk
 ```
 
 Executable tools and MCP servers receive separate treatment because they can run processes, use credentials, or open network connections. Broad setup never runs third-party repository installers.
@@ -350,7 +351,7 @@ No bundled source is called benchmarked until real isolated trials, signed evide
 - Daily discovery creates leads; it does not automatically make them trusted catalog entries.
 - Replacement alerts need real comparison evidence. Loadout does not invent a winner from stars or recency.
 - MCP-only records need explicit configuration and may need external credentials or software.
-- Graphify is the first fully reviewed executable recipe; other runtime tools need equivalent recipe work.
+- Graphify is the first checked-in executable recipe; other runtime tools need equivalent pinned, previewed, reversible recipe work and their own review.
 - Six catalog records currently have `NOASSERTION` license metadata and should be reviewed before relying on their license status.
 - The bundled catalog is technically screened and finite; Stable is a deterministic policy-selected subset, not a human-reviewed or benchmark-proven winner, and discovery leads do not auto-promote themselves.
 - Public GitHub is the default source. Private GitHub discovery requires explicit authorization through an environment or native credential reference.

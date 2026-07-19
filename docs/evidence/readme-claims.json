@@ -15,7 +15,7 @@
     },
     {
       "id": "catalog.coverage",
-      "section": "What Loadout manages",
+      "section": "How Loadout chooses repositories",
       "summary": "The bundled catalog exposes generated coverage facts from pinned public records.",
       "evidenceClass": "structural",
       "status": "proven",
@@ -27,7 +27,7 @@
     },
     {
       "id": "selection.stable",
-      "section": "Choose a loadout",
+      "section": "Choose how much you want",
       "summary": "Stable selection is defined by the checked-in policy and allowlist.",
       "evidenceClass": "policy-selected",
       "status": "proven",
@@ -35,7 +35,7 @@
     },
     {
       "id": "selection.power",
-      "section": "Choose a loadout",
+      "section": "Choose how much you want",
       "summary": "Power selection is defined by the checked-in policy and allowlist.",
       "evidenceClass": "policy-selected",
       "status": "proven",
@@ -43,7 +43,7 @@
     },
     {
       "id": "selection.maximum",
-      "section": "Choose a loadout",
+      "section": "Choose how much you want",
       "summary": "Maximum selection keeps optional components in Loadout's managed library rather than activating every component.",
       "evidenceClass": "integration-verified",
       "status": "bounded",
@@ -55,7 +55,11 @@
       "summary": "Supported-agent adapters are limited to checked-in definitions and tested filesystem operations.",
       "evidenceClass": "integration-verified",
       "status": "bounded",
-      "evidence": ["src/core/adapters.ts", "tests/adapters.test.ts"]
+      "evidence": [
+        "src/core/adapters.ts",
+        "tests/adapters.test.ts",
+        "tests/adapter-conformance.test.ts"
+      ]
     },
     {
       "id": "platforms.support",
@@ -70,7 +74,7 @@
     },
     {
       "id": "installation.transaction",
-      "section": "The core journey",
+      "section": "Start here",
       "summary": "Managed installation plans and applies transactional filesystem changes with snapshots.",
       "evidenceClass": "integration-verified",
       "status": "proven",
@@ -82,15 +86,36 @@
     },
     {
       "id": "updates.preview",
-      "section": "The core journey",
+      "section": "Find new and changed options with scheduled checks",
       "summary": "Update workflows present a bounded local plan before an explicit apply step.",
       "evidenceClass": "integration-verified",
       "status": "proven",
       "evidence": ["src/core/update.ts", "tests/update.test.ts"]
     },
     {
+      "id": "updates.saved-profile",
+      "section": "Find new and changed options with scheduled checks",
+      "summary": "Update evaluates the saved Stable, Power, Maximum, or Custom profile and applies only reviewed, eligible changes after explicit approval.",
+      "evidenceClass": "integration-verified",
+      "status": "proven",
+      "evidence": [
+        "src/core/profile-state.ts",
+        "src/core/update.ts",
+        "tests/profile-state.test.ts",
+        "tests/update.test.ts"
+      ]
+    },
+    {
+      "id": "installation.empty-target-recovery",
+      "section": "What Loadout changes",
+      "summary": "Managed installation treats recursively empty leftover skill directories as unoccupied while retaining collision protection for files and symlinks.",
+      "evidenceClass": "integration-verified",
+      "status": "proven",
+      "evidence": ["src/core/install.ts", "tests/install.test.ts"]
+    },
+    {
       "id": "rollback.snapshot",
-      "section": "The core journey",
+      "section": "Start here",
       "summary": "Rollback restores managed snapshot state within Loadout's supported transaction boundary.",
       "evidenceClass": "integration-verified",
       "status": "proven",
@@ -102,7 +127,7 @@
     },
     {
       "id": "recommendations.evidence",
-      "section": "Why Loadout exists",
+      "section": "Get recommendations for the current project",
       "summary": "Recommendations expose bounded repository and local evidence rather than universal quality claims.",
       "evidenceClass": "unit-verified",
       "status": "bounded",
@@ -110,7 +135,7 @@
     },
     {
       "id": "trust.stages",
-      "section": "What Loadout manages",
+      "section": "How Loadout chooses repositories",
       "summary": "Trust-stage labels distinguish evidence without promoting one stage to another.",
       "evidenceClass": "structural",
       "status": "proven",
@@ -122,7 +147,7 @@
     },
     {
       "id": "discovery.read-only",
-      "section": "Find what is new",
+      "section": "Find new and changed options with scheduled checks",
       "summary": "Discovery records candidates separately from catalog promotion and installation.",
       "evidenceClass": "integration-verified",
       "status": "proven",
@@ -134,7 +159,7 @@
     },
     {
       "id": "credentials.references",
-      "section": "Credentials",
+      "section": "Chat subscriptions and API keys",
       "summary": "Shared configuration stores credential references rather than secret values.",
       "evidenceClass": "structural",
       "status": "proven",
@@ -145,8 +170,21 @@
       ]
     },
     {
+      "id": "credentials.separation",
+      "section": "Chat subscriptions and API keys",
+      "summary": "Model API access declarations are separated from non-model service credential requirements in setup and MCP recipe output.",
+      "evidenceClass": "unit-verified",
+      "status": "proven",
+      "evidence": [
+        "src/cli.ts",
+        "src/core/mcp-recipes.ts",
+        "tests/cli-help.test.ts",
+        "tests/mcp-recipes.test.ts"
+      ]
+    },
+    {
       "id": "mcp.configuration",
-      "section": "MCP",
+      "section": "Chat subscriptions and API keys",
       "summary": "MCP configuration uses explicit plans and keeps credentials outside persisted shared manifests.",
       "evidenceClass": "integration-verified",
       "status": "proven",
@@ -154,7 +192,7 @@
     },
     {
       "id": "manifests.portability",
-      "section": "Share a loadout",
+      "section": "What Loadout changes",
       "summary": "Loadout manifests are schema-validated portable declarations and do not contain secret values.",
       "evidenceClass": "structural",
       "status": "proven",
@@ -166,7 +204,7 @@
     },
     {
       "id": "benchmarks.protocol",
-      "section": "Measure what works",
+      "section": "Test the product",
       "summary": "Benchmark planning and protocol artifacts do not by themselves prove a source is benchmarked.",
       "evidenceClass": "structural",
       "status": "bounded",
@@ -178,15 +216,27 @@
     },
     {
       "id": "dashboard.local",
-      "section": "Dashboard",
+      "section": "Current beta limits",
       "summary": "The dashboard presents local Loadout data and does not establish hosted-service availability.",
       "evidenceClass": "integration-verified",
       "status": "bounded",
       "evidence": ["src/dashboard.ts", "tests/dashboard.test.ts"]
     },
     {
+      "id": "uninstall.complete",
+      "section": "Start here",
+      "summary": "Complete uninstall previews and removes Loadout-managed files, runtime tools, scheduled jobs, and state while preserving unmanaged files and blocking drift unless forced.",
+      "evidenceClass": "integration-verified",
+      "status": "bounded",
+      "evidence": [
+        "src/core/uninstall.ts",
+        "src/core/remove.ts",
+        "tests/uninstall.test.ts"
+      ]
+    },
+    {
       "id": "distribution.npm",
-      "section": "Install from npm",
+      "section": "Start here",
       "summary": "npm distribution wording is time-bounded because offline verification cannot prove current registry availability.",
       "evidenceClass": "live-verified",
       "status": "bounded",
@@ -195,7 +245,7 @@
     },
     {
       "id": "release.state",
-      "section": "Install from npm",
+      "section": "Start here",
       "summary": "Release and beta wording is bounded to release-review artifacts and is not proof of current public publication.",
       "evidenceClass": "structural",
       "status": "bounded",
@@ -206,7 +256,7 @@
     },
     {
       "id": "testing.deterministic",
-      "section": "Testing",
+      "section": "Test the product",
       "summary": "The repository contains deterministic automated tests for supported local behaviors.",
       "evidenceClass": "unit-verified",
       "status": "proven",
@@ -218,7 +268,7 @@
     },
     {
       "id": "limits.current",
-      "section": "Current limits",
+      "section": "Current beta limits",
       "summary": "Current limitations are stated explicitly instead of being represented as present capabilities.",
       "evidenceClass": "structural",
       "status": "proven",

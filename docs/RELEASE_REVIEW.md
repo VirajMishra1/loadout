@@ -1,8 +1,30 @@
-# Release review — 2026-07-15
+# Release review — historical 2026-07-15 review, updated 2026-07-19
 
-This review covers the current Loadout implementation, not an aspirational
-roadmap. It was performed after the transaction, source-fetch, dashboard, and
-adapter test suites passed locally.
+## Current status and evidence boundary
+
+The sections below preserve the evidence recorded for the earlier 0.1.0 review; their
+old package version, catalog count, and test totals are historical and must not be read
+as current 0.3.2 results. The checked-in package is now 0.3.2 with a 50-record catalog.
+
+On 2026-07-19, the current branch's focused v0.3.x regression run passed 58 tests
+covering the unified upgrade, saved-profile updates, complete uninstall, separation of
+model API access from service credentials, and recursively empty skill-directory
+recovery. `npm run verify:full` then passed its deterministic evidence gate, 550 tests
+with one explicit skip, both CLI product journeys, package smoke, the 1,000-skill
+performance gate, and two Playwright dashboard projects. These local results establish
+the tested repository behaviors only; they do not retroactively establish native-agent
+recognition, current npm publication, branch protection, or an independent security
+review.
+
+The separate live check on 2026-07-19 verified a pinned Stable install and rollback.
+The npm check failed because `loadout-ai@0.3.2` returned 404. Authenticated GitHub access
+reached the repository, but branch protection for `main` returned 404, so protection is
+not verified as enabled. Live results are time-bounded external observations, not part
+of the deterministic offline gate.
+
+At the time it was written, this review covered the then-current Loadout
+implementation, not an aspirational roadmap. It was performed after the transaction,
+source-fetch, dashboard, and adapter test suites passed locally.
 
 ## P4-08: atomic-commit review — accepted with explicit durability boundary
 

@@ -23,6 +23,7 @@
 ### Task 1: Define and Validate the Claim Manifest
 
 **Files:**
+
 - Create: `docs/evidence/readme-claims.json`
 - Create: `src/core/readme-claims.ts`
 - Modify: `src/shared/schemas.ts`
@@ -30,6 +31,7 @@
 - Create: `tests/readme-claims.test.ts`
 
 **Interfaces:**
+
 - Produces: `readmeClaimManifestSchema`, `ReadmeClaim`, `ReadmeClaimManifest`, `parseReadmeClaimManifest(value)`.
 - Consumes: existing schema error formatting from `src/shared/schemas.ts`.
 
@@ -44,14 +46,16 @@ describe("README claim manifest", () => {
     expect(() =>
       parseReadmeClaimManifest({
         schemaVersion: 1,
-        claims: [{
-          id: "catalog.coverage",
-          section: "What Loadout manages",
-          summary: "The catalog has generated coverage facts.",
-          evidenceClass: "structural",
-          status: "proven",
-          evidence: [],
-        }],
+        claims: [
+          {
+            id: "catalog.coverage",
+            section: "What Loadout manages",
+            summary: "The catalog has generated coverage facts.",
+            evidenceClass: "structural",
+            status: "proven",
+            evidence: [],
+          },
+        ],
       }),
     ).toThrow(/authoritative evidence/i);
   });
@@ -86,12 +90,14 @@ git commit -m "feat: define README evidence claims"
 ### Task 2: Derive Authoritative README Facts
 
 **Files:**
+
 - Create: `src/core/readme-facts.ts`
 - Create: `tests/readme-facts.test.ts`
 - Modify: `src/core/catalog-coverage.ts`
 - Modify: `src/core/adapters.ts`
 
 **Interfaces:**
+
 - Produces: `deriveReadmeFacts({ catalog, packageJson, agents, profiles })` returning catalog counts, license counts, component/install-shape counts, profile counts, supported-agent names, and package/runtime facts.
 - Consumes: `buildCatalogCoverage`, `ADAPTER_CAPABILITIES`, `STABLE_SKILL_ALLOWLIST`, `POWER_SKILL_ALLOWLIST`.
 
@@ -136,12 +142,14 @@ git commit -m "feat: derive authoritative README facts"
 ### Task 3: Add Generated README Fact Blocks
 
 **Files:**
+
 - Create: `scripts/update-readme-facts.mjs`
 - Create: `tests/readme-facts-script.test.ts`
 - Modify: `README.md`
 - Modify: `package.json`
 
 **Interfaces:**
+
 - Produces CLI: `node scripts/update-readme-facts.mjs [--check]`.
 - Consumes built or source-derived facts and guarded markers `<!-- loadout:NAME:start -->` / `<!-- loadout:NAME:end -->`.
 
@@ -177,12 +185,14 @@ git commit -m "feat: generate README evidence facts"
 ### Task 4: Enforce Claim-to-Evidence Consistency
 
 **Files:**
+
 - Create: `scripts/check-readme-claims.mjs`
 - Create: `tests/readme-claim-check.test.ts`
 - Modify: `package.json`
 - Modify: `scripts/check-release-claims.ts`
 
 **Interfaces:**
+
 - Produces CLI: `node scripts/check-readme-claims.mjs`.
 - Consumes: claim manifest, README, derived facts, filesystem evidence paths, package scripts, and release-claim index.
 
@@ -218,6 +228,7 @@ git commit -m "test: enforce README evidence claims"
 ### Task 5: Correct Trust and Recommendation Semantics
 
 **Files:**
+
 - Modify: `src/core/profiles.ts`
 - Modify: `src/core/catalog-coverage.ts`
 - Modify: `src/core/ranking.ts`
@@ -233,6 +244,7 @@ git commit -m "test: enforce README evidence claims"
 - Modify: `tests/dashboard.test.ts`
 
 **Interfaces:**
+
 - Produces user-facing evidence labels that distinguish `policy-selected`, `inspected`, `human-reviewed`, and `benchmarked`.
 - Preserves machine compatibility for existing stored trust-stage values where required.
 
@@ -269,6 +281,7 @@ git commit -m "fix: align trust language with evidence"
 ### Task 6: Add Full Adapter Filesystem Conformance Evidence
 
 **Files:**
+
 - Create: `src/core/conformance.ts`
 - Create: `tests/adapter-conformance.test.ts`
 - Modify: `src/core/adapters.ts`
@@ -277,6 +290,7 @@ git commit -m "fix: align trust language with evidence"
 - Modify: `README.md`
 
 **Interfaces:**
+
 - Produces `buildAdapterConformanceMatrix()` and evidence fields `pathKnown`, `filesystemVerified`, `nativeApplicationVerified`, `platformEvidence`.
 - Consumes adapter capability declarations and isolated path environment.
 
@@ -312,12 +326,14 @@ git commit -m "test: prove agent filesystem conformance"
 ### Task 7: Turn the README Core Journey into an Outcome-Tested Flow
 
 **Files:**
+
 - Create: `scripts/readme-product-flow.mjs`
 - Create: `tests/readme-product-flow.test.ts`
 - Modify: `package.json`
 - Modify: `README.md`
 
 **Interfaces:**
+
 - Produces package script `test:e2e:readme`.
 - Consumes built CLI and disposable `LOADOUT_HOME`/`LOADOUT_USER_HOME`.
 
@@ -353,6 +369,7 @@ git commit -m "test: verify the documented product journey"
 ### Task 8: Make External and Release Claims Explicitly Verifiable
 
 **Files:**
+
 - Create: `scripts/check-live-evidence.mjs`
 - Create: `docs/evidence/live-checks.schema.json`
 - Create: `tests/live-evidence.test.ts`
@@ -363,6 +380,7 @@ git commit -m "test: verify the documented product journey"
 - Modify: `.github/workflows/daily-discovery.yml`
 
 **Interfaces:**
+
 - Produces `npm run check:live -- [--npm] [--stable-install] [--github]` with `verified`, `failed`, and `not-verified` results.
 - Produces immutable SHA-pinned Actions configuration.
 
@@ -402,6 +420,7 @@ git commit -m "chore: verify release and live evidence boundaries"
 ### Task 9: Complete Claim Audit and Full Verification
 
 **Files:**
+
 - Modify: `docs/evidence/readme-claims.json`
 - Modify: `README.md`
 - Modify: `docs/FEATURE_TEST_MATRIX.md`
@@ -409,6 +428,7 @@ git commit -m "chore: verify release and live evidence boundaries"
 - Modify: `docs/RELEASE_REVIEW.md`
 
 **Interfaces:**
+
 - Consumes all previous evidence and produces no unverified present-tense claim.
 
 - [ ] **Step 1: Audit every claim manifest entry**

@@ -2,6 +2,7 @@ coverage/
 dist/
 node_modules/
 .loadout/
+.superpowers/
 # Canonical output from scripts/daily-discovery.mjs; never hand-formatted.
 catalog/discovered.json
 docs/DISCOVERED.md

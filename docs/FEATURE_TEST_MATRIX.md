@@ -121,8 +121,10 @@ reruns and diagnosis.
 | `npm run format:check`       | Repository formatting                                                   | Exit 0; no files changed.                          |
 | `npm run lint`               | TypeScript lint rules                                                   | Exit 0.                                            |
 | `npm run typecheck`          | TypeScript contract                                                     | Exit 0.                                            |
+| `npm run check:evidence`     | Catalog/discovery attribution, README claims, and release boundaries    | Exit 0; no claim is silently promoted.             |
 | `npm test`                   | Unit, integration, native filesystem, safety, and regression suites     | All tests pass.                                    |
 | `npm run test:e2e:cli`       | Disposable scan → compare → optimize → apply → rollback journey         | Prints a successful CLI product flow.              |
+| `npm run test:e2e:readme`    | Isolated library/activation/manifest/card/rollback journey              | Prints README product flow success.                |
 | `npm run test:package`       | `npm pack`, install outside the checkout, packaged CLI install/rollback | Prints package smoke success.                      |
 | `npm run test:performance`   | Seven scans of 1,000 real on-disk skill directories                     | p95 remains below the enforced five-second budget. |
 | `npm run test:e2e:dashboard` | Loopback dashboard first-run browser test                               | Playwright passes; no real profile is used.        |
@@ -130,6 +132,20 @@ reruns and diagnosis.
 The dashboard test needs a Playwright browser. If the browser executable is absent,
 run `npx playwright install chromium` once; that download is not a Loadout product
 side effect.
+
+The focused regression contract for the v0.3.x profile lifecycle is:
+
+```bash
+npx vitest run tests/upgrade.test.ts tests/profile-state.test.ts \
+  tests/update.test.ts tests/uninstall.test.ts tests/install.test.ts \
+  tests/mcp-recipes.test.ts tests/cli-help.test.ts
+```
+
+It verifies preview/apply upgrade behavior, saved-profile refresh detection, safe
+profile reconciliation, complete-uninstall drift protection, recursively empty target
+recovery, and the separation between model-provider access declarations and service
+credentials. These are disposable automated filesystem tests; they do not prove that
+a native agent consumes the resulting files or that a host scheduler/keychain works.
 
 ## 2. Read-only inventory, ranking, and recommendation track (R; some N)
 

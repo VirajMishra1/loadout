@@ -31,6 +31,30 @@ This test does not use the dashboard, network, mock command output, or any real 
 profile. It is a required CI gate on Ubuntu; the manual cross-platform workflow runs
 the broader native filesystem suite.
 
+The README journey is a separate deterministic gate. It compiles an isolated build,
+installs a local reviewed fixture into disposable Loadout/user homes, checks its
+manifest, lock, hashes, privacy card, activation, and rollback, then deletes the
+fixture and build:
+
+```bash
+npm run test:e2e:readme
+```
+
+Run `npm run verify` for formatting, lint, types, deterministic evidence checks, all
+Vitest suites, both CLI journeys, package smoke, and the performance gate. Run
+`npm run verify:full` only when Playwright Chromium is installed and the optional
+dashboard browser test is also wanted.
+
+Current npm publication, the current pinned Stable repositories, and GitHub repository
+settings are external state. Check them separately with:
+
+```bash
+npm run check:live -- --npm --stable-install --github
+```
+
+Each requested check reports `verified`, `failed`, or `not-verified`; missing access is
+not converted into a pass.
+
 ## 1. Build the exact npm package entry point
 
 ```bash

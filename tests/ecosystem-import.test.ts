@@ -1,4 +1,5 @@
 import { readFile } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
   parseBoundedYaml,
@@ -11,7 +12,9 @@ import {
 } from "../src/core/ecosystem-import.js";
 
 const fixture = (name: string) =>
-  new URL(`./fixtures/ecosystem-import/${name}`, import.meta.url);
+  fileURLToPath(
+    new URL(`./fixtures/ecosystem-import/${name}`, import.meta.url),
+  );
 
 describe("bounded ecosystem YAML parser", () => {
   it("parses the supported mappings, sequences, comments, and flow sequences", () => {
@@ -187,8 +190,8 @@ dependencies:
 
   it("offers filesystem-ready API exports while remaining read-only", async () => {
     const result = await planApmImportFiles(
-      fixture("apm.yml").pathname,
-      fixture("apm.lock.yaml").pathname,
+      fixture("apm.yml"),
+      fixture("apm.lock.yaml"),
     );
     expect(result.manifest.candidates.length).toBe(5);
     expect(result.lockEvidence?.candidates.length).toBe(2);
@@ -256,8 +259,8 @@ describe("OpenPackage current-format read-only import planning", () => {
 
   it("reads a manifest and optional index through the CLI-ready file API", async () => {
     const result = await planOpenPackageImportFiles(
-      fixture("openpackage.yml").pathname,
-      fixture("openpackage.index.yml").pathname,
+      fixture("openpackage.yml"),
+      fixture("openpackage.index.yml"),
     );
     expect(result.manifest.candidates).toHaveLength(5);
     expect(result.lockEvidence?.candidates).toHaveLength(2);

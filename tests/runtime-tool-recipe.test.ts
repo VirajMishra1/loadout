@@ -1,3 +1,4 @@
+import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { GRAPHIFY_RECIPE, planRuntimeTool } from "../src/core/runtime-tools.js";
 import {
@@ -133,8 +134,16 @@ describe("reviewed runtime recipe schema", () => {
   });
 
   it("preserves the exact reviewed Graphify command plan", async () => {
-    const home = "/tmp/loadout-recipe-parity/home";
-    const stateHome = "/tmp/loadout-recipe-parity/state";
+    const root = resolve("loadout-recipe-parity");
+    const home = join(root, "home");
+    const stateHome = join(root, "state");
+    const binary = join(
+      stateHome,
+      "runtime",
+      "graphify",
+      "bin",
+      process.platform === "win32" ? "graphify.exe" : "graphify",
+    );
     const agent: DetectedAgent = {
       id: "codex",
       displayName: "Codex",
@@ -152,7 +161,7 @@ describe("reviewed runtime recipe schema", () => {
       {
         id: "codex",
         displayName: "Codex",
-        target: `${home}/.codex/skills/graphify`,
+        target: join(home, ".codex", "skills", "graphify"),
       },
     ]);
     expect(plan.commands).toEqual([
@@ -169,12 +178,12 @@ describe("reviewed runtime recipe schema", () => {
           "install the exact hashed Graphify wheel in isolated Loadout state",
       },
       {
-        command: `${stateHome}/runtime/graphify/bin/graphify`,
+        command: binary,
         args: ["install", "--platform", "codex"],
         purpose: "generate the official Codex Graphify skill",
       },
       {
-        command: `${stateHome}/runtime/graphify/bin/graphify`,
+        command: binary,
         args: ["--version"],
         purpose: "verify Graphify 0.9.17",
       },

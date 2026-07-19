@@ -7,7 +7,65 @@ import { describe, expect, it } from "vitest";
 const execFileAsync = promisify(execFile);
 const repositoryRoot = resolve(import.meta.dirname, "..");
 
+function expectOrderedReadmeStructure(
+  readme: string,
+  sections: readonly string[],
+  markerNames: readonly string[],
+): void {
+  let previousSection = -1;
+  for (const section of sections) {
+    const index = readme.indexOf(section);
+    if (
+      index === -1 ||
+      index !== readme.lastIndexOf(section) ||
+      index <= previousSection
+    ) {
+      throw new Error(
+        "README sections must appear exactly once in approved order",
+      );
+    }
+    previousSection = index;
+  }
+
+  let previousEnd = -1;
+  for (const name of markerNames) {
+    const startMarker = `<!-- loadout:${name}:start -->`;
+    const endMarker = `<!-- loadout:${name}:end -->`;
+    const start = readme.indexOf(startMarker);
+    const end = readme.indexOf(endMarker);
+    if (
+      start === -1 ||
+      end === -1 ||
+      start !== readme.lastIndexOf(startMarker) ||
+      end !== readme.lastIndexOf(endMarker) ||
+      start >= end ||
+      start <= previousEnd
+    ) {
+      throw new Error(
+        "README marker pairs must be unique, ordered and non-overlapping",
+      );
+    }
+    previousEnd = end;
+  }
+}
+
 describe("README product flow", () => {
+  it("rejects overlapping generated marker blocks", () => {
+    expect(() =>
+      expectOrderedReadmeStructure(
+        [
+          "## How it works",
+          "<!-- loadout:catalog-coverage:start -->",
+          "<!-- loadout:evidence-stages:start -->",
+          "<!-- loadout:catalog-coverage:end -->",
+          "<!-- loadout:evidence-stages:end -->",
+        ].join("\n"),
+        ["## How it works"],
+        ["catalog-coverage", "evidence-stages"],
+      ),
+    ).toThrow(/ordered and non-overlapping/i);
+  });
+
   it("presents the approved proof-first product journey", async () => {
     const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
 
@@ -19,21 +77,33 @@ describe("README product flow", () => {
       /npm install --global loadout-ai@0\.3\.2[^\n]*(?:not currently published|unavailable)|(?:not currently published|unavailable)[^\n]*npm install --global loadout-ai@0\.3\.2/i,
     );
 
-    for (const name of [
-      "catalog-coverage",
-      "evidence-stages",
-      "daily-discovery",
-      "support-summary",
-      "current-limits",
-      "verification-summary",
-    ]) {
-      expect(
-        readme.match(new RegExp(`<!-- loadout:${name}:start -->`, "g")),
-      ).toHaveLength(1);
-      expect(
-        readme.match(new RegExp(`<!-- loadout:${name}:end -->`, "g")),
-      ).toHaveLength(1);
-    }
+    expectOrderedReadmeStructure(
+      readme,
+      [
+        "## How it works",
+        "### Abridged terminal transcript",
+        "## Why Loadout",
+        "## Install from source",
+        "## Stable workflow",
+        "## Profiles",
+        "## Catalog and discovery",
+        "## Trust and limits",
+        "## Agent support",
+        "## Command reference",
+        "## Development",
+        "## Documentation",
+        "## Contributing, security, and attribution",
+        "## License",
+      ],
+      [
+        "catalog-coverage",
+        "evidence-stages",
+        "daily-discovery",
+        "current-limits",
+        "support-summary",
+        "verification-summary",
+      ],
+    );
   });
 
   it("links concise README verification guidance to the detailed testing contract", async () => {

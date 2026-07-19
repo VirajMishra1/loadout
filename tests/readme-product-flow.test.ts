@@ -128,6 +128,23 @@ describe("README product flow", () => {
     );
   });
 
+  it("bounds Stable preview output and later apply identity", async () => {
+    const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
+
+    expect(readme).toContain(
+      "Preview complete; nothing was changed. Re-run with --yes to install this exact screened plan.",
+    );
+    expect(readme.match(/exact screened plan/g)).toHaveLength(1);
+    expect(readme).toContain(
+      "A later `--yes` invocation recomputes the plan from pinned sources and current agent and filesystem state; it does not persist or prove identity with the earlier preview.",
+    );
+    expect(readme).not.toContain("Inspect pinned source contents");
+    expect(readme).not.toContain("Preview destinations");
+    expect(readme).not.toContain("Apply the exact plan");
+    expect(readme).not.toContain("exact rerun command");
+    expect(readme).not.toContain("applying a plan with safety findings");
+  });
+
   it("links concise README verification guidance to the detailed testing contract", async () => {
     const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
     expect(readme).toMatch(/\[[^\]]*testing[^\]]*\]\(\.\/docs\/TESTING\.md\)/i);

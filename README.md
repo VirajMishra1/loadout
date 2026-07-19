@@ -33,9 +33,9 @@
 **Choose -> Inspect -> Preview -> Apply -> Undo**
 
 1. **Choose** a bounded profile or explicit packages.
-2. **Inspect** pinned source contents and reported safety signals.
-3. **Preview** destinations, collisions, and required approvals without changing agent target files.
-4. **Apply** the exact screened plan inside a snapshot-backed transaction.
+2. **Inspect** pinned source and catalog metadata separately before setup.
+3. **Preview** detected agents, aggregate repository, directory, and collision counts, warnings, skipped entries, and package IDs needing approval without changing agent target files.
+4. **Apply** by rerunning with `--yes`; Loadout recomputes from current state before using a snapshot-backed transaction.
 5. **Undo** the latest supported mutation with drift checks that protect later edits.
 
 ### Abridged terminal transcript
@@ -59,7 +59,9 @@ $ loadout rollback
 Restored snapshot <snapshot-id>
 ```
 
-Preview may populate Loadout's own cache; it leaves agent target files unchanged. Before applying a plan with safety findings, inspect them and use the exact rerun command that Loadout prints.
+The final preview sentence above is captured CLI wording. A later `--yes` invocation recomputes the plan from pinned sources and current agent and filesystem state; it does not persist or prove identity with the earlier preview.
+
+Preview may populate Loadout's own cache; it leaves agent target files unchanged. Review its aggregate counts, warnings, skipped entries, and package IDs needing approval before deciding whether to run a later apply command.
 
 ## Why Loadout
 
@@ -94,7 +96,7 @@ The demo uses temporary state and cleans it up; it does not write to your normal
 # Preview for detected agents
 loadout setup --mode stable
 
-# Apply the exact plan after inspection
+# Recompute from current state and apply after reviewing the preview
 loadout setup --mode stable --yes
 
 # Inspect managed state, then undo the latest supported mutation

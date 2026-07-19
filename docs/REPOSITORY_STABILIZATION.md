@@ -75,11 +75,12 @@ Earlier green runs prove their own commits only. They do not prove later commits
 GitHub never executed. Current local verification and future post-integration Actions
 must remain separately reported.
 
-## Branch cleanup results
+## Branch cleanup observations during consolidation
 
-There is one merged PR: [#1](https://github.com/VirajMishra1/loadout/pull/1),
-`dev/nitish` into `develop`, merged as `69594f2`; its recorded Linux, macOS, and
-Windows Node 20/22 jobs passed. There are no open PRs.
+At the 2026-07-19 consolidation checkpoint, there was one merged PR:
+[#1](https://github.com/VirajMishra1/loadout/pull/1), `dev/nitish` into `develop`,
+merged as `69594f2`; its recorded Linux, macOS, and Windows Node 20/22 jobs passed.
+The authenticated query at that checkpoint returned no open PRs.
 
 | Branch                                    | Unique work relative to starting `origin/main`                                                                                                    | Final result                                                                     |
 | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
@@ -95,10 +96,10 @@ Windows Node 20/22 jobs passed. There are no open PRs.
 | `develop`                                 | Old integration ancestor                                                                                                                          | Local and remote branch deleted                                                  |
 
 Cleanup completed only after the integrated work reached remote `main` and the open-PR
-list was empty. Git now exposes only local `main`, `origin/main`, and the retained
-release tags. The `/tmp/loadout-readme-truth` worktree was removed. The user's
-untracked `.superpowers/` directory remains present and is ignored by `.gitignore`;
-no user artifact was deleted.
+list was empty. At that checkpoint, Git exposed only local `main`, `origin/main`, and
+the retained release tags. The `/tmp/loadout-readme-truth` worktree had been removed.
+The user's untracked `.superpowers/` directory remained present and ignored by
+`.gitignore`; no user artifact was deleted.
 
 ## Planning and dead-file consolidation
 
@@ -141,26 +142,29 @@ an exhaustive manual. In particular, the complete adapter table belongs in
 summary must continue to distinguish configured target paths and disposable
 filesystem tests from unverified native-agent recognition and execution.
 
-## Current external truth
+## Dated external observations before the README redesign
 
-- GitHub repository: the active private fork is `reddynitish/loadout`; its default
-  branch is `main` at `18757d4` before the README-redesign branch. The earlier
-  `VirajMishra1/loadout` observations in this record describe the upstream repository
-  at the time of consolidation, not current fork status.
-- Branches and PRs: `codex/readme-redesign` is the current local work branch; the
-  authenticated check found no open pull requests in the fork.
-- npm: versions through `0.3.1`; `0.3.2` is not verified as published.
+These observations were captured on 2026-07-19 before README-redesign work began.
+They are a historical checkpoint, not claims about repository state when this document
+is later read.
+
+- GitHub repository: the private fork was `reddynitish/loadout`; its default branch
+  was `main` at `18757d4`. The earlier `VirajMishra1/loadout` observations in this
+  record describe the upstream repository at the time of consolidation.
+- Branches and PRs: `codex/readme-redesign` was the local work branch; the
+  authenticated check found no open pull requests in the fork at that time.
+- npm: the registry exposed versions through `0.3.1`; `0.3.2` was not verified as
+  published.
 - GitHub Actions: fork CI run
   [`29704170975`](https://github.com/reddynitish/loadout/actions/runs/29704170975) passed
-  for `main` at `18757d4`. The upstream billing-blocked runs above remain historical
-  evidence only and do not describe the fork's current CI capability.
+  for `main` at `18757d4`. The upstream billing-blocked runs above were historical
+  evidence only and did not describe the fork's CI capability.
 - Branch protection: the authenticated protection endpoint returned HTTP 403 stating
   that the private repository requires GitHub Pro or public visibility for the
-  feature. Protection is therefore unavailable under the current repository plan;
-  this is not a product-runtime result.
-- Native application consumption of every configured adapter path remains unverified;
-  disposable filesystem lifecycle evidence must not be promoted into a native-host
-  support claim.
+  feature. Protection was unavailable under the observed repository plan; this was
+  not a product-runtime result.
+- Native application consumption of every configured adapter path was unverified;
+  disposable filesystem lifecycle evidence did not establish native-host support.
 
 ## Local verification after consolidation
 

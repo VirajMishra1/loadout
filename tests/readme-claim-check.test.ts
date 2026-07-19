@@ -366,8 +366,12 @@ function expectActionable(
 
 beforeAll(() => {
   execFileSync(
-    process.platform === "win32" ? "npm.cmd" : "npm",
-    ["run", "build"],
+    process.execPath,
+    [
+      join(process.cwd(), "node_modules", "typescript", "bin", "tsc"),
+      "-p",
+      "tsconfig.json",
+    ],
     { stdio: "pipe" },
   );
 });

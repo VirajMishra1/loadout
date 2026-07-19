@@ -8,6 +8,34 @@ const execFileAsync = promisify(execFile);
 const repositoryRoot = resolve(import.meta.dirname, "..");
 
 describe("README product flow", () => {
+  it("presents the approved proof-first product journey", async () => {
+    const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
+
+    expect(readme).toContain("./docs/assets/loadout-mark.svg");
+    expect(readme).toContain("Agent extensions, under control.");
+    expect(readme).toContain("Choose -> Inspect -> Preview -> Apply -> Undo");
+    expect(readme).toMatch(/abridged terminal transcript/i);
+    expect(readme).toMatch(
+      /npm install --global loadout-ai@0\.3\.2[^\n]*(?:not currently published|unavailable)|(?:not currently published|unavailable)[^\n]*npm install --global loadout-ai@0\.3\.2/i,
+    );
+
+    for (const name of [
+      "catalog-coverage",
+      "evidence-stages",
+      "daily-discovery",
+      "support-summary",
+      "current-limits",
+      "verification-summary",
+    ]) {
+      expect(
+        readme.match(new RegExp(`<!-- loadout:${name}:start -->`, "g")),
+      ).toHaveLength(1);
+      expect(
+        readme.match(new RegExp(`<!-- loadout:${name}:end -->`, "g")),
+      ).toHaveLength(1);
+    }
+  });
+
   it("links concise README verification guidance to the detailed testing contract", async () => {
     const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
     expect(readme).toMatch(/\[[^\]]*testing[^\]]*\]\(\.\/docs\/TESTING\.md\)/i);

@@ -19,6 +19,7 @@ const SIGNAL_FILES = new Set([
   "requirements.txt",
   "go.mod",
   "Cargo.toml",
+  "mix.exs",
   "Gemfile",
   "pom.xml",
   "build.gradle",
@@ -26,6 +27,7 @@ const SIGNAL_FILES = new Set([
   "next.config.mjs",
   "vite.config.ts",
   "playwright.config.ts",
+  "vercel.json",
   "SECURITY.md",
   ".git",
 ]);
@@ -121,6 +123,14 @@ export async function scanProject(
       if (deps.jest) tools.add("jest");
       if (deps.commander) tools.add("commander");
       if (deps.zod) tools.add("zod");
+      if (
+        deps.express ||
+        deps.fastify ||
+        deps.koa ||
+        deps.hono ||
+        deps["@nestjs/core"]
+      )
+        roles.add("backend");
       if (pkg.bin) roles.add("node-cli");
       if (pkg.publishConfig || pkg.private === false) roles.add("npm-package");
       const scripts = pkg.scripts ?? {};
@@ -143,6 +153,7 @@ export async function scanProject(
     languages.add("python");
   if (files.includes("go.mod")) languages.add("go");
   if (files.includes("Cargo.toml")) languages.add("rust");
+  if (files.includes("mix.exs")) languages.add("elixir");
   if (files.includes("Gemfile")) languages.add("ruby");
   if (files.includes("pom.xml") || files.includes("build.gradle"))
     languages.add("java");

@@ -353,4 +353,84 @@ describe("project-aware active-set policy", () => {
       "Detected: TypeScript, Playwright, Node CLI, npm package",
     );
   });
+
+  it("rejects ecosystem mismatches even when generic CLI, MCP, or publish words score", async () => {
+    root = await mkdtemp(join(tmpdir(), "loadout-active-compatibility-"));
+    const project = await writeNamedCodexLibrary([
+      "mcp-csharp-publish",
+      "mcp-csharp-test",
+      "uv-package-manager",
+      "social-publishing",
+      "vercel-cli-with-tokens",
+      "msstore-cli",
+      "phoenix-cli",
+      "publish-to-pages",
+      "datadog-cli",
+      "context7-cli",
+      "chrome-devtools-cli",
+      "pnpm",
+      "nodejs-backend-patterns",
+      "web-design-guidelines",
+      "accessibility-compliance",
+      "database-schema-designer",
+      "typescript-advanced-types",
+      "npm-package-release",
+      "mcp-security",
+    ]);
+
+    const plan = await planProjectActivation(project, {
+      agents: ["codex"],
+      limit: 30,
+    });
+    const selected = plan.agentPlans[0].selected.map((item) => item.unitId);
+
+    expect(selected).toEqual(
+      expect.arrayContaining([
+        "typescript-advanced-types",
+        "npm-package-release",
+        "mcp-security",
+      ]),
+    );
+    expect(selected).not.toEqual(
+      expect.arrayContaining([
+        "mcp-csharp-publish",
+        "mcp-csharp-test",
+        "uv-package-manager",
+        "social-publishing",
+        "vercel-cli-with-tokens",
+        "msstore-cli",
+        "phoenix-cli",
+        "publish-to-pages",
+        "datadog-cli",
+        "context7-cli",
+        "chrome-devtools-cli",
+        "pnpm",
+        "nodejs-backend-patterns",
+        "web-design-guidelines",
+        "accessibility-compliance",
+        "database-schema-designer",
+      ]),
+    );
+  });
+
+  it("allows an explicit pin to override a compatibility gate", async () => {
+    root = await mkdtemp(join(tmpdir(), "loadout-active-pin-override-"));
+    const project = await writeNamedCodexLibrary(["mcp-csharp-publish"]);
+
+    const plan = await planProjectActivation(project, {
+      agents: ["codex"],
+      limit: 30,
+      pins: ["collection/mcp-csharp-publish"],
+    });
+
+    expect(plan.agentPlans[0].selected[0]).toMatchObject({
+      selector: "collection/mcp-csharp-publish",
+      reasons: [
+        "explicitly pinned",
+        "npm package",
+        "release automation",
+        "MCP tooling",
+      ],
+    });
+  });
 });

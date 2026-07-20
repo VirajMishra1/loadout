@@ -207,6 +207,32 @@ merged `codex/relatable-readme-hero` remote branch remains safe to delete after 
       `0d25b8e`. This is the corrected founder-testing release, not the final public
       launch candidate: dashboard removal, Power policy, health output, and Maximum
       preview work remain open.
+- [x] `P18-29 [SOL+TERRA]` Block ecosystem-mismatched project activation candidates
+      before scoring. The exact published `0.4.1` founder preview correctly detected
+      this TypeScript Node CLI, respected both agents' real capacity, and produced no
+      false occupied-target blockers, but still proposed `mcp-csharp-publish`,
+      `mcp-csharp-test`, `uv-package-manager`, `social-publishing`, and
+      `vercel-cli-with-tokens`, then exposed `msstore-cli`, `phoenix-cli`, and
+      `publish-to-pages` once those higher-ranked mismatches were removed. A second
+      preview exposed the general cause: any domain-specific name ending in `-cli`,
+      including `datadog-cli`, inherited the full Node CLI and Commander score; a
+      third exposed substring matching of `npm` inside `pnpm`, plus backend and web
+      design guidance without corresponding project roles; a fourth caught generic
+      `schema` admitting database design for Zod and universal accessibility guidance
+      in a CLI project. Add deterministic language/provider/specialization
+      compatibility gates, bounded generic CLI and schema evidence, token-aware
+      package-manager matching, and role-gated backend/frontend guidance. Generic
+      `mcp`, `cli`, `package`, and `publish` words must not override compatibility;
+      preserve explicit pins as a deliberate escape hatch; prove the exact regression
+      with tests and repeat the read-only founder preview before any real activation.
+      Complete on `codex/activation-compatibility-gates`: the exact live Maximum
+      library preview now proposes 24 relevant Codex skills and 18 capacity-bounded
+      Claude Code skills with zero occupied-target blockers and none of the observed
+      ecosystem mismatches. The full release gate passes with 114 test files, 607
+      passing tests, one intentional skip, both CLI product journeys, packaged CLI
+      smoke, evidence checks, and a 1,518.4 ms p95 scan benchmark across seven real
+      runs. The preview remained read-only; publish the merged correction before the
+      founder applies it to real agent profiles.
 
 ### Release 0.3 lifecycle hardening
 

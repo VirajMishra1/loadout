@@ -1,5 +1,21 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+- Gate project-aware activation by detected language, framework, provider, and
+  project role before scoring generic CLI, MCP, package, publish, or schema words.
+- Keep explicit skill pins as a deliberate override while treating the active-set
+  limit as a ceiling rather than filling it with ecosystem-mismatched candidates.
+
+### Fixed
+
+- Prevent substring matches such as `npm` inside `pnpm` and arbitrary `*-cli`
+  names from receiving unrelated Node CLI or Commander relevance scores.
+- Stop non-.NET, non-Python, non-Elixir, non-frontend, and non-backend projects
+  from automatically activating domain-specific guidance for those ecosystems.
+
 ## 0.4.1 - 2026-07-20
 
 ### Added

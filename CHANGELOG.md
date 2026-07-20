@@ -1,5 +1,35 @@
 # Changelog
 
+## 0.4.0 - 2026-07-20
+
+### Added
+
+- Add generated, test-enforced README facts and bounded release claims so public
+  documentation cannot silently drift away from the shipped catalog, profiles,
+  adapters, commands, or verification surface.
+- Add disposable filesystem lifecycle conformance coverage for all 12 configured
+  agent adapters and an offline README product journey covering library install,
+  activation, inspection, privacy-safe sharing, and rollback.
+- Add a new Loadout visual identity and a proof-first README organized around the
+  Choose -> Inspect -> Preview -> Apply -> Undo workflow.
+
+### Changed
+
+- Make CI and claim-generation paths portable on Windows, fetch the repository
+  history needed by evidence checks, and pin third-party Actions by immutable commit.
+- Consolidate active planning in `MASTER_PLAN.md` and retain completed implementation
+  documents only as historical evidence.
+
+### Fixed
+
+- Refuse explicit rollback when managed paths changed after a mutation, including
+  dashboard restores and unsupported filesystem entries, while retaining automatic
+  failed-transaction recovery.
+- Bind adoption to the complete safe skill tree, reject drift and forged plans, and
+  record ownership only after verifying the final bytes.
+- Record installed-profile state inside the setup transaction so Stable and other
+  profile changes can be rolled back consistently.
+
 ## 0.3.2 - 2026-07-18
 
 ### Fixed

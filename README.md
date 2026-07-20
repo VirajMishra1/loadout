@@ -18,7 +18,7 @@
 
 <p align="center">
   <a href="#how-it-works">How it works</a> ·
-  <a href="#install-from-source">Install</a> ·
+  <a href="#install">Install</a> ·
   <a href="#profiles">Profiles</a> ·
   <a href="#trust-and-limits">Trust</a> ·
   <a href="#command-reference">Commands</a> ·
@@ -26,7 +26,7 @@
 </p>
 
 > [!IMPORTANT]
-> `npm install --global loadout-ai@0.3.2` is not currently published and is unavailable. Use an authorized source checkout; the npm registry check on 2026-07-19 exposed versions only through `0.3.1`.
+> Installation is version-pinned so the code you test matches these docs. The commands below target `loadout-ai@0.4.0`; review the preview before every apply.
 
 ## How it works
 
@@ -71,9 +71,17 @@ Skills, plugins, MCP servers, and agent settings tend to accumulate one experime
 - **Preview by default.** Setup, updates, removal, MCP recipes, and uninstall expose a plan before their supported writes.
 - **Recoverable changes.** Snapshots and managed-file hashes support rollback while refusing to overwrite later user edits.
 
-## Install from source
+## Install
 
-You need Node.js 20 or newer, Git, and access to this private repository.
+You need Node.js 20 or newer and Git.
+
+```bash
+npm install --global loadout-ai@0.4.0
+loadout --version
+loadout guide
+```
+
+For source development instead:
 
 ```bash
 git clone https://github.com/VirajMishra1/loadout.git

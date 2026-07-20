@@ -105,9 +105,7 @@ describe("README product flow", () => {
     expect(readme).toContain("Agent extensions, under control.");
     expect(readme).toContain("Choose -> Inspect -> Preview -> Apply -> Undo");
     expect(readme).toMatch(/abridged terminal transcript/i);
-    expect(readme).toMatch(
-      /npm install --global loadout-ai@0\.3\.2[^\n]*(?:not currently published|unavailable)|(?:not currently published|unavailable)[^\n]*npm install --global loadout-ai@0\.3\.2/i,
-    );
+    expect(readme).toContain("npm install --global loadout-ai@0.4.0");
 
     expectOrderedReadmeStructure(
       readme,
@@ -115,7 +113,7 @@ describe("README product flow", () => {
         "## How it works",
         "### Abridged terminal transcript",
         "## Why Loadout",
-        "## Install from source",
+        "## Install",
         "## Stable workflow",
         "## Profiles",
         "## Catalog and discovery",
@@ -141,7 +139,7 @@ describe("README product flow", () => {
   it("tells the Loadout story in the Why Loadout section", async () => {
     const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
     const start = readme.indexOf("## Why Loadout");
-    const end = readme.indexOf("## Install from source", start);
+    const end = readme.indexOf("## Install", start);
     expect(start).toBeGreaterThanOrEqual(0);
     expect(end).toBeGreaterThan(start);
 

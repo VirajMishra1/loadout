@@ -160,10 +160,9 @@ cleanup deliberately deletes Loadout's snapshots, so it is the last lifecycle te
 
 ## Troubleshooting and recovery
 
-- **`loadout` is not found after a source checkout:** run `npm run build` and `npm
-link` in the checkout, then confirm npm's global binary directory is on `PATH`.
-  Until the exact package version is published, do not substitute an unavailable npm
-  install for this source-link workflow.
+- **`loadout` is not found after installation:** confirm `npm install --global
+loadout-ai@0.4.0` completed, run `hash -r`, and confirm npm's global binary
+  directory is on `PATH`. For a source checkout, run `npm run build` and `npm link`.
 - **A preview asks for `--approve-risk`:** read the reported scripts, domains,
   credentials, binaries, or instruction findings. If you accept that specific plan,
   use the exact rerun command Loadout prints. The flag is not a general safety

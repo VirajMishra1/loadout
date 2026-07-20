@@ -6,7 +6,7 @@ Category: Developer Tools
 Team size: 3  
 Target submission: July 21, 2026 at 5:00 PM Pacific / July 22 at 4:00 AM Dubai
 
-## Current status and remaining work (July 19, 2026)
+## Current status and remaining work (July 20, 2026)
 
 This is the authoritative active list. The long phase history below is retained as
 an archival engineering record, not a second active plan and not a command to build
@@ -57,8 +57,9 @@ plans and contributor-specific plans have been consolidated here and removed.
       unsafe proposal to ignore `state.json` drift was rejected because it could
       orphan later installations.
 
-All intended work through P18-20 is on remote `main`. GitHub's only branch remains
-`main`, and there are no open PRs.
+All intended work through P18-20 is on remote `main`, and there are no open PRs. The
+merged `codex/relatable-readme-hero` remote branch remains safe to delete after the
+0.4.0 release checkpoint.
 
 ### Deterministic repository verification
 
@@ -66,9 +67,10 @@ All intended work through P18-20 is on remote `main`. GitHub's only branch remai
       documentation consolidation, including formatting, lint, type checking, build,
       evidence checks, unit and integration tests, CLI and README product flows,
       package smoke, performance, dashboard Playwright, package contents, and
-      `git diff --check`. The July 19 local gate passed 112 test files with 589 tests
-      passing and one intentionally skipped, both product flows, package smoke, the
-      1,000-skill performance gate at 240.5 ms p95, and both dashboard viewports.
+      `git diff --check`. The July 20 integrated-main audit passed 113 test files with
+      597 tests passing and one intentionally skipped, both product flows, package
+      smoke, the 1,000-skill performance gate at 2.40 seconds p95, and both dashboard
+      viewports.
       The additional live Stable gate installed four pinned packages and completed
       state and filesystem rollback assertions at `5f8e38e`.
 
@@ -78,20 +80,21 @@ All intended work through P18-20 is on remote `main`. GitHub's only branch remai
       deletion; the adoption gap above was the only remaining valuable intent.
 - [x] Reimplement and regression-test that intent in the current architecture.
 - [x] Complete the second remote synchronization, confirm the four adoption commits
-      are reachable from remote `main`, and delete the superseded local and remote
-      branches. Only `main` remains locally and remotely; the temporary worktree was
-      removed and the unrelated ignored `.superpowers/` directory was preserved.
+      are reachable from remote `main`, and delete the superseded development
+      branches. The temporary worktree was removed and the unrelated ignored
+      `.superpowers/` directory was preserved. The later merged README hero branch is
+      retained only until the 0.4.0 release checkpoint.
 
 ### Human and external work (not provable by local tests)
 
 - [ ] `P18-03 [HUMAN+TERRA]` Run the founder acceptance path in
       `docs/USER_TEST_GUIDE.md` on real Codex and Claude profiles. Record each
       observed failure and turn reproducible ones into regression tests.
-- [ ] `P18-13 [HUMAN+TERRA]` Publish `loadout-ai@0.3.2` to npm, then test that exact
+- [ ] `P18-13 [HUMAN+TERRA]` Publish `loadout-ai@0.4.0` to npm, then test that exact
       registry tarball in a fresh terminal through Stable -> rollback -> Power ->
       rollback -> Maximum -> project optimization -> dashboard -> complete uninstall.
-      The registry currently exposes versions only through `0.3.1`; local package
-      metadata and a Git tag do not prove publication.
+      The registry exposed versions only through `0.3.1` before this release attempt;
+      local package metadata and a Git tag do not prove publication.
 - [ ] `P18-17 [HUMAN]` Resolve the GitHub account billing or spending-limit condition
       that prevents Actions jobs from starting, rerun CI and daily discovery on the
       integrated commit, and record the result. CI runs

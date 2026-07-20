@@ -62,7 +62,7 @@ and byte restoration after rollback.
 
 These checks prove Loadout's behavior against disposable filesystem targets. They do
 not prove that every native agent recognizes or executes an installed skill, that a
-live catalog is reachable, that npm `0.3.2` is published, or that third-party content
+live catalog is reachable, that the current npm package is published, or that third-party content
 is universally safe. The opt-in `LOADOUT_TEST_LIVE_CATALOG=1` extension separately
 checks the current pinned Stable sources and remains network-dependent.
 

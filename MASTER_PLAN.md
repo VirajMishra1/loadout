@@ -197,6 +197,16 @@ merged `codex/relatable-readme-hero` remote branch remains safe to delete after 
       runs. Do
       not resume real-profile activation until this branch is reviewed, integrated,
       versioned, and published as the corrected release.
+- [x] `P18-28 [HUMAN+TERRA]` Merge the project-activation corrections through PR #4
+      and publish the exact verified release as `loadout-ai@0.4.1`. Registry
+      verification returned version `0.4.1` and integrity
+      `sha512-k8WTNh6kTIaaBFTPGsl/QD/7/LQ1Gg9uMReM87gAkBPdcG0IxanM9NznyjemsYa124yYPczAY5MVYan4i91MtA==`;
+      a clean temporary global install reported `0.4.1` and detected TypeScript,
+      Playwright, Node CLI, npm package, release, MCP, security, Commander, Zod, and
+      Vitest signals from this repository. Tag `v0.4.1` points to release commit
+      `0d25b8e`. This is the corrected founder-testing release, not the final public
+      launch candidate: dashboard removal, Power policy, health output, and Maximum
+      preview work remain open.
 
 ### Release 0.3 lifecycle hardening
 

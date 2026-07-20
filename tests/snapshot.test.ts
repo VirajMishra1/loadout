@@ -234,7 +234,7 @@ describe("rollback snapshots", () => {
   });
 
   it("validates large binary snapshots without overflowing the call stack", () => {
-    const target = "/tmp/loadout-large-snapshot.bin";
+    const target = join(tmpdir(), "loadout-large-snapshot.bin");
     expect(() =>
       validateSnapshot({
         id: `${Date.now()}-${"c".repeat(12)}`,
@@ -255,7 +255,7 @@ describe("rollback snapshots", () => {
   it.each(["AAA", "AA=A", "AAAA====", "AAAA\n"])(
     "rejects malformed base64 snapshot bytes: %j",
     (content) => {
-      const target = "/tmp/loadout-invalid-snapshot.bin";
+      const target = join(tmpdir(), "loadout-invalid-snapshot.bin");
       expect(() =>
         validateSnapshot({
           id: `${Date.now()}-${"d".repeat(12)}`,

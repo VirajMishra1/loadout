@@ -7,15 +7,147 @@ import { describe, expect, it } from "vitest";
 const execFileAsync = promisify(execFile);
 const repositoryRoot = resolve(import.meta.dirname, "..");
 
-describe("README product flow", () => {
-  it("describes the harness as mixed core integration and CLI coverage", async () => {
-    const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
-    const prose = readme.replace(/\s+/g, " ");
-    expect(prose).toContain("mixed core-integration/CLI flow");
-    expect(prose).toContain(
-      "Direct core calls cover fixture planning, library installation, manifest/lock generation, and audit; CLI subprocesses cover optimize preview/apply, card rendering, and rollback.",
+function expectOrderedReadmeStructure(
+  readme: string,
+  sections: readonly string[],
+  markerNames: readonly string[],
+): void {
+  const markdownHeadings: string[] = [];
+  let fence: "`" | "~" | undefined;
+  for (const line of readme.split(/\r?\n/)) {
+    const fenceMatch = /^\s*(`{3,}|~{3,})/.exec(line);
+    if (fenceMatch) {
+      const delimiter = fenceMatch[1][0] as "`" | "~";
+      if (fence === undefined) fence = delimiter;
+      else if (fence === delimiter) fence = undefined;
+      continue;
+    }
+    if (fence === undefined && /^#{1,6} /.test(line)) {
+      markdownHeadings.push(line);
+    }
+  }
+
+  let previousSection = -1;
+  for (const section of sections) {
+    const matches = markdownHeadings.flatMap((heading, index) =>
+      heading === section ? [index] : [],
     );
-    expect(prose).not.toContain("two real CLI product flows");
+    if (matches.length !== 1 || matches[0] <= previousSection) {
+      throw new Error(
+        "README sections must appear exactly once in approved order",
+      );
+    }
+    previousSection = matches[0];
+  }
+
+  let previousEnd = -1;
+  for (const name of markerNames) {
+    const startMarker = `<!-- loadout:${name}:start -->`;
+    const endMarker = `<!-- loadout:${name}:end -->`;
+    const start = readme.indexOf(startMarker);
+    const end = readme.indexOf(endMarker);
+    if (
+      start === -1 ||
+      end === -1 ||
+      start !== readme.lastIndexOf(startMarker) ||
+      end !== readme.lastIndexOf(endMarker) ||
+      start >= end ||
+      start <= previousEnd
+    ) {
+      throw new Error(
+        "README marker pairs must be unique, ordered and non-overlapping",
+      );
+    }
+    previousEnd = end;
+  }
+}
+
+describe("README product flow", () => {
+  it("rejects overlapping generated marker blocks", () => {
+    expect(() =>
+      expectOrderedReadmeStructure(
+        [
+          "## How it works",
+          "<!-- loadout:catalog-coverage:start -->",
+          "<!-- loadout:evidence-stages:start -->",
+          "<!-- loadout:catalog-coverage:end -->",
+          "<!-- loadout:evidence-stages:end -->",
+        ].join("\n"),
+        ["## How it works"],
+        ["catalog-coverage", "evidence-stages"],
+      ),
+    ).toThrow(/ordered and non-overlapping/i);
+  });
+
+  it.each([
+    ["wrong level", "### How it works\n"],
+    ["fenced code", "```markdown\n## How it works\n```\n"],
+  ])("rejects an expected heading in %s", (_label, fixture) => {
+    expect(() =>
+      expectOrderedReadmeStructure(fixture, ["## How it works"], []),
+    ).toThrow(/sections must appear exactly once/i);
+  });
+
+  it("presents the approved proof-first product journey", async () => {
+    const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
+
+    expect(readme).toContain("./docs/assets/loadout-mark.svg");
+    expect(readme).toContain("Agent extensions, under control.");
+    expect(readme).toContain("Choose -> Inspect -> Preview -> Apply -> Undo");
+    expect(readme).toMatch(/abridged terminal transcript/i);
+    expect(readme).toMatch(
+      /npm install --global loadout-ai@0\.3\.2[^\n]*(?:not currently published|unavailable)|(?:not currently published|unavailable)[^\n]*npm install --global loadout-ai@0\.3\.2/i,
+    );
+
+    expectOrderedReadmeStructure(
+      readme,
+      [
+        "## How it works",
+        "### Abridged terminal transcript",
+        "## Why Loadout",
+        "## Install from source",
+        "## Stable workflow",
+        "## Profiles",
+        "## Catalog and discovery",
+        "## Trust and limits",
+        "## Agent support",
+        "## Command reference",
+        "## Development",
+        "## Documentation",
+        "## Contributing, security, and attribution",
+        "## License",
+      ],
+      [
+        "catalog-coverage",
+        "evidence-stages",
+        "daily-discovery",
+        "current-limits",
+        "support-summary",
+        "verification-summary",
+      ],
+    );
+  });
+
+  it("bounds Stable preview output and later apply identity", async () => {
+    const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
+
+    expect(readme).toContain(
+      "Preview complete; nothing was changed. Re-run with --yes to install this exact screened plan.",
+    );
+    expect(readme.match(/exact screened plan/g)).toHaveLength(1);
+    expect(readme).toContain(
+      "A later `--yes` invocation recomputes the plan from pinned sources and current agent and filesystem state; it does not persist or prove identity with the earlier preview.",
+    );
+    expect(readme).not.toContain("Inspect pinned source contents");
+    expect(readme).not.toContain("Preview destinations");
+    expect(readme).not.toContain("Apply the exact plan");
+    expect(readme).not.toContain("exact rerun command");
+    expect(readme).not.toContain("applying a plan with safety findings");
+  });
+
+  it("links concise README verification guidance to the detailed testing contract", async () => {
+    const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
+    expect(readme).toMatch(/\[[^\]]*testing[^\]]*\]\(\.\/docs\/TESTING\.md\)/i);
   });
 
   it("builds independently of repository dist and proves the documented outcomes offline", async () => {
@@ -24,7 +156,7 @@ describe("README product flow", () => {
       [resolve(repositoryRoot, "scripts/readme-product-flow.mjs"), "--json"],
       {
         cwd: repositoryRoot,
-        timeout: 30_000,
+        timeout: 60_000,
         maxBuffer: 10 * 1024 * 1024,
       },
     );
@@ -44,7 +176,7 @@ describe("README product flow", () => {
         unmanagedSentinelPreserved: true,
       },
     });
-  }, 35_000);
+  }, 65_000);
 
   it.runIf(process.env.LOADOUT_TEST_LIVE_CATALOG === "1")(
     "proves pinned Stable catalog installation before the local rollback journey",

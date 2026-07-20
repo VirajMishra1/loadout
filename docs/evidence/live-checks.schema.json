@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/VirajMishra1/loadout/docs/evidence/live-checks.schema.json",
+  "$id": "https://github.com/reddynitish/loadout/docs/evidence/live-checks.schema.json",
   "title": "Loadout bounded live-check report",
   "type": "object",
   "additionalProperties": false,

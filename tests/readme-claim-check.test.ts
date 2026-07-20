@@ -365,7 +365,15 @@ function expectActionable(
 }
 
 beforeAll(() => {
-  execFileSync("npm", ["run", "build"], { stdio: "pipe" });
+  execFileSync(
+    process.execPath,
+    [
+      join(process.cwd(), "node_modules", "typescript", "bin", "tsc"),
+      "-p",
+      "tsconfig.json",
+    ],
+    { stdio: "pipe" },
+  );
 });
 
 afterAll(async () => {

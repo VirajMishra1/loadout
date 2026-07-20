@@ -158,6 +158,33 @@ loadout uninstall --yes
 To remove the npm command too, use `loadout uninstall --yes --remove-cli`. Complete
 cleanup deliberately deletes Loadout's snapshots, so it is the last lifecycle test.
 
+## Troubleshooting and recovery
+
+- **`loadout` is not found after a source checkout:** run `npm run build` and `npm
+link` in the checkout, then confirm npm's global binary directory is on `PATH`.
+  Until the exact package version is published, do not substitute an unavailable npm
+  install for this source-link workflow.
+- **A preview asks for `--approve-risk`:** read the reported scripts, domains,
+  credentials, binaries, or instruction findings. If you accept that specific plan,
+  use the exact rerun command Loadout prints. The flag is not a general safety
+  guarantee and should not be added routinely.
+- **Rollback or removal is refused:** preserve the current files. Refusal can mean a
+  managed path changed, disappeared, changed type, gained content, or belongs to a
+  legacy snapshot without post-mutation evidence. Run `loadout health --explain` and
+  inspect the affected path before deciding whether an explicit force option is
+  appropriate; do not delete the path merely to make the command pass.
+- **A fetch, discovery, or update check fails:** retry only after checking network,
+  proxy, DNS, and source-host access. Local inventory, library, health, rollback, and
+  offline fixture tests remain separate; an unavailable live check is not a pass.
+- **You need diagnostics:** run `loadout doctor`, `loadout health --explain`, and
+  `loadout status`. Redact usernames, local paths, repository names, tokens, and agent
+  state before sharing output.
+- **You need complete removal:** first preview with `loadout uninstall`, then use
+  `loadout uninstall --yes` to remove managed agent files, runtime tools, scheduled
+  jobs, cache, snapshots, and state. Add `--remove-cli` only for a global npm install.
+  Unmanaged content is preserved, and modified managed files can make cleanup refuse
+  until you explicitly review the command's force path.
+
 ## 9. Advanced surface
 
 The first help screen deliberately focuses on daily use. Existing advanced

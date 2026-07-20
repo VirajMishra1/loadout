@@ -168,18 +168,27 @@ export function recommendPackages(
   signals: ProjectSignals,
   catalog: CatalogPackage[],
 ): PackageRecommendation[] {
-  const ids = new Set(catalog.map((pkg) => pkg.id));
+  const packages = new Map(catalog.map((pkg) => [pkg.id, pkg]));
   const result: PackageRecommendation[] = [];
   const add = (
     packageId: string,
     reason: string,
     confidence: PackageRecommendation["confidence"],
   ) => {
-    if (
-      ids.has(packageId) &&
-      !result.some((item) => item.packageId === packageId)
-    )
-      result.push({ packageId, reason, confidence });
+    const pkg = packages.get(packageId);
+    if (pkg && !result.some((item) => item.packageId === packageId))
+      result.push({
+        packageId,
+        reason,
+        confidence,
+        kind: pkg.components?.includes("skill")
+          ? "skill-library"
+          : pkg.components?.some(
+                (component) => component === "mcp" || component === "plugin",
+              )
+            ? "mcp-runtime"
+            : "unavailable",
+      });
   };
   add(
     "superpowers",
@@ -275,6 +284,7 @@ export function personalizeRecommendations(
       packageId: item.packageId,
       reason: item.reason,
       confidence: item.confidence,
+      kind: item.kind,
       ...(item.localOutcomeAdjustment !== undefined
         ? { localOutcomeAdjustment: item.localOutcomeAdjustment }
         : {}),
@@ -346,7 +356,19 @@ export function formatRecommendations(
   ];
   if (!recommendations.length)
     lines.push("  No matching catalog packages found.");
-  for (const item of recommendations)
-    lines.push(`  ${item.packageId} [${item.confidence}] — ${item.reason}`);
+  const kindLabels: Record<PackageRecommendation["kind"], string> = {
+    "skill-library": "skill library",
+    "mcp-runtime": "MCP/runtime setup",
+    unavailable: "unavailable",
+  };
+  for (const item of recommendations) {
+    lines.push(
+      `  ${item.packageId} [${item.confidence}, ${kindLabels[item.kind]}] — ${item.reason}`,
+    );
+    if (item.kind === "mcp-runtime")
+      lines.push(
+        "    Explicit setup only; preview credentials and permissions before enabling it.",
+      );
+  }
   return lines.join("\n");
 }

@@ -425,6 +425,7 @@ export interface PackageRecommendation {
   packageId: string;
   reason: string;
   confidence: "high" | "medium" | "low";
+  kind: "skill-library" | "mcp-runtime" | "unavailable";
   /** Local-only evidence adjustment; never presented as universal quality. */
   localOutcomeAdjustment?: number;
   evidence?: string[];

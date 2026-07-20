@@ -34,19 +34,24 @@ describe("project recommendations", () => {
       description: id,
       category: "x",
       tier: "stable",
+      components: id === "playwright-mcp" ? ["mcp"] : ["skill"],
     })) as CatalogPackage[];
     expect(signals.frameworks).toEqual(
       expect.arrayContaining(["next.js", "react", "playwright"]),
     );
+    const recommendations = recommendPackages(signals, catalog);
+    expect(recommendations.map((item) => item.packageId)).toEqual(ids);
     expect(
-      recommendPackages(signals, catalog).map((item) => item.packageId),
-    ).toEqual(ids);
-    const output = formatRecommendations(
-      signals,
-      recommendPackages(signals, catalog),
-    );
+      recommendations.find((item) => item.packageId === "superpowers"),
+    ).toMatchObject({ kind: "skill-library" });
+    expect(
+      recommendations.find((item) => item.packageId === "playwright-mcp"),
+    ).toMatchObject({ kind: "mcp-runtime" });
+    const output = formatRecommendations(signals, recommendations);
     expect(output).toContain("Rule-based project suggestions:");
     expect(output).toContain("Rules use detected project signals");
+    expect(output).toContain("superpowers [high, skill library]");
+    expect(output).toContain("playwright-mcp [high, MCP/runtime setup]");
     expect(output).not.toMatch(/empirically|tested winner|best package/i);
   });
 
@@ -59,11 +64,13 @@ describe("project recommendations", () => {
         packageId: "superpowers",
         reason: "baseline",
         confidence: "high" as const,
+        kind: "skill-library" as const,
       },
       {
         packageId: "context7",
         reason: "baseline",
         confidence: "medium" as const,
+        kind: "skill-library" as const,
       },
     ];
     const outcomes: LocalOutcomeStore = {

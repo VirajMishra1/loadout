@@ -384,16 +384,16 @@ git commit -m "feat: diversify project skill selection"
 - Extends `PackageRecommendation` with `kind: "skill-library" | "mcp-runtime" | "unavailable"`.
 - Uses catalog `components` to classify suggestions.
 
-- [ ] **Step 1: Write failing type-label tests**
+- [x] **Step 1: Write failing type-label tests**
 
 Assert Superpowers formats as `skill library`, while Playwright MCP and GitHub MCP format as `MCP/runtime setup` and include a separate preview/setup hint rather than activation wording.
 
-- [ ] **Step 2: Run the recommendation tests and verify RED**
+- [x] **Step 2: Run the recommendation tests and verify RED**
 
 Run: `npx vitest run tests/recommend.test.ts`  
 Expected: FAIL because recommendations have no `kind`.
 
-- [ ] **Step 3: Classify catalog-backed recommendations**
+- [x] **Step 3: Classify catalog-backed recommendations**
 
 ```ts
 function recommendationKind(
@@ -408,11 +408,11 @@ function recommendationKind(
 
 Attach the kind when adding each catalog recommendation and preserve it through local-outcome personalization.
 
-- [ ] **Step 4: Format kinds and next actions**
+- [x] **Step 4: Format kinds and next actions**
 
 Human output must label every line and end MCP/runtime suggestions with the read-only recipe or explicit setup command supported by the package. It must not claim those integrations are automatically activatable skills.
 
-- [ ] **Step 5: Verify GREEN and commit**
+- [x] **Step 5: Verify GREEN and commit**
 
 Run: `npx vitest run tests/recommend.test.ts tests/outcomes.test.ts`  
 Expected: all tests pass.

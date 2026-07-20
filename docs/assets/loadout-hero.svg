@@ -102,16 +102,11 @@
       <path d="M195 191l33-9m-33 13l33 9" />
     </g>
   </g>
-  <g class="line quiet" stroke-width="1.8">
-    <path d="M48 242v14h8" />
-    <path d="M59 242h8v14h-8zM70 242h8v14h-8z" />
-    <path d="M89 242h-8v7h8v7h-8" />
-    <path d="M100 242h-8v14h8m-8-7h7" />
-    <path d="M116 242h-8v14h8M119 242h8v14h-8z" />
-    <path d="M130 256v-14l8 14v-14" />
-    <path d="M149 242h-8v14m0-7h7" />
-    <path d="M152 242h8m-4 0v14m-4 0h8" />
-    <path d="M171 246v-4h-8v14h8v-6h-4" />
+  <g class="line" stroke-width="2.5">
+    <path d="M48 232v24h12" />
+    <path d="M64 232h12v24H64zM80 232h12v24H80z" />
+    <path d="M108 232H96v12h12v12H96" />
+    <path d="M124 232h-12v24h12m-12-12h10" />
   </g>
 
   <!-- Developer selecting one extension tile -->
@@ -152,21 +147,14 @@
     <path d="M403 125c30-18 48-23 72-13 14 6 22 18 31 28" />
     <path d="M493 137l15 5-3-15" />
   </g>
-  <g class="line quiet" stroke-width="1.8">
-    <path d="M478 45V32l4 7 4-7v13" />
-    <path d="M489 45l4-13 4 13m-6-6h4" />
-    <path d="M500 45V32l8 13V32" />
-    <path d="M511 45l4-13 4 13m-6-6h4" />
-    <path d="M530 36v-4h-8v13h8v-6h-4" />
-    <path d="M541 32h-8v13h8m-8-7h7" />
-    <path d="M544 32v13h3c5 0 5-13 0-13z" />
-    <path d="M560 32v13h8" />
-    <path d="M571 32h8v13h-8z" />
-    <path d="M582 45l4-13 4 13m-6-6h4" />
-    <path d="M593 32v13h3c5 0 5-13 0-13z" />
-    <path d="M604 32h8v13h-8z" />
-    <path d="M615 32v13h8V32" />
-    <path d="M626 32h10m-5 0v13" />
+  <g class="line" stroke-width="2.5">
+    <path d="M478 48V26l6 12 6-12v22" />
+    <path d="M494 48l6-22 6 22m-9-8h6" />
+    <path d="M510 48V26l12 22V26" />
+    <path d="M526 48l6-22 6 22m-9-8h6" />
+    <path d="M554 33v-7h-12v22h12V38h-6" />
+    <path d="M570 26h-12v22h12m-12-11h10" />
+    <path d="M574 26v22h5c9 0 9-22 0-22z" />
   </g>
 
   <!-- Calm, organized loadout rail -->

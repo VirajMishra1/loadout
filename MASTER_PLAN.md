@@ -178,6 +178,17 @@ merged `codex/relatable-readme-hero` remote branch remains safe to delete after 
       documentation/binary/metadata false positives, persist every excluded unit, and
       name every failed repository with a short reason. Add snapshot tests for both
       concise and detailed Maximum output.
+- [ ] `P18-27 [SOL+TERRA, LUNA copy review]` Correct project-aware activation safety
+      and relevance using
+      `docs/superpowers/specs/2026-07-20-project-activation-safety-design.md`.
+      Founder preview proved that activation currently ignores 12 unmanaged Claude
+      skills when calculating `--limit 30`, treats rollback-restored empty directories
+      as occupied for both agents, and proposes a generic, redundant 30-skill set from
+      only JavaScript/TypeScript and Playwright signals. Implement the approved shared
+      empty-target predicate, per-agent total active capacity, bounded Node CLI/npm/
+      Vitest/MCP project signals, diverse evidence-threshold selection, integration-
+      type labels, atomic apply revalidation, and the specified regression suite.
+      Do not resume real-profile activation until the corrected release is published.
 
 ### Release 0.3 lifecycle hardening
 

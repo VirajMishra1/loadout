@@ -1,0 +1,259 @@
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  viewBox="0 0 960 300"
+  role="img"
+  aria-labelledby="loadout-hero-title loadout-hero-description"
+>
+  <title id="loadout-hero-title">Choose an intentional agent loadout</title>
+  <desc id="loadout-hero-description">
+    A developer moves an extension from scattered configuration tiles into
+    organized managed equipment slots.
+  </desc>
+  <style>
+    svg {
+      color: #1f2328;
+    }
+    .quiet {
+      opacity: 0.48;
+    }
+    .soft {
+      opacity: 0.09;
+    }
+    .mid {
+      opacity: 0.72;
+    }
+    .line {
+      fill: none;
+      stroke: currentColor;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    @media (prefers-color-scheme: dark) {
+      svg {
+        color: #f0f6fc;
+      }
+      .soft {
+        opacity: 0.13;
+      }
+    }
+  </style>
+
+  <!-- Loose, unmanaged configuration -->
+  <g class="line quiet" stroke-width="2">
+    <path d="M38 80C96 63 126 124 188 104S258 78 286 119" />
+    <path d="M47 221C96 183 128 235 179 202S247 174 286 204" />
+    <path d="M78 47C91 96 62 141 105 176S175 199 213 239" />
+    <path d="M205 53C177 91 219 133 187 158S122 167 88 211" />
+  </g>
+  <g class="line" stroke-width="2.5">
+    <g transform="rotate(-8 91 100)">
+      <rect
+        class="soft"
+        x="43"
+        y="72"
+        width="96"
+        height="56"
+        rx="10"
+        fill="currentColor"
+      />
+      <rect x="43" y="72" width="96" height="56" rx="10" />
+      <path d="M61 99l9-8m-9 8l9 8m18-16h29" />
+    </g>
+    <g transform="rotate(7 197 83)">
+      <rect
+        class="soft"
+        x="153"
+        y="57"
+        width="88"
+        height="52"
+        rx="10"
+        fill="currentColor"
+      />
+      <rect x="153" y="57" width="88" height="52" rx="10" />
+      <path d="M174 74v18m0-9h15m14-9v18m-7-9h14" />
+    </g>
+    <g transform="rotate(-5 113 190)">
+      <rect
+        class="soft"
+        x="64"
+        y="161"
+        width="98"
+        height="58"
+        rx="10"
+        fill="currentColor"
+      />
+      <rect x="64" y="161" width="98" height="58" rx="10" />
+      <path d="M86 179l-8 11 8 11m53-22l8 11-8 11m-34 4l15-30" />
+    </g>
+    <g transform="rotate(9 213 193)">
+      <rect
+        class="soft"
+        x="170"
+        y="166"
+        width="86"
+        height="54"
+        rx="10"
+        fill="currentColor"
+      />
+      <rect x="170" y="166" width="86" height="54" rx="10" />
+      <circle cx="190" cy="193" r="5" />
+      <circle cx="233" cy="181" r="5" />
+      <circle cx="233" cy="205" r="5" />
+      <path d="M195 191l33-9m-33 13l33 9" />
+    </g>
+  </g>
+  <g class="line" stroke-width="2.5">
+    <path d="M48 232v24h12" />
+    <path d="M64 232h12v24H64zM80 232h12v24H80z" />
+    <path d="M108 232H96v12h12v12H96" />
+    <path d="M124 232h-12v24h12m-12-12h10" />
+  </g>
+
+  <!-- Developer selecting one extension tile -->
+  <g class="line" stroke-width="3">
+    <circle class="soft" cx="333" cy="91" r="28" fill="currentColor" />
+    <circle cx="333" cy="91" r="28" />
+    <path d="M310 87c10-14 34-18 46-2M319 99c8 7 18 7 27 0" />
+    <path d="M331 119v61m-1-41l-40 3-28-17" />
+    <path d="M331 138l33-9 29 15" />
+    <path d="M315 180l-16 38m48-38l17 38" />
+    <path d="M282 125l-13 3 7 10" />
+    <rect
+      class="soft"
+      x="253"
+      y="111"
+      width="43"
+      height="31"
+      rx="7"
+      fill="currentColor"
+    />
+    <rect x="253" y="111" width="43" height="31" rx="7" />
+    <path d="M265 127h19m-9-8v16" />
+  </g>
+  <g class="line mid" stroke-width="3">
+    <path d="M283 226h119l18-47h-97" />
+    <path d="M298 227v22m89-22v22" />
+    <path d="M351 165h48" />
+  </g>
+
+  <!-- Management boundary and placement cue -->
+  <path
+    class="line quiet"
+    d="M456 39v222"
+    stroke-width="2"
+    stroke-dasharray="7 10"
+  />
+  <g class="line" stroke-width="3">
+    <path d="M403 125c30-18 48-23 72-13 14 6 22 18 31 28" />
+    <path d="M493 137l15 5-3-15" />
+  </g>
+  <g class="line" stroke-width="2.5">
+    <path d="M478 48V26l6 12 6-12v22" />
+    <path d="M494 48l6-22 6 22m-9-8h6" />
+    <path d="M510 48V26l12 22V26" />
+    <path d="M526 48l6-22 6 22m-9-8h6" />
+    <path d="M554 33v-7h-12v22h12V38h-6" />
+    <path d="M570 26h-12v22h12m-12-11h10" />
+    <path d="M574 26v22h5c9 0 9-22 0-22z" />
+  </g>
+
+  <!-- Calm, organized loadout rail -->
+  <rect
+    class="soft"
+    x="486"
+    y="75"
+    width="438"
+    height="154"
+    rx="25"
+    fill="currentColor"
+  />
+  <rect
+    class="line mid"
+    x="486"
+    y="75"
+    width="438"
+    height="154"
+    rx="25"
+    stroke-width="2.5"
+  />
+  <path class="line quiet" d="M508 244h394" stroke-width="2.5" />
+  <g class="line" stroke-width="3">
+    <g>
+      <rect
+        class="soft"
+        x="510"
+        y="103"
+        width="68"
+        height="96"
+        rx="13"
+        fill="currentColor"
+      />
+      <rect x="510" y="103" width="68" height="96" rx="13" />
+      <path d="M530 141l10 10-10 10m18 0h12" />
+    </g>
+    <g>
+      <rect
+        class="soft"
+        x="591"
+        y="103"
+        width="68"
+        height="96"
+        rx="13"
+        fill="currentColor"
+      />
+      <rect x="591" y="103" width="68" height="96" rx="13" />
+      <path
+        d="M620 132v12m11-12v12m-17 0h23v9c0 8-5 14-12 14s-12-6-12-14v-9m12 23v7"
+      />
+    </g>
+    <g>
+      <rect
+        class="soft"
+        x="672"
+        y="103"
+        width="68"
+        height="96"
+        rx="13"
+        fill="currentColor"
+      />
+      <rect x="672" y="103" width="68" height="96" rx="13" />
+      <circle cx="693" cy="151" r="6" />
+      <circle cx="720" cy="133" r="6" />
+      <circle cx="720" cy="169" r="6" />
+      <path d="M698 147l17-11m-17 19l17 11" />
+    </g>
+    <g>
+      <rect
+        class="soft"
+        x="753"
+        y="103"
+        width="68"
+        height="96"
+        rx="13"
+        fill="currentColor"
+      />
+      <rect x="753" y="103" width="68" height="96" rx="13" />
+      <path
+        d="M785 128c-8 0-9 5-9 12v4c0 5-3 7-8 7 5 0 8 2 8 7v4c0 7 1 12 9 12m4-46c8 0 9 5 9 12v4c0 5 3 7 8 7-5 0-8 2-8 7v4c0 7-1 12-9 12"
+      />
+    </g>
+    <g class="quiet">
+      <rect
+        x="834"
+        y="103"
+        width="68"
+        height="96"
+        rx="13"
+        stroke-dasharray="7 7"
+      />
+      <path d="M855 151h26" />
+    </g>
+  </g>
+  <g fill="currentColor">
+    <circle cx="544" cy="245" r="4" />
+    <circle cx="625" cy="245" r="4" />
+    <circle cx="706" cy="245" r="4" />
+    <circle cx="787" cy="245" r="4" />
+    <circle class="quiet" cx="868" cy="245" r="4" />
+  </g>
+</svg>

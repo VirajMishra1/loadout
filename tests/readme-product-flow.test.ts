@@ -91,7 +91,17 @@ describe("README product flow", () => {
   it("presents the approved proof-first product journey", async () => {
     const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
 
-    expect(readme).toContain("./docs/assets/loadout-mark.svg");
+    const heroImages =
+      readme
+        .match(/<img\b[^>]*>/gi)
+        ?.filter((element) =>
+          /\ssrc="\.\/docs\/assets\/loadout-hero\.svg"/i.test(element),
+        ) ?? [];
+    expect(heroImages).toHaveLength(1);
+    expect(heroImages[0]).toMatch(
+      /\salt="[^"]*developer[^"]*(?:moving|arranging|selecting)[^"]*extensions[^"]*messy[^"]*unmanaged[^"]*organized[^"]*loadout slots[^"]*"/i,
+    );
+    expect(readme).not.toMatch(/founder|revolutionary|game-changing/i);
     expect(readme).toContain("Agent extensions, under control.");
     expect(readme).toContain("Choose -> Inspect -> Preview -> Apply -> Undo");
     expect(readme).toMatch(/abridged terminal transcript/i);
@@ -125,6 +135,68 @@ describe("README product flow", () => {
         "support-summary",
         "verification-summary",
       ],
+    );
+  });
+
+  it("tells the Loadout story in the Why Loadout section", async () => {
+    const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
+    const start = readme.indexOf("## Why Loadout");
+    const end = readme.indexOf("## Install from source", start);
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(end).toBeGreaterThan(start);
+
+    const whyLoadout = readme.slice(start, end);
+    const storyAnchors = [
+      /skills, plugins, MCP servers, and agent settings[^.]*accumulate[^.]*experiment/i,
+      /hard to remember[^.]*installed[^.]*came from[^.]*undo/i,
+      /in a game[^.]*loadout[^.]*tools[^.]*mission/i,
+      /AI coding agents/i,
+      /inspect[^.]*choose intentionally/i,
+      /managed changes/i,
+      /remove[^.]*roll it back later/i,
+    ];
+
+    let previousIndex = -1;
+    for (const anchor of storyAnchors) {
+      const match = anchor.exec(whyLoadout);
+      expect(match).not.toBeNull();
+      const currentIndex = match?.index ?? -1;
+      expect(currentIndex).toBeGreaterThan(previousIndex);
+      previousIndex = currentIndex;
+    }
+  });
+
+  it("keeps visitor-facing repository identity aligned with canonical upstream", async () => {
+    const [readme, packageJsonText, schemaText] = await Promise.all([
+      readFile(resolve(repositoryRoot, "README.md"), "utf8"),
+      readFile(resolve(repositoryRoot, "package.json"), "utf8"),
+      readFile(
+        resolve(repositoryRoot, "docs/evidence/live-checks.schema.json"),
+        "utf8",
+      ),
+    ]);
+    const packageJson = JSON.parse(packageJsonText);
+    const schema = JSON.parse(schemaText);
+
+    expect(readme).toContain(
+      '<a href="https://github.com/VirajMishra1/loadout/actions/workflows/ci.yml"><img src="https://github.com/VirajMishra1/loadout/actions/workflows/ci.yml/badge.svg" alt="CI status"></a>',
+    );
+    expect(readme).toContain(
+      "git clone https://github.com/VirajMishra1/loadout.git",
+    );
+    expect(readme).toContain("https://github.com/VirajMishra1/loadout/issues");
+    expect(readme).not.toContain("https://github.com/reddynitish/loadout");
+    expect(packageJson.repository.url).toBe(
+      "git+https://github.com/VirajMishra1/loadout.git",
+    );
+    expect(packageJson.homepage).toBe(
+      "https://github.com/VirajMishra1/loadout#readme",
+    );
+    expect(packageJson.bugs.url).toBe(
+      "https://github.com/VirajMishra1/loadout/issues",
+    );
+    expect(schema.$id).toBe(
+      "https://github.com/VirajMishra1/loadout/docs/evidence/live-checks.schema.json",
     );
   });
 

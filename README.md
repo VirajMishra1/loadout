@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./docs/assets/loadout-mark.svg" alt="Loadout inventory slots with a selected terminal prompt" width="240">
+  <img src="./docs/assets/loadout-hero.svg" alt="A developer arranging extensions from a messy, unmanaged group into organized loadout slots" width="960">
 </p>
 
 <h1 align="center">Loadout</h1>
@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/reddynitish/loadout/actions/workflows/ci.yml"><img src="https://github.com/reddynitish/loadout/actions/workflows/ci.yml/badge.svg" alt="CI status"></a>
+  <a href="https://github.com/VirajMishra1/loadout/actions/workflows/ci.yml"><img src="https://github.com/VirajMishra1/loadout/actions/workflows/ci.yml/badge.svg" alt="CI status"></a>
   <a href="./package.json"><img src="https://img.shields.io/badge/Node.js-%3E%3D20-339933?logo=node.js&amp;logoColor=white" alt="Node.js 20 or newer"></a>
   <a href="./LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="MIT License"></a>
 </p>
@@ -65,6 +65,8 @@ Preview may populate Loadout's own cache; it leaves agent target files unchanged
 
 ## Why Loadout
 
+Skills, plugins, MCP servers, and agent settings tend to accumulate one experiment at a time. Eventually it becomes hard to remember what is installed, where it came from, or how to undo it. In a game, a loadout is the deliberate set of tools chosen before a mission. Loadout brings that same discipline to AI coding agents: inspect the available equipment, choose intentionally, apply it through managed changes, and remove or roll it back later.
+
 - **One managed inventory.** List installed packages, inspect drift, and track what Loadout owns across configured agent paths.
 - **Preview by default.** Setup, updates, removal, MCP recipes, and uninstall expose a plan before their supported writes.
 - **Recoverable changes.** Snapshots and managed-file hashes support rollback while refusing to overwrite later user edits.
@@ -74,7 +76,7 @@ Preview may populate Loadout's own cache; it leaves agent target files unchanged
 You need Node.js 20 or newer, Git, and access to this private repository.
 
 ```bash
-git clone https://github.com/reddynitish/loadout.git
+git clone https://github.com/VirajMishra1/loadout.git
 cd loadout
 npm ci
 npm run build
@@ -224,7 +226,7 @@ The repository's mixed README product-flow test uses an isolated build, disposab
 
 ## Contributing, security, and attribution
 
-Keep changes scoped, add regression coverage for behavior changes, and run `npm run verify:full`. Report vulnerabilities through [SECURITY.md](./SECURITY.md), without credentials, private source, or unredacted state. General bugs and proposals belong in the [issue tracker](https://github.com/reddynitish/loadout/issues).
+Keep changes scoped, add regression coverage for behavior changes, and run `npm run verify:full`. Report vulnerabilities through [SECURITY.md](./SECURITY.md), without credentials, private source, or unredacted state. General bugs and proposals belong in the [issue tracker](https://github.com/VirajMishra1/loadout/issues).
 
 The catalog contains 50 credited public repositories. Inclusion records discovery and attribution; it does not transfer ownership, imply endorsement, or relicense upstream work.
 

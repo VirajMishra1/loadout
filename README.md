@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./docs/assets/loadout-mark.svg" alt="Loadout inventory slots with a selected terminal prompt" width="240">
+  <img src="./docs/assets/loadout-hero.svg" alt="A developer arranging skills and extensions into organized loadout slots" width="960">
 </p>
 
 <h1 align="center">Loadout</h1>
@@ -64,6 +64,8 @@ The final preview sentence above is captured CLI wording. A later `--yes` invoca
 Preview may populate Loadout's own cache; it leaves agent target files unchanged. Review its aggregate counts, warnings, skipped entries, and package IDs needing approval before deciding whether to run a later apply command.
 
 ## Why Loadout
+
+Loadout is the deliberate set of tools chosen before a mission: skills, plugins, MCP servers, and agent settings. It makes it clear what is installed, where it came from, or how to undo it.
 
 - **One managed inventory.** List installed packages, inspect drift, and track what Loadout owns across configured agent paths.
 - **Preview by default.** Setup, updates, removal, MCP recipes, and uninstall expose a plan before their supported writes.

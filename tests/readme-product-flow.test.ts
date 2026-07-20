@@ -91,7 +91,18 @@ describe("README product flow", () => {
   it("presents the approved proof-first product journey", async () => {
     const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
 
-    expect(readme).toContain("./docs/assets/loadout-mark.svg");
+    expect(readme).toContain("./docs/assets/loadout-hero.svg");
+    expect(readme).toMatch(/skills, plugins, MCP servers, and agent settings/i);
+    expect(readme).toMatch(
+      /loadout is the deliberate set of tools chosen before a mission/i,
+    );
+    expect(readme).toMatch(
+      /what is installed, where it came from, or how to undo it/i,
+    );
+    expect(readme).not.toMatch(/founder|revolutionary|game-changing/i);
+    expect(readme).toMatch(
+      /alt="[^"]*developer[^"]*organized loadout slots[^"]*"/i,
+    );
     expect(readme).toContain("Agent extensions, under control.");
     expect(readme).toContain("Choose -> Inspect -> Preview -> Apply -> Undo");
     expect(readme).toMatch(/abridged terminal transcript/i);

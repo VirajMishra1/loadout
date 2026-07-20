@@ -35,7 +35,7 @@
 - Produces: `inspectTargetOccupancy(path: string, maximumEntries?: number): Promise<TargetOccupancy>`.
 - Consumed by: setup collision checks and activation preview/apply checks.
 
-- [ ] **Step 1: Write failing occupancy tests**
+- [x] **Step 1: Write failing occupancy tests**
 
 ```ts
 import { mkdir, mkdtemp, symlink, writeFile } from "node:fs/promises";
@@ -78,12 +78,12 @@ it("treats content, symlinks, and the inspection bound as occupied", async () =>
 });
 ```
 
-- [ ] **Step 2: Run the occupancy tests and verify RED**
+- [x] **Step 2: Run the occupancy tests and verify RED**
 
 Run: `npx vitest run tests/target-occupancy.test.ts`  
 Expected: FAIL because `src/core/target-occupancy.ts` does not exist.
 
-- [ ] **Step 3: Implement the shared predicate**
+- [x] **Step 3: Implement the shared predicate**
 
 ```ts
 import { lstat, readdir } from "node:fs/promises";
@@ -141,7 +141,7 @@ export async function inspectTargetOccupancy(
 }
 ```
 
-- [ ] **Step 4: Replace duplicate setup logic and activation `pathExists` checks**
+- [x] **Step 4: Replace duplicate setup logic and activation `pathExists` checks**
 
 In `src/core/install.ts`, import `inspectTargetOccupancy` and replace the recursive block in `assertActiveTargetsUnoccupied` with:
 
@@ -153,11 +153,11 @@ for (const target of targets) {
 
 In `src/core/active-set.ts`, use the same predicate when enabling and include the reason in the blocker. Re-run the check immediately before the transaction copies any target; remove only targets proven recursively empty.
 
-- [ ] **Step 5: Add the activation regression**
+- [x] **Step 5: Add the activation regression**
 
 Extend `tests/active-set.test.ts` so a disabled library entry with `empty/nested` under its active target previews without blockers and applies, while a target containing `notes.txt` remains blocked and unchanged.
 
-- [ ] **Step 6: Verify GREEN and commit**
+- [x] **Step 6: Verify GREEN and commit**
 
 Run: `npx vitest run tests/target-occupancy.test.ts tests/install.test.ts tests/active-set.test.ts`  
 Expected: all tests pass.

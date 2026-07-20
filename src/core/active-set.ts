@@ -474,9 +474,11 @@ function activationKey(
 
 export async function applyActivationChange(
   plan: ActivationPlan,
+  options: { preflight?: () => Promise<void> } = {},
 ): Promise<string> {
   const applied = await runMutationTransaction(
     async () => {
+      await options.preflight?.();
       const fresh = await planActivationChange(plan.action, plan.packages, {
         ...(plan.requestedAgents ? { agents: plan.requestedAgents } : {}),
       });

@@ -180,7 +180,7 @@ git commit -m "fix: share safe target occupancy checks"
 - Consumes: `detectAgents()`, `scanInstalledSkills()`, and reviewed activation records.
 - Produces: `AgentActiveSetPlan` records with total, managed, unmanaged, capacity, and selected candidates.
 
-- [ ] **Step 1: Write failing mixed-agent capacity tests**
+- [x] **Step 1: Write failing mixed-agent capacity tests**
 
 Add a fixture with 12 unmanaged `SKILL.md` directories under Claude's skill root, zero under Codex, and 40 reviewed disabled candidates per agent. Assert:
 
@@ -210,12 +210,12 @@ expect(
 
 Add a second test where Claude already has 30 unmanaged skills and Codex has none. Claude must receive zero additions and Codex must still receive candidates.
 
-- [ ] **Step 2: Run the capacity tests and verify RED**
+- [x] **Step 2: Run the capacity tests and verify RED**
 
 Run: `npx vitest run tests/active-policy.test.ts`  
 Expected: FAIL because the plan has one managed-only global budget and no `agentPlans`.
 
-- [ ] **Step 3: Add per-agent plan types and inventory-backed budgets**
+- [x] **Step 3: Add per-agent plan types and inventory-backed budgets**
 
 ```ts
 export interface AgentActiveSetPlan {
@@ -239,13 +239,13 @@ export interface ProjectActiveSetPlan {
 
 Resolve requested agents through `detectAgents`, call `scanInstalledSkills`, and create one budget from each inventory summary. Score only that agent's reviewed disabled records, diversify them, and slice to that agent's capacity.
 
-- [ ] **Step 4: Merge exact per-agent activation plans**
+- [x] **Step 4: Merge exact per-agent activation plans**
 
 Call `planActivationChange("enable", selectors, { agents: [agent] })` once per non-empty agent selection and combine `changes`, `skipped`, `warnings`, `blocked`, and unique package IDs into one transaction plan. `applyProjectActivation` continues to call `applyActivationChange` exactly once.
 
 Before copying, re-scan inventory and abort if any agent's current total would make the planned additions exceed `limit`.
 
-- [ ] **Step 5: Format truthful per-agent budgets**
+- [x] **Step 5: Format truthful per-agent budgets**
 
 Replace the global budget line with:
 
@@ -256,7 +256,7 @@ Codex: 0 active (0 managed, 0 unmanaged); 30/30 slots available
 
 Group additions beneath their target agent and do not duplicate one global list that implies identical capacities.
 
-- [ ] **Step 6: Verify GREEN and commit**
+- [x] **Step 6: Verify GREEN and commit**
 
 Run: `npx vitest run tests/active-policy.test.ts tests/active-set.test.ts tests/skill-inventory.test.ts`  
 Expected: all tests pass, including 18 Claude additions and 30 Codex additions.

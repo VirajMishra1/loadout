@@ -9,7 +9,9 @@ import {
   planActivationChange,
   type ActivationPlan,
 } from "./active-set.js";
+import { detectAgents } from "./paths.js";
 import { scanProject } from "./recommend.js";
+import { scanInstalledSkills } from "./skill-inventory.js";
 import { readInstallState } from "./state.js";
 import {
   outcomeAdjustment,
@@ -31,8 +33,12 @@ export interface ProjectActiveSetPlan {
   project: ProjectSignals;
   limit: number;
   agents?: AgentId[];
+  agentPlans: AgentActiveSetPlan[];
+  /** @deprecated Read agentPlans for truthful per-agent budgets. */
   activeBefore: number;
+  /** @deprecated Read agentPlans for truthful per-agent budgets. */
   capacity: number;
+  /** @deprecated Union of per-agent selections for older JSON consumers. */
   selected: ActiveSetCandidate[];
   alternatives: Array<{
     unitId: string;
@@ -41,6 +47,17 @@ export interface ProjectActiveSetPlan {
   }>;
   activation?: ActivationPlan;
   warnings: string[];
+}
+
+export interface AgentActiveSetPlan {
+  agent: AgentId;
+  displayName: string;
+  activeBefore: number;
+  managedBefore: number;
+  unmanagedBefore: number;
+  capacity: number;
+  selected: ActiveSetCandidate[];
+  alternatives: ProjectActiveSetPlan["alternatives"];
 }
 
 const FOUNDATION = new Set([
@@ -195,6 +212,61 @@ function scoreCandidate(
   };
 }
 
+function rankedCandidates(
+  records: ManagedActivationRecord[],
+  project: ProjectSignals,
+  pins: Set<string>,
+  outcomes: LocalOutcomeStore,
+  taskFamilies: OutcomeTaskFamily[],
+): ActiveSetCandidate[] {
+  const scored = records
+    .filter(
+      (record) =>
+        record.activationState === "disabled" &&
+        record.cacheState === "downloaded" &&
+        record.reviewState === "reviewed",
+    )
+    .map((record) =>
+      scoreCandidate(record, project, pins, outcomes, taskFamilies),
+    )
+    .filter((item): item is ActiveSetCandidate => Boolean(item))
+    .sort(
+      (left, right) =>
+        right.score - left.score ||
+        (SOURCE_PRIORITY[right.packageId] ?? 0) -
+          (SOURCE_PRIORITY[left.packageId] ?? 0) ||
+        left.unitId.localeCompare(right.unitId) ||
+        left.packageId.localeCompare(right.packageId),
+    );
+  const unique: ActiveSetCandidate[] = [];
+  const claimedUnits = new Set<string>();
+  for (const item of scored) {
+    const fullPin = pins.has(item.selector);
+    if (!fullPin && claimedUnits.has(item.unitId)) continue;
+    claimedUnits.add(item.unitId);
+    unique.push(item);
+  }
+  return unique;
+}
+
+function alternativesFor(
+  selected: ActiveSetCandidate[],
+  scored: ActiveSetCandidate[],
+): ProjectActiveSetPlan["alternatives"] {
+  return selected.flatMap((chosen) => {
+    const deferred = scored
+      .filter(
+        (candidate) =>
+          candidate.unitId === chosen.unitId &&
+          candidate.selector !== chosen.selector,
+      )
+      .map((candidate) => candidate.selector);
+    return deferred.length
+      ? [{ unitId: chosen.unitId, selected: chosen.selector, deferred }]
+      : [];
+  });
+}
+
 /** Deterministic, local-only active-set selection over the reviewed library. */
 export async function planProjectActivation(
   projectPath: string,
@@ -216,56 +288,74 @@ export async function planProjectActivation(
       record.installationState === "installed" &&
       (!options.agents || options.agents.includes(record.agent)),
   );
-  const byAgent = new Map<AgentId, number>();
-  for (const record of relevant)
-    if (record.activationState === "active")
-      byAgent.set(record.agent, (byAgent.get(record.agent) ?? 0) + 1);
-  const activeBefore = Math.max(0, ...byAgent.values());
-  const capacity = Math.max(0, limit - activeBefore);
+  const requestedAgents =
+    options.agents ?? [...new Set(relevant.map((record) => record.agent))];
+  const detected = (await detectAgents()).filter((agent) =>
+    requestedAgents.includes(agent.id),
+  );
+  const inventory = await scanInstalledSkills(detected);
   const pins = new Set(options.pins ?? []);
-  const scored = relevant
-    .filter(
-      (record) =>
-        record.activationState === "disabled" &&
-        record.cacheState === "downloaded" &&
-        record.reviewState === "reviewed",
-    )
-    .map((record) =>
-      scoreCandidate(record, project, pins, outcomes, taskFamilies),
-    )
-    .filter((item): item is ActiveSetCandidate => Boolean(item))
-    .sort(
-      (left, right) =>
-        right.score - left.score ||
-        (SOURCE_PRIORITY[right.packageId] ?? 0) -
-          (SOURCE_PRIORITY[left.packageId] ?? 0) ||
-        left.unitId.localeCompare(right.unitId) ||
-        left.packageId.localeCompare(right.packageId),
-    );
-  // One capability name wins by evidence order; overlapping collections remain
-  // in the library and can still be explicitly pinned by full selector.
-  const unique: ActiveSetCandidate[] = [];
-  const claimedUnits = new Set<string>();
-  for (const item of scored) {
-    const fullPin = pins.has(item.selector);
-    if (!fullPin && claimedUnits.has(item.unitId)) continue;
-    claimedUnits.add(item.unitId);
-    unique.push(item);
-  }
-  const selected = unique.slice(0, capacity);
-  const alternatives = selected.flatMap((chosen) => {
-    const deferred = scored
-      .filter(
-        (candidate) =>
-          candidate.unitId === chosen.unitId &&
-          candidate.selector !== chosen.selector,
-      )
-      .map((candidate) => candidate.selector);
-    return deferred.length
-      ? [{ unitId: chosen.unitId, selected: chosen.selector, deferred }]
-      : [];
-  });
   const warnings: string[] = [];
+  const agentPlans = requestedAgents.map((agent): AgentActiveSetPlan => {
+    const summary = inventory.agents.find((item) => item.agent === agent);
+    if (!summary)
+      throw new Error(`Could not scan active skills for requested agent '${agent}'`);
+    const capacity = Math.max(0, limit - summary.total);
+    const ranked = rankedCandidates(
+      relevant.filter((record) => record.agent === agent),
+      project,
+      pins,
+      outcomes,
+      taskFamilies,
+    );
+    const selected = ranked.slice(0, capacity);
+    if (!capacity)
+      warnings.push(
+        `${summary.displayName} has reached the active-set limit ${limit}; disable skills or raise --limit.`,
+      );
+    return {
+      agent,
+      displayName: summary.displayName,
+      activeBefore: summary.total,
+      managedBefore: summary.managed,
+      unmanagedBefore: summary.unmanaged,
+      capacity,
+      selected,
+      alternatives: alternativesFor(selected, ranked),
+    };
+  });
+  const activationPlans = await Promise.all(
+    agentPlans
+      .filter((agentPlan) => agentPlan.selected.length)
+      .map((agentPlan) =>
+        planActivationChange(
+          "enable",
+          agentPlan.selected.map((item) => item.selector),
+          { agents: [agentPlan.agent] },
+        ),
+      ),
+  );
+  const activation = activationPlans.length
+    ? {
+        action: "enable" as const,
+        packages: [
+          ...new Set(activationPlans.flatMap((plan) => plan.packages)),
+        ],
+        requestedAgents,
+        changes: activationPlans.flatMap((plan) => plan.changes),
+        skipped: activationPlans.flatMap((plan) => plan.skipped),
+        blocked: activationPlans.some((plan) => plan.blocked),
+        warnings: activationPlans.flatMap((plan) => plan.warnings),
+      }
+    : undefined;
+  const selected = [
+    ...new Map(
+      agentPlans
+        .flatMap((agentPlan) => agentPlan.selected)
+        .map((item) => [item.selector, item]),
+    ).values(),
+  ];
+  const alternatives = agentPlans.flatMap((item) => item.alternatives);
   const known = new Set(
     relevant.flatMap((record) => {
       const id = selector(record);
@@ -277,23 +367,13 @@ export async function planProjectActivation(
     warnings.push(
       `Pinned skill(s) are not in the managed library: ${unknownPins.join(", ")}`,
     );
-  if (!capacity)
-    warnings.push(
-      `Active-set limit ${limit} is already reached; disable skills or raise --limit.`,
-    );
-  const activation = selected.length
-    ? await planActivationChange(
-        "enable",
-        selected.map((item) => item.selector),
-        { ...(options.agents ? { agents: options.agents } : {}) },
-      )
-    : undefined;
   return {
     project,
     limit,
     ...(options.agents ? { agents: options.agents } : {}),
-    activeBefore,
-    capacity,
+    agentPlans,
+    activeBefore: Math.max(0, ...agentPlans.map((item) => item.activeBefore)),
+    capacity: Math.min(limit, ...agentPlans.map((item) => item.capacity)),
     selected,
     alternatives,
     ...(activation ? { activation } : {}),
@@ -306,7 +386,28 @@ export async function applyProjectActivation(
 ): Promise<string> {
   if (!plan.activation || !plan.selected.length)
     throw new Error("No reviewed library skills were selected for activation");
-  return applyActivationChange(plan.activation);
+  return applyActivationChange(plan.activation, {
+    preflight: async () => {
+      const requested = plan.agentPlans.map((item) => item.agent);
+      const detected = (await detectAgents()).filter((agent) =>
+        requested.includes(agent.id),
+      );
+      const inventory = await scanInstalledSkills(detected);
+      for (const agentPlan of plan.agentPlans) {
+        const current = inventory.agents.find(
+          (item) => item.agent === agentPlan.agent,
+        );
+        if (!current)
+          throw new Error(
+            `Could not re-scan active skills for requested agent '${agentPlan.agent}'`,
+          );
+        if (current.total + agentPlan.selected.length > plan.limit)
+          throw new Error(
+            `${agentPlan.displayName} active skill capacity changed after preview: ${current.total} active plus ${agentPlan.selected.length} proposed exceeds limit ${plan.limit}`,
+          );
+      }
+    },
+  });
 }
 
 export function formatProjectActivation(plan: ProjectActiveSetPlan): string {
@@ -314,16 +415,18 @@ export function formatProjectActivation(plan: ProjectActiveSetPlan): string {
   return [
     `Project: ${plan.project.root}`,
     `Detected: ${detected.join(", ") || "no known project signals"}`,
-    `Active-set budget: ${plan.activeBefore}/${plan.limit} active; ${plan.capacity} slot(s) available`,
-    `Proposed additions: ${plan.selected.length}`,
-    ...plan.selected.map(
-      (item) =>
-        `  + ${item.selector} [${item.score}] — ${item.reasons.join(", ")}`,
-    ),
-    ...plan.alternatives.map(
-      (item) =>
-        `  = ${item.unitId}: selected ${item.selected}; deferred equivalent source(s): ${item.deferred.join(", ")}`,
-    ),
+    ...plan.agentPlans.flatMap((agentPlan) => [
+      `${agentPlan.displayName}: ${agentPlan.activeBefore} active (${agentPlan.managedBefore} managed, ${agentPlan.unmanagedBefore} unmanaged); ${agentPlan.capacity}/${plan.limit} slots available`,
+      `Proposed additions for ${agentPlan.displayName}: ${agentPlan.selected.length}`,
+      ...agentPlan.selected.map(
+        (item) =>
+          `  + ${item.selector} [${item.score}] — ${item.reasons.join(", ")}`,
+      ),
+      ...agentPlan.alternatives.map(
+        (item) =>
+          `  = ${item.unitId}: selected ${item.selected}; deferred equivalent source(s): ${item.deferred.join(", ")}`,
+      ),
+    ]),
     ...(plan.activation
       ? ["", "Exact activation delta:", formatActivationPlan(plan.activation)]
       : []),

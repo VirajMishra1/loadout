@@ -134,10 +134,13 @@ merged `codex/relatable-readme-hero` remote branch remains safe to delete after 
       npm package. Power and its explicit rollback are complete: snapshot
       `1784546929191-9cfb0705dbed` restored zero Loadout-managed activations, retained
       all 12 unmanaged Claude skills, returned Codex to zero skills, and left no
-      duplicate groups. Remaining path: Maximum -> project activation ->
-      recommendation/optimization -> Graphify install/remove -> credential-free MCP
-      inventory -> read-only update/discovery -> complete uninstall -> reinstall.
-      Record every mutation snapshot ID and use explicit rollback IDs during acceptance.
+      duplicate groups. Maximum setup is also complete: snapshot
+      `1784547473319-7581eb19ee9c` stored 2,316 screened skill copies from 29 packages
+      in the disabled library, activated none of them, and again preserved the 12
+      unmanaged Claude skills. Remaining path: project activation -> recommendation/
+      optimization -> Graphify install/remove -> credential-free MCP inventory ->
+      read-only update/discovery -> complete uninstall -> reinstall. Record every
+      mutation snapshot ID and use explicit rollback IDs during acceptance.
 - [ ] `P18-24 [SOL+TERRA]` Redesign Power before 0.4.1 based on the real founder run.
       The published transaction itself passed: eight immutable sources installed for
       Claude Code and Codex, 100 managed activations were created, 12 unmanaged Claude
@@ -163,6 +166,18 @@ merged `codex/relatable-readme-hero` remote branch remains safe to delete after 
       state instead of healthy, keep the default summary concise, and let users scope
       detailed evidence to selected agents while preserving the full explanation on
       request. Add empty-state and mixed detected-agent CLI regression tests.
+- [ ] `P18-26 [LUNA+TERRA]` Make Maximum's preview understandable without weakening
+      its safe defaults. The founder run proved the disabled-library contract, but
+      printed 50 unit-level quarantine blocks, 19 expected MCP/runtime deferrals, two
+      `No SKILL.md` preparation failures, and one coarse 28-package risk approval in
+      the default path. The subsequent scan reported 11 repository failures without
+      naming them. Default to a concise grouped summary with exact counts, severity,
+      source, and next commands; retain complete findings behind an explicit details
+      or JSON view. Classify no-skill MCP/runtime records as explicit setup rather
+      than failed skill preparation, distinguish high-confidence findings from likely
+      documentation/binary/metadata false positives, persist every excluded unit, and
+      name every failed repository with a short reason. Add snapshot tests for both
+      concise and detailed Maximum output.
 
 ### Release 0.3 lifecycle hardening
 

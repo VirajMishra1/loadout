@@ -131,10 +131,13 @@ merged `codex/relatable-readme-hero` remote branch remains safe to delete after 
       dashboard-only dependencies/tests/docs/evidence, and npm package contents.
       Preserve any unique useful inspection capability through existing CLI commands.
 - [ ] `P18-23 [HUMAN+TERRA]` Complete the remaining CLI-only founder path on the exact
-      npm package: Power -> explicit rollback -> Maximum -> project activation ->
+      npm package. Power and its explicit rollback are complete: snapshot
+      `1784546929191-9cfb0705dbed` restored zero Loadout-managed activations, retained
+      all 12 unmanaged Claude skills, returned Codex to zero skills, and left no
+      duplicate groups. Remaining path: Maximum -> project activation ->
       recommendation/optimization -> Graphify install/remove -> credential-free MCP
       inventory -> read-only update/discovery -> complete uninstall -> reinstall.
-      Record each snapshot ID and use explicit rollback IDs during acceptance.
+      Record every mutation snapshot ID and use explicit rollback IDs during acceptance.
 - [ ] `P18-24 [SOL+TERRA]` Redesign Power before 0.4.1 based on the real founder run.
       The published transaction itself passed: eight immutable sources installed for
       Claude Code and Codex, 100 managed activations were created, 12 unmanaged Claude
@@ -149,8 +152,17 @@ merged `codex/relatable-readme-hero` remote branch remains safe to delete after 
       quarantine evidence, and make the health headline reflect blocking risk and
       capacity failures instead of reporting the overall installation as healthy.
       Add a release test proving Power preserves unmanaged skills, never exceeds its
-      active cap, reports every excluded unit and retained finding, and restores the
-      explicit setup snapshot `1784546929191-9cfb0705dbed` without residue.
+      active cap, reports every excluded unit and retained finding, and restores its
+      explicit setup snapshot without residue. The founder's published-package run
+      has now demonstrated that final rollback property successfully.
+- [ ] `P18-25 [LUNA+TERRA]` Make health output honest and focused for empty or unmanaged
+      profiles. After the successful Power rollback, `loadout health --explain` led
+      with `Loadout health: healthy` and then reported 28/100 critical evidence for
+      Claude Code, 0/100 unknown for Codex, and similarly verbose sections for every
+      detected agent. Use an explicit `not configured`/`no managed packages` overall
+      state instead of healthy, keep the default summary concise, and let users scope
+      detailed evidence to selected agents while preserving the full explanation on
+      request. Add empty-state and mixed detected-agent CLI regression tests.
 
 ### Release 0.3 lifecycle hardening
 

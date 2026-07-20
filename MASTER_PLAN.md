@@ -93,8 +93,10 @@ merged `codex/relatable-readme-hero` remote branch remains safe to delete after 
 - [ ] `P18-13 [HUMAN+TERRA]` Publish `loadout-ai@0.4.0` to npm, then test that exact
       registry tarball in a fresh terminal through Stable -> rollback -> Power ->
       rollback -> Maximum -> project optimization -> dashboard -> complete uninstall.
-      The registry exposed versions only through `0.3.1` before this release attempt;
-      local package metadata and a Git tag do not prove publication.
+      Publication completed on July 20. A clean temporary install resolved the exact
+      registry tarball, reported version `0.4.0`, and completed `loadout demo` with
+      rollback verification. The founder's real Codex/Claude and dashboard lifecycle
+      test remains required before this item can be checked.
 - [ ] `P18-17 [HUMAN]` Resolve the GitHub account billing or spending-limit condition
       that prevents Actions jobs from starting, rerun CI and daily discovery on the
       integrated commit, and record the result. CI runs

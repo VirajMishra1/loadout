@@ -279,7 +279,7 @@ git commit -m "fix: enforce per-agent active skill limits"
 - Extends `ProjectSignals` with `roles: string[]` and `tools: string[]`.
 - Consumed by package recommendations and skill ranking.
 
-- [ ] **Step 1: Write failing signal tests**
+- [x] **Step 1: Write failing signal tests**
 
 Create a package fixture containing `bin`, `publishConfig`, `commander`, `zod`, `vitest`, `@playwright/test`, `prepack`, and an `mcp` keyword, plus `SECURITY.md`. Assert:
 
@@ -298,12 +298,12 @@ expect(signals.tools).toEqual(
 );
 ```
 
-- [ ] **Step 2: Run the recommendation tests and verify RED**
+- [x] **Step 2: Run the recommendation tests and verify RED**
 
 Run: `npx vitest run tests/recommend.test.ts`  
 Expected: FAIL because `roles` and `tools` are absent.
 
-- [ ] **Step 3: Extend project signals and parse only known metadata**
+- [x] **Step 3: Extend project signals and parse only known metadata**
 
 ```ts
 export interface ProjectSignals {
@@ -318,11 +318,11 @@ export interface ProjectSignals {
 
 In `scanProject`, derive roles and tools only from root entry names, known manifest fields, dependencies/devDependencies, scripts, publish metadata, and keywords. Do not recursively read arbitrary source content.
 
-- [ ] **Step 4: Format readable detected roles**
+- [x] **Step 4: Format readable detected roles**
 
 Add display labels so human output says `TypeScript, Node CLI, npm package, Vitest, Playwright, MCP tooling` while JSON retains stable lowercase identifiers.
 
-- [ ] **Step 5: Verify GREEN and commit**
+- [x] **Step 5: Verify GREEN and commit**
 
 Run: `npx vitest run tests/recommend.test.ts tests/outcomes.test.ts`  
 Expected: all tests pass.

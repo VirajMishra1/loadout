@@ -105,4 +105,48 @@ describe("project recommendations", () => {
       ),
     ).toBe(true);
   });
+
+  it("detects bounded Node CLI, package, test, security, and MCP signals", async () => {
+    root = await mkdtemp(join(tmpdir(), "loadout-recommend-cli-"));
+    await writeFile(
+      join(root, "package.json"),
+      JSON.stringify({
+        name: "example-cli",
+        private: false,
+        bin: { example: "dist/cli.js" },
+        publishConfig: { access: "public" },
+        keywords: ["mcp", "ai-agents"],
+        scripts: {
+          prepack: "npm run build",
+          test: "vitest run",
+          "test:package": "node scripts/package-smoke.mjs",
+        },
+        dependencies: { commander: "1", zod: "1" },
+        devDependencies: {
+          vitest: "1",
+          "@playwright/test": "1",
+          typescript: "1",
+        },
+      }),
+    );
+    await writeFile(join(root, "SECURITY.md"), "# Security\n");
+
+    const signals = await scanProject(root);
+
+    expect(signals.roles).toEqual(
+      expect.arrayContaining([
+        "node-cli",
+        "npm-package",
+        "release",
+        "mcp",
+        "security",
+      ]),
+    );
+    expect(signals.tools).toEqual(
+      expect.arrayContaining(["commander", "zod", "vitest", "playwright"]),
+    );
+    expect(formatRecommendations(signals, [])).toContain(
+      "Detected: TypeScript, Playwright, Node CLI, npm package, release automation, MCP tooling, security policy, Commander, Zod, Vitest",
+    );
+  });
 });

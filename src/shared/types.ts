@@ -416,6 +416,8 @@ export interface ProjectSignals {
   root: string;
   languages: string[];
   frameworks: string[];
+  roles: string[];
+  tools: string[];
   files: string[];
 }
 

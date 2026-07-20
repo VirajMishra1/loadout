@@ -178,7 +178,7 @@ merged `codex/relatable-readme-hero` remote branch remains safe to delete after 
       documentation/binary/metadata false positives, persist every excluded unit, and
       name every failed repository with a short reason. Add snapshot tests for both
       concise and detailed Maximum output.
-- [ ] `P18-27 [SOL+TERRA, LUNA copy review]` Correct project-aware activation safety
+- [x] `P18-27 [SOL+TERRA, LUNA copy review]` Correct project-aware activation safety
       and relevance using
       `docs/superpowers/specs/2026-07-20-project-activation-safety-design.md`.
       Founder preview proved that activation currently ignores 12 unmanaged Claude
@@ -188,7 +188,15 @@ merged `codex/relatable-readme-hero` remote branch remains safe to delete after 
       empty-target predicate, per-agent total active capacity, bounded Node CLI/npm/
       Vitest/MCP project signals, diverse evidence-threshold selection, integration-
       type labels, atomic apply revalidation, and the specified regression suite.
-      Do not resume real-profile activation until the corrected release is published.
+      Implementation is complete on `codex/project-activation-safety`: the full local
+      release gate passes, including 114 unit-test files with 605 passing tests and
+      one intentional skip; the disposable two-agent CLI journey proves 12 unmanaged
+      Claude skills, distinct Claude/Codex budgets, empty rollback residue, one atomic
+      apply, and explicit rollback; the packed artifact is 468.0 kB with 145 files;
+      and the fresh scan benchmark passed at 1,583.5 ms p95 across seven real CLI
+      runs. Do
+      not resume real-profile activation until this branch is reviewed, integrated,
+      versioned, and published as the corrected release.
 
 ### Release 0.3 lifecycle hardening
 

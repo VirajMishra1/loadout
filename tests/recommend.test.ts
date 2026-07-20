@@ -34,19 +34,24 @@ describe("project recommendations", () => {
       description: id,
       category: "x",
       tier: "stable",
+      components: id === "playwright-mcp" ? ["mcp"] : ["skill"],
     })) as CatalogPackage[];
     expect(signals.frameworks).toEqual(
       expect.arrayContaining(["next.js", "react", "playwright"]),
     );
+    const recommendations = recommendPackages(signals, catalog);
+    expect(recommendations.map((item) => item.packageId)).toEqual(ids);
     expect(
-      recommendPackages(signals, catalog).map((item) => item.packageId),
-    ).toEqual(ids);
-    const output = formatRecommendations(
-      signals,
-      recommendPackages(signals, catalog),
-    );
+      recommendations.find((item) => item.packageId === "superpowers"),
+    ).toMatchObject({ kind: "skill-library" });
+    expect(
+      recommendations.find((item) => item.packageId === "playwright-mcp"),
+    ).toMatchObject({ kind: "mcp-runtime" });
+    const output = formatRecommendations(signals, recommendations);
     expect(output).toContain("Rule-based project suggestions:");
     expect(output).toContain("Rules use detected project signals");
+    expect(output).toContain("superpowers [high, skill library]");
+    expect(output).toContain("playwright-mcp [high, MCP/runtime setup]");
     expect(output).not.toMatch(/empirically|tested winner|best package/i);
   });
 
@@ -59,11 +64,13 @@ describe("project recommendations", () => {
         packageId: "superpowers",
         reason: "baseline",
         confidence: "high" as const,
+        kind: "skill-library" as const,
       },
       {
         packageId: "context7",
         reason: "baseline",
         confidence: "medium" as const,
+        kind: "skill-library" as const,
       },
     ];
     const outcomes: LocalOutcomeStore = {
@@ -104,5 +111,49 @@ describe("project recommendations", () => {
         baseline.some((base) => base.packageId === item.packageId),
       ),
     ).toBe(true);
+  });
+
+  it("detects bounded Node CLI, package, test, security, and MCP signals", async () => {
+    root = await mkdtemp(join(tmpdir(), "loadout-recommend-cli-"));
+    await writeFile(
+      join(root, "package.json"),
+      JSON.stringify({
+        name: "example-cli",
+        private: false,
+        bin: { example: "dist/cli.js" },
+        publishConfig: { access: "public" },
+        keywords: ["mcp", "ai-agents"],
+        scripts: {
+          prepack: "npm run build",
+          test: "vitest run",
+          "test:package": "node scripts/package-smoke.mjs",
+        },
+        dependencies: { commander: "1", zod: "1" },
+        devDependencies: {
+          vitest: "1",
+          "@playwright/test": "1",
+          typescript: "1",
+        },
+      }),
+    );
+    await writeFile(join(root, "SECURITY.md"), "# Security\n");
+
+    const signals = await scanProject(root);
+
+    expect(signals.roles).toEqual(
+      expect.arrayContaining([
+        "node-cli",
+        "npm-package",
+        "release",
+        "mcp",
+        "security",
+      ]),
+    );
+    expect(signals.tools).toEqual(
+      expect.arrayContaining(["commander", "zod", "vitest", "playwright"]),
+    );
+    expect(formatRecommendations(signals, [])).toContain(
+      "Detected: TypeScript, Playwright, Node CLI, npm package, release automation, MCP tooling, security policy, Commander, Zod, Vitest",
+    );
   });
 });

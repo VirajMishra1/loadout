@@ -26,15 +26,19 @@ Loadout-managed skills from your own pre-existing skills. `health` checks local 
 loadout catalog --json
 loadout candidate list --limit 10
 loadout recommend --project .
-loadout optimize --project .
+loadout optimize --project . --agents codex,claude-code --limit 30
 loadout tool
 loadout tool graphify
 ```
 
 Run the project commands from the project you care about, or replace `.` with its
-absolute path. `optimize` is still a preview until `--yes` is supplied. `tool
-graphify` is also a preview; Graphify is a reviewed runtime tool and does not
-need an OpenAI or Anthropic API key for its code-only install.
+absolute path. `recommend` labels ordinary skill libraries separately from MCP or
+runtime integrations that require explicit setup. `optimize` is still a preview
+until `--yes` is supplied. Its limit applies separately to every agent and includes
+both Loadout-managed and pre-existing unmanaged skills, so Claude and Codex can
+receive different numbers of additions. `tool graphify` is also a preview; Graphify
+is a reviewed runtime tool and does not need an OpenAI or Anthropic API key for its
+code-only install.
 
 ## 3. Open the optional dashboard
 
@@ -63,6 +67,10 @@ loadout setup --mode power --agents codex,claude-code
 # Download the broad reviewed library while keeping the active set controlled
 loadout setup --mode maximum --agents codex,claude-code
 ```
+
+Maximum stores reviewed copies in Loadout's disabled library; it does not expose the
+whole catalog to each agent. Follow it with `loadout optimize --project .
+--agents codex,claude-code --limit 30` to preview a compact project-aware working set.
 
 At the API-access question, choose `None` unless you separately pay for a
 provider API. A ChatGPT Plus or Claude Pro subscription is not an API key. Core
@@ -172,6 +180,10 @@ loadout-ai@0.4.0` completed, run `hash -r`, and confirm npm's global binary
   legacy snapshot without post-mutation evidence. Run `loadout health --explain` and
   inspect the affected path before deciding whether an explicit force option is
   appropriate; do not delete the path merely to make the command pass.
+- **Activation reports fewer additions for one agent:** this is expected when that
+  agent already has unmanaged or managed skills. `--limit` is a total per-agent
+  ceiling, not a request to add that many new skills. Recursively empty rollback
+  directories do not consume capacity and are safe for Loadout to reuse.
 - **A fetch, discovery, or update check fails:** retry only after checking network,
   proxy, DNS, and source-host access. Local inventory, library, health, rollback, and
   offline fixture tests remain separate; an unavailable live check is not a pass.

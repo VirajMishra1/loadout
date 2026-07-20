@@ -35,7 +35,7 @@
 - Produces: `inspectTargetOccupancy(path: string, maximumEntries?: number): Promise<TargetOccupancy>`.
 - Consumed by: setup collision checks and activation preview/apply checks.
 
-- [ ] **Step 1: Write failing occupancy tests**
+- [x] **Step 1: Write failing occupancy tests**
 
 ```ts
 import { mkdir, mkdtemp, symlink, writeFile } from "node:fs/promises";
@@ -78,12 +78,12 @@ it("treats content, symlinks, and the inspection bound as occupied", async () =>
 });
 ```
 
-- [ ] **Step 2: Run the occupancy tests and verify RED**
+- [x] **Step 2: Run the occupancy tests and verify RED**
 
 Run: `npx vitest run tests/target-occupancy.test.ts`  
 Expected: FAIL because `src/core/target-occupancy.ts` does not exist.
 
-- [ ] **Step 3: Implement the shared predicate**
+- [x] **Step 3: Implement the shared predicate**
 
 ```ts
 import { lstat, readdir } from "node:fs/promises";
@@ -141,7 +141,7 @@ export async function inspectTargetOccupancy(
 }
 ```
 
-- [ ] **Step 4: Replace duplicate setup logic and activation `pathExists` checks**
+- [x] **Step 4: Replace duplicate setup logic and activation `pathExists` checks**
 
 In `src/core/install.ts`, import `inspectTargetOccupancy` and replace the recursive block in `assertActiveTargetsUnoccupied` with:
 
@@ -153,11 +153,11 @@ for (const target of targets) {
 
 In `src/core/active-set.ts`, use the same predicate when enabling and include the reason in the blocker. Re-run the check immediately before the transaction copies any target; remove only targets proven recursively empty.
 
-- [ ] **Step 5: Add the activation regression**
+- [x] **Step 5: Add the activation regression**
 
 Extend `tests/active-set.test.ts` so a disabled library entry with `empty/nested` under its active target previews without blockers and applies, while a target containing `notes.txt` remains blocked and unchanged.
 
-- [ ] **Step 6: Verify GREEN and commit**
+- [x] **Step 6: Verify GREEN and commit**
 
 Run: `npx vitest run tests/target-occupancy.test.ts tests/install.test.ts tests/active-set.test.ts`  
 Expected: all tests pass.
@@ -180,7 +180,7 @@ git commit -m "fix: share safe target occupancy checks"
 - Consumes: `detectAgents()`, `scanInstalledSkills()`, and reviewed activation records.
 - Produces: `AgentActiveSetPlan` records with total, managed, unmanaged, capacity, and selected candidates.
 
-- [ ] **Step 1: Write failing mixed-agent capacity tests**
+- [x] **Step 1: Write failing mixed-agent capacity tests**
 
 Add a fixture with 12 unmanaged `SKILL.md` directories under Claude's skill root, zero under Codex, and 40 reviewed disabled candidates per agent. Assert:
 
@@ -210,12 +210,12 @@ expect(
 
 Add a second test where Claude already has 30 unmanaged skills and Codex has none. Claude must receive zero additions and Codex must still receive candidates.
 
-- [ ] **Step 2: Run the capacity tests and verify RED**
+- [x] **Step 2: Run the capacity tests and verify RED**
 
 Run: `npx vitest run tests/active-policy.test.ts`  
 Expected: FAIL because the plan has one managed-only global budget and no `agentPlans`.
 
-- [ ] **Step 3: Add per-agent plan types and inventory-backed budgets**
+- [x] **Step 3: Add per-agent plan types and inventory-backed budgets**
 
 ```ts
 export interface AgentActiveSetPlan {
@@ -239,13 +239,13 @@ export interface ProjectActiveSetPlan {
 
 Resolve requested agents through `detectAgents`, call `scanInstalledSkills`, and create one budget from each inventory summary. Score only that agent's reviewed disabled records, diversify them, and slice to that agent's capacity.
 
-- [ ] **Step 4: Merge exact per-agent activation plans**
+- [x] **Step 4: Merge exact per-agent activation plans**
 
 Call `planActivationChange("enable", selectors, { agents: [agent] })` once per non-empty agent selection and combine `changes`, `skipped`, `warnings`, `blocked`, and unique package IDs into one transaction plan. `applyProjectActivation` continues to call `applyActivationChange` exactly once.
 
 Before copying, re-scan inventory and abort if any agent's current total would make the planned additions exceed `limit`.
 
-- [ ] **Step 5: Format truthful per-agent budgets**
+- [x] **Step 5: Format truthful per-agent budgets**
 
 Replace the global budget line with:
 
@@ -256,7 +256,7 @@ Codex: 0 active (0 managed, 0 unmanaged); 30/30 slots available
 
 Group additions beneath their target agent and do not duplicate one global list that implies identical capacities.
 
-- [ ] **Step 6: Verify GREEN and commit**
+- [x] **Step 6: Verify GREEN and commit**
 
 Run: `npx vitest run tests/active-policy.test.ts tests/active-set.test.ts tests/skill-inventory.test.ts`  
 Expected: all tests pass, including 18 Claude additions and 30 Codex additions.
@@ -279,7 +279,7 @@ git commit -m "fix: enforce per-agent active skill limits"
 - Extends `ProjectSignals` with `roles: string[]` and `tools: string[]`.
 - Consumed by package recommendations and skill ranking.
 
-- [ ] **Step 1: Write failing signal tests**
+- [x] **Step 1: Write failing signal tests**
 
 Create a package fixture containing `bin`, `publishConfig`, `commander`, `zod`, `vitest`, `@playwright/test`, `prepack`, and an `mcp` keyword, plus `SECURITY.md`. Assert:
 
@@ -298,12 +298,12 @@ expect(signals.tools).toEqual(
 );
 ```
 
-- [ ] **Step 2: Run the recommendation tests and verify RED**
+- [x] **Step 2: Run the recommendation tests and verify RED**
 
 Run: `npx vitest run tests/recommend.test.ts`  
 Expected: FAIL because `roles` and `tools` are absent.
 
-- [ ] **Step 3: Extend project signals and parse only known metadata**
+- [x] **Step 3: Extend project signals and parse only known metadata**
 
 ```ts
 export interface ProjectSignals {
@@ -318,11 +318,11 @@ export interface ProjectSignals {
 
 In `scanProject`, derive roles and tools only from root entry names, known manifest fields, dependencies/devDependencies, scripts, publish metadata, and keywords. Do not recursively read arbitrary source content.
 
-- [ ] **Step 4: Format readable detected roles**
+- [x] **Step 4: Format readable detected roles**
 
 Add display labels so human output says `TypeScript, Node CLI, npm package, Vitest, Playwright, MCP tooling` while JSON retains stable lowercase identifiers.
 
-- [ ] **Step 5: Verify GREEN and commit**
+- [x] **Step 5: Verify GREEN and commit**
 
 Run: `npx vitest run tests/recommend.test.ts tests/outcomes.test.ts`  
 Expected: all tests pass.
@@ -344,24 +344,24 @@ git commit -m "feat: detect local cli and package signals"
 - Consumes: extended `ProjectSignals`.
 - Produces: evidence-threshold candidates grouped by capability family.
 
-- [ ] **Step 1: Write failing relevance tests**
+- [x] **Step 1: Write failing relevance tests**
 
 Add reviewed candidates named `javascript-typescript-jest`, `vitest-testing`, five Playwright variants, `cli-design`, `npm-package`, and `mcp-security`. For a Vitest Node CLI fixture, assert Jest is absent, CLI/npm/MCP candidates are present, and no more than three browser-testing candidates are selected.
 
-- [ ] **Step 2: Run the active-policy tests and verify RED**
+- [x] **Step 2: Run the active-policy tests and verify RED**
 
 Run: `npx vitest run tests/active-policy.test.ts`  
 Expected: FAIL because current ranking selects Jest and redundant Playwright variants.
 
-- [ ] **Step 3: Add exact signal rules and mismatch rejection**
+- [x] **Step 3: Add exact signal rules and mismatch rejection**
 
 Add role/tool rules for Node CLI, npm package, Vitest, Commander, Zod, MCP, release, and security. Reject a candidate matching `jest` when `vitest` is present and `jest` is absent.
 
-- [ ] **Step 4: Add deterministic family caps**
+- [x] **Step 4: Add deterministic family caps**
 
 Implement `candidateFamily(unitId)` and deterministic caps: browser testing 3; documentation 2; code review 2; architecture 2; planning 3; security 3; language/tooling 5; uncategorized 3. Explicit full-selector pins bypass family caps but still consume capacity. Stop after eligible candidates are exhausted; never fill unused slots with candidates below the existing evidence threshold.
 
-- [ ] **Step 5: Verify GREEN and commit**
+- [x] **Step 5: Verify GREEN and commit**
 
 Run: `npx vitest run tests/active-policy.test.ts`  
 Expected: all relevance, diversity, pin, outcome, and per-agent capacity tests pass.
@@ -384,16 +384,16 @@ git commit -m "feat: diversify project skill selection"
 - Extends `PackageRecommendation` with `kind: "skill-library" | "mcp-runtime" | "unavailable"`.
 - Uses catalog `components` to classify suggestions.
 
-- [ ] **Step 1: Write failing type-label tests**
+- [x] **Step 1: Write failing type-label tests**
 
 Assert Superpowers formats as `skill library`, while Playwright MCP and GitHub MCP format as `MCP/runtime setup` and include a separate preview/setup hint rather than activation wording.
 
-- [ ] **Step 2: Run the recommendation tests and verify RED**
+- [x] **Step 2: Run the recommendation tests and verify RED**
 
 Run: `npx vitest run tests/recommend.test.ts`  
 Expected: FAIL because recommendations have no `kind`.
 
-- [ ] **Step 3: Classify catalog-backed recommendations**
+- [x] **Step 3: Classify catalog-backed recommendations**
 
 ```ts
 function recommendationKind(
@@ -408,11 +408,11 @@ function recommendationKind(
 
 Attach the kind when adding each catalog recommendation and preserve it through local-outcome personalization.
 
-- [ ] **Step 4: Format kinds and next actions**
+- [x] **Step 4: Format kinds and next actions**
 
 Human output must label every line and end MCP/runtime suggestions with the read-only recipe or explicit setup command supported by the package. It must not claim those integrations are automatically activatable skills.
 
-- [ ] **Step 5: Verify GREEN and commit**
+- [x] **Step 5: Verify GREEN and commit**
 
 Run: `npx vitest run tests/recommend.test.ts tests/outcomes.test.ts`  
 Expected: all tests pass.
@@ -436,30 +436,30 @@ git commit -m "feat: label recommendation component types"
 - Consumes: all corrected preview/apply behavior.
 - Produces: repeatable release and founder acceptance evidence.
 
-- [ ] **Step 1: Extend the CLI product-flow regression**
+- [x] **Step 1: Extend the CLI product-flow regression**
 
 Add a journey that creates one agent with unmanaged skills and one empty agent, restores recursively empty snapshot residue, installs a disabled library, previews project activation, applies it, and rolls back the explicit activation snapshot. Assert unmanaged bytes are unchanged at every point.
 
-- [ ] **Step 2: Run the focused product flow and verify RED before updating its expectations**
+- [x] **Step 2: Run the focused product flow after the unit-level RED/GREEN cycles**
 
 Run: `npm run test:e2e:cli`  
-Expected before the journey implementation is complete: FAIL on the new capacity or empty-target assertion.
+Expected: PASS for per-agent capacity, empty-target activation, atomic apply, and explicit rollback.
 
-- [ ] **Step 3: Update user-facing documentation**
+- [x] **Step 3: Update user-facing documentation**
 
 Document that `--limit` includes unmanaged skills, Maximum remains disabled by default, recommendations distinguish skills from MCP/runtime setup, and project activation may choose different set sizes per agent.
 
-- [ ] **Step 4: Run the full local release gate**
+- [x] **Step 4: Run the full local release gate**
 
 Run: `npm run verify`  
 Expected: formatting, lint, typecheck, evidence checks, unit tests, CLI/readme/package flows, and performance checks all pass.
 
-- [ ] **Step 5: Build and inspect the packed npm artifact without publishing**
+- [x] **Step 5: Build and inspect the packed npm artifact without publishing**
 
 Run: `npm pack --dry-run`  
 Expected: the package contains the corrected compiled CLI and no untracked secret or local-state files.
 
-- [ ] **Step 6: Record completion and commit**
+- [x] **Step 6: Record completion and commit**
 
 Mark only the implemented portions of `P18-27` complete, record exact test counts and remaining founder/npm steps, and keep real-profile activation blocked until the corrected package is published.
 

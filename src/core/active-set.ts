@@ -13,6 +13,7 @@ import {
   readInstallState,
   writeInstallState,
 } from "./state.js";
+import { inspectTargetOccupancy } from "./target-occupancy.js";
 import { runMutationTransaction } from "./transaction.js";
 
 export type ActivationAction = "enable" | "disable";
@@ -435,12 +436,15 @@ export async function planActivationChange(
         }
         const occupied = (
           await Promise.all(
-            change.targets.map((target) => pathExists(target.activePath)),
+            change.targets.map(async (target) => ({
+              target,
+              result: await inspectTargetOccupancy(target.activePath),
+            })),
           )
-        ).filter(Boolean).length;
-        if (occupied)
+        ).filter((item) => item.result.occupied);
+        if (occupied.length)
           change.blockers.push(
-            `${occupied} active target(s) already exist and would be overwritten`,
+            `${occupied.length} active target(s) already contain protected content and would be overwritten; first target: ${occupied[0].target.activePath} (${occupied[0].result.reason})`,
           );
       }
       changes.push(change);
@@ -470,9 +474,11 @@ function activationKey(
 
 export async function applyActivationChange(
   plan: ActivationPlan,
+  options: { preflight?: () => Promise<void> } = {},
 ): Promise<string> {
   const applied = await runMutationTransaction(
     async () => {
+      await options.preflight?.();
       const fresh = await planActivationChange(plan.action, plan.packages, {
         ...(plan.requestedAgents ? { agents: plan.requestedAgents } : {}),
       });
@@ -546,6 +552,12 @@ export async function applyActivationChange(
         } else {
           for (const target of change.targets) {
             const source = join(change.libraryPath, target.libraryRelativePath);
+            const occupancy = await inspectTargetOccupancy(target.activePath);
+            if (occupancy.occupied)
+              throw new Error(
+                `${change.packageId}/${change.agent}: activation target became occupied: ${target.activePath} (${occupancy.reason})`,
+              );
+            await rm(target.activePath, { recursive: true, force: true });
             await mkdir(dirname(target.activePath), { recursive: true });
             await cp(source, target.activePath, {
               recursive: true,

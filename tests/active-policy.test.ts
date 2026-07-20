@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   applyProjectActivation,
+  formatProjectActivation,
   planProjectActivation,
 } from "../src/core/active-policy.js";
 import { activationLibraryPath, writeInstallState } from "../src/core/state.js";
@@ -12,9 +13,146 @@ import type { ManagedActivationRecord } from "../src/shared/types.js";
 
 describe("project-aware active-set policy", () => {
   let root = "";
+  const originalLoadoutHome = process.env.LOADOUT_HOME;
+  const originalUserHome = process.env.LOADOUT_USER_HOME;
   afterEach(async () => {
     if (root) await rm(root, { recursive: true, force: true });
+    if (originalLoadoutHome === undefined) delete process.env.LOADOUT_HOME;
+    else process.env.LOADOUT_HOME = originalLoadoutHome;
+    if (originalUserHome === undefined) delete process.env.LOADOUT_USER_HOME;
+    else process.env.LOADOUT_USER_HOME = originalUserHome;
   });
+
+  async function writeTwoAgentLibrary(count: number): Promise<string> {
+    const home = join(root, "home");
+    process.env.LOADOUT_HOME = join(root, ".loadout");
+    process.env.LOADOUT_USER_HOME = home;
+    const project = join(root, "project");
+    await mkdir(project, { recursive: true });
+    await writeFile(
+      join(project, "package.json"),
+      JSON.stringify({ devDependencies: { typescript: "1" } }),
+    );
+    for (let index = 1; index <= 12; index += 1) {
+      const directory = join(home, ".claude", "skills", `unmanaged-${index}`);
+      await mkdir(directory, { recursive: true });
+      await writeFile(
+        join(directory, "SKILL.md"),
+        `---\nname: unmanaged-${index}\ndescription: Existing skill\n---\n`,
+      );
+    }
+
+    const activations: ManagedActivationRecord[] = [];
+    const files: Array<{ path: string; sha256: string }> = [];
+    for (const agent of ["claude-code", "codex"] as const) {
+      const activeRoot =
+        agent === "claude-code"
+          ? join(home, ".claude", "skills")
+          : join(home, ".agents", "skills");
+      for (let index = 1; index <= count; index += 1) {
+        const unitId = `typescript-pattern-${String(index).padStart(2, "0")}`;
+        const content = `---\nname: ${unitId}\ndescription: TypeScript project skill\n---\n`;
+        const digest = createHash("sha256").update(content).digest("hex");
+        const libraryPath = activationLibraryPath("collection", agent, unitId);
+        await mkdir(join(libraryPath, unitId), { recursive: true });
+        await writeFile(join(libraryPath, unitId, "SKILL.md"), content);
+        const activePath = join(activeRoot, unitId);
+        files.push({ path: join(activePath, "SKILL.md"), sha256: digest });
+        activations.push({
+          packageId: "collection",
+          unitId,
+          agent,
+          cacheState: "downloaded",
+          reviewState: "reviewed",
+          installationState: "installed",
+          activationState: "disabled",
+          libraryPath,
+          targets: [{ activePath, libraryRelativePath: unitId }],
+          libraryFiles: [{ path: `${unitId}/SKILL.md`, sha256: digest }],
+          updatedAt: "2026-07-20T00:00:00Z",
+        });
+      }
+    }
+    await writeInstallState({
+      version: 1,
+      installs: [
+        {
+          packageId: "collection",
+          targetAgents: ["claude-code", "codex"],
+          files,
+          snapshotId: "library",
+          installedAt: "2026-07-20T00:00:00Z",
+        },
+      ],
+      mcpInstalls: [],
+      activations,
+    });
+    return project;
+  }
+
+  async function writeNamedCodexLibrary(unitIds: string[]): Promise<string> {
+    const home = join(root, "home");
+    process.env.LOADOUT_HOME = join(root, ".loadout");
+    process.env.LOADOUT_USER_HOME = home;
+    const project = join(root, "project");
+    await mkdir(project, { recursive: true });
+    await writeFile(
+      join(project, "package.json"),
+      JSON.stringify({
+        name: "loadout-like-cli",
+        private: false,
+        bin: { loadout: "dist/cli.js" },
+        publishConfig: { access: "public" },
+        keywords: ["mcp"],
+        scripts: { prepack: "npm run build", test: "vitest run" },
+        dependencies: { commander: "1", zod: "1" },
+        devDependencies: {
+          vitest: "1",
+          "@playwright/test": "1",
+          typescript: "1",
+        },
+      }),
+    );
+    const activations: ManagedActivationRecord[] = [];
+    const files: Array<{ path: string; sha256: string }> = [];
+    for (const unitId of unitIds) {
+      const content = `---\nname: ${unitId}\ndescription: Project skill\n---\n`;
+      const digest = createHash("sha256").update(content).digest("hex");
+      const libraryPath = activationLibraryPath("collection", "codex", unitId);
+      await mkdir(join(libraryPath, unitId), { recursive: true });
+      await writeFile(join(libraryPath, unitId, "SKILL.md"), content);
+      const activePath = join(home, ".agents", "skills", unitId);
+      files.push({ path: join(activePath, "SKILL.md"), sha256: digest });
+      activations.push({
+        packageId: "collection",
+        unitId,
+        agent: "codex",
+        cacheState: "downloaded",
+        reviewState: "reviewed",
+        installationState: "installed",
+        activationState: "disabled",
+        libraryPath,
+        targets: [{ activePath, libraryRelativePath: unitId }],
+        libraryFiles: [{ path: `${unitId}/SKILL.md`, sha256: digest }],
+        updatedAt: "2026-07-20T00:00:00Z",
+      });
+    }
+    await writeInstallState({
+      version: 1,
+      installs: [
+        {
+          packageId: "collection",
+          targetAgents: ["codex"],
+          files,
+          snapshotId: "library",
+          installedAt: "2026-07-20T00:00:00Z",
+        },
+      ],
+      mcpInstalls: [],
+      activations,
+    });
+    return project;
+  }
 
   it("scores reviewed skill units and activates the selected set", async () => {
     root = await mkdtemp(join(tmpdir(), "loadout-active-policy-"));
@@ -93,5 +231,126 @@ describe("project-aware active-set policy", () => {
         "utf8",
       ),
     ).toBe(content);
+  });
+
+  it("budgets managed and unmanaged active skills separately per agent", async () => {
+    root = await mkdtemp(join(tmpdir(), "loadout-active-capacity-"));
+    const project = await writeTwoAgentLibrary(40);
+
+    const plan = await planProjectActivation(project, {
+      agents: ["claude-code", "codex"],
+      limit: 30,
+      pins: Array.from(
+        { length: 40 },
+        (_, index) =>
+          `collection/typescript-pattern-${String(index + 1).padStart(2, "0")}`,
+      ),
+    });
+
+    expect(
+      plan.agentPlans.find((item) => item.agent === "claude-code"),
+    ).toMatchObject({
+      activeBefore: 12,
+      managedBefore: 0,
+      unmanagedBefore: 12,
+      capacity: 18,
+    });
+    expect(
+      plan.agentPlans.find((item) => item.agent === "claude-code")!.selected,
+    ).toHaveLength(18);
+    expect(
+      plan.agentPlans.find((item) => item.agent === "codex"),
+    ).toMatchObject({
+      activeBefore: 0,
+      managedBefore: 0,
+      unmanagedBefore: 0,
+      capacity: 30,
+    });
+    expect(
+      plan.agentPlans.find((item) => item.agent === "codex")!.selected,
+    ).toHaveLength(30);
+    const output = formatProjectActivation(plan);
+    expect(output).toContain(
+      "Claude Code: 12 active (0 managed, 12 unmanaged); 18/30 slots available",
+    );
+    expect(output).toContain(
+      "Codex: 0 active (0 managed, 0 unmanaged); 30/30 slots available",
+    );
+  });
+
+  it("aborts apply when an agent consumes capacity after preview", async () => {
+    root = await mkdtemp(join(tmpdir(), "loadout-active-race-"));
+    const project = await writeTwoAgentLibrary(2);
+    const plan = await planProjectActivation(project, {
+      agents: ["claude-code", "codex"],
+      limit: 13,
+    });
+    const appeared = join(
+      root,
+      "home",
+      ".claude",
+      "skills",
+      "appeared-after-preview",
+    );
+    await mkdir(appeared, { recursive: true });
+    await writeFile(
+      join(appeared, "SKILL.md"),
+      "---\nname: appeared-after-preview\ndescription: New unmanaged skill\n---\n",
+    );
+
+    await expect(applyProjectActivation(plan)).rejects.toThrow(
+      /active skill capacity changed after preview/i,
+    );
+    await expect(
+      readFile(
+        join(
+          root,
+          "home",
+          ".agents",
+          "skills",
+          "typescript-pattern-01",
+          "SKILL.md",
+        ),
+      ),
+    ).rejects.toThrow();
+  });
+
+  it("prefers exact CLI and Vitest signals over mismatched or redundant skills", async () => {
+    root = await mkdtemp(join(tmpdir(), "loadout-active-relevance-"));
+    const project = await writeNamedCodexLibrary([
+      "javascript-typescript-jest",
+      "vitest-testing",
+      "playwright",
+      "playwright-interactive",
+      "playwright-generate-test",
+      "playwright-explore-website",
+      "e2e-testing-patterns",
+      "cli-design",
+      "npm-package-release",
+      "mcp-security",
+      "typescript-advanced-types",
+    ]);
+
+    const plan = await planProjectActivation(project, {
+      agents: ["codex"],
+      limit: 30,
+    });
+    const selected = plan.agentPlans[0].selected.map((item) => item.unitId);
+
+    expect(selected).not.toContain("javascript-typescript-jest");
+    expect(selected).toEqual(
+      expect.arrayContaining([
+        "vitest-testing",
+        "cli-design",
+        "npm-package-release",
+        "mcp-security",
+      ]),
+    );
+    expect(
+      selected.filter((unitId) => /playwright|e2e/.test(unitId)),
+    ).toHaveLength(3);
+    expect(formatProjectActivation(plan)).toContain(
+      "Detected: TypeScript, Playwright, Node CLI, npm package",
+    );
   });
 });

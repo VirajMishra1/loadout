@@ -26,14 +26,68 @@ const SIGNAL_FILES = new Set([
   "next.config.mjs",
   "vite.config.ts",
   "playwright.config.ts",
+  "SECURITY.md",
   ".git",
 ]);
+
+interface NodePackageMetadata {
+  name?: string;
+  private?: boolean;
+  bin?: string | Record<string, string>;
+  publishConfig?: Record<string, unknown>;
+  keywords?: string[];
+  scripts?: Record<string, string>;
+  dependencies?: Record<string, string>;
+  devDependencies?: Record<string, string>;
+}
 
 /** Additive machine-readable boundary for every rule-selected recommendation list. */
 export const RECOMMENDATION_BOUNDARY = Object.freeze({
   selectionMethod: "deterministic-project-signal-rules",
   qualityEvidence: "not-established",
 } as const);
+
+const SIGNAL_LABELS: Record<string, string> = {
+  "javascript/typescript": "TypeScript",
+  playwright: "Playwright",
+  "node-cli": "Node CLI",
+  "npm-package": "npm package",
+  release: "release automation",
+  mcp: "MCP tooling",
+  security: "security policy",
+  commander: "Commander",
+  zod: "Zod",
+  vitest: "Vitest",
+  jest: "Jest",
+};
+
+const SIGNAL_DISPLAY_ORDER = [
+  "javascript/typescript",
+  "playwright",
+  "node-cli",
+  "npm-package",
+  "release",
+  "mcp",
+  "security",
+  "commander",
+  "zod",
+  "vitest",
+  "jest",
+];
+
+export function formatDetectedSignals(signals: ProjectSignals): string {
+  const values = new Set([
+    ...signals.languages,
+    ...signals.frameworks,
+    ...signals.roles,
+    ...signals.tools,
+  ]);
+  const ordered = [
+    ...SIGNAL_DISPLAY_ORDER.filter((value) => values.delete(value)),
+    ...values,
+  ];
+  return ordered.map((value) => SIGNAL_LABELS[value] ?? value).join(", ");
+}
 
 export async function scanProject(
   root = process.cwd(),
@@ -46,19 +100,41 @@ export async function scanProject(
     .sort();
   const languages = new Set<string>();
   const frameworks = new Set<string>();
+  const roles = new Set<string>();
+  const tools = new Set<string>();
   if (files.includes("package.json")) {
     languages.add("javascript/typescript");
     try {
       const pkg = JSON.parse(
         await readFile(resolve(absolute, "package.json"), "utf8"),
-      ) as Record<string, Record<string, string>>;
+      ) as NodePackageMetadata;
       const deps = { ...pkg.dependencies, ...pkg.devDependencies };
       if (deps.next) frameworks.add("next.js");
       if (deps.react) frameworks.add("react");
       if (deps.vue) frameworks.add("vue");
       if (deps.svelte) frameworks.add("svelte");
-      if (deps.playwright || deps["@playwright/test"])
+      if (deps.playwright || deps["@playwright/test"]) {
         frameworks.add("playwright");
+        tools.add("playwright");
+      }
+      if (deps.vitest) tools.add("vitest");
+      if (deps.jest) tools.add("jest");
+      if (deps.commander) tools.add("commander");
+      if (deps.zod) tools.add("zod");
+      if (pkg.bin) roles.add("node-cli");
+      if (pkg.publishConfig || pkg.private === false) roles.add("npm-package");
+      const scripts = pkg.scripts ?? {};
+      if (
+        scripts.prepack ||
+        Object.keys(scripts).some((name) => /(?:package|release)/.test(name))
+      )
+        roles.add("release");
+      if (
+        (pkg.keywords ?? []).some((keyword) =>
+          /(?:^|-)mcp(?:-|$)/i.test(keyword),
+        )
+      )
+        roles.add("mcp");
     } catch {
       /* malformed project metadata is reported through an empty framework set */
     }
@@ -73,11 +149,17 @@ export async function scanProject(
   if (files.some((file) => file.endsWith(".sln"))) languages.add(".net");
   if (files.some((file) => file.startsWith("next.config")))
     frameworks.add("next.js");
-  if (files.includes("playwright.config.ts")) frameworks.add("playwright");
+  if (files.includes("playwright.config.ts")) {
+    frameworks.add("playwright");
+    tools.add("playwright");
+  }
+  if (files.includes("SECURITY.md")) roles.add("security");
   return {
     root: absolute,
     languages: [...languages],
     frameworks: [...frameworks],
+    roles: [...roles],
+    tools: [...tools],
     files,
   };
 }
@@ -86,18 +168,27 @@ export function recommendPackages(
   signals: ProjectSignals,
   catalog: CatalogPackage[],
 ): PackageRecommendation[] {
-  const ids = new Set(catalog.map((pkg) => pkg.id));
+  const packages = new Map(catalog.map((pkg) => [pkg.id, pkg]));
   const result: PackageRecommendation[] = [];
   const add = (
     packageId: string,
     reason: string,
     confidence: PackageRecommendation["confidence"],
   ) => {
-    if (
-      ids.has(packageId) &&
-      !result.some((item) => item.packageId === packageId)
-    )
-      result.push({ packageId, reason, confidence });
+    const pkg = packages.get(packageId);
+    if (pkg && !result.some((item) => item.packageId === packageId))
+      result.push({
+        packageId,
+        reason,
+        confidence,
+        kind: pkg.components?.includes("skill")
+          ? "skill-library"
+          : pkg.components?.some(
+                (component) => component === "mcp" || component === "plugin",
+              )
+            ? "mcp-runtime"
+            : "unavailable",
+      });
   };
   add(
     "superpowers",
@@ -193,6 +284,7 @@ export function personalizeRecommendations(
       packageId: item.packageId,
       reason: item.reason,
       confidence: item.confidence,
+      kind: item.kind,
       ...(item.localOutcomeAdjustment !== undefined
         ? { localOutcomeAdjustment: item.localOutcomeAdjustment }
         : {}),
@@ -257,14 +349,26 @@ export function formatRecommendations(
 ): string {
   const lines = [
     `Project: ${basename(signals.root)}`,
-    `Detected: ${[...signals.languages, ...signals.frameworks].join(", ") || "no known project signals"}`,
+    `Detected: ${formatDetectedSignals(signals) || "no known project signals"}`,
     "",
     "Rule-based project suggestions:",
     "Rules use detected project signals and catalog membership; they do not prove package quality.",
   ];
   if (!recommendations.length)
     lines.push("  No matching catalog packages found.");
-  for (const item of recommendations)
-    lines.push(`  ${item.packageId} [${item.confidence}] — ${item.reason}`);
+  const kindLabels: Record<PackageRecommendation["kind"], string> = {
+    "skill-library": "skill library",
+    "mcp-runtime": "MCP/runtime setup",
+    unavailable: "unavailable",
+  };
+  for (const item of recommendations) {
+    lines.push(
+      `  ${item.packageId} [${item.confidence}, ${kindLabels[item.kind]}] — ${item.reason}`,
+    );
+    if (item.kind === "mcp-runtime")
+      lines.push(
+        "    Explicit setup only; preview credentials and permissions before enabling it.",
+      );
+  }
   return lines.join("\n");
 }

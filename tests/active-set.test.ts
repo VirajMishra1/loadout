@@ -139,6 +139,27 @@ describe("reviewed library and active-set transactions", () => {
     );
   });
 
+  it("enables through recursively empty rollback residue", async () => {
+    root = await mkdtemp(join(tmpdir(), "loadout-active-empty-"));
+    process.env.LOADOUT_HOME = join(root, ".loadout");
+    const target = join(root, "home", ".agents", "skills");
+    await installSkill("review", target);
+    await applyActivationChange(
+      await planActivationChange("disable", ["review"]),
+    );
+    await mkdir(join(target, "review", "empty", "nested"), {
+      recursive: true,
+    });
+
+    const plan = await planActivationChange("enable", ["review"]);
+
+    expect(plan.blocked).toBe(false);
+    await applyActivationChange(plan);
+    expect(
+      await readFile(join(target, "review", "SKILL.md"), "utf8"),
+    ).toContain("Exact instructions.");
+  });
+
   it("changes several packages in one snapshot-backed batch", async () => {
     root = await mkdtemp(join(tmpdir(), "loadout-active-batch-"));
     process.env.LOADOUT_HOME = join(root, ".loadout");

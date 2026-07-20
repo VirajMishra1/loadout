@@ -1,5 +1,5 @@
 import { existsSync } from "node:fs";
-import { cp, lstat, readdir, rm } from "node:fs/promises";
+import { cp, lstat, rm } from "node:fs/promises";
 import {
   basename,
   dirname,
@@ -31,6 +31,7 @@ import {
   writeInstallState,
 } from "./state.js";
 import { runMutationTransaction } from "./transaction.js";
+import { inspectTargetOccupancy } from "./target-occupancy.js";
 
 export function installedAgents(
   agents: DetectedAgent[],
@@ -210,42 +211,7 @@ async function assertActiveTargetsUnoccupied(
   for (const target of [
     ...new Set(plans.flatMap((plan) => plan.files.map((file) => file.target))),
   ])
-    try {
-      const info = await lstat(target);
-      if (info.isDirectory() && !info.isSymbolicLink()) {
-        const queue = [target];
-        let entriesChecked = 0;
-        let empty = true;
-        while (queue.length && empty) {
-          const directory = queue.pop()!;
-          for (const entry of await readdir(directory, {
-            withFileTypes: true,
-          })) {
-            entriesChecked += 1;
-            if (entriesChecked > 10_000) {
-              empty = false;
-              break;
-            }
-            if (entry.isDirectory() && !entry.isSymbolicLink())
-              queue.push(join(directory, entry.name));
-            else {
-              empty = false;
-              break;
-            }
-          }
-        }
-        if (empty) continue;
-      }
-      occupied.push(target);
-    } catch (error) {
-      if (
-        !error ||
-        typeof error !== "object" ||
-        !("code" in error) ||
-        (error as { code?: string }).code !== "ENOENT"
-      )
-        throw error;
-    }
+    if ((await inspectTargetOccupancy(target)).occupied) occupied.push(target);
   if (occupied.length && options.allowManagedReplacement) {
     const state = await readInstallState();
     const allowed = new Map<string, (typeof state.installs)[number]>();

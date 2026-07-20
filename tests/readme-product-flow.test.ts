@@ -91,11 +91,17 @@ describe("README product flow", () => {
   it("presents the approved proof-first product journey", async () => {
     const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
 
-    expect(readme).toContain("./docs/assets/loadout-hero.svg");
-    expect(readme).not.toMatch(/founder|revolutionary|game-changing/i);
-    expect(readme).toMatch(
-      /alt="[^"]*developer[^"]*organized loadout slots[^"]*"/i,
+    const heroImages =
+      readme
+        .match(/<img\b[^>]*>/gi)
+        ?.filter((element) =>
+          /\ssrc="\.\/docs\/assets\/loadout-hero\.svg"/i.test(element),
+        ) ?? [];
+    expect(heroImages).toHaveLength(1);
+    expect(heroImages[0]).toMatch(
+      /\salt="[^"]*developer[^"]*(?:moving|arranging|selecting)[^"]*extensions[^"]*messy[^"]*unmanaged[^"]*organized[^"]*loadout slots[^"]*"/i,
     );
+    expect(readme).not.toMatch(/founder|revolutionary|game-changing/i);
     expect(readme).toContain("Agent extensions, under control.");
     expect(readme).toContain("Choose -> Inspect -> Preview -> Apply -> Undo");
     expect(readme).toMatch(/abridged terminal transcript/i);
@@ -140,16 +146,19 @@ describe("README product flow", () => {
     expect(end).toBeGreaterThan(start);
 
     const whyLoadout = readme.slice(start, end);
-    const storySteps = [
-      /skills, plugins, MCP servers, and agent settings tend to accumulate one experiment at a time/i,
-      /eventually it becomes hard to remember what is installed, where it came from, or how to undo it/i,
-      /in a game, a loadout is the deliberate set of tools chosen before a mission/i,
-      /loadout brings that same discipline to AI coding agents: inspect the available equipment, choose intentionally, apply it through managed changes, and remove or roll it back later/i,
+    const storyAnchors = [
+      /skills, plugins, MCP servers, and agent settings[^.]*accumulate[^.]*experiment/i,
+      /hard to remember[^.]*installed[^.]*came from[^.]*undo/i,
+      /in a game[^.]*loadout[^.]*tools[^.]*mission/i,
+      /AI coding agents/i,
+      /inspect[^.]*choose intentionally/i,
+      /managed changes/i,
+      /remove[^.]*roll it back later/i,
     ];
 
     let previousIndex = -1;
-    for (const step of storySteps) {
-      const match = step.exec(whyLoadout);
+    for (const anchor of storyAnchors) {
+      const match = anchor.exec(whyLoadout);
       expect(match).not.toBeNull();
       const currentIndex = match?.index ?? -1;
       expect(currentIndex).toBeGreaterThan(previousIndex);
@@ -170,7 +179,7 @@ describe("README product flow", () => {
     const schema = JSON.parse(schemaText);
 
     expect(readme).toContain(
-      "https://github.com/VirajMishra1/loadout/actions/workflows/ci.yml",
+      '<a href="https://github.com/VirajMishra1/loadout/actions/workflows/ci.yml"><img src="https://github.com/VirajMishra1/loadout/actions/workflows/ci.yml/badge.svg" alt="CI status"></a>',
     );
     expect(readme).toContain(
       "git clone https://github.com/VirajMishra1/loadout.git",

@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./docs/assets/loadout-hero.svg" alt="A developer arranging skills and extensions into organized loadout slots" width="960">
+  <img src="./docs/assets/loadout-hero.svg" alt="A developer arranging extensions from a messy, unmanaged group into organized loadout slots" width="960">
 </p>
 
 <h1 align="center">Loadout</h1>

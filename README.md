@@ -65,7 +65,7 @@ Preview may populate Loadout's own cache; it leaves agent target files unchanged
 
 ## Why Loadout
 
-Loadout is the deliberate set of tools chosen before a mission: skills, plugins, MCP servers, and agent settings. It makes it clear what is installed, where it came from, or how to undo it.
+Skills, plugins, MCP servers, and agent settings tend to accumulate one experiment at a time. Eventually it becomes hard to remember what is installed, where it came from, or how to undo it. In a game, a loadout is the deliberate set of tools chosen before a mission. Loadout brings that same discipline to AI coding agents: inspect the available equipment, choose intentionally, apply it through managed changes, and remove or roll it back later.
 
 - **One managed inventory.** List installed packages, inspect drift, and track what Loadout owns across configured agent paths.
 - **Preview by default.** Setup, updates, removal, MCP recipes, and uninstall expose a plan before their supported writes.

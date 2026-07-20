@@ -92,13 +92,6 @@ describe("README product flow", () => {
     const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
 
     expect(readme).toContain("./docs/assets/loadout-hero.svg");
-    expect(readme).toMatch(/skills, plugins, MCP servers, and agent settings/i);
-    expect(readme).toMatch(
-      /loadout is the deliberate set of tools chosen before a mission/i,
-    );
-    expect(readme).toMatch(
-      /what is installed, where it came from, or how to undo it/i,
-    );
     expect(readme).not.toMatch(/founder|revolutionary|game-changing/i);
     expect(readme).toMatch(
       /alt="[^"]*developer[^"]*organized loadout slots[^"]*"/i,
@@ -137,6 +130,31 @@ describe("README product flow", () => {
         "verification-summary",
       ],
     );
+  });
+
+  it("tells the Loadout story in the Why Loadout section", async () => {
+    const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
+    const start = readme.indexOf("## Why Loadout");
+    const end = readme.indexOf("## Install from source", start);
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(end).toBeGreaterThan(start);
+
+    const whyLoadout = readme.slice(start, end);
+    const storySteps = [
+      /skills, plugins, MCP servers, and agent settings tend to accumulate one experiment at a time/i,
+      /eventually it becomes hard to remember what is installed, where it came from, or how to undo it/i,
+      /in a game, a loadout is the deliberate set of tools chosen before a mission/i,
+      /loadout brings that same discipline to AI coding agents: inspect the available equipment, choose intentionally, apply it through managed changes, and remove or roll it back later/i,
+    ];
+
+    let previousIndex = -1;
+    for (const step of storySteps) {
+      const match = step.exec(whyLoadout);
+      expect(match).not.toBeNull();
+      const currentIndex = match?.index ?? -1;
+      expect(currentIndex).toBeGreaterThan(previousIndex);
+      previousIndex = currentIndex;
+    }
   });
 
   it("keeps visitor-facing repository identity aligned with canonical upstream", async () => {

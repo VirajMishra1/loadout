@@ -135,6 +135,22 @@ merged `codex/relatable-readme-hero` remote branch remains safe to delete after 
       recommendation/optimization -> Graphify install/remove -> credential-free MCP
       inventory -> read-only update/discovery -> complete uninstall -> reinstall.
       Record each snapshot ID and use explicit rollback IDs during acceptance.
+- [ ] `P18-24 [SOL+TERRA]` Redesign Power before 0.4.1 based on the real founder run.
+      The published transaction itself passed: eight immutable sources installed for
+      Claude Code and Codex, 100 managed activations were created, 12 unmanaged Claude
+      skills were preserved, duplicate targets were resolved, six rejected skill
+      units were excluded, and 1,170 managed files reported zero drift. The profile
+      policy failed acceptance: it activates 50 skills per agent despite Loadout's
+      recommended limit of 30; every selected package retained blocking static-risk
+      findings (79 total); only five of eight sources have an asserted SPDX license;
+      and one coarse prompt approves all package findings. Make Power a broad managed
+      library with no more than 30 project-relevant skills active per agent, preserve
+      per-package approval and rejection choices, persist and display excluded-unit
+      quarantine evidence, and make the health headline reflect blocking risk and
+      capacity failures instead of reporting the overall installation as healthy.
+      Add a release test proving Power preserves unmanaged skills, never exceeds its
+      active cap, reports every excluded unit and retained finding, and restores the
+      explicit setup snapshot `1784546929191-9cfb0705dbed` without residue.
 
 ### Release 0.3 lifecycle hardening
 

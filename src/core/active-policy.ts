@@ -10,7 +10,7 @@ import {
   type ActivationPlan,
 } from "./active-set.js";
 import { detectAgents } from "./paths.js";
-import { scanProject } from "./recommend.js";
+import { formatDetectedSignals, scanProject } from "./recommend.js";
 import { scanInstalledSkills } from "./skill-inventory.js";
 import { readInstallState } from "./state.js";
 import {
@@ -156,7 +156,73 @@ const SIGNAL_RULES: Array<{
     pattern: /playwright|e2e|webapp-testing/,
     label: "Playwright project",
   },
+  {
+    signal: (project) => project.roles.includes("node-cli"),
+    pattern: /(?:^|-)cli(?:-|$)|command-line/,
+    label: "Node CLI",
+  },
+  {
+    signal: (project) => project.roles.includes("npm-package"),
+    pattern: /npm|package|publish/,
+    label: "npm package",
+  },
+  {
+    signal: (project) => project.roles.includes("release"),
+    pattern: /release|publish|package/,
+    label: "release automation",
+  },
+  {
+    signal: (project) => project.roles.includes("mcp"),
+    pattern: /mcp|model-context-protocol/,
+    label: "MCP tooling",
+  },
+  {
+    signal: (project) => project.roles.includes("security"),
+    pattern: /security|threat|secrets|owasp/,
+    label: "security policy",
+  },
+  {
+    signal: (project) => project.tools.includes("vitest"),
+    pattern: /vitest/,
+    label: "Vitest",
+  },
+  {
+    signal: (project) => project.tools.includes("commander"),
+    pattern: /(?:^|-)cli(?:-|$)|commander|command-line/,
+    label: "Commander CLI",
+  },
+  {
+    signal: (project) => project.tools.includes("zod"),
+    pattern: /zod|schema|validation/,
+    label: "Zod schemas",
+  },
 ];
+
+const FAMILY_CAPS: Record<string, number> = {
+  "browser-testing": 3,
+  documentation: 2,
+  "code-review": 2,
+  architecture: 2,
+  planning: 3,
+  security: 3,
+  "language-tooling": 5,
+  testing: 3,
+  uncategorized: 3,
+};
+
+function candidateFamily(unitId: string): string {
+  if (/playwright|e2e|webapp-testing|browser-testing/.test(unitId))
+    return "browser-testing";
+  if (/docs|documentation|readme/.test(unitId)) return "documentation";
+  if (/review|refactor/.test(unitId)) return "code-review";
+  if (/architect|api-design|openapi/.test(unitId)) return "architecture";
+  if (/brainstorm|planning|writing-plans/.test(unitId)) return "planning";
+  if (/security|threat|secrets|owasp/.test(unitId)) return "security";
+  if (/test|coverage|vitest|jest/.test(unitId)) return "testing";
+  if (/javascript|typescript|nodejs|npm|package|cli|zod|schema/.test(unitId))
+    return "language-tooling";
+  return "uncategorized";
+}
 
 function selector(record: ManagedActivationRecord): string | undefined {
   if (!record.unitId) return undefined;
@@ -173,6 +239,12 @@ function scoreCandidate(
   const id = selector(record);
   if (!id || !record.unitId) return undefined;
   const name = record.unitId.toLowerCase();
+  if (
+    /(?:^|-)jest(?:-|$)/.test(name) &&
+    project.tools.includes("vitest") &&
+    !project.tools.includes("jest")
+  )
+    return undefined;
   let score = 0;
   const reasons: string[] = [];
   if (pinned.has(id) || pinned.has(record.unitId)) {
@@ -240,10 +312,15 @@ function rankedCandidates(
     );
   const unique: ActiveSetCandidate[] = [];
   const claimedUnits = new Set<string>();
+  const familyCounts = new Map<string, number>();
   for (const item of scored) {
     const fullPin = pins.has(item.selector);
     if (!fullPin && claimedUnits.has(item.unitId)) continue;
+    const family = candidateFamily(item.unitId);
+    if (!fullPin && (familyCounts.get(family) ?? 0) >= FAMILY_CAPS[family])
+      continue;
     claimedUnits.add(item.unitId);
+    familyCounts.set(family, (familyCounts.get(family) ?? 0) + 1);
     unique.push(item);
   }
   return unique;
@@ -288,8 +365,9 @@ export async function planProjectActivation(
       record.installationState === "installed" &&
       (!options.agents || options.agents.includes(record.agent)),
   );
-  const requestedAgents =
-    options.agents ?? [...new Set(relevant.map((record) => record.agent))];
+  const requestedAgents = options.agents ?? [
+    ...new Set(relevant.map((record) => record.agent)),
+  ];
   const detected = (await detectAgents()).filter((agent) =>
     requestedAgents.includes(agent.id),
   );
@@ -299,7 +377,9 @@ export async function planProjectActivation(
   const agentPlans = requestedAgents.map((agent): AgentActiveSetPlan => {
     const summary = inventory.agents.find((item) => item.agent === agent);
     if (!summary)
-      throw new Error(`Could not scan active skills for requested agent '${agent}'`);
+      throw new Error(
+        `Could not scan active skills for requested agent '${agent}'`,
+      );
     const capacity = Math.max(0, limit - summary.total);
     const ranked = rankedCandidates(
       relevant.filter((record) => record.agent === agent),
@@ -411,10 +491,9 @@ export async function applyProjectActivation(
 }
 
 export function formatProjectActivation(plan: ProjectActiveSetPlan): string {
-  const detected = [...plan.project.languages, ...plan.project.frameworks];
   return [
     `Project: ${plan.project.root}`,
-    `Detected: ${detected.join(", ") || "no known project signals"}`,
+    `Detected: ${formatDetectedSignals(plan.project) || "no known project signals"}`,
     ...plan.agentPlans.flatMap((agentPlan) => [
       `${agentPlan.displayName}: ${agentPlan.activeBefore} active (${agentPlan.managedBefore} managed, ${agentPlan.unmanagedBefore} unmanaged); ${agentPlan.capacity}/${plan.limit} slots available`,
       `Proposed additions for ${agentPlan.displayName}: ${agentPlan.selected.length}`,

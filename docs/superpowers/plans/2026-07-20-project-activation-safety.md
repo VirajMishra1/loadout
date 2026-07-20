@@ -344,24 +344,24 @@ git commit -m "feat: detect local cli and package signals"
 - Consumes: extended `ProjectSignals`.
 - Produces: evidence-threshold candidates grouped by capability family.
 
-- [ ] **Step 1: Write failing relevance tests**
+- [x] **Step 1: Write failing relevance tests**
 
 Add reviewed candidates named `javascript-typescript-jest`, `vitest-testing`, five Playwright variants, `cli-design`, `npm-package`, and `mcp-security`. For a Vitest Node CLI fixture, assert Jest is absent, CLI/npm/MCP candidates are present, and no more than three browser-testing candidates are selected.
 
-- [ ] **Step 2: Run the active-policy tests and verify RED**
+- [x] **Step 2: Run the active-policy tests and verify RED**
 
 Run: `npx vitest run tests/active-policy.test.ts`  
 Expected: FAIL because current ranking selects Jest and redundant Playwright variants.
 
-- [ ] **Step 3: Add exact signal rules and mismatch rejection**
+- [x] **Step 3: Add exact signal rules and mismatch rejection**
 
 Add role/tool rules for Node CLI, npm package, Vitest, Commander, Zod, MCP, release, and security. Reject a candidate matching `jest` when `vitest` is present and `jest` is absent.
 
-- [ ] **Step 4: Add deterministic family caps**
+- [x] **Step 4: Add deterministic family caps**
 
 Implement `candidateFamily(unitId)` and deterministic caps: browser testing 3; documentation 2; code review 2; architecture 2; planning 3; security 3; language/tooling 5; uncategorized 3. Explicit full-selector pins bypass family caps but still consume capacity. Stop after eligible candidates are exhausted; never fill unused slots with candidates below the existing evidence threshold.
 
-- [ ] **Step 5: Verify GREEN and commit**
+- [x] **Step 5: Verify GREEN and commit**
 
 Run: `npx vitest run tests/active-policy.test.ts`  
 Expected: all relevance, diversity, pin, outcome, and per-agent capacity tests pass.

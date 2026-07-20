@@ -34,12 +34,7 @@ describe("project-aware active-set policy", () => {
       JSON.stringify({ devDependencies: { typescript: "1" } }),
     );
     for (let index = 1; index <= 12; index += 1) {
-      const directory = join(
-        home,
-        ".claude",
-        "skills",
-        `unmanaged-${index}`,
-      );
+      const directory = join(home, ".claude", "skills", `unmanaged-${index}`);
       await mkdir(directory, { recursive: true });
       await writeFile(
         join(directory, "SKILL.md"),
@@ -58,11 +53,7 @@ describe("project-aware active-set policy", () => {
         const unitId = `typescript-pattern-${String(index).padStart(2, "0")}`;
         const content = `---\nname: ${unitId}\ndescription: TypeScript project skill\n---\n`;
         const digest = createHash("sha256").update(content).digest("hex");
-        const libraryPath = activationLibraryPath(
-          "collection",
-          agent,
-          unitId,
-        );
+        const libraryPath = activationLibraryPath("collection", agent, unitId);
         await mkdir(join(libraryPath, unitId), { recursive: true });
         await writeFile(join(libraryPath, unitId, "SKILL.md"), content);
         const activePath = join(activeRoot, unitId);
@@ -88,6 +79,70 @@ describe("project-aware active-set policy", () => {
         {
           packageId: "collection",
           targetAgents: ["claude-code", "codex"],
+          files,
+          snapshotId: "library",
+          installedAt: "2026-07-20T00:00:00Z",
+        },
+      ],
+      mcpInstalls: [],
+      activations,
+    });
+    return project;
+  }
+
+  async function writeNamedCodexLibrary(unitIds: string[]): Promise<string> {
+    const home = join(root, "home");
+    process.env.LOADOUT_HOME = join(root, ".loadout");
+    process.env.LOADOUT_USER_HOME = home;
+    const project = join(root, "project");
+    await mkdir(project, { recursive: true });
+    await writeFile(
+      join(project, "package.json"),
+      JSON.stringify({
+        name: "loadout-like-cli",
+        private: false,
+        bin: { loadout: "dist/cli.js" },
+        publishConfig: { access: "public" },
+        keywords: ["mcp"],
+        scripts: { prepack: "npm run build", test: "vitest run" },
+        dependencies: { commander: "1", zod: "1" },
+        devDependencies: {
+          vitest: "1",
+          "@playwright/test": "1",
+          typescript: "1",
+        },
+      }),
+    );
+    const activations: ManagedActivationRecord[] = [];
+    const files: Array<{ path: string; sha256: string }> = [];
+    for (const unitId of unitIds) {
+      const content = `---\nname: ${unitId}\ndescription: Project skill\n---\n`;
+      const digest = createHash("sha256").update(content).digest("hex");
+      const libraryPath = activationLibraryPath("collection", "codex", unitId);
+      await mkdir(join(libraryPath, unitId), { recursive: true });
+      await writeFile(join(libraryPath, unitId, "SKILL.md"), content);
+      const activePath = join(home, ".agents", "skills", unitId);
+      files.push({ path: join(activePath, "SKILL.md"), sha256: digest });
+      activations.push({
+        packageId: "collection",
+        unitId,
+        agent: "codex",
+        cacheState: "downloaded",
+        reviewState: "reviewed",
+        installationState: "installed",
+        activationState: "disabled",
+        libraryPath,
+        targets: [{ activePath, libraryRelativePath: unitId }],
+        libraryFiles: [{ path: `${unitId}/SKILL.md`, sha256: digest }],
+        updatedAt: "2026-07-20T00:00:00Z",
+      });
+    }
+    await writeInstallState({
+      version: 1,
+      installs: [
+        {
+          packageId: "collection",
+          targetAgents: ["codex"],
           files,
           snapshotId: "library",
           installedAt: "2026-07-20T00:00:00Z",
@@ -185,6 +240,11 @@ describe("project-aware active-set policy", () => {
     const plan = await planProjectActivation(project, {
       agents: ["claude-code", "codex"],
       limit: 30,
+      pins: Array.from(
+        { length: 40 },
+        (_, index) =>
+          `collection/typescript-pattern-${String(index + 1).padStart(2, "0")}`,
+      ),
     });
 
     expect(
@@ -253,5 +313,44 @@ describe("project-aware active-set policy", () => {
         ),
       ),
     ).rejects.toThrow();
+  });
+
+  it("prefers exact CLI and Vitest signals over mismatched or redundant skills", async () => {
+    root = await mkdtemp(join(tmpdir(), "loadout-active-relevance-"));
+    const project = await writeNamedCodexLibrary([
+      "javascript-typescript-jest",
+      "vitest-testing",
+      "playwright",
+      "playwright-interactive",
+      "playwright-generate-test",
+      "playwright-explore-website",
+      "e2e-testing-patterns",
+      "cli-design",
+      "npm-package-release",
+      "mcp-security",
+      "typescript-advanced-types",
+    ]);
+
+    const plan = await planProjectActivation(project, {
+      agents: ["codex"],
+      limit: 30,
+    });
+    const selected = plan.agentPlans[0].selected.map((item) => item.unitId);
+
+    expect(selected).not.toContain("javascript-typescript-jest");
+    expect(selected).toEqual(
+      expect.arrayContaining([
+        "vitest-testing",
+        "cli-design",
+        "npm-package-release",
+        "mcp-security",
+      ]),
+    );
+    expect(
+      selected.filter((unitId) => /playwright|e2e/.test(unitId)),
+    ).toHaveLength(3);
+    expect(formatProjectActivation(plan)).toContain(
+      "Detected: TypeScript, Playwright, Node CLI, npm package",
+    );
   });
 });

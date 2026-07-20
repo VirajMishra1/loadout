@@ -1,5 +1,30 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Detect local Node CLI, npm package, release, Vitest, Commander, Zod, MCP,
+  and security signals when recommending project tooling.
+- Label recommendations as skill libraries, explicit MCP/runtime setup, or
+  unavailable instead of presenting every catalog record as automatically
+  activatable.
+
+### Changed
+
+- Calculate project activation capacity separately for each agent and count
+  both Loadout-managed and pre-existing unmanaged skills toward `--limit`.
+- Prefer compact, diverse project skill sets and reject mismatched Jest-only
+  guidance for Vitest-only repositories.
+
+### Fixed
+
+- Allow project activation through recursively empty directories restored by
+  rollback while continuing to block files, symlinks, unreadable paths, and
+  unsupported entries.
+- Re-check per-agent capacity and target occupancy inside the activation
+  transaction so filesystem changes after preview abort without partial edits.
+
 ## 0.4.0 - 2026-07-20
 
 ### Added

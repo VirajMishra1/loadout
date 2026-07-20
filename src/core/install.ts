@@ -211,8 +211,7 @@ async function assertActiveTargetsUnoccupied(
   for (const target of [
     ...new Set(plans.flatMap((plan) => plan.files.map((file) => file.target))),
   ])
-    if ((await inspectTargetOccupancy(target)).occupied)
-      occupied.push(target);
+    if ((await inspectTargetOccupancy(target)).occupied) occupied.push(target);
   if (occupied.length && options.allowManagedReplacement) {
     const state = await readInstallState();
     const allowed = new Map<string, (typeof state.installs)[number]>();

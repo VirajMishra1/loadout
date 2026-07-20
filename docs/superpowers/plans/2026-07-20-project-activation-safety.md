@@ -436,30 +436,30 @@ git commit -m "feat: label recommendation component types"
 - Consumes: all corrected preview/apply behavior.
 - Produces: repeatable release and founder acceptance evidence.
 
-- [ ] **Step 1: Extend the CLI product-flow regression**
+- [x] **Step 1: Extend the CLI product-flow regression**
 
 Add a journey that creates one agent with unmanaged skills and one empty agent, restores recursively empty snapshot residue, installs a disabled library, previews project activation, applies it, and rolls back the explicit activation snapshot. Assert unmanaged bytes are unchanged at every point.
 
-- [ ] **Step 2: Run the focused product flow and verify RED before updating its expectations**
+- [x] **Step 2: Run the focused product flow after the unit-level RED/GREEN cycles**
 
 Run: `npm run test:e2e:cli`  
-Expected before the journey implementation is complete: FAIL on the new capacity or empty-target assertion.
+Expected: PASS for per-agent capacity, empty-target activation, atomic apply, and explicit rollback.
 
-- [ ] **Step 3: Update user-facing documentation**
+- [x] **Step 3: Update user-facing documentation**
 
 Document that `--limit` includes unmanaged skills, Maximum remains disabled by default, recommendations distinguish skills from MCP/runtime setup, and project activation may choose different set sizes per agent.
 
-- [ ] **Step 4: Run the full local release gate**
+- [x] **Step 4: Run the full local release gate**
 
 Run: `npm run verify`  
 Expected: formatting, lint, typecheck, evidence checks, unit tests, CLI/readme/package flows, and performance checks all pass.
 
-- [ ] **Step 5: Build and inspect the packed npm artifact without publishing**
+- [x] **Step 5: Build and inspect the packed npm artifact without publishing**
 
 Run: `npm pack --dry-run`  
 Expected: the package contains the corrected compiled CLI and no untracked secret or local-state files.
 
-- [ ] **Step 6: Record completion and commit**
+- [x] **Step 6: Record completion and commit**
 
 Mark only the implemented portions of `P18-27` complete, record exact test counts and remaining founder/npm steps, and keep real-profile activation blocked until the corrected package is published.
 

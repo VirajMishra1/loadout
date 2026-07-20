@@ -24,8 +24,13 @@ const project = join(temporary, "project");
 const provenanceSource = join(temporary, "reviewed-source");
 const librarySource = join(temporary, "library-source");
 const codexSkills = join(userHome, ".agents", "skills");
+const claudeSkills = join(userHome, ".claude", "skills");
 const existingSkill = join(codexSkills, "review");
 const activatedSkill = join(codexSkills, "systematic-debugging");
+const claudeActivatedSkill = join(claudeSkills, "systematic-debugging");
+const claudeExistingSkills = Array.from({ length: 12 }, (_, index) =>
+  join(claudeSkills, `existing-${index + 1}`),
+);
 const reviewedCommit = "a".repeat(40);
 const environment = {
   ...process.env,
@@ -86,6 +91,9 @@ try {
     "---\nname: systematic-debugging\ndescription: Diagnose Python test failures systematically\n---\n\nReproduce, isolate, explain, fix, and verify failures.\n";
   await Promise.all([
     mkdir(existingSkill, { recursive: true }),
+    ...claudeExistingSkills.map((directory) =>
+      mkdir(directory, { recursive: true }),
+    ),
     mkdir(join(provenanceSource, "skills", "review"), { recursive: true }),
     mkdir(join(librarySource, "skills", "systematic-debugging"), {
       recursive: true,
@@ -94,6 +102,12 @@ try {
   ]);
   await Promise.all([
     writeFile(join(existingSkill, "SKILL.md"), reviewContent),
+    ...claudeExistingSkills.map((directory, index) =>
+      writeFile(
+        join(directory, "SKILL.md"),
+        `---\nname: existing-${index + 1}\ndescription: Existing Claude skill\n---\n\nPreserve these exact bytes.\n`,
+      ),
+    ),
     writeFile(
       join(provenanceSource, "skills", "review", "SKILL.md"),
       reviewContent,
@@ -118,8 +132,13 @@ try {
   const codex = (await detectAgents()).find(
     (agent) => agent.id === "codex" && agent.installed,
   );
+  const claude = (await detectAgents()).find(
+    (agent) => agent.id === "claude-code" && agent.installed,
+  );
   assert.ok(codex, "the disposable Codex profile must be detected");
+  assert.ok(claude, "the disposable Claude profile must be detected");
   assert.equal(codex.skillsDirectory, codexSkills);
+  assert.equal(claude.skillsDirectory, claudeSkills);
 
   const fixtureCatalog = [
     {
@@ -155,7 +174,7 @@ try {
   const libraryPlan = await install.buildSkillPlan(
     librarySource,
     "e2e-reviewed-pack",
-    [codex],
+    [codex, claude],
   );
   await install.applySkillLibraryBatch([
     {
@@ -172,6 +191,12 @@ try {
     false,
     "preparing the reviewed library must not activate its skill",
   );
+  await Promise.all([
+    mkdir(join(activatedSkill, "empty", "nested"), { recursive: true }),
+    mkdir(join(claudeActivatedSkill, "empty", "nested"), {
+      recursive: true,
+    }),
+  ]);
 
   const scan = parseJson(
     (await runCli("scan", "--agents", "codex", "--json")).stdout,
@@ -204,9 +229,9 @@ try {
     "--project",
     project,
     "--agents",
-    "codex",
+    "codex,claude-code",
     "--limit",
-    "1",
+    "13",
     "--pin",
     "e2e-reviewed-pack/systematic-debugging",
     "--json",
@@ -219,11 +244,33 @@ try {
     preview.selected.map((item) => item.selector),
     ["e2e-reviewed-pack/systematic-debugging"],
   );
+  assert.deepEqual(
+    preview.agentPlans.map((item) => ({
+      agent: item.agent,
+      activeBefore: item.activeBefore,
+      capacity: item.capacity,
+      additions: item.selected.length,
+    })),
+    [
+      { agent: "codex", activeBefore: 1, capacity: 12, additions: 1 },
+      {
+        agent: "claude-code",
+        activeBefore: 12,
+        capacity: 1,
+        additions: 1,
+      },
+    ],
+  );
   assert.ok(preview.project.languages.includes("python"));
   assert.equal(
-    await pathExists(activatedSkill),
+    await pathExists(join(activatedSkill, "SKILL.md")),
     false,
-    "optimize preview must not mutate the agent profile",
+    "optimize preview must not replace empty Codex residue",
+  );
+  assert.equal(
+    await pathExists(join(claudeActivatedSkill, "SKILL.md")),
+    false,
+    "optimize preview must not replace empty Claude residue",
   );
 
   const applied = parseJson(
@@ -237,6 +284,11 @@ try {
     "optimize apply must copy the reviewed bytes into the Codex profile",
   );
   assert.equal(
+    await readFile(join(claudeActivatedSkill, "SKILL.md"), "utf8"),
+    debuggingContent,
+    "optimize apply must copy the reviewed bytes into the Claude profile",
+  );
+  assert.equal(
     (await state.readInstallState()).activations.find(
       (record) =>
         record.packageId === "e2e-reviewed-pack" &&
@@ -248,14 +300,24 @@ try {
   const rollback = await runCli("rollback", "--snapshot", applied.snapshotId);
   assert.match(rollback.stdout, new RegExp(applied.snapshotId));
   assert.equal(
-    await pathExists(activatedSkill),
+    await pathExists(join(activatedSkill, "SKILL.md")),
     false,
-    "rollback must remove the skill that optimize activated",
+    "rollback must remove the Codex skill that optimize activated",
+  );
+  assert.equal(
+    await pathExists(join(claudeActivatedSkill, "SKILL.md")),
+    false,
+    "rollback must remove the Claude skill that optimize activated",
   );
   assert.equal(
     await readFile(join(existingSkill, "SKILL.md"), "utf8"),
     reviewContent,
     "rollback must preserve the pre-existing unmanaged skill byte-for-byte",
+  );
+  assert.equal(
+    await readFile(join(claudeExistingSkills[0], "SKILL.md"), "utf8"),
+    "---\nname: existing-1\ndescription: Existing Claude skill\n---\n\nPreserve these exact bytes.\n",
+    "rollback must preserve unmanaged Claude skills byte-for-byte",
   );
   assert.equal(
     (await state.readInstallState()).activations.find(
@@ -276,7 +338,7 @@ try {
     "the rolled-back skill must be eligible for activation again",
   );
   process.stdout.write(
-    `CLI product flow passed on ${process.platform}, Node ${process.versions.node}: scan -> compare -> optimize preview/apply -> rollback.\n`,
+    `CLI product flow passed on ${process.platform}, Node ${process.versions.node}: scan -> compare -> per-agent optimize preview/apply through empty residue -> rollback.\n`,
   );
 } finally {
   await rm(temporary, { recursive: true, force: true });

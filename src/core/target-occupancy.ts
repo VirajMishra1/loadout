@@ -4,11 +4,7 @@ import { join } from "node:path";
 export interface TargetOccupancy {
   occupied: boolean;
   reason?:
-    | "content"
-    | "symlink"
-    | "unsupported"
-    | "unreadable"
-    | "inspection-limit";
+    "content" | "symlink" | "unsupported" | "unreadable" | "inspection-limit";
 }
 
 /**

@@ -169,7 +169,7 @@ cleanup deliberately deletes Loadout's snapshots, so it is the last lifecycle te
 ## Troubleshooting and recovery
 
 - **`loadout` is not found after installation:** confirm `npm install --global
-loadout-ai@0.4.0` completed, run `hash -r`, and confirm npm's global binary
+loadout-ai@0.4.1` completed, run `hash -r`, and confirm npm's global binary
   directory is on `PATH`. For a source checkout, run `npm run build` and `npm link`.
 - **A preview asks for `--approve-risk`:** read the reported scripts, domains,
   credentials, binaries, or instruction findings. If you accept that specific plan,

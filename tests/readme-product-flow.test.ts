@@ -128,6 +128,40 @@ describe("README product flow", () => {
     );
   });
 
+  it("keeps visitor-facing repository identity aligned with canonical upstream", async () => {
+    const [readme, packageJsonText, schemaText] = await Promise.all([
+      readFile(resolve(repositoryRoot, "README.md"), "utf8"),
+      readFile(resolve(repositoryRoot, "package.json"), "utf8"),
+      readFile(
+        resolve(repositoryRoot, "docs/evidence/live-checks.schema.json"),
+        "utf8",
+      ),
+    ]);
+    const packageJson = JSON.parse(packageJsonText);
+    const schema = JSON.parse(schemaText);
+
+    expect(readme).toContain(
+      "https://github.com/VirajMishra1/loadout/actions/workflows/ci.yml",
+    );
+    expect(readme).toContain(
+      "git clone https://github.com/VirajMishra1/loadout.git",
+    );
+    expect(readme).toContain("https://github.com/VirajMishra1/loadout/issues");
+    expect(readme).not.toContain("https://github.com/reddynitish/loadout");
+    expect(packageJson.repository.url).toBe(
+      "git+https://github.com/VirajMishra1/loadout.git",
+    );
+    expect(packageJson.homepage).toBe(
+      "https://github.com/VirajMishra1/loadout#readme",
+    );
+    expect(packageJson.bugs.url).toBe(
+      "https://github.com/VirajMishra1/loadout/issues",
+    );
+    expect(schema.$id).toBe(
+      "https://github.com/VirajMishra1/loadout/docs/evidence/live-checks.schema.json",
+    );
+  });
+
   it("bounds Stable preview output and later apply identity", async () => {
     const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
 

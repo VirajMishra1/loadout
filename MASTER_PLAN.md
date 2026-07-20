@@ -92,11 +92,12 @@ merged `codex/relatable-readme-hero` remote branch remains safe to delete after 
       observed failure and turn reproducible ones into regression tests.
 - [ ] `P18-13 [HUMAN+TERRA]` Publish `loadout-ai@0.4.0` to npm, then test that exact
       registry tarball in a fresh terminal through Stable -> rollback -> Power ->
-      rollback -> Maximum -> project optimization -> dashboard -> complete uninstall.
+      rollback -> Maximum -> project optimization -> complete uninstall.
       Publication completed on July 20. A clean temporary install resolved the exact
       registry tarball, reported version `0.4.0`, and completed `loadout demo` with
-      rollback verification. The founder's real Codex/Claude and dashboard lifecycle
-      test remains required before this item can be checked.
+      rollback verification. The founder's real Codex/Claude CLI lifecycle test
+      remains required before this item can be checked; dashboard testing was removed
+      after founder review rejected it as a conflicting product surface.
 - [ ] `P18-17 [HUMAN]` Resolve the GitHub account billing or spending-limit condition
       that prevents Actions jobs from starting, rerun CI and daily discovery on the
       integrated commit, and record the result. CI runs
@@ -108,6 +109,32 @@ merged `codex/relatable-readme-hero` remote branch remains safe to delete after 
 - [ ] `P18-18 [HUMAN]` Decide and configure appropriate `main` branch protection.
       GitHub currently returns 404 for the protection endpoint, so protection is
       absent or not observable; do not describe it as enabled.
+
+### Founder acceptance findings and 0.4.1 corrections
+
+- [x] `P18-21A [HUMAN+TERRA]` Verify the published 0.4.0 Stable lifecycle on the
+      founder's real Claude Code and Codex paths. Stable installed four pinned sources
+      as 60 managed activations, preserved all 12 unmanaged Claude skills, reported no
+      managed drift, and restored the explicit pre-install snapshot successfully.
+- [ ] `P18-21B [TERRA]` Make rollback history understandable before 0.4.1. The first
+      founder test exposed that bare `loadout rollback` selected a newer no-op
+      dashboard/sync snapshot whose pre-state already contained Stable. No data was
+      lost, but `rollback --list` showed opaque IDs only and `Restored snapshot` did
+      not disclose that zero effective files changed. Add timestamp, mutation kind,
+      affected scope, and no-op/current-state guidance; add a regression journey with
+      two adjacent snapshots and explicit older-snapshot rollback.
+- [ ] `P18-22 [TERRA]` Remove the dashboard before the public release. Founder review
+      confirmed that it presents recommendation presets (`stable`, `web`,
+      `collaboration`, `maximum`) as policy profiles while the real CLI contract is
+      `stable`, `power`, `maximum`, and `custom`; its manifest-sync mutation model is
+      not the CLI setup workflow. Remove the command, loopback server, browser assets,
+      dashboard-only dependencies/tests/docs/evidence, and npm package contents.
+      Preserve any unique useful inspection capability through existing CLI commands.
+- [ ] `P18-23 [HUMAN+TERRA]` Complete the remaining CLI-only founder path on the exact
+      npm package: Power -> explicit rollback -> Maximum -> project activation ->
+      recommendation/optimization -> Graphify install/remove -> credential-free MCP
+      inventory -> read-only update/discovery -> complete uninstall -> reinstall.
+      Record each snapshot ID and use explicit rollback IDs during acceptance.
 
 ### Release 0.3 lifecycle hardening
 

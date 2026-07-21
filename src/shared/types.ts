@@ -229,6 +229,8 @@ export interface SnapshotFile {
 export interface Snapshot {
   id: string;
   createdAt: string;
+  /** Short user-facing description of the mutation this snapshot protects. */
+  label?: string;
   roots: string[];
   files: SnapshotFile[];
   /** Exact filesystem state after a successful mutation, for explicit rollback drift checks. */
@@ -310,6 +312,8 @@ export interface McpInstallRecord {
   fingerprint: string;
   snapshotId: string;
   installedAt: string;
+  /** Legacy records are JSON; Codex uses a comment-preserving TOML block. */
+  configFormat?: "json" | "codex-toml";
 }
 
 export type PackageSource =
@@ -401,7 +405,7 @@ export interface HealthFinding {
 }
 
 export interface HealthReport {
-  status: "healthy" | "attention" | "unhealthy";
+  status: "not-configured" | "healthy" | "attention" | "unhealthy";
   generatedAt: string;
   agents: DetectedAgent[];
   installedPackages: number;
@@ -468,6 +472,8 @@ export interface McpConfigPlan {
 
 export interface McpConfigSnapshot {
   id: string;
+  /** Loadout transaction snapshot used by the general rollback command. */
+  rollbackSnapshotId?: string;
   path: string;
   existed: boolean;
   content?: string;

@@ -208,12 +208,11 @@ function recipeServer(
   };
 }
 
-export async function planMcpRecipe(
+function credentialEnvironmentForRecipe(
   recipeId: string,
-  configPath: string,
-  options: McpRecipePlanOptions = {},
-): Promise<McpRecipePlan> {
-  const recipe = findMcpRecipe(recipeId);
+  recipe: McpSetupRecipe,
+  options: McpRecipePlanOptions,
+): Record<string, string> {
   const environment = options.environment ?? process.env;
   const credentialEnvironment: Record<string, string> = {};
   for (const name of Object.keys(options.credentialReferences ?? {}))
@@ -241,15 +240,43 @@ export async function planMcpRecipe(
       throw new Error(
         `Invalid environment reference for ${name}; use an uppercase variable name, never a credential value.`,
       );
-    if (!reference.name || !environment[reference.name]) {
+    if (!environment[reference.name]) {
       if (options.requireResolvedCredentials)
         throw new Error(
-          `Environment credential reference '${reference.name || "(empty)"}' for ${name} did not resolve.`,
+          `Environment credential reference '${reference.name}' for ${name} did not resolve.`,
         );
       continue;
     }
     credentialEnvironment[name] = reference.name;
   }
+  return credentialEnvironment;
+}
+
+/** Build the exact reviewed server entry without writing or launching it. */
+export function buildMcpRecipeServer(
+  recipeId: string,
+  sourcePath: string,
+  options: McpRecipePlanOptions = {},
+): McpServer {
+  const recipe = findMcpRecipe(recipeId);
+  return recipeServer(
+    recipe,
+    sourcePath,
+    credentialEnvironmentForRecipe(recipeId, recipe, options),
+  );
+}
+
+export async function planMcpRecipe(
+  recipeId: string,
+  configPath: string,
+  options: McpRecipePlanOptions = {},
+): Promise<McpRecipePlan> {
+  const recipe = findMcpRecipe(recipeId);
+  const credentialEnvironment = credentialEnvironmentForRecipe(
+    recipeId,
+    recipe,
+    options,
+  );
   const config = await planMcpConfig(
     configPath,
     recipeServer(recipe, recipe.source, credentialEnvironment),

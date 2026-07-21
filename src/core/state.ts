@@ -446,6 +446,20 @@ export async function recordInstallTransaction(
   return { installs, mcpInstalls };
 }
 
+/** Record one externally formatted but Loadout-managed MCP entry. */
+export async function recordMcpInstall(
+  record: McpInstallRecord,
+): Promise<void> {
+  const state = await readInstallState();
+  state.mcpInstalls = [
+    ...(state.mcpInstalls ?? []).filter(
+      (entry) => entry.packageId !== record.packageId,
+    ),
+    record,
+  ];
+  await writeInstallState(state);
+}
+
 export async function forgetInstall(packageId: string): Promise<void> {
   const state = await readInstallState();
   const installs = state.installs.filter(

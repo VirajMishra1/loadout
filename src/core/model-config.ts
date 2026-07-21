@@ -116,6 +116,7 @@ export async function applyProviderModelSelection(
         `${JSON.stringify(configuration, null, 2)}\n`,
       );
     },
+    { label: `configure model ${plan.selection.id}` },
   );
   return applied.snapshotId;
 }

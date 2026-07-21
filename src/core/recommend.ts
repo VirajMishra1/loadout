@@ -6,7 +6,7 @@ import type {
   PackageRecommendation,
   ProjectSignals,
 } from "../shared/types.js";
-import { STABLE_BOOST_PACKAGE_IDS } from "./profiles.js";
+import { POWER_SKILL_ALLOWLIST, STABLE_BOOST_PACKAGE_IDS } from "./profiles.js";
 import {
   packageOutcomeAdjustment,
   projectTaskFamilies,
@@ -30,6 +30,7 @@ const SIGNAL_FILES = new Set([
   "vercel.json",
   "SECURITY.md",
   ".git",
+  ".obsidian",
 ]);
 
 interface NodePackageMetadata {
@@ -57,6 +58,7 @@ const SIGNAL_LABELS: Record<string, string> = {
   release: "release automation",
   mcp: "MCP tooling",
   security: "security policy",
+  "obsidian-vault": "Obsidian vault",
   commander: "Commander",
   zod: "Zod",
   vitest: "Vitest",
@@ -71,6 +73,7 @@ const SIGNAL_DISPLAY_ORDER = [
   "release",
   "mcp",
   "security",
+  "obsidian-vault",
   "commander",
   "zod",
   "vitest",
@@ -165,6 +168,7 @@ export async function scanProject(
     tools.add("playwright");
   }
   if (files.includes("SECURITY.md")) roles.add("security");
+  if (files.includes(".obsidian")) roles.add("obsidian-vault");
   return {
     root: absolute,
     languages: [...languages],
@@ -235,6 +239,12 @@ export function recommendPackages(
       "github-mcp-server",
       "A Git repository was detected; GitHub tools may help with issues and pull requests.",
       "medium",
+    );
+  if (signals.roles.includes("obsidian-vault"))
+    add(
+      "obsidian-skills",
+      "An Obsidian vault was detected; these reviewed skills cover its open Markdown, Bases, and JSON Canvas formats.",
+      "high",
     );
   return result;
 }
@@ -309,28 +319,23 @@ export const TESTED_PROFILES: Record<
 > = {
   stable: {
     description:
-      "Loadout policy selection: 30 skills from four pinned, SPDX-identified sources with no extra static-risk approvals.",
+      "30 active skills from four pinned sources: the bounded everyday starting point.",
     packages: [...STABLE_BOOST_PACKAGE_IDS],
   },
-  web: {
+  power: {
     description:
-      "Planning, documentation, interface guidance, and browser verification for web projects.",
-    packages: ["superpowers", "context7", "ui-ux-pro-max", "playwright-mcp"],
-  },
-  collaboration: {
-    description: "Engineering workflow plus GitHub collaboration tools.",
-    packages: ["superpowers", "context7", "github-mcp-server"],
+      "A deliberately larger active toolkit selected from eight pinned skill collections; expect higher agent context use.",
+    packages: Object.keys(POWER_SKILL_ALLOWLIST),
   },
   maximum: {
     description:
-      "Broad inspected toolkit; always review MCP permissions before applying.",
-    packages: [
-      "superpowers",
-      "context7",
-      "playwright-mcp",
-      "ui-ux-pro-max",
-      "github-mcp-server",
-    ],
+      "The broadest screened catalog: skills enter the disabled library and MCP/runtime integrations remain explicit.",
+    packages: [],
+  },
+  custom: {
+    description:
+      "Only the package IDs you explicitly pass to setup or upgrade.",
+    packages: [],
   },
 };
 
@@ -343,8 +348,16 @@ export function profileManifestPackages(
     throw new Error(
       `Unknown profile '${profile}'. Choose: ${Object.keys(TESTED_PROFILES).join(", ")}`,
     );
+  if (profile === "custom")
+    throw new Error(
+      "Custom profiles require explicit package IDs; use setup --mode custom --package <id>",
+    );
   const byId = new Map(catalog.map((pkg) => [pkg.id, pkg]));
-  return selected.packages.map((id) => {
+  const packageIds =
+    profile === "maximum"
+      ? catalog.filter((pkg) => !pkg.archived).map((pkg) => pkg.id)
+      : selected.packages;
+  return packageIds.map((id) => {
     const pkg = byId.get(id);
     if (!pkg)
       throw new Error(

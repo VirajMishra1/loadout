@@ -590,6 +590,7 @@ export async function applyActivationChange(
       );
       await writeInstallState(state);
     },
+    { label: `${plan.action} project skill set` },
   );
   return applied.snapshotId;
 }

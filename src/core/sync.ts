@@ -515,6 +515,7 @@ export async function applySyncPlan(
         lockPath,
       );
     },
+    { label: "synchronize loadout manifest" },
   );
   return { snapshotId: applied.snapshotId, lockfile: lockPath };
 }

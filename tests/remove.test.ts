@@ -107,7 +107,12 @@ describe("safe package removal", () => {
     );
     const plan = await planRemove("docs");
     expect(plan.mcpServers).toEqual([
-      { configPath, serverName: "docs", status: "unchanged" },
+      {
+        configPath,
+        serverName: "docs",
+        configFormat: "json",
+        status: "unchanged",
+      },
     ]);
     await applyRemove(plan);
     const config = JSON.parse(await readFile(configPath, "utf8"));

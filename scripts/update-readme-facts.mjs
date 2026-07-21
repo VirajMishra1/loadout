@@ -83,12 +83,6 @@ export function renderReadmeFactBlocksFromSources({
     throw new Error(
       "Conformance evidence is required for README support rendering.",
     );
-  const evidenceRows = Object.entries(coverage.trustStages)
-    .map(([stage, records]) => [
-      stage === "recommended" ? "policy-selected" : stage,
-      records,
-    ])
-    .sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0));
   const commands = verificationCommands(packageJson.scripts.verify);
   const supportEvidence = [...conformance].sort((left, right) =>
     left.displayName < right.displayName
@@ -125,7 +119,7 @@ export function renderReadmeFactBlocksFromSources({
       `The bundled catalog currently contains **${facts.catalog.records} credited public repositories** across **${facts.catalog.categories} categories**: **${facts.catalog.components.skill} have skill components** and **${facts.catalog.installShapes.mcpOnly} are MCP-only**. All ${coverage.technicallyScreenedRecords} are technically screened and pinned; ${coverage.recommendedRecords} sources are selected by the bounded Stable policy. See every linked source, license status, component type, and pinned commit in **[Catalog and upstream credits](./docs/CATALOG.md)**.`,
     ].join("\n"),
     "evidence-stages": [
-      `Catalog evidence-stage counts: ${evidenceRows.map(([stage, records]) => `**${records} ${stage}**`).join(", ")}. Stage definitions and Stable selection criteria are in the [catalog policy](./docs/CATALOG_POLICY.md).`,
+      `Catalog maturity: **${coverage.records} sourced**, **${coverage.technicallyScreenedRecords} technically inspected**, and **${coverage.recommendedRecords} selected for Stable**. Independent human-review attestations and signed comparative benchmarks are not yet published, so Loadout does not pretend static inspection proves usefulness. The pinned catalog remains usable today, and local outcomes can be recorded to improve later rankings. Definitions and promotion rules are in the [catalog policy](./docs/CATALOG_POLICY.md).`,
     ].join("\n"),
     "support-summary": [
       `Loadout's adapter capability matrix currently covers **${supportEvidence.length} agents**: ${supportEvidence.map((entry) => entry.displayName).join(", ")}. See the [complete feature matrix](./docs/FEATURE_TEST_MATRIX.md) for configured paths, filesystem lifecycle, platform, and native-host evidence.`,
@@ -139,7 +133,7 @@ export function renderReadmeFactBlocksFromSources({
       "Configured CI platforms describe a manually triggered workflow, not evidence that a current run passed.",
     ].join("\n"),
     "verification-summary": [
-      `\`verify\` invokes ${markdownList(commands)} in that order. Use \`npm run verify:full\` to include the optional Playwright dashboard check.`,
+      `\`verify\` invokes ${markdownList(commands)} in that order. \`npm run verify:full\` is an alias for the same complete CLI release gate.`,
     ].join("\n"),
     "current-limits": [
       `- **${facts.catalog.noAssertionLicenses} catalog records** currently have \`NOASSERTION\` license status and need upstream-license review before a public release decision.`,

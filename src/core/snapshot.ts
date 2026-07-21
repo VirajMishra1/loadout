@@ -14,7 +14,7 @@ import { loadoutHome, ensureDirectory, userHome } from "./paths.js";
 
 export async function createSnapshot(
   paths: string[],
-  options: { persist?: boolean } = {},
+  options: { persist?: boolean; label?: string } = {},
 ): Promise<Snapshot> {
   const normalizedRoots = [...new Set(paths.map((path) => resolve(path)))];
   const snapshot: Snapshot = {
@@ -23,6 +23,7 @@ export async function createSnapshot(
       .digest("hex")
       .slice(0, 12)}`,
     createdAt: new Date().toISOString(),
+    ...(options.label ? { label: options.label } : {}),
     roots: normalizedRoots,
     files: [],
   };
@@ -194,6 +195,40 @@ export async function listSnapshotIds(): Promise<string[]> {
   }
 }
 
+export interface SnapshotSummary {
+  id: string;
+  createdAt: string;
+  label: string;
+  roots: number;
+  changedEntries: number | undefined;
+}
+
+function changedEntryCount(
+  before: SnapshotFile[],
+  after: SnapshotFile[] | undefined,
+): number | undefined {
+  if (!after) return undefined;
+  const previous = new Map(before.map((file) => [file.path, file]));
+  const next = new Map(after.map((file) => [file.path, file]));
+  return [...new Set([...previous.keys(), ...next.keys()])].filter(
+    (path) =>
+      JSON.stringify(previous.get(path)) !== JSON.stringify(next.get(path)),
+  ).length;
+}
+
+export function summarizeSnapshot(snapshot: Snapshot): SnapshotSummary {
+  return {
+    id: snapshot.id,
+    createdAt: snapshot.createdAt,
+    label: snapshot.label ?? "managed change",
+    roots: snapshot.roots.length,
+    changedEntries: changedEntryCount(
+      snapshot.files,
+      snapshot.postMutationFiles,
+    ),
+  };
+}
+
 const SNAPSHOT_ID = /^\d{10,}-[a-f0-9]{12}$/;
 
 function isSnapshotId(value: string): boolean {
@@ -236,6 +271,11 @@ export function validateSnapshot(value: unknown): Snapshot {
     !Number.isFinite(Date.parse(value.createdAt))
   )
     throw new Error("Snapshot creation time is invalid");
+  if (
+    value.label !== undefined &&
+    (typeof value.label !== "string" || value.label.trim().length === 0)
+  )
+    throw new Error("Snapshot label is invalid");
   if (
     !Array.isArray(value.roots) ||
     value.roots.length === 0 ||

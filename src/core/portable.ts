@@ -184,6 +184,7 @@ export async function applyPortableImport(
       }
       return plan;
     },
+    { label: "import portable loadout" },
   );
   return { plan: applied.result, snapshotId: applied.snapshotId };
 }

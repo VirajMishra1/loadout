@@ -10,7 +10,7 @@ import {
   refreshCatalog,
   type InstallSelectionMode,
 } from "./core/catalog.js";
-import { detectAgents, parseAgentSelection } from "./core/paths.js";
+import { detectAgents, parseAgentSelection, userHome } from "./core/paths.js";
 import { readFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import {
@@ -22,6 +22,7 @@ import {
   listSnapshotIds,
   readSnapshot,
   restoreSnapshot,
+  summarizeSnapshot,
 } from "./core/snapshot.js";
 import type { AgentId } from "./shared/types.js";
 import { fetchRepositorySnapshot } from "./core/source.js";
@@ -34,6 +35,7 @@ import {
 } from "./core/mcp.js";
 import {
   REVIEWED_MCP_RECIPES,
+  buildMcpRecipeServer,
   findMcpRecipe,
   formatMcpRecipePlan,
   planMcpRecipe,
@@ -60,7 +62,12 @@ import {
   writeLockfile,
 } from "./core/manifest.js";
 import { buildHealthReport, formatHealthReport } from "./core/health.js";
-import { readInstallState, recordInstallTransaction } from "./core/state.js";
+import {
+  installStatePath,
+  readInstallState,
+  recordInstallTransaction,
+  recordMcpInstall,
+} from "./core/state.js";
 import { applyRemove, planRemove } from "./core/remove.js";
 import {
   applyUninstall,
@@ -119,10 +126,10 @@ import {
 } from "./core/portable.js";
 import {
   applyCodexMcpConfigPlan,
+  codexMcpServerFingerprint,
   defaultCodexMcpConfigPath,
   planCodexMcpConfig,
 } from "./core/codex-mcp.js";
-import { formatDemoResult, runIsolatedDemo } from "./core/demo.js";
 import {
   catalogTrustStage,
   formatCatalogTrustStage,
@@ -148,7 +155,6 @@ import {
 } from "./core/conversion.js";
 import { writeFileAtomically } from "./core/atomic-file.js";
 import { formatCanaryResult, runCanary } from "./core/canary.js";
-import { startDashboardServer } from "./dashboard.js";
 import {
   applyPreparedCatalogInstall,
   formatCatalogApplyGuidance,
@@ -409,6 +415,7 @@ interface SetupOptions {
   yes?: boolean;
   approveRisk?: boolean;
   apiAccess?: string;
+  details?: boolean;
 }
 
 function setupSelection(
@@ -527,7 +534,9 @@ async function runSetup(options: SetupOptions): Promise<void> {
       onProgress: printSetupProgress,
       access,
     });
-    console.log(`\n${formatPreparedCatalogInstall(prepared)}\n`);
+    console.log(
+      `\n${formatPreparedCatalogInstall(prepared, { details: options.details })}\n`,
+    );
     const risky = riskyPackageSummary(prepared);
     let approved = Boolean(options.yes);
     let riskApproved = Boolean(options.approveRisk);
@@ -588,7 +597,7 @@ async function runSetup(options: SetupOptions): Promise<void> {
   }
 }
 
-const LOADOUT_VERSION = "0.4.1";
+const LOADOUT_VERSION = "0.5.0";
 
 function durableSchedulerLauncher(): string[] {
   return [
@@ -652,6 +661,7 @@ program
     "--approve-risk",
     "approve reviewed safety findings in non-interactive mode",
   )
+  .option("--details", "show every quarantined and deferred unit")
   .action((options: SetupOptions) => runSetup(options));
 
 program
@@ -1861,6 +1871,14 @@ program
                 .map(([id, profile]) => `${id} — ${profile.description}`)
                 .join("\n"),
         );
+      if (name === "custom" && !options.applyTo) {
+        const profile = TESTED_PROFILES.custom;
+        return console.log(
+          options.json
+            ? JSON.stringify({ name, ...profile, packages: [] }, null, 2)
+            : `custom: ${profile.description}\n  Use: loadout setup --mode custom --package <id>`,
+        );
+      }
       const packages = profileManifestPackages(
         name,
         await loadEffectiveCatalog(),
@@ -2487,43 +2505,6 @@ benchmark
             ].join("\n"),
       );
       if (!summary.withinBudget) process.exitCode = 2;
-    },
-  );
-
-program
-  .command("demo")
-  .alias("test-drive")
-  .description(
-    "Test-drive a reviewed install + rollback in a disposable profile; never touches local agent config",
-  )
-  .option(
-    "--repository <owner/repo>",
-    "public GitHub skill repository",
-    "obra/superpowers",
-  )
-  .option("--package <id>", "package identifier", "obra-superpowers")
-  .option("--agents <ids>", "comma-separated virtual demo targets", "codex")
-  .option("--keep", "retain the isolated profile after install for inspection")
-  .option("--json", "emit the demo result as JSON")
-  .action(
-    async (options: {
-      repository: string;
-      package: string;
-      agents: string;
-      keep?: boolean;
-      json?: boolean;
-    }) => {
-      const result = await runIsolatedDemo({
-        repository: options.repository,
-        packageId: options.package,
-        agents: parseAgentSelection(options.agents)!,
-        keep: options.keep,
-      });
-      console.log(
-        options.json
-          ? JSON.stringify(result, null, 2)
-          : formatDemoResult(result),
-      );
     },
   );
 
@@ -3541,6 +3522,10 @@ program
     "Preview/configure a reviewed MCP recipe, or explicitly verify its real connection",
   )
   .argument("[id]", "recipe id; omit to list reviewed recipes")
+  .option(
+    "--agent <id>",
+    "target host: codex or claude-code; selects its default config format and path",
+  )
   .option("--config <path>", "target JSON MCP config path")
   .option("--yes", "write the reviewed server entry after preview")
   .option("--verify", "verify the configured entry without starting a server")
@@ -3583,6 +3568,7 @@ program
         timeout: string;
         approveRisk?: boolean;
         json?: boolean;
+        agent?: string;
         key?: boolean;
         modelKey?: boolean;
         credentialFree?: boolean;
@@ -3606,16 +3592,19 @@ program
           environment: recipe.environment,
           modelApiProviders: recipe.modelApiProviders,
         }));
-        console.log(
-          options.json
-            ? JSON.stringify(listed, null, 2)
-            : listed
-                .map(
-                  (recipe) =>
-                    `${recipe.id} — ${recipe.displayName} — ${recipe.modelApiProviders.length ? `AI API required: ${recipe.modelApiProviders.join(", ")}` : "No AI API key required"} · ${recipe.environment.length ? `${recipe.environment.includes("GITHUB_PERSONAL_ACCESS_TOKEN") ? "GitHub token required" : `service credential required: ${recipe.environment.join(", ")}`}` : "no other credential"}`,
-                )
-                .join("\n"),
-        );
+        const output = options.json
+          ? JSON.stringify(listed, null, 2)
+          : listed
+              .map(
+                (recipe) =>
+                  `${recipe.id} — ${recipe.displayName} — ${recipe.modelApiProviders.length ? `AI API required: ${recipe.modelApiProviders.join(", ")}` : "No AI API key required"} · ${recipe.environment.length ? `${recipe.environment.includes("GITHUB_PERSONAL_ACCESS_TOKEN") ? "GitHub token required" : `service credential required: ${recipe.environment.join(", ")}`}` : "no other credential"}`,
+              )
+              .join("\n");
+        console.log(output);
+        if (!options.json)
+          console.log(
+            "\nInstall for one host (preview first):\n  loadout mcp-recipe playwright --agent codex\n  loadout mcp-recipe playwright --agent claude-code",
+          );
         return;
       }
       if (options.connect) {
@@ -3652,12 +3641,54 @@ program
         }
         return;
       }
-      if (!options.config)
-        throw new Error("--config is required for recipe planning or --verify");
+      if (
+        options.agent &&
+        options.agent !== "codex" &&
+        options.agent !== "claude-code"
+      )
+        throw new Error("--agent must be codex or claude-code");
+      if (options.agent && options.config)
+        throw new Error(
+          "Choose --agent for a managed default path or --config for an explicit JSON path, not both",
+        );
+      const configPath =
+        options.config ??
+        (options.agent === "codex"
+          ? defaultCodexMcpConfigPath()
+          : options.agent === "claude-code"
+            ? join(userHome(), ".claude.json")
+            : undefined);
+      if (!configPath)
+        throw new Error(
+          "Choose --agent codex, --agent claude-code, or an explicit --config path",
+        );
       if (options.verify) {
         if (options.yes)
           throw new Error("--verify cannot be combined with --yes");
-        const verification = await verifyMcpRecipe(id, options.config);
+        if (options.agent === "codex") {
+          const recipe = findMcpRecipe(id);
+          let content = "";
+          try {
+            content = await readFile(configPath, "utf8");
+          } catch {
+            // Missing config is rendered as a normal not-configured result.
+          }
+          const configured = Boolean(
+            codexMcpServerFingerprint(content, recipe.serverName),
+          );
+          console.log(
+            options.json
+              ? JSON.stringify(
+                  { recipeId: id, configPath, configured },
+                  null,
+                  2,
+                )
+              : `${configured ? "Configured" : "Not configured"}: ${id}\nCodex config: ${configPath}\nConfiguration presence does not launch the MCP server; add --connect --approve-risk for a bounded handshake.`,
+          );
+          if (!configured) process.exitCode = 1;
+          return;
+        }
+        const verification = await verifyMcpRecipe(id, configPath);
         console.log(
           options.json
             ? JSON.stringify(verification, null, 2)
@@ -3672,28 +3703,110 @@ program
         options.credential,
         options.credentialAccount,
       );
-      const plan = await planMcpRecipe(id, options.config, {
+      if (options.agent === "codex") {
+        const server = buildMcpRecipeServer(id, configPath, {
+          credentialReferences,
+          requireResolvedCredentials: Boolean(options.yes),
+        });
+        const plan = await planCodexMcpConfig(configPath, server, server.name);
+        const recipe = findMcpRecipe(id);
+        const preview = [
+          `MCP recipe: ${recipe.displayName}`,
+          `Target: Codex`,
+          `Config: ${plan.path}`,
+          `Change: ${plan.summary}`,
+          `Artifact: ${recipe.artifact}`,
+          `Permissions: ${recipe.permissions.join(", ")}`,
+          recipe.environment.length
+            ? `Credential references required: ${recipe.environment.join(", ")}`
+            : "Credentials: none",
+        ].join("\n");
+        if (!options.yes) {
+          console.log(
+            options.json
+              ? JSON.stringify(
+                  {
+                    recipe,
+                    agent: "codex",
+                    path: plan.path,
+                    summary: plan.summary,
+                  },
+                  null,
+                  2,
+                )
+              : `${preview}\nDry run only. Re-run with --yes to add this reviewed Codex MCP server.`,
+          );
+          return;
+        }
+        const fingerprint = codexMcpServerFingerprint(
+          plan.proposed,
+          recipe.serverName,
+        );
+        if (!fingerprint)
+          throw new Error("Could not fingerprint the applied Codex MCP entry");
+        const snapshot = await applyCodexMcpConfigPlan(plan, {
+          extraTargets: [installStatePath()],
+          afterApply: async (_result, transactionSnapshot) =>
+            recordMcpInstall({
+              packageId: `mcp-recipe:${id}:codex`,
+              configPath: plan.path,
+              serverName: recipe.serverName,
+              fingerprint,
+              snapshotId: transactionSnapshot.id,
+              installedAt: new Date().toISOString(),
+              configFormat: "codex-toml",
+            }),
+        });
+        console.log(
+          options.json
+            ? JSON.stringify(
+                {
+                  recipe,
+                  agent: "codex",
+                  snapshotId: snapshot.rollbackSnapshotId,
+                },
+                null,
+                2,
+              )
+            : `${preview}\nConfigured for Codex. Managed package: mcp-recipe:${id}:codex\nRollback: loadout rollback --snapshot ${snapshot.rollbackSnapshotId}\nNext: loadout mcp-recipe ${id} --agent codex --verify`,
+        );
+        return;
+      }
+      const plan = await planMcpRecipe(id, configPath, {
         credentialReferences,
         requireResolvedCredentials: Boolean(options.yes),
       });
       if (!options.yes) {
+        const target =
+          options.agent === "claude-code" ? "Target: Claude Code\n" : "";
         console.log(
           options.json
-            ? JSON.stringify(plan, null, 2)
-            : `${formatMcpRecipePlan(plan)}\nDry run only. Re-run with --yes to write this server entry.`,
+            ? JSON.stringify(
+                options.agent ? { agent: options.agent, ...plan } : plan,
+                null,
+                2,
+              )
+            : `${target}${formatMcpRecipePlan(plan)}\nDry run only. Re-run with --yes to write this server entry.`,
         );
         return;
       }
-      const snapshot = await applyMcpConfigPlan(plan.config);
-      await recordInstallTransaction(
-        [],
-        [{ packageId: `mcp-recipe:${id}`, plan: plan.config }],
-        snapshot.id,
-      );
+      const managedId = options.agent
+        ? `mcp-recipe:${id}:${options.agent}`
+        : `mcp-recipe:${id}`;
+      const snapshot = await applyMcpConfigPlan(plan.config, {
+        extraTargets: [installStatePath()],
+        afterApply: async (_result, transactionSnapshot) => {
+          await recordInstallTransaction(
+            [],
+            [{ packageId: managedId, plan: plan.config }],
+            transactionSnapshot.id,
+          );
+        },
+      });
       console.log(
         options.json
           ? JSON.stringify({ plan, snapshot }, null, 2)
-          : `${formatMcpRecipePlan(plan)}\nConfigured. Snapshot: ${snapshot.id}\nAuthorize the service separately, then run: loadout mcp-recipe ${id} --config ${plan.config.path} --verify`,
+          : `${options.agent === "claude-code" ? "Target: Claude Code\n" : ""}${formatMcpRecipePlan(plan)}\nConfigured${options.agent ? " for Claude Code" : ""}. Managed package: ${managedId}\nRollback: loadout rollback --snapshot ${snapshot.rollbackSnapshotId}\nAuthorize the service separately, then run: loadout mcp-recipe ${id} ${options.agent ? `--agent ${options.agent}` : `--config ${plan.config.path}`} --verify`,
       );
     },
   );
@@ -4008,7 +4121,9 @@ program
         return;
       }
       const snapshot = await applyMcpConfigPlan(plan);
-      console.log(`Applied successfully. Snapshot: ${snapshot.id}`);
+      console.log(
+        `Applied successfully. Snapshot: ${snapshot.rollbackSnapshotId}`,
+      );
     },
   );
 
@@ -4074,7 +4189,9 @@ program
           "Dry run only. Re-run with --yes to add this Codex MCP server.",
         );
       const snapshot = await applyCodexMcpConfigPlan(plan);
-      console.log(`Applied successfully. Snapshot: ${snapshot.id}`);
+      console.log(
+        `Applied successfully. Snapshot: ${snapshot.rollbackSnapshotId}`,
+      );
     },
   );
 
@@ -4248,6 +4365,7 @@ program
   )
   .option("--yes", "apply without interactive confirmation")
   .option("--approve-risk", "approve reviewed safety findings for catalog mode")
+  .option("--details", "show every quarantined and deferred unit")
   .action(
     async (options: {
       source?: string;
@@ -4257,6 +4375,7 @@ program
       agents?: string;
       yes?: boolean;
       approveRisk?: boolean;
+      details?: boolean;
     }) => {
       const packageIds = options.package ?? [];
       const hasSource = Boolean(options.source || options.repository);
@@ -4280,7 +4399,11 @@ program
             onProgress: printSetupProgress,
           },
         );
-        console.log(formatPreparedCatalogInstall(prepared));
+        console.log(
+          formatPreparedCatalogInstall(prepared, {
+            details: options.details,
+          }),
+        );
         if (!options.yes) {
           console.log(
             formatCatalogApplyGuidance(
@@ -4384,19 +4507,39 @@ program
       const snapshotIds = await listSnapshotIds();
       if (!snapshotIds.length)
         return console.log("No Loadout snapshots found.");
-      for (const id of snapshotIds) console.log(id);
+      console.log("Loadout rollback history (oldest to newest):");
+      for (const [index, id] of snapshotIds.entries()) {
+        const summary = summarizeSnapshot(await readSnapshot(id));
+        const impact =
+          summary.changedEntries === undefined
+            ? "legacy impact unknown"
+            : `${summary.changedEntries} changed filesystem entr${summary.changedEntries === 1 ? "y" : "ies"}`;
+        console.log(
+          `${index === snapshotIds.length - 1 ? "latest" : "      "}  ${summary.createdAt}  ${summary.label}  ${impact}  ${summary.roots} root(s)  ${id}`,
+        );
+      }
+      console.log(
+        "Restore an exact entry with: loadout rollback --snapshot <id>",
+      );
       return;
     }
     const selected = await withMutationLock(async () => {
       const snapshotIds = await listSnapshotIds();
       const chosen = options.snapshot ?? snapshotIds.at(-1);
       if (!chosen) throw new Error("No Loadout snapshots found");
-      await restoreSnapshot(await readSnapshot(chosen), {
+      const snapshot = await readSnapshot(chosen);
+      await restoreSnapshot(snapshot, {
         requireUnchangedPostMutationState: true,
       });
-      return chosen;
+      return summarizeSnapshot(snapshot);
     });
-    console.log(`Restored snapshot ${selected}`);
+    console.log(
+      `Restored ${selected.label} snapshot ${selected.id} (${selected.changedEntries ?? "unknown"} recorded changed filesystem entries across ${selected.roots} root(s)).`,
+    );
+    if (selected.changedEntries === 0)
+      console.log(
+        "This snapshot recorded no effective filesystem change. Choose an older explicit snapshot if you meant to undo an earlier installation.",
+      );
   });
 
 program
@@ -4645,27 +4788,6 @@ program
       if (result.status === "blocked") process.exitCode = 1;
     },
   );
-
-program
-  .command("dashboard")
-  .description("Start the local Loadout dashboard on a loopback-only port")
-  .option("--port <port>", "TCP port (0 selects an available port)", "0")
-  .action(async (options: { port: string }) => {
-    const port = Number(options.port);
-    if (!Number.isInteger(port) || port < 0 || port > 65_535)
-      throw new Error("--port must be an integer between 0 and 65535");
-    const handle = await startDashboardServer({}, port);
-    console.log(`Loadout dashboard: http://${handle.host}:${handle.port}`);
-    await new Promise<void>((resolve) => {
-      const stop = () => {
-        process.off("SIGINT", stop);
-        process.off("SIGTERM", stop);
-        void handle.close().then(resolve);
-      };
-      process.on("SIGINT", stop);
-      process.on("SIGTERM", stop);
-    });
-  });
 
 program
   .command("serve")

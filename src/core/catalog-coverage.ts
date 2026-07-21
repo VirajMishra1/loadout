@@ -151,7 +151,8 @@ export function formatCatalogCoverage(report: CatalogCoverageReport): string {
     .join(", ");
   return [
     `Screened catalog: ${report.technicallyScreenedRecords}/${report.records} technically complete records (target ${report.targetRecords})`,
-    `Policy selection: ${report.recommendedRecords} Stable sources · ${report.trustStages["human-reviewed"]} human-reviewed · ${report.trustStages.benchmarked} benchmarked`,
+    `Catalog maturity: ${report.records} sourced · ${report.technicallyScreenedRecords} technically inspected · ${report.recommendedRecords} selected for Stable`,
+    `Higher-confidence evidence: ${report.trustStages["human-reviewed"]} stored human-review attestations · ${report.trustStages.benchmarked} signed benchmark results`,
     `Evidence: ${report.immutablePins} immutable pins · ${report.assertedLicenses} asserted licenses · ${report.noAssertionLicenses} NOASSERTION`,
     `Coverage: ${Object.values(report.categories).length} categories · ${report.evaluationReady} evaluation-ready · ${report.activityObserved} with refreshed activity`,
     `Install shape: ${report.installShapes.skills} skill · ${report.installShapes.mcpOnly} MCP-only · ${report.installShapes.mixed} mixed`,

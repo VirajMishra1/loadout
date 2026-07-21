@@ -2,8 +2,24 @@
 
 ## Unreleased
 
+### Added
+
+- Add the pinned MIT-licensed Obsidian Skills collection and recommend it only when an
+  Obsidian vault is detected.
+- Add host-aware reviewed MCP setup, verification, health, rollback, and removal for
+  Codex and Claude Code.
+
 ### Changed
 
+- Remove the dashboard and disposable demo commands so the CLI is the single
+  authoritative product surface.
+- Define Stable as the bounded 30-skill default, Power as the intentionally larger
+  active toolkit, and Maximum as the broad disabled library with project activation.
+- Group Maximum quarantine, deferral, and risk output by default; retain every unit
+  under `setup --details`.
+- Refresh the dated GitHub discovery feed locally and present sourced, inspected,
+  Stable-selected, and future evidence stages without the misleading `0 discovered`
+  headline.
 - Gate project-aware activation by detected language, framework, provider, and
   project role before scoring generic CLI, MCP, package, publish, or schema words.
 - Keep explicit skill pins as a deliberate override while treating the active-set
@@ -11,6 +27,12 @@
 
 ### Fixed
 
+- Add human-readable rollback history with timestamps, mutation labels, affected
+  roots, effective change counts, and explicit no-op guidance.
+- Report an empty managed installation as `not configured` rather than healthy.
+- Configure reviewed MCP recipes directly for Codex TOML or Claude Code JSON, track
+  their fingerprints, include ownership state in the same rollback transaction, and
+  remove only the managed server entry.
 - Prevent substring matches such as `npm` inside `pnpm` and arbitrary `*-cli`
   names from receiving unrelated Node CLI or Commander relevance scores.
 - Stop non-.NET, non-Python, non-Elixir, non-frontend, and non-backend projects

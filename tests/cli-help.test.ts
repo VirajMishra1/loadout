@@ -49,8 +49,6 @@ describe("CLI contract", () => {
     expect(result.stdout).toContain("setup");
     expect(result.stdout).toContain("upgrade");
     expect(result.stdout).toContain("doctor");
-    expect(result.stdout).toContain("demo");
-    expect(result.stdout).toContain("test-drive");
     expect(result.stdout).toContain("rollback");
     expect(result.stdout).toContain("uninstall");
     expect(result.stdout).toContain("optimize");
@@ -65,7 +63,7 @@ describe("CLI contract", () => {
     expect(guide.code).toBe(0);
     expect(guide.stdout).toContain("START HERE");
     expect(guide.stdout).toContain("loadout setup --mode stable");
-    expect(guide.stdout).toContain("loadout dashboard");
+    expect(guide.stdout).toContain("loadout mcp-recipe");
     expect(guide.stdout).toContain("Nothing above changes your agents");
 
     const advanced = await runCli("registry-serve", "--help");

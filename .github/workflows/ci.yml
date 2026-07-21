@@ -36,22 +36,6 @@ jobs:
       - run: npm run test:package
       - run: npm run test:performance
 
-  dashboard-e2e:
-    name: Optional dashboard browser diagnostics
-    if: github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-
-    steps:
-      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
-      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
-        with:
-          node-version: 22
-          cache: npm
-      - run: npm ci
-      - run: npx playwright install --with-deps chromium-headless-shell
-      - run: npm run test:e2e:dashboard
-
   cross-platform:
     name: Native install (Node ${{ matrix.node }}, ${{ matrix.os }})
     if: github.event_name == 'workflow_dispatch'

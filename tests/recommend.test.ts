@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
@@ -154,6 +154,37 @@ describe("project recommendations", () => {
     );
     expect(formatRecommendations(signals, [])).toContain(
       "Detected: TypeScript, Playwright, Node CLI, npm package, release automation, MCP tooling, security policy, Commander, Zod, Vitest",
+    );
+  });
+
+  it("recommends reviewed Obsidian skills only when an Obsidian vault is detected", async () => {
+    root = await mkdtemp(join(tmpdir(), "loadout-recommend-obsidian-"));
+    await mkdir(join(root, ".obsidian"));
+    const obsidian: CatalogPackage = {
+      id: "obsidian-skills",
+      displayName: "Obsidian Skills",
+      repository: "kepano/obsidian-skills",
+      description: "Agent skills for Obsidian",
+      category: "knowledge-management",
+      tier: "community",
+      license: "MIT",
+      components: ["skill"],
+      operatingSystems: ["windows", "macos", "linux"],
+    };
+
+    const signals = await scanProject(root);
+    const recommendations = recommendPackages(signals, [obsidian]);
+
+    expect(signals.roles).toContain("obsidian-vault");
+    expect(recommendations).toEqual([
+      expect.objectContaining({
+        packageId: "obsidian-skills",
+        confidence: "high",
+        kind: "skill-library",
+      }),
+    ]);
+    expect(formatRecommendations(signals, recommendations)).toContain(
+      "Detected: Obsidian vault",
     );
   });
 });

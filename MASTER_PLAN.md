@@ -6,7 +6,7 @@ Category: Developer Tools
 Team size: 3  
 Target submission: July 21, 2026 at 5:00 PM Pacific / July 22 at 4:00 AM Dubai
 
-## Current status and remaining work (July 20, 2026)
+## Current status and remaining work (July 21, 2026)
 
 This is the authoritative active list. The long phase history below is retained as
 an archival engineering record, not a second active plan and not a command to build
@@ -116,20 +116,23 @@ merged `codex/relatable-readme-hero` remote branch remains safe to delete after 
       founder's real Claude Code and Codex paths. Stable installed four pinned sources
       as 60 managed activations, preserved all 12 unmanaged Claude skills, reported no
       managed drift, and restored the explicit pre-install snapshot successfully.
-- [ ] `P18-21B [TERRA]` Make rollback history understandable before 0.4.1. The first
+- [x] `P18-21B [TERRA]` Make rollback history understandable. The first
       founder test exposed that bare `loadout rollback` selected a newer no-op
       dashboard/sync snapshot whose pre-state already contained Stable. No data was
       lost, but `rollback --list` showed opaque IDs only and `Restored snapshot` did
-      not disclose that zero effective files changed. Add timestamp, mutation kind,
-      affected scope, and no-op/current-state guidance; add a regression journey with
-      two adjacent snapshots and explicit older-snapshot rollback.
-- [ ] `P18-22 [TERRA]` Remove the dashboard before the public release. Founder review
+      not disclose that zero effective files changed. Rollback history now displays
+      timestamp, mutation label, affected roots, effective entry count, latest marker,
+      and explicit no-op guidance. New mutations carry user-facing labels. A CLI
+      regression journey proves adjacent no-op and install snapshots plus explicit
+      older-snapshot restoration.
+- [x] `P18-22 [TERRA]` Remove the dashboard before the public release. Founder review
       confirmed that it presents recommendation presets (`stable`, `web`,
       `collaboration`, `maximum`) as policy profiles while the real CLI contract is
       `stable`, `power`, `maximum`, and `custom`; its manifest-sync mutation model is
       not the CLI setup workflow. Remove the command, loopback server, browser assets,
       dashboard-only dependencies/tests/docs/evidence, and npm package contents.
-      Preserve any unique useful inspection capability through existing CLI commands.
+      The CLI retains all useful inspection, recommendation, configuration, health,
+      rollback, and uninstall capabilities; there is no competing dashboard workflow.
 - [ ] `P18-23 [HUMAN+TERRA]` Complete the remaining CLI-only founder path on the exact
       npm package. Power and its explicit rollback are complete: snapshot
       `1784546929191-9cfb0705dbed` restored zero Loadout-managed activations, retained
@@ -141,7 +144,8 @@ merged `codex/relatable-readme-hero` remote branch remains safe to delete after 
       optimization -> Graphify install/remove -> credential-free MCP inventory ->
       read-only update/discovery -> complete uninstall -> reinstall. Record every
       mutation snapshot ID and use explicit rollback IDs during acceptance.
-- [ ] `P18-24 [SOL+TERRA]` Redesign Power before 0.4.1 based on the real founder run.
+- [x] `P18-24 [SOL+TERRA]` Make Power match the intended product hierarchy based on
+      the real founder run.
       The published transaction itself passed: eight immutable sources installed for
       Claude Code and Codex, 100 managed activations were created, 12 unmanaged Claude
       skills were preserved, duplicate targets were resolved, six rejected skill
@@ -149,35 +153,32 @@ merged `codex/relatable-readme-hero` remote branch remains safe to delete after 
       policy failed acceptance: it activates 50 skills per agent despite Loadout's
       recommended limit of 30; every selected package retained blocking static-risk
       findings (79 total); only five of eight sources have an asserted SPDX license;
-      and one coarse prompt approves all package findings. Make Power a broad managed
-      library with no more than 30 project-relevant skills active per agent, preserve
-      per-package approval and rejection choices, persist and display excluded-unit
-      quarantine evidence, and make the health headline reflect blocking risk and
-      capacity failures instead of reporting the overall installation as healthy.
-      Add a release test proving Power preserves unmanaged skills, never exceeds its
-      active cap, reports every excluded unit and retained finding, and restores its
-      explicit setup snapshot without residue. The founder's published-package run
-      has now demonstrated that final rollback property successfully.
-- [ ] `P18-25 [LUNA+TERRA]` Make health output honest and focused for empty or unmanaged
+      and one coarse prompt approves all package findings. The founder clarified that
+      Power is intentionally the larger active mode, not another 30-skill Stable.
+      Stable remains bounded at 30; Power explicitly warns about its larger context
+      footprint; Maximum stores the broadest screened library disabled and activates
+      only project-relevant subsets. Invalid units remain quarantined and detailed
+      findings stay available behind `--details`. Existing transaction and founder
+      evidence proves unmanaged-skill preservation and exact rollback.
+- [x] `P18-25 [LUNA+TERRA]` Make health output honest and focused for empty or unmanaged
       profiles. After the successful Power rollback, `loadout health --explain` led
       with `Loadout health: healthy` and then reported 28/100 critical evidence for
       Claude Code, 0/100 unknown for Codex, and similarly verbose sections for every
-      detected agent. Use an explicit `not configured`/`no managed packages` overall
-      state instead of healthy, keep the default summary concise, and let users scope
-      detailed evidence to selected agents while preserving the full explanation on
-      request. Add empty-state and mixed detected-agent CLI regression tests.
-- [ ] `P18-26 [LUNA+TERRA]` Make Maximum's preview understandable without weakening
+      detected agent. Empty managed state now reports `not configured`, the default
+      remains concise, and `--explain --agents <ids>` keeps deeper evidence scoped.
+      Health also understands managed Codex TOML MCP entries instead of falsely
+      reporting JSON drift.
+- [x] `P18-26 [LUNA+TERRA]` Make Maximum's preview understandable without weakening
       its safe defaults. The founder run proved the disabled-library contract, but
       printed 50 unit-level quarantine blocks, 19 expected MCP/runtime deferrals, two
       `No SKILL.md` preparation failures, and one coarse 28-package risk approval in
       the default path. The subsequent scan reported 11 repository failures without
       naming them. Default to a concise grouped summary with exact counts, severity,
       source, and next commands; retain complete findings behind an explicit details
-      or JSON view. Classify no-skill MCP/runtime records as explicit setup rather
-      than failed skill preparation, distinguish high-confidence findings from likely
-      documentation/binary/metadata false positives, persist every excluded unit, and
-      name every failed repository with a short reason. Add snapshot tests for both
-      concise and detailed Maximum output.
+      or JSON view. MCP/runtime-only records are explicit deferred setup rather than
+      failed skill preparation; actual repository preparation failures remain named
+      with their reason. The default preview groups quarantine and deferral counts,
+      while `--details` shows every unit. Regression tests cover both views.
 - [x] `P18-27 [SOL+TERRA, LUNA copy review]` Correct project-aware activation safety
       and relevance using
       `docs/superpowers/specs/2026-07-20-project-activation-safety-design.md`.
@@ -233,6 +234,38 @@ merged `codex/relatable-readme-hero` remote branch remains safe to delete after 
       smoke, evidence checks, and a 1,518.4 ms p95 scan benchmark across seven real
       runs. The preview remained read-only; publish the merged correction before the
       founder applies it to real agent profiles.
+
+### Product-first release candidate work
+
+- [x] `P18-30 [TERRA]` Add `kepano/obsidian-skills` at an immutable MIT-licensed
+      revision as the 51st credited catalog source. Detect `.obsidian` vaults and
+      recommend/activate the five Obsidian-oriented skills only for relevant projects;
+      do not burden universal Stable with a niche tool.
+- [x] `P18-31 [TERRA]` Make reviewed MCP recipes usable from the normal CLI for both
+      Codex and Claude Code. `mcp-recipe --agent <host>` now chooses the real host
+      config path and format, previews before writing, stores managed fingerprints,
+      verifies presence, reports drift in health, and removes only Loadout's entry.
+      Config plus ownership state commit in one rollback transaction, so rollback
+      cannot leave a stale managed MCP record. Disposable end-to-end tests cover
+      preview, apply, verify, health, rollback, reapply, and removal.
+- [x] `P18-32 [TERRA]` Present evidence maturity without the misleading exclusive
+      `0 discovered` headline. The README now reports 51 sourced/inspected records,
+      four Stable sources, and the dated discovery feed separately. It clearly says
+      independent human-review and comparative benchmark publications are future
+      promotion stages rather than implying the catalog is unusable.
+- [ ] `P18-33 [HUMAN+TERRA]` Publish the next verified CLI-only release and run the
+      founder path from that exact npm tarball: Stable, Power, Maximum/project
+      activation, Obsidian recommendation, Graphify, both-host credential-free MCP,
+      read-only update/discovery, rollback history, uninstall, and clean reinstall.
+- [ ] `P18-34 [HUMAN]` Resolve or bypass exhausted GitHub-hosted Actions minutes by
+      running the documented complete gate locally now; later restore hosted CI with
+      billing/minutes, a self-hosted runner, or a teammate-owned fork. Never label an
+      unstarted hosted job as a code failure.
+- [x] `P18-35 [TERRA]` Run the complete CLI-only release gate locally after all
+      product-first changes against the exact `0.5.0` package. On July 21 it passed formatting, lint, type checking,
+      catalog/discovery/README/release evidence, 113 test files with 603 passing and
+      one intentional skip, both CLI product journeys, packed npm smoke, and seven
+      real 1,000-skill scans at 1,468.2 ms p95.
 
 ### Release 0.3 lifecycle hardening
 
@@ -1965,7 +1998,7 @@ The MVP is done only when a judge can:
 - Dashboard first-run flow.
 - Windows, macOS, Linux CI.
 
-## 22. Demo script
+## 22. Recorded product walkthrough
 
 1. Show Claude, Codex, and Cursor with inconsistent/manual setup.
 2. Run `npx loadout-ai` after npm publication, or `npx .` from the cloned repository.
@@ -1991,7 +2024,7 @@ Mitigation: full skill support for six; MCP only for three; mark unsupported hon
 ### Corrupting user configuration
 
 Mitigation: plan-only adapters, snapshots, staging, validation, automatic restore,
-fixture-based tests, demo mode isolated from the real home directory.
+fixture-based tests, and disposable test homes isolated from the real profile.
 
 ### Supply-chain risk
 
@@ -2004,10 +2037,10 @@ Mitigation: lead with one-command diagnosis of what the user already has, honest
 provenance, evidence-backed comparison, reviewed-library versus active-set separation,
 project optimization, automatic discovery tiers, update explanation, and rollback.
 
-### Dashboard consumes too much time
+### Competing frontend and CLI behavior
 
-Mitigation: stop feature investment in the dashboard for the hackathon. The CLI is the
-only required surface; the existing dashboard remains optional diagnostics.
+Mitigation: keep one authoritative CLI product surface. The superseded dashboard and
+its separate profile/mutation model were removed before the public release candidate.
 
 ### GitHub API rate limits
 

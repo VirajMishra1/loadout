@@ -40,17 +40,15 @@ receive different numbers of additions. `tool graphify` is also a preview; Graph
 is a reviewed runtime tool and does not need an OpenAI or Anthropic API key for its
 code-only install.
 
-## 3. Open the optional dashboard
+## 3. Understand the three scopes
 
 ```bash
-loadout dashboard
+loadout profiles
 ```
 
-Open the `http://127.0.0.1:PORT` address it prints. It never listens on the
-network. The dashboard shows status, health, installed packages, updates, local
-project recommendations, profiles, and the catalog. Its Apply and Undo buttons
-require an in-page preview, acknowledgement, and a private local session token.
-Stop the server with `Control-C`.
+Stable keeps the active set at 30. Power deliberately activates a larger toolkit.
+Maximum downloads the broadest screened skill library but keeps new entries disabled
+until project optimization or an explicit enable action selects them.
 
 ## 4. Preview and install a profile
 
@@ -61,11 +59,12 @@ confirmation before changing files. A mutation creates a snapshot first.
 # Recommended everyday skills
 loadout setup --mode stable --agents codex,claude-code
 
-# Broader daily-use selection (50 curated skill directories)
+# Broader daily-use selection (roughly 50 curated skills per agent)
 loadout setup --mode power --agents codex,claude-code
 
 # Download the broad reviewed library while keeping the active set controlled
 loadout setup --mode maximum --agents codex,claude-code
+loadout setup --mode maximum --agents codex,claude-code --details
 ```
 
 Maximum stores reviewed copies in Loadout's disabled library; it does not expose the
@@ -142,6 +141,21 @@ them.
 
 ```bash
 loadout mcp-recipe --no-key
+loadout mcp-recipe --credential-free
+
+# Preview, configure, verify, then remove Playwright for Codex
+loadout mcp-recipe playwright --agent codex
+loadout mcp-recipe playwright --agent codex --yes
+loadout mcp-recipe playwright --agent codex --verify
+loadout remove mcp-recipe:playwright:codex
+loadout remove mcp-recipe:playwright:codex --yes
+
+# Repeat independently for Claude Code
+loadout mcp-recipe playwright --agent claude-code
+loadout mcp-recipe playwright --agent claude-code --yes
+loadout mcp-recipe playwright --agent claude-code --verify
+loadout remove mcp-recipe:playwright:claude-code
+loadout remove mcp-recipe:playwright:claude-code --yes
 ```
 
 Expect Playwright MCP, Chrome DevTools MCP, and GitHub read-only. None requires a
@@ -169,7 +183,7 @@ cleanup deliberately deletes Loadout's snapshots, so it is the last lifecycle te
 ## Troubleshooting and recovery
 
 - **`loadout` is not found after installation:** confirm `npm install --global
-loadout-ai@0.4.1` completed, run `hash -r`, and confirm npm's global binary
+loadout-ai@0.5.0` completed, run `hash -r`, and confirm npm's global binary
   directory is on `PATH`. For a source checkout, run `npm run build` and `npm link`.
 - **A preview asks for `--approve-risk`:** read the reported scripts, domains,
   credentials, binaries, or instruction findings. If you accept that specific plan,

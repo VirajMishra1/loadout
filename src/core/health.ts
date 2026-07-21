@@ -10,6 +10,7 @@ import { managedFileReadPath } from "./active-set.js";
 import { detectAgents } from "./paths.js";
 import { readInstallState } from "./state.js";
 import { buildUpdatePlan, type UpdatePlan } from "./update.js";
+import { codexMcpServerFingerprint } from "./codex-mcp.js";
 
 async function drift(
   record: InstallRecord,
@@ -37,8 +38,16 @@ async function mcpDrift(
   configPath: string,
   serverName: string,
   expected: string,
+  configFormat: "json" | "codex-toml" = "json",
 ): Promise<boolean> {
   try {
+    if (configFormat === "codex-toml")
+      return (
+        codexMcpServerFingerprint(
+          await readFile(configPath, "utf8"),
+          serverName,
+        ) !== expected
+      );
     const config = JSON.parse(await readFile(configPath, "utf8")) as {
       mcpServers?: Record<string, unknown>;
     };
@@ -75,7 +84,12 @@ export async function buildHealthReport(
   const driftedMcpServers = (
     await Promise.all(
       (state.mcpInstalls ?? []).map((entry) =>
-        mcpDrift(entry.configPath, entry.serverName, entry.fingerprint),
+        mcpDrift(
+          entry.configPath,
+          entry.serverName,
+          entry.fingerprint,
+          entry.configFormat,
+        ),
       ),
     )
   ).filter(Boolean).length;
@@ -134,11 +148,15 @@ export async function buildHealthReport(
       message: `${errors.length} update check(s) could not be completed.`,
       fix: "Check connectivity and retry.",
     });
+  const configured =
+    state.installs.length > 0 || (state.mcpInstalls ?? []).length > 0;
   const status = findings.some((finding) => finding.level === "error")
     ? "unhealthy"
-    : findings.some((finding) => finding.level === "warning")
-      ? "attention"
-      : "healthy";
+    : !configured
+      ? "not-configured"
+      : findings.some((finding) => finding.level === "warning")
+        ? "attention"
+        : "healthy";
   return {
     status,
     generatedAt: new Date().toISOString(),
@@ -154,13 +172,15 @@ export async function buildHealthReport(
 
 export function formatHealthReport(report: HealthReport): string {
   const icon =
-    report.status === "healthy"
-      ? "✓"
-      : report.status === "attention"
-        ? "!"
-        : "✗";
+    report.status === "not-configured"
+      ? "•"
+      : report.status === "healthy"
+        ? "✓"
+        : report.status === "attention"
+          ? "!"
+          : "✗";
   const lines = [
-    `${icon} Loadout health: ${report.status}`,
+    `${icon} Loadout health: ${report.status === "not-configured" ? "not configured" : report.status}`,
     `Packages: ${report.installedPackages} installed, ${report.updatesChecked ? `${report.updatesAvailable} update(s)` : "updates not checked (use --updates)"}, ${report.driftedFiles} drifted file(s), ${report.driftedMcpServers} drifted MCP server(s)`,
   ];
   for (const finding of report.findings)

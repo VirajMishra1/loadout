@@ -472,6 +472,51 @@ function activationKey(
   return `${record.packageId}\0${record.agent}\0${record.unitId ?? ""}`;
 }
 
+async function revalidateExactActivationPlan(
+  plan: ActivationPlan,
+): Promise<ActivationPlan> {
+  const selectorsByAgent = new Map<AgentId, string[]>();
+  for (const change of plan.changes) {
+    const selectors = selectorsByAgent.get(change.agent) ?? [];
+    selectors.push(
+      change.unitId ? `${change.packageId}/${change.unitId}` : change.packageId,
+    );
+    selectorsByAgent.set(change.agent, selectors);
+  }
+  const fragments = await Promise.all(
+    [...selectorsByAgent].map(([agent, selectors]) =>
+      planActivationChange(plan.action, selectors, { agents: [agent] }),
+    ),
+  );
+  const changes = fragments.flatMap((fragment) => fragment.changes);
+  const plannedKeys = plan.changes.map(activationKey);
+  const freshKeys = changes.map(activationKey);
+  if (
+    new Set(plannedKeys).size !== plannedKeys.length ||
+    new Set(freshKeys).size !== freshKeys.length ||
+    plannedKeys.length !== freshKeys.length ||
+    plannedKeys.some((key) => !freshKeys.includes(key))
+  )
+    throw new Error(
+      "Activation selection changed after preview; generate a new plan before applying.",
+    );
+  const order = new Map(plannedKeys.map((key, index) => [key, index]));
+  changes.sort(
+    (left, right) =>
+      order.get(activationKey(left))! - order.get(activationKey(right))!,
+  );
+  const warnings = fragments.flatMap((fragment) => fragment.warnings);
+  return {
+    action: plan.action,
+    packages: plan.packages,
+    ...(plan.requestedAgents ? { requestedAgents: plan.requestedAgents } : {}),
+    changes,
+    skipped: fragments.flatMap((fragment) => fragment.skipped),
+    blocked: warnings.length > 0,
+    warnings,
+  };
+}
+
 export async function applyActivationChange(
   plan: ActivationPlan,
   options: { preflight?: () => Promise<void> } = {},
@@ -479,9 +524,7 @@ export async function applyActivationChange(
   const applied = await runMutationTransaction(
     async () => {
       await options.preflight?.();
-      const fresh = await planActivationChange(plan.action, plan.packages, {
-        ...(plan.requestedAgents ? { agents: plan.requestedAgents } : {}),
-      });
+      const fresh = await revalidateExactActivationPlan(plan);
       if (fresh.blocked) throw new Error(fresh.warnings.join("; "));
       if (!fresh.changes.length)
         throw new Error(

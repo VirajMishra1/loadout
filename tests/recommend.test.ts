@@ -113,6 +113,33 @@ describe("project recommendations", () => {
     ).toBe(true);
   });
 
+  it("does not call a CLI-only TypeScript package web-capable", async () => {
+    root = await mkdtemp(join(tmpdir(), "loadout-recommend-cli-only-"));
+    await writeFile(
+      join(root, "package.json"),
+      JSON.stringify({
+        bin: { example: "dist/cli.js" },
+        dependencies: { commander: "1" },
+        devDependencies: { typescript: "1", vitest: "1" },
+      }),
+    );
+    const catalog = [
+      {
+        id: "playwright-mcp",
+        displayName: "Playwright MCP",
+        repository: "microsoft/playwright-mcp",
+        description: "Browser automation",
+        category: "mcp",
+        tier: "stable",
+        components: ["mcp"],
+      },
+    ] as CatalogPackage[];
+
+    const signals = await scanProject(root);
+    expect(signals.frameworks).not.toContain("playwright");
+    expect(recommendPackages(signals, catalog)).toEqual([]);
+  });
+
   it("detects bounded Node CLI, package, test, security, and MCP signals", async () => {
     root = await mkdtemp(join(tmpdir(), "loadout-recommend-cli-"));
     await writeFile(

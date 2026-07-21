@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+## 0.5.2 - 2026-07-21
+
+### Fixed
+
+- Revalidate and apply the exact skill-and-agent activation delta shown in a project
+  preview instead of broadening package selections across every requested agent.
+- Reject browser-testing skills and Playwright MCP recommendations for CLI-only
+  TypeScript projects without a browser or frontend signal.
+- Replace unexplained ranking numbers and a duplicated full activation delta with a
+  concise exact-transaction summary in the default project optimization output.
+
 ## 0.5.1 - 2026-07-21
 
 ### Fixed

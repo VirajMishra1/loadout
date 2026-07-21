@@ -129,6 +129,14 @@ function hasProjectCompatibility(
     )
   )
     return false;
+  if (
+    /playwright|e2e|webapp-testing|browser-testing/.test(name) &&
+    !project.frameworks.includes("playwright") &&
+    !project.frameworks.some((framework) =>
+      ["react", "next.js", "vue", "svelte"].includes(framework),
+    )
+  )
+    return false;
   return true;
 }
 
@@ -554,8 +562,7 @@ export function formatProjectActivation(plan: ProjectActiveSetPlan): string {
       `${agentPlan.displayName}: ${agentPlan.activeBefore} active (${agentPlan.managedBefore} managed, ${agentPlan.unmanagedBefore} unmanaged); ${agentPlan.capacity}/${plan.limit} slots available`,
       `Proposed additions for ${agentPlan.displayName}: ${agentPlan.selected.length}`,
       ...agentPlan.selected.map(
-        (item) =>
-          `  + ${item.selector} [${item.score}] — ${item.reasons.join(", ")}`,
+        (item) => `  + ${item.selector} — ${item.reasons.join(", ")}`,
       ),
       ...agentPlan.alternatives.map(
         (item) =>
@@ -563,7 +570,16 @@ export function formatProjectActivation(plan: ProjectActiveSetPlan): string {
       ),
     ]),
     ...(plan.activation
-      ? ["", "Exact activation delta:", formatActivationPlan(plan.activation)]
+      ? plan.activation.blocked
+        ? [
+            "",
+            "Blocked activation details:",
+            formatActivationPlan(plan.activation),
+          ]
+        : [
+            "",
+            `Activation transaction: ${plan.activation.changes.length} exact skill change(s), applied together with one rollback snapshot.`,
+          ]
       : []),
     ...plan.warnings.map((warning) => `Warning: ${warning}`),
   ].join("\n");

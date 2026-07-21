@@ -227,11 +227,15 @@ export function recommendPackages(
     );
   if (
     signals.frameworks.includes("playwright") ||
-    signals.languages.includes("javascript/typescript")
+    signals.frameworks.some((item) =>
+      ["react", "next.js", "vue", "svelte"].includes(item),
+    )
   )
     add(
       "playwright-mcp",
-      "Browser verification is useful for this web-capable project.",
+      signals.frameworks.includes("playwright")
+        ? "Playwright is already configured in this project."
+        : "Browser verification may help test the detected frontend framework.",
       signals.frameworks.includes("playwright") ? "high" : "medium",
     );
   if (signals.files.includes(".git"))

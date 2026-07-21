@@ -389,26 +389,67 @@ shown in their output.
 ## Built with Codex and GPT-5.6
 
 Loadout was built during OpenAI Build Week by a three-person team working with Codex
-and GPT-5.6 as an engineering partner. We did not use Codex to generate a throwaway
-demo around a prompt; we used it throughout the real product loop:
+and GPT-5.6. Codex was not a chat box bolted onto the finished project. It was the
+engineering environment we used to plan, build, test, and repeatedly challenge the
+product while it was taking shape.
 
-- **Planning:** turning the original “one install for the best agent extensions” idea
-  into the Stable, Power, Maximum, discovery, update, and rollback architecture.
-- **Engineering:** implementing and refactoring the TypeScript CLI, agent adapters,
-  catalog pipeline, safety checks, transactions, MCP recipes, and runtime-tool flow.
-- **Research:** comparing extension ecosystems, inspecting upstream repositories,
-  checking claims, and keeping popularity separate from trust.
-- **Debugging:** reproducing hands-on test failures, tracing filesystem and update
-  behavior, and adding regression tests instead of papering over errors.
-- **Verification:** running the complete release gate, package smoke tests,
-  performance checks, and real installs against Codex and Claude Code profiles.
-- **Collaboration:** reviewing work across teammate branches, preparing focused pull
-  requests, and keeping the master plan aligned with the code that actually shipped.
+### From a broad idea to a working product
 
-The humans chose the product direction, reviewed the tradeoffs, tested it on real
-machines, and made the release decisions. Codex and GPT-5.6 helped us move from idea
-to a tested CLI much faster—and gave us enough iteration time to care about rollback,
-attribution, and the unglamorous details that make a developer tool trustworthy.
+The starting idea was simple: one install that gives every coding agent the best
+extensions on GitHub. The difficult part was everything hidden inside that sentence.
+What counts as “best”? How much should stay active? What happens to skills a user
+already has? How do you update a repository without silently trusting new code? How
+do you undo changes across several agents?
+
+We used GPT-5.6 through Codex for the repo-wide reasoning behind those decisions.
+Together, we turned the idea into three distinct modes: a bounded Stable daily
+driver, a larger Power setup, and a Maximum library that keeps broad optionality
+without loading thousands of skills into every prompt.
+
+| Part of the build  | How we used Codex and GPT-5.6                                                                                                | What made it into Loadout                                                                                   |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| Product planning   | Broke the original idea into testable user journeys and challenged unsafe assumptions                                        | Stable, Power, Maximum, Custom, project optimization, discovery, updates, and complete uninstall            |
+| Architecture       | Traced how catalogs, adapters, agent directories, manifests, and snapshots affect one another                                | A local TypeScript CLI with a shared catalog, 12 agent adapters, and snapshot-backed transactions           |
+| Ecosystem research | Compared repositories, checked source layouts and licenses, and separated popularity from evidence                           | 53 pinned catalog sources plus a discovery snapshot watching 240 repositories                               |
+| Implementation     | Wrote and refactored CLI commands, schemas, source fetchers, installers, active-set logic, and MCP configuration             | The published `loadout-ai` package and the commands documented above                                        |
+| Safety work        | Looked for scripts, hooks, binaries, credential references, target collisions, stale previews, and external edits            | Preview-first changes, quarantined skill units, explicit risk approval, drift protection, and rollback      |
+| Testing            | Generated adversarial cases, reproduced failures from real terminal sessions, and converted them into regression tests       | 620 passing tests, CLI and README end-to-end flows, package smoke tests, and a 1,000-skill performance gate |
+| Team integration   | Audited teammate branches, compared them with `main`, prepared focused pull requests, and checked what was actually complete | One public history instead of three disconnected prototypes                                                 |
+| Release work       | Verified npm contents, version behavior, GitHub metadata, documentation claims, and public CI                                | A public npm package, credited upstream catalog, release evidence, and a reproducible verification command  |
+
+### Real testing changed the code
+
+Codex was most useful when the neat plan met a messy laptop. A few examples:
+
+- A Graphify install appeared in Claude Code but vanished from Codex inventory
+  because the generated runtime skill and the normal skill scanner used different
+  Codex paths. The scan now recognizes managed runtime-tool skills explicitly.
+- Update checks repeatedly timed out on large repositories. We measured the real
+  clone cost, changed the update path to check remote commit metadata first, and only
+  fetch a full snapshot when a pinned source actually changed.
+- Existing unmanaged skills could occupy the same target as a Stable install.
+  Instead of overwriting them, Loadout now stops, scans, compares, and offers a
+  separate reconciliation path for exact or unambiguous matches.
+- ChatGPT and Claude subscriptions were easy to confuse with separately billed API
+  access. Setup now asks about API access explicitly, while credentialed MCP servers
+  remain separate from automatic skill installation.
+
+Those fixes came from a loop we repeated throughout the week: run the real command,
+paste the exact output into Codex, trace the behavior through the codebase, write a
+regression test, fix the smallest responsible layer, and run the full release gate.
+
+### What the team owned
+
+The humans chose the product direction, selected the tradeoffs, reviewed upstream
+projects, tested Loadout on real Codex and Claude Code profiles, approved risky
+operations, and made every release decision. GPT-5.6 helped with high-context design,
+debugging, and review; Codex handled the implementation loop and verification tools.
+Neither replaced human judgment about what should be installed on someone else's
+machine.
+
+Loadout itself does **not** call GPT-5.6 and does not require an OpenAI API key to
+manage skills. Codex and GPT-5.6 helped build the tool; they are not a hidden runtime
+dependency.
 
 ## Development
 

@@ -52,6 +52,17 @@ try {
   const packResult = JSON.parse(packed.stdout);
   if (!Array.isArray(packResult) || !packResult[0]?.filename)
     throw new Error("npm pack did not report a tarball");
+  const packedFiles = new Set(
+    (packResult[0].files ?? []).map((entry) => entry.path),
+  );
+  for (const removedArtifact of [
+    "dist/src/dashboard.js",
+    "dist/src/core/demo.js",
+  ])
+    if (packedFiles.has(removedArtifact))
+      throw new Error(
+        `Removed product surface leaked into the package: ${removedArtifact}`,
+      );
   const tarball = join(temporary, packResult[0].filename);
   const consumer = join(temporary, "consumer");
   await mkdir(consumer, { recursive: true });

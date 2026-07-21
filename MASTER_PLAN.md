@@ -266,6 +266,10 @@ merged `codex/relatable-readme-hero` remote branch remains safe to delete after 
       catalog/discovery/README/release evidence, 113 test files with 603 passing and
       one intentional skip, both CLI product journeys, packed npm smoke, and seven
       real 1,000-skill scans at 1,468.2 ms p95.
+- [x] `P18-36 [TERRA]` Close the stale-build packaging gap caught by the first npm
+      publish attempt. Every build now removes `dist` first on every platform, and the
+      package smoke test rejects removed dashboard/demo JavaScript if it ever leaks
+      back into the tarball. The failed OTP-gated attempt published nothing.
 
 ### Release 0.3 lifecycle hardening
 

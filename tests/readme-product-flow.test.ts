@@ -99,7 +99,7 @@ describe("README product flow", () => {
         ) ?? [];
     expect(heroImages).toHaveLength(1);
     expect(heroImages[0]).toContain(
-      'alt="Loadout workflow: choose extensions, inspect sources, preview changes, apply through a managed snapshot, and undo safely across supported AI coding agents."',
+      'alt="Loadout discovers skills, tools, and MCP servers, keeps them in a screened library, matches an active set to each project, and manages them across AI coding agents."',
     );
     expect(readme).not.toMatch(/founder|revolutionary|game-changing/i);
     expect(readme).toContain("Agent extensions, under control.");
@@ -110,16 +110,17 @@ describe("README product flow", () => {
     expectOrderedReadmeStructure(
       readme,
       [
+        "## Install",
         "## How it works",
         "### Abridged terminal transcript",
         "## Why Loadout",
-        "## Install",
         "## Stable workflow",
         "## Profiles",
         "## Catalog and discovery",
         "## Trust and limits",
         "## Agent support",
         "## Command reference",
+        "## Built with Codex and GPT-5.6",
         "## Development",
         "## Documentation",
         "## Contributing, security, and attribution",
@@ -139,19 +140,20 @@ describe("README product flow", () => {
   it("tells the Loadout story in the Why Loadout section", async () => {
     const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
     const start = readme.indexOf("## Why Loadout");
-    const end = readme.indexOf("## Install", start);
+    const end = readme.indexOf("## Stable workflow", start);
     expect(start).toBeGreaterThanOrEqual(0);
     expect(end).toBeGreaterThan(start);
 
     const whyLoadout = readme.slice(start, end);
     const storyAnchors = [
-      /skills, plugins, MCP servers, and agent settings[^.]*accumulate[^.]*experiment/i,
+      /why does improving an AI coding agent[^?]*GitHub tabs/i,
+      /skills, plugins, MCP servers, and settings[^.]*experiment/i,
       /hard to remember[^.]*installed[^.]*came from[^.]*undo/i,
-      /in a game[^.]*loadout[^.]*tools[^.]*mission/i,
-      /AI coding agents/i,
-      /inspect[^.]*choose intentionally/i,
-      /managed changes/i,
-      /remove[^.]*roll it back later/i,
+      /name comes from games[^.]*loadout[^.]*tools[^.]*mission/i,
+      /AI\s+coding agents/i,
+      /what is actually worth knowing/i,
+      /disabled Maximum library/i,
+      /focused active set/i,
     ];
 
     let previousIndex = -1;
@@ -179,9 +181,7 @@ describe("README product flow", () => {
     expect(readme).toContain(
       '<a href="https://github.com/VirajMishra1/loadout/actions/workflows/ci.yml"><img src="https://github.com/VirajMishra1/loadout/actions/workflows/ci.yml/badge.svg" alt="CI status"></a>',
     );
-    expect(readme).toContain(
-      "git clone https://github.com/VirajMishra1/loadout.git",
-    );
+    expect(readme).not.toContain("git clone ");
     expect(readme).toContain("https://github.com/VirajMishra1/loadout/issues");
     expect(readme).not.toContain("https://github.com/reddynitish/loadout");
     expect(packageJson.repository.url).toBe(

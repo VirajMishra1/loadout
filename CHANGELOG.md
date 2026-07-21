@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.5.5 - 2026-07-21
+
 ### Changed
 
 - Summarize update checks as active, disabled-library, current, and unavailable

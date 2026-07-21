@@ -52,9 +52,9 @@ describe("README facts", () => {
     });
 
     expect(facts.catalog).toMatchObject({
-      records: 51,
-      categories: 38,
-      components: { skill: 32 },
+      records: 53,
+      categories: 39,
+      components: { skill: 34 },
       installShapes: { mcpOnly: 19 },
       noAssertionLicenses: 6,
     });

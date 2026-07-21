@@ -280,6 +280,7 @@ export async function scanSkillSecurity(
   const contents = new Map<string, string>();
   const findings: SkillSecurityFinding[] = [];
   let totalBytes = 0;
+  const ignoredDirectories = new Set([".git", ".cache", "node_modules"]);
 
   async function visit(directory: string, depth: number): Promise<void> {
     if (depth > 12) {
@@ -296,6 +297,7 @@ export async function scanSkillSecurity(
     }
     const entries = await readdir(directory, { withFileTypes: true });
     for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
+      if (entry.isDirectory() && ignoredDirectories.has(entry.name)) continue;
       const absolute = join(directory, entry.name);
       const path = normalizedPath(root, absolute);
       const info = await lstat(absolute);

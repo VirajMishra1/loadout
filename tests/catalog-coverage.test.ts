@@ -13,7 +13,7 @@ describe("catalog capability coverage", () => {
     expect(report.technicallyScreenedRecords).toBe(catalog.length);
     expect(report.recommendedRecords).toBe(4);
     expect(report.trustStages).toMatchObject({
-      inspected: 47,
+      inspected: 49,
       recommended: 4,
       "human-reviewed": 0,
       benchmarked: 0,

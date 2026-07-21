@@ -458,7 +458,7 @@ export async function applyPackageUpdate(
     await (runtime.detectAgents ?? detectAgents)(),
     record.targetAgents,
   );
-  const plan = await (runtime.buildPlan ?? buildSkillPlan)(
+  let plan = await (runtime.buildPlan ?? buildSkillPlan)(
     current.path,
     record.packageId,
     agents,
@@ -473,6 +473,37 @@ export async function applyPackageUpdate(
         }
       : {},
   );
+  if (units.length) {
+    const activeTargets = new Map(
+      (state.activations ?? [])
+        .filter(
+          (activation) =>
+            activation.packageId === packageId &&
+            activation.installationState === "installed" &&
+            activation.activationState === "active" &&
+            activation.unitId,
+        )
+        .flatMap((activation) =>
+          activation.targets.map(
+            (target) =>
+              [
+                `${activation.agent}\0${activation.unitId!.toLowerCase()}`,
+                target.activePath,
+              ] as const,
+          ),
+        ),
+    );
+    plan = {
+      ...plan,
+      files: plan.files.map((file) => {
+        const unitId = file.skillName ?? basename(file.target);
+        const target = file.targetAgent
+          ? activeTargets.get(`${file.targetAgent}\0${unitId.toLowerCase()}`)
+          : undefined;
+        return target ? { ...file, target } : file;
+      }),
+    };
+  }
   if (units.length) {
     const plannedUnits = [
       ...new Set(plan.files.map((file) => basename(file.target))),

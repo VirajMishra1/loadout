@@ -13,6 +13,8 @@ export const AGENT_DEFINITIONS: ReadonlyArray<{
   directory: readonly string[];
   /** Agent-owned roots whose presence proves an IDE/config installation. */
   detectionDirectories?: readonly (readonly string[])[];
+  /** Host-visible compatibility roots scanned without changing the install destination. */
+  additionalSkillDirectories?: readonly (readonly string[])[];
 }> = [
   {
     id: "claude-code",
@@ -29,6 +31,7 @@ export const AGENT_DEFINITIONS: ReadonlyArray<{
     // not exposed on the shell PATH. The shared Agent Skills root (~/.agents)
     // is also valid evidence when it already exists.
     detectionDirectories: [[".codex"], [".agents"]],
+    additionalSkillDirectories: [[".codex", "skills"]],
   },
   {
     id: "cursor",
@@ -231,6 +234,10 @@ export async function detectAgents(
       const detectionDirectories = definition.detectionDirectories?.map(
         (parts) => path.join(home, ...parts),
       ) ?? [dirnameForDetection(skillsDirectory)];
+      const additionalSkillsDirectories =
+        definition.additionalSkillDirectories
+          ?.map((parts) => path.join(home, ...parts))
+          .filter((directory) => directory !== skillsDirectory) ?? [];
       return {
         id: definition.id,
         displayName: definition.displayName,
@@ -247,6 +254,9 @@ export async function detectAgents(
             )
           ).some(Boolean),
         skillsDirectory,
+        ...(additionalSkillsDirectories.length
+          ? { additionalSkillsDirectories }
+          : {}),
       };
     }),
   );

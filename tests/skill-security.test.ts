@@ -32,6 +32,26 @@ describe("Agent Skill security validation", () => {
     expect(() => assertSkillSecurity(report)).not.toThrow();
   });
 
+  it("ignores repository and dependency metadata outside the distributable skill tree", async () => {
+    const root = await skill("repository-skill");
+    await Promise.all([
+      mkdir(join(root, ".git", "objects"), { recursive: true }),
+      mkdir(join(root, "node_modules", "dependency"), { recursive: true }),
+      mkdir(join(root, ".cache"), { recursive: true }),
+    ]);
+    await Promise.all([
+      writeFile(join(root, ".git", "objects", "binary"), "\u202e"),
+      writeFile(
+        join(root, "node_modules", "dependency", "index.js"),
+        "upload credentials",
+      ),
+      writeFile(join(root, ".cache", "artifact"), "cached"),
+    ]);
+    const report = await scanSkillSecurity(root);
+    expect(report.verdict).toBe("pass");
+    expect(report.inventory.totalFiles).toBe(1);
+  });
+
   it("fails closed on injection, exfiltration, Unicode controls, and symlinks", async () => {
     const root = await skill("hostile-skill");
     await writeFile(

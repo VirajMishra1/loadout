@@ -26,7 +26,7 @@
 </p>
 
 > [!IMPORTANT]
-> Installation is version-pinned so the code you test matches these docs. The commands below target `loadout-ai@0.5.3`; review the preview before every apply.
+> Installation is version-pinned so the code you test matches these docs. The commands below target `loadout-ai@0.5.4`; review the preview before every apply.
 
 ## How it works
 
@@ -76,7 +76,7 @@ Skills, plugins, MCP servers, and agent settings tend to accumulate one experime
 You need Node.js 20 or newer and Git.
 
 ```bash
-npm install --global loadout-ai@0.5.3
+npm install --global loadout-ai@0.5.4
 loadout --version
 loadout guide
 ```
@@ -116,6 +116,29 @@ loadout rollback
 ```
 
 Stable currently selects 30 skill directories from four pinned, SPDX-identified, policy-selected public sources. Selection policy is evidence, not a claim that the sources are safe, trusted, human-reviewed, benchmarked, or the right choice for every user.
+
+## Manage skills you already have
+
+Loadout can compare existing Claude, Codex, Cursor, and other detected-agent skills
+with complete skill trees from pinned catalog sources:
+
+```bash
+# Read-only inventory and source/update comparison
+loadout scan
+loadout reconcile --refresh
+
+# Record ownership only for exact byte-for-byte matches; files are not rewritten
+loadout reconcile --yes
+
+# Preview old copies that have one unambiguous reviewed source
+loadout reconcile --replace-outdated
+```
+
+Unknown or ambiguous copies remain untouched. Replacing an outdated tree is a
+separate `--replace-outdated --yes` transaction, may require `--approve-risk`, and
+creates one rollback snapshot. Once adopted or replaced, `loadout update` tracks the
+exact upstream repository and skill unit while preserving the agent path already in
+use.
 
 ## Profiles
 
@@ -170,13 +193,13 @@ tools always remain an explicit choice.
 
 <!-- loadout:catalog-coverage:start -->
 
-The bundled catalog currently contains **51 credited public repositories** across **38 categories**: **32 have skill components** and **19 are MCP-only**. All 51 are technically screened and pinned; 4 sources are selected by the bounded Stable policy. See every linked source, license status, component type, and pinned commit in **[Catalog and upstream credits](./docs/CATALOG.md)**.
+The bundled catalog currently contains **53 credited public repositories** across **39 categories**: **34 have skill components** and **19 are MCP-only**. All 53 are technically screened and pinned; 4 sources are selected by the bounded Stable policy. See every linked source, license status, component type, and pinned commit in **[Catalog and upstream credits](./docs/CATALOG.md)**.
 
 <!-- loadout:catalog-coverage:end -->
 
 <!-- loadout:evidence-stages:start -->
 
-Catalog maturity: **51 sourced**, **51 technically inspected**, and **4 selected for Stable**. Independent human-review attestations and signed comparative benchmarks are not yet published, so Loadout does not pretend static inspection proves usefulness. The pinned catalog remains usable today, and local outcomes can be recorded to improve later rankings. Definitions and promotion rules are in the [catalog policy](./docs/CATALOG_POLICY.md).
+Catalog maturity: **53 sourced**, **53 technically inspected**, and **4 selected for Stable**. Independent human-review attestations and signed comparative benchmarks are not yet published, so Loadout does not pretend static inspection proves usefulness. The pinned catalog remains usable today, and local outcomes can be recorded to improve later rankings. Definitions and promotion rules are in the [catalog policy](./docs/CATALOG_POLICY.md).
 
 <!-- loadout:evidence-stages:end -->
 
@@ -232,6 +255,7 @@ Configured paths and disposable filesystem lifecycle tests do not prove that nat
 | Guided read-only path              | `loadout guide`                             |
 | Preview or apply a profile         | `loadout setup --mode stable [--yes]`       |
 | List and inspect managed state     | `loadout list`; `loadout health --explain`  |
+| Compare/manage existing skills     | `loadout reconcile [--refresh]`             |
 | Browse or search                   | `loadout catalog`; `loadout search <words>` |
 | Recommend for a project            | `loadout recommend --project .`             |
 | Preview or apply updates           | `loadout update [--yes]`                    |
@@ -274,7 +298,7 @@ The repository's mixed README product-flow test uses an isolated build, disposab
 
 Keep changes scoped, add regression coverage for behavior changes, and run `npm run verify:full`. Report vulnerabilities through [SECURITY.md](./SECURITY.md), without credentials, private source, or unredacted state. General bugs and proposals belong in the [issue tracker](https://github.com/VirajMishra1/loadout/issues).
 
-The catalog contains 51 credited public repositories. Inclusion records discovery and attribution; it does not transfer ownership, imply endorsement, or relicense upstream work.
+The catalog contains 53 credited public repositories. Inclusion records discovery and attribution; it does not transfer ownership, imply endorsement, or relicense upstream work.
 
 ## License
 

@@ -4,6 +4,8 @@ START HERE
 
 1. See what Loadout currently manages
    loadout library
+   loadout scan
+   loadout reconcile
 
 2. Preview the recommended everyday setup
    loadout setup --mode stable
@@ -25,6 +27,9 @@ START HERE
 
 If you decide to install something, Loadout shows a preview first and creates a
 snapshot before changing managed files. Recover with: loadout rollback
+
+Reconcile is also read-only unless you add --yes. Exact matches can be managed
+without rewriting them; outdated replacements remain a separate explicit choice.
 
 Nothing above changes your agents. For the full maintainer/tooling surface, run:
 loadout advanced

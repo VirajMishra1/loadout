@@ -20,6 +20,34 @@ record for every skill, use `loadout library --all`. `scan` distinguishes
 Loadout-managed skills from your own pre-existing skills. `health` checks local drift only; add
 `--updates` only when you want it to contact the tracked public repositories.
 
+### Compare and manage pre-existing skills
+
+```bash
+# Refresh pinned source evidence and preview every existing unmanaged group
+loadout reconcile --refresh
+
+# Adopt only exact matches. This records provenance without rewriting skill files.
+loadout reconcile --yes
+
+# Preview old, unambiguous copies separately. Do not apply yet.
+loadout reconcile --replace-outdated
+```
+
+The preview groups identical copies shared by Claude, Codex, Cursor, and Windsurf.
+`exact` means the complete distributable tree matches one pinned catalog skill;
+`outdated` means one source is unambiguous but its tree differs; `ambiguous` and
+`unknown` are deliberately left unmanaged. Only after reviewing every displayed
+file, domain, script, environment, and instruction finding should you consider:
+
+```bash
+loadout reconcile --replace-outdated --yes --approve-risk
+```
+
+That replacement is one snapshot-backed transaction. Use `loadout rollback --list`
+and the printed snapshot ID to undo it. Later `loadout update` checks the tracked
+upstream repository for newer commits; it still previews and safety-checks changes
+instead of silently updating files.
+
 ## 2. Explore without installing
 
 ```bash
@@ -183,7 +211,7 @@ cleanup deliberately deletes Loadout's snapshots, so it is the last lifecycle te
 ## Troubleshooting and recovery
 
 - **`loadout` is not found after installation:** confirm `npm install --global
-loadout-ai@0.5.3` completed, run `hash -r`, and confirm npm's global binary
+loadout-ai@0.5.4` completed, run `hash -r`, and confirm npm's global binary
   directory is on `PATH`. For a source checkout, run `npm run build` and `npm link`.
 - **A preview asks for `--approve-risk`:** read the reported scripts, domains,
   credentials, binaries, or instruction findings. If you accept that specific plan,

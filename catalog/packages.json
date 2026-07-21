@@ -1172,5 +1172,52 @@
       ],
       "verifiedAt": "2026-07-21T08:45:00Z"
     }
+  },
+  {
+    "id": "cloudflare-skills",
+    "displayName": "Cloudflare Skills",
+    "repository": "cloudflare/skills",
+    "description": "Official agent skills for building on Cloudflare, Workers, Agents SDK, Durable Objects, Wrangler, and related platform services.",
+    "category": "cloud-platform",
+    "tier": "official",
+    "license": "Apache-2.0",
+    "components": ["skill", "plugin", "mcp"],
+    "operatingSystems": ["windows", "macos", "linux"],
+    "stars": 2443,
+    "pushedAt": "2026-07-13T22:00:33Z",
+    "source": {
+      "type": "github",
+      "url": "https://github.com/cloudflare/skills",
+      "defaultBranch": "main",
+      "commit": "70215303d44a81a0db3219428f4825b604fc6061",
+      "evidencePaths": [
+        "skills/cloudflare/SKILL.md",
+        "skills/agents-sdk/SKILL.md",
+        ".claude-plugin/plugin.json",
+        ".mcp.json"
+      ],
+      "verifiedAt": "2026-07-21T13:38:00Z"
+    }
+  },
+  {
+    "id": "humanizer",
+    "displayName": "Humanizer",
+    "repository": "blader/humanizer",
+    "description": "A writing skill that identifies common AI-generated prose patterns and rewrites text in a more natural voice.",
+    "category": "writing",
+    "tier": "community",
+    "license": "MIT",
+    "components": ["skill"],
+    "operatingSystems": ["windows", "macos", "linux"],
+    "stars": 30153,
+    "pushedAt": "2026-06-29T20:43:06Z",
+    "source": {
+      "type": "github",
+      "url": "https://github.com/blader/humanizer",
+      "defaultBranch": "main",
+      "commit": "1b48564898e999219882660237fde01bf4843a0f",
+      "evidencePaths": ["SKILL.md", "README.md", "LICENSE"],
+      "verifiedAt": "2026-07-21T13:38:00Z"
+    }
   }
 ]

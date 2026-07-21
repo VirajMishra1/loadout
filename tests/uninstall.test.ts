@@ -68,6 +68,12 @@ describe("complete Loadout uninstall", () => {
     });
     expect(plan.schedulers).toHaveLength(2);
     expect(formatUninstallPlan(plan)).toContain("loadout uninstall --yes");
+    expect(formatUninstallPlan(plan, { applying: true })).not.toContain(
+      "Dry run only",
+    );
+    expect(formatUninstallPlan(plan, { applying: true })).toContain(
+      "progress will be shown",
+    );
   });
 
   it("removes managed files and Loadout state while preserving unrelated files", async () => {
@@ -110,6 +116,53 @@ describe("complete Loadout uninstall", () => {
     expect(result.removedPackages).toBe(1);
     await expect(access(target)).rejects.toMatchObject({ code: "ENOENT" });
     expect(await readFile(unrelated, "utf8")).toBe("keep me");
+    await expect(access(process.env.LOADOUT_HOME)).rejects.toMatchObject({
+      code: "ENOENT",
+    });
+  });
+
+  it("preserves adopted pre-existing files while deleting Loadout state", async () => {
+    root = await mkdtemp(join(tmpdir(), "loadout-uninstall-adopted-"));
+    process.env.LOADOUT_HOME = join(root, ".loadout");
+    const target = join(root, "agent", "existing-skill");
+    await mkdir(target, { recursive: true });
+    await writeFile(join(target, "SKILL.md"), "pre-existing");
+    await recordInstall(
+      {
+        packageId: "adopted-existing-skill",
+        targetAgents: ["codex"],
+        warnings: [],
+        files: [{ source: target, target }],
+      },
+      "before",
+      { ownershipOrigin: "adopted" },
+    );
+
+    const plan = await buildUninstallPlan({
+      runtimeTools: async () => [],
+      schedulerPlans: () => [],
+    });
+    expect(plan.packages[0]).toMatchObject({ preserveFiles: true });
+    const progress: string[] = [];
+    await applyUninstall(
+      plan,
+      {
+        runtimeTools: async () => [],
+        schedulerPlans: () => [],
+        unschedule: async () => undefined,
+      },
+      { onProgress: (message) => progress.push(message) },
+    );
+
+    expect(await readFile(join(target, "SKILL.md"), "utf8")).toBe(
+      "pre-existing",
+    );
+    expect(progress).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining("Forgetting adopted ownership"),
+        expect.stringContaining("Deleting Loadout cache"),
+      ]),
+    );
     await expect(access(process.env.LOADOUT_HOME)).rejects.toMatchObject({
       code: "ENOENT",
     });

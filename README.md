@@ -223,14 +223,24 @@ relevant active loadout.
 
 ### Custom — take exact control
 
+Use `setup` when the listed packages should become the complete managed profile for
+the selected agents. Packages from the previous managed profile that are not listed
+will be retired, and the preview names every retirement:
+
 ```bash
 loadout setup --mode custom --package superpowers --package context7
+```
+
+Use `install` when you only want to add a package without replacing the current
+managed profile:
+
+```bash
 
 # Install the reviewed Humanizer writing skill into Codex
-loadout setup --mode custom --package humanizer --agents codex
+loadout install --mode custom --package humanizer --agents codex
 
 # Install the reviewed Obsidian skills explicitly
-loadout setup --mode custom --package obsidian-skills --agents codex,claude-code
+loadout install --mode custom --package obsidian-skills --agents codex,claude-code
 ```
 
 Run `loadout profiles` to compare every mode. MCP servers always use a separate

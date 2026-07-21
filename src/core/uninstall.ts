@@ -135,7 +135,7 @@ function assertSafeStateHome(stateHome: string): void {
 export async function applyUninstall(
   plan: CompleteUninstallPlan,
   dependencies: UninstallDependencies = {},
-  options: { force?: boolean } = {},
+  options: { force?: boolean; onProgress?: (message: string) => void } = {},
 ): Promise<{ removedPackages: number; removedRuntimeTools: number }> {
   assertSafeStateHome(plan.stateHome);
   const fresh = await buildUninstallPlan(dependencies);
@@ -145,19 +145,27 @@ export async function applyUninstall(
     );
 
   for (const id of fresh.runtimeTools) {
+    options.onProgress?.(`Removing runtime tool: ${id}`);
     const runtimePlan = await planRuntimeTool(id, {
       action: "remove",
       stateHome: fresh.stateHome,
     });
     await applyRuntimeToolPlan(runtimePlan, { approveRisk: true });
   }
-  for (const packagePlan of fresh.packages)
+  for (const [index, packagePlan] of fresh.packages.entries()) {
+    options.onProgress?.(
+      `${packagePlan.preserveFiles ? "Forgetting adopted ownership" : "Removing managed package"} [${index + 1}/${fresh.packages.length}]: ${packagePlan.packageId}`,
+    );
     await applyRemove(packagePlan, { force: options.force });
+  }
   await removeEmptyManagedDirectories(fresh.packages);
-  if (fresh.schedulers.length)
+  if (fresh.schedulers.length) {
+    options.onProgress?.("Removing daily read-only schedules");
     await (dependencies.unschedule
       ? dependencies.unschedule(fresh.schedulers)
       : applyNativeSchedulerBundle(fresh.schedulers as NativeSchedulerPlan[]));
+  }
+  options.onProgress?.("Deleting Loadout cache, library, history, and state");
   await rm(fresh.stateHome, { recursive: true, force: true });
   return {
     removedPackages: fresh.packages.length,
@@ -175,7 +183,10 @@ export async function uninstallGlobalCli(): Promise<void> {
   });
 }
 
-export function formatUninstallPlan(plan: CompleteUninstallPlan): string {
+export function formatUninstallPlan(
+  plan: CompleteUninstallPlan,
+  options: { applying?: boolean } = {},
+): string {
   const modifiedPaths = plan.packages.flatMap((entry) =>
     entry.files
       .filter((file) => file.status === "modified")
@@ -202,7 +213,13 @@ export function formatUninstallPlan(plan: CompleteUninstallPlan): string {
     "",
     ...plan.warnings.map((warning) => `Warning: ${warning}`),
     "",
-    "Dry run only. Re-run with `loadout uninstall --yes` to remove Loadout-managed data.",
-    "Add `--remove-cli` to also uninstall the global npm command.",
+    ...(options.applying
+      ? [
+          "Approved removal is starting. Large libraries can take several minutes; progress will be shown below.",
+        ]
+      : [
+          "Dry run only. Re-run with `loadout uninstall --yes` to remove Loadout-managed data.",
+          "Add `--remove-cli` to also uninstall the global npm command.",
+        ]),
   ].join("\n");
 }

@@ -137,6 +137,7 @@ describe("existing skill reconciliation", () => {
     const state = await readInstallState();
     expect(state.installs).toEqual([
       expect.objectContaining({
+        ownershipOrigin: "adopted",
         repository: "example/reviewed-skills",
         resolvedCommit: commit,
         targetAgents: ["claude-code", "codex"],

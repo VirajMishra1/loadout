@@ -12,6 +12,7 @@ import {
 
 export interface RemovePlan {
   packageId: string;
+  preserveFiles: boolean;
   files: Array<{ path: string; status: "unchanged" | "modified" | "missing" }>;
   mcpServers: Array<{
     configPath: string;
@@ -31,6 +32,14 @@ export async function planRemove(packageId: string): Promise<RemovePlan> {
   );
   if (!record && !trackedMcp.length)
     throw new Error(`Package is not managed by Loadout: ${packageId}`);
+  // Older releases encoded reconciled/adopted ownership in the generated id.
+  // Preserve that compatibility so upgrading Loadout protects already-adopted
+  // user content even before the new explicit state field has been written.
+  const preserveFiles = Boolean(
+    record &&
+    (record.ownershipOrigin === "adopted" ||
+      record.packageId.startsWith("adopted-")),
+  );
   const files = await Promise.all(
     (record?.files ?? []).map(async (file) => {
       const managedPath = managedFileReadPath(
@@ -54,7 +63,9 @@ export async function planRemove(packageId: string): Promise<RemovePlan> {
       }
     }),
   );
-  const modified = files.filter((file) => file.status === "modified");
+  const modified = preserveFiles
+    ? []
+    : files.filter((file) => file.status === "modified");
   const mcpServers = await Promise.all(
     trackedMcp.map(async (entry) => {
       try {
@@ -109,6 +120,11 @@ export async function planRemove(packageId: string): Promise<RemovePlan> {
   );
   const modifiedMcp = mcpServers.filter((entry) => entry.status === "modified");
   const warnings = [
+    ...(preserveFiles
+      ? [
+          "This package adopted pre-existing files; removal will forget Loadout ownership and preserve those files in place.",
+        ]
+      : []),
     ...(modified.length
       ? [`${modified.length} managed file(s) were modified outside Loadout.`]
       : []),
@@ -122,6 +138,7 @@ export async function planRemove(packageId: string): Promise<RemovePlan> {
     warnings.push("Removal is blocked unless --force is used.");
   return {
     packageId,
+    preserveFiles,
     files,
     mcpServers,
     blocked: modified.length > 0 || modifiedMcp.length > 0,
@@ -141,6 +158,7 @@ export async function applyRemove(
       const existing = fresh.files
         .filter((file) => file.status !== "missing")
         .map((file) => file.path);
+      const removableFiles = fresh.preserveFiles ? [] : existing;
       const configPaths = [
         ...new Set(
           fresh.mcpServers
@@ -149,12 +167,12 @@ export async function applyRemove(
         ),
       ];
       return {
-        targets: [...existing, ...configPaths, installStatePath()],
-        value: { fresh, existing, configPaths },
+        targets: [...removableFiles, ...configPaths, installStatePath()],
+        value: { fresh, removableFiles, configPaths },
       };
     },
-    async ({ fresh, existing, configPaths }) => {
-      for (const file of existing) await rm(file, { force: true });
+    async ({ fresh, removableFiles, configPaths }) => {
+      for (const file of removableFiles) await rm(file, { force: true });
       for (const configPath of configPaths) {
         const relevant = fresh.mcpServers.filter(
           (entry) =>
@@ -187,7 +205,9 @@ export async function applyRemove(
           proposed: { ...current, mcpServers: servers },
         });
       }
-      await forgetInstall(plan.packageId);
+      await forgetInstall(plan.packageId, {
+        dropActivations: fresh.preserveFiles,
+      });
     },
     { label: `remove ${plan.packageId}` },
   );

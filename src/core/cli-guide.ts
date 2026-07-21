@@ -31,6 +31,10 @@ snapshot before changing managed files. Recover with: loadout rollback
 Reconcile is also read-only unless you add --yes. Exact matches can be managed
 without rewriting them; outdated replacements remain a separate explicit choice.
 
+Setup reconciles the complete selected profile. To add one catalog package without
+retiring the current managed profile, use:
+   loadout install --mode custom --package <id>
+
 Nothing above changes your agents. For the full maintainer/tooling surface, run:
 loadout advanced
 `.trim();

@@ -242,6 +242,8 @@ export interface Snapshot {
 
 export interface InstallRecord {
   packageId: string;
+  /** Whether Loadout created this tree or only adopted a tree that already existed. */
+  ownershipOrigin?: "installed" | "adopted";
   repository?: string;
   resolvedCommit?: string;
   targetAgents: AgentId[];
@@ -259,6 +261,7 @@ export interface StaticAssessment {
 }
 
 export interface InstallMetadata {
+  ownershipOrigin?: "installed" | "adopted";
   repository?: string;
   resolvedCommit?: string;
   reviewed?: boolean;

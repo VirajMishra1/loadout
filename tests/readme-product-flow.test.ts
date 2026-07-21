@@ -95,11 +95,11 @@ describe("README product flow", () => {
       readme
         .match(/<img\b[^>]*>/gi)
         ?.filter((element) =>
-          /\ssrc="\.\/docs\/assets\/loadout-hero\.svg"/i.test(element),
+          /\ssrc="\.\/docs\/assets\/loadout-workflow\.png"/i.test(element),
         ) ?? [];
     expect(heroImages).toHaveLength(1);
-    expect(heroImages[0]).toMatch(
-      /\salt="[^"]*developer[^"]*(?:moving|arranging|selecting)[^"]*extensions[^"]*messy[^"]*unmanaged[^"]*organized[^"]*loadout slots[^"]*"/i,
+    expect(heroImages[0]).toContain(
+      'alt="Loadout workflow: choose extensions, inspect sources, preview changes, apply through a managed snapshot, and undo safely across supported AI coding agents."',
     );
     expect(readme).not.toMatch(/founder|revolutionary|game-changing/i);
     expect(readme).toContain("Agent extensions, under control.");

@@ -21,11 +21,11 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/VirajMishra1/loadout.git"
+    "url": "git+https://github.com/reddynitish/loadout.git"
   },
-  "homepage": "https://github.com/VirajMishra1/loadout#readme",
+  "homepage": "https://github.com/reddynitish/loadout#readme",
   "bugs": {
-    "url": "https://github.com/VirajMishra1/loadout/issues"
+    "url": "https://github.com/reddynitish/loadout/issues"
   },
   "publishConfig": {
     "access": "public"

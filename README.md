@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/VirajMishra1/loadout/actions/workflows/ci.yml"><img src="https://github.com/VirajMishra1/loadout/actions/workflows/ci.yml/badge.svg" alt="CI status"></a>
+  <a href="https://github.com/reddynitish/loadout/actions/workflows/ci.yml"><img src="https://github.com/reddynitish/loadout/actions/workflows/ci.yml/badge.svg" alt="CI status"></a>
   <a href="./package.json"><img src="https://img.shields.io/badge/Node.js-%3E%3D20-339933?logo=node.js&amp;logoColor=white" alt="Node.js 20 or newer"></a>
   <a href="./LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="MIT License"></a>
 </p>
@@ -84,7 +84,7 @@ loadout guide
 For source development instead:
 
 ```bash
-git clone https://github.com/VirajMishra1/loadout.git
+git clone https://github.com/reddynitish/loadout.git
 cd loadout
 npm ci
 npm run build
@@ -234,7 +234,7 @@ The repository's mixed README product-flow test uses an isolated build, disposab
 
 ## Contributing, security, and attribution
 
-Keep changes scoped, add regression coverage for behavior changes, and run `npm run verify:full`. Report vulnerabilities through [SECURITY.md](./SECURITY.md), without credentials, private source, or unredacted state. General bugs and proposals belong in the [issue tracker](https://github.com/VirajMishra1/loadout/issues).
+Keep changes scoped, add regression coverage for behavior changes, and run `npm run verify:full`. Report vulnerabilities through [SECURITY.md](./SECURITY.md), without credentials, private source, or unredacted state. General bugs and proposals belong in the [issue tracker](https://github.com/reddynitish/loadout/issues).
 
 The catalog contains 50 credited public repositories. Inclusion records discovery and attribution; it does not transfer ownership, imply endorsement, or relicense upstream work.
 

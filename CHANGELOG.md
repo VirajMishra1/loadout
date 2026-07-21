@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+## 0.5.6 - 2026-07-21
+
+### Changed
+
+- Resolve each repository's default-branch commit with a lightweight Git metadata
+  request before downloading files, deduplicate shared sources, and reuse exact
+  cached changed revisions for safety review.
+- Give changed repositories a bounded 120-second review window while keeping remote
+  commit checks at 30 seconds, so large reviewed sources do not produce permanent
+  false connectivity warnings under four-way concurrency.
+
+### Fixed
+
+- Complete update checks for large sources such as Scientific Agent Skills and
+  Awesome Copilot without weakening static diff analysis, activating disabled skills,
+  or treating a timed-out clone as a GitHub outage.
+
 ## 0.5.5 - 2026-07-21
 
 ### Changed

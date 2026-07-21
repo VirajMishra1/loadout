@@ -602,7 +602,7 @@ async function runSetup(options: SetupOptions): Promise<void> {
   }
 }
 
-const LOADOUT_VERSION = "0.5.5";
+const LOADOUT_VERSION = "0.5.6";
 
 function durableSchedulerLauncher(): string[] {
   return [
@@ -1618,7 +1618,7 @@ program
     }) => {
       if (options.updates && !options.json)
         console.error(
-          "Checking managed repositories (4 at a time, 30s per network operation)…",
+          "Checking repository commits (4 at a time; changed sources may take up to 120s for safety review)…",
         );
       const report = await buildHealthReport({
         updates: options.updates
@@ -4681,7 +4681,7 @@ program
       }
       if (!options.json)
         console.error(
-          "Checking managed repositories (4 at a time, 30s per network operation)…",
+          "Checking repository commits (4 at a time; changed sources may take up to 120s for safety review)…",
         );
       let plans = await buildUpdatePlan(undefined, {
         packageId: options.package,

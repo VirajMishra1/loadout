@@ -277,6 +277,14 @@ merged `codex/relatable-readme-hero` remote branch remains safe to delete after 
       previews an unblocked removal of 29 packages/2,316 disabled records, and health
       reports `library ready (nothing active)` with explicit counts. Release as
       `0.5.1` before continuing the complete-uninstall acceptance step.
+- [x] `P18-38 [TERRA]` Fix the founder-discovered asymmetric project-activation
+      scope bug. The `0.5.1` preview correctly budgeted 22 Codex and 18 Claude
+      additions, but apply-time revalidation broadened four Codex-only selectors
+      onto Claude. Revalidation now preserves the exact package, skill, and agent
+      tuple from the preview; a two-agent regression proves exact 30/18 applied
+      counts. CLI-only TypeScript projects also reject browser-testing and
+      Playwright false positives, and the default preview removes unexplained scores
+      and duplicated delta output. Release as `0.5.2` before resuming activation.
 
 ### Release 0.3 lifecycle hardening
 

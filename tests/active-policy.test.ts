@@ -8,7 +8,11 @@ import {
   formatProjectActivation,
   planProjectActivation,
 } from "../src/core/active-policy.js";
-import { activationLibraryPath, writeInstallState } from "../src/core/state.js";
+import {
+  activationLibraryPath,
+  readInstallState,
+  writeInstallState,
+} from "../src/core/state.js";
 import type { ManagedActivationRecord } from "../src/shared/types.js";
 
 describe("project-aware active-set policy", () => {
@@ -90,7 +94,10 @@ describe("project-aware active-set policy", () => {
     return project;
   }
 
-  async function writeNamedCodexLibrary(unitIds: string[]): Promise<string> {
+  async function writeNamedCodexLibrary(
+    unitIds: string[],
+    options: { playwright?: boolean } = {},
+  ): Promise<string> {
     const home = join(root, "home");
     process.env.LOADOUT_HOME = join(root, ".loadout");
     process.env.LOADOUT_USER_HOME = home;
@@ -108,7 +115,7 @@ describe("project-aware active-set policy", () => {
         dependencies: { commander: "1", zod: "1" },
         devDependencies: {
           vitest: "1",
-          "@playwright/test": "1",
+          ...(options.playwright === false ? {} : { "@playwright/test": "1" }),
           typescript: "1",
         },
       }),
@@ -276,6 +283,16 @@ describe("project-aware active-set policy", () => {
     expect(output).toContain(
       "Codex: 0 active (0 managed, 0 unmanaged); 30/30 slots available",
     );
+    expect(output).not.toMatch(/\[[0-9]+\]/);
+
+    await applyProjectActivation(plan);
+    const active = (await readInstallState()).activations!.filter(
+      (entry) => entry.activationState === "active",
+    );
+    expect(
+      active.filter((entry) => entry.agent === "claude-code"),
+    ).toHaveLength(18);
+    expect(active.filter((entry) => entry.agent === "codex")).toHaveLength(30);
   });
 
   it("aborts apply when an agent consumes capacity after preview", async () => {
@@ -409,6 +426,36 @@ describe("project-aware active-set policy", () => {
         "web-design-guidelines",
         "accessibility-compliance",
         "database-schema-designer",
+      ]),
+    );
+  });
+
+  it("rejects browser testing skills for a CLI-only TypeScript project", async () => {
+    root = await mkdtemp(join(tmpdir(), "loadout-active-cli-browser-gate-"));
+    const project = await writeNamedCodexLibrary(
+      [
+        "webapp-testing",
+        "playwright",
+        "e2e-testing-patterns",
+        "browser-testing",
+        "typescript-advanced-types",
+      ],
+      { playwright: false },
+    );
+
+    const plan = await planProjectActivation(project, {
+      agents: ["codex"],
+      limit: 30,
+    });
+    const selected = plan.agentPlans[0].selected.map((item) => item.unitId);
+
+    expect(selected).toContain("typescript-advanced-types");
+    expect(selected).not.toEqual(
+      expect.arrayContaining([
+        "webapp-testing",
+        "playwright",
+        "e2e-testing-patterns",
+        "browser-testing",
       ]),
     );
   });

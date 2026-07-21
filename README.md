@@ -7,7 +7,7 @@
 <p align="center"><strong>Agent extensions, under control.</strong></p>
 
 <p align="center">
-  A local CLI for inspecting, previewing, installing, and undoing managed extensions for AI coding agents.
+  One CLI to discover, install, update, and undo skills and tools across your AI coding agents.
 </p>
 
 <p align="center">
@@ -28,15 +28,24 @@
 > [!IMPORTANT]
 > Installation is version-pinned so the code you test matches these docs. The commands below target `loadout-ai@0.5.6`; review the preview before every apply.
 
+```bash
+npm install --global loadout-ai@0.5.6
+loadout setup --mode stable
+```
+
+That second command is a preview. It detects your agents and shows what Stable would
+install. Nothing enters Claude Code, Codex, Cursor, or another agent until you approve
+it with `--yes`.
+
 ## How it works
 
 **Choose -> Inspect -> Preview -> Apply -> Undo**
 
-1. **Choose** a bounded profile or explicit packages.
-2. **Inspect** pinned source and catalog metadata separately before setup.
-3. **Preview** detected agents, aggregate repository, directory, and collision counts, warnings, skipped entries, and package IDs needing approval without changing agent target files.
-4. **Apply** by rerunning with `--yes`; Loadout recomputes from current state before using a snapshot-backed transaction.
-5. **Undo** the latest supported mutation with drift checks that protect later edits.
+1. **Choose** Stable, Power, Maximum, or your own package list.
+2. **Inspect** where each extension comes from and what it can do.
+3. **Preview** every planned change without changing agent files.
+4. **Apply** with `--yes`; Loadout saves a rollback snapshot first.
+5. **Undo** with `loadout rollback` if you change your mind.
 
 ### Abridged terminal transcript
 
@@ -61,15 +70,19 @@ Restored snapshot <snapshot-id>
 
 The final preview sentence above is captured CLI wording. A later `--yes` invocation recomputes the plan from pinned sources and current agent and filesystem state; it does not persist or prove identity with the earlier preview.
 
-Preview may populate Loadout's own cache; it leaves agent target files unchanged. Review its aggregate counts, warnings, skipped entries, and package IDs needing approval before deciding whether to run a later apply command.
+Preview may fill Loadout's private download cache, but it does not change your agent
+files. Review the summary and warnings before approving an apply command.
 
 ## Why Loadout
 
 Skills, plugins, MCP servers, and agent settings tend to accumulate one experiment at a time. Eventually it becomes hard to remember what is installed, where it came from, or how to undo it. In a game, a loadout is the deliberate set of tools chosen before a mission. Loadout brings that same discipline to AI coding agents: inspect the available equipment, choose intentionally, apply it through managed changes, and remove or roll it back later.
 
-- **One managed inventory.** List installed packages, inspect drift, and track what Loadout owns across configured agent paths.
-- **Preview by default.** Setup, updates, removal, MCP recipes, and uninstall expose a plan before their supported writes.
-- **Recoverable changes.** Snapshots and managed-file hashes support rollback while refusing to overwrite later user edits.
+- **One inventory.** See what is installed, where it came from, and which files
+  Loadout manages across your agents.
+- **Safe by default.** Setup, updates, MCP configuration, removal, and uninstall show
+  a preview first.
+- **Easy to undo.** Every supported change creates a snapshot, while later manual
+  edits are protected from accidental overwrite.
 
 ## Install
 
@@ -92,13 +105,14 @@ npm link
 loadout --version
 ```
 
-For a first read-only preview, run:
+For your first preview, run:
 
 ```bash
 loadout setup --mode stable
 ```
 
-Nothing is installed until you explicitly approve the preview. See the [user test guide](./docs/USER_TEST_GUIDE.md) if linking, `PATH`, networking, risk approval, or rollback needs attention.
+Nothing is installed until you approve the preview. If a command is not found or a
+network check fails, use the [user test guide](./docs/USER_TEST_GUIDE.md).
 
 ## Stable workflow
 
@@ -109,18 +123,20 @@ loadout setup --mode stable
 # Recompute from current state and apply after reviewing the preview
 loadout setup --mode stable --yes
 
-# Inspect managed state, then undo the latest supported mutation
-loadout list
-loadout health --explain
+# Inspect managed state, then undo the install if needed
+loadout status
+loadout scan
 loadout rollback
 ```
 
-Stable currently selects 30 skill directories from four pinned, SPDX-identified, policy-selected public sources. Selection policy is evidence, not a claim that the sources are safe, trusted, human-reviewed, benchmarked, or the right choice for every user.
+Stable selects 30 useful skill directories from four public sources fixed to exact
+GitHub commits with identified licenses. It is Loadout's recommended everyday
+starting point, not a claim that one setup is best for every person or project.
 
 ## Manage skills you already have
 
-Loadout can compare existing Claude, Codex, Cursor, and other detected-agent skills
-with complete skill trees from pinned catalog sources:
+Already have skills? Loadout can compare them with exact catalog copies and manage
+the ones it can identify confidently:
 
 ```bash
 # Read-only inventory and source/update comparison
@@ -134,26 +150,28 @@ loadout reconcile --yes
 loadout reconcile --replace-outdated
 ```
 
-Unknown or ambiguous copies remain untouched. Replacing an outdated tree is a
-separate `--replace-outdated --yes` transaction, may require `--approve-risk`, and
-creates one rollback snapshot. Once adopted or replaced, `loadout update` tracks the
-exact upstream repository and skill unit while preserving the agent path already in
-use.
+Unknown or ambiguous copies stay untouched. Replacing an old copy is a separate,
+previewed transaction with its own rollback snapshot. Managed copies can then be
+checked by `loadout update` without moving them to a different agent path.
 
 ## Profiles
 
-| Profile     | Scope                                                                 |
-| ----------- | --------------------------------------------------------------------- |
-| **Stable**  | 30 active everyday skills from four pinned sources                    |
-| **Power**   | A deliberately larger active toolkit from eight pinned collections    |
-| **Maximum** | Every screened skill in a disabled library; activate relevant subsets |
-| **Custom**  | Only package IDs explicitly supplied by the user                      |
+| Profile     | Scope                                                                |
+| ----------- | -------------------------------------------------------------------- |
+| **Stable**  | Recommended: 30 active skills for everyday development               |
+| **Power**   | 50 active skills per agent for people who want a broader toolkit     |
+| **Maximum** | The broad screened library, stored disabled; activate only what fits |
+| **Custom**  | Install only the packages you name                                   |
 
-Run `loadout profiles` to compare them and `loadout setup --mode <profile>` to preview one. Stable limits context. Power trades more context for broader always-available capability. Maximum gives you the largest library without injecting thousands of skills into every prompt; `loadout optimize --project .` chooses a relevant working set. MCP-only entries stay on a separate approval path.
+Run `loadout profiles` to compare them. Stable is the normal starting point. Power
+keeps more skills active. Maximum downloads the broad library without exposing it all
+to every prompt; `loadout optimize --project .` proposes a project-specific active
+set. MCP servers always use a separate approval step.
 
 ## MCP integrations
 
-MCP servers are not silently started by Stable, Power, or Maximum. List the reviewed recipes and their credential requirements:
+Profiles never start MCP servers silently. First list the available recipes and see
+which ones need credentials:
 
 ```bash
 loadout mcp-recipe
@@ -171,14 +189,15 @@ loadout mcp-recipe playwright --agent claude-code
 loadout mcp-recipe playwright --agent claude-code --yes
 ```
 
-Configuration does not launch the server. A real bounded handshake requires the separate `--connect --approve-risk` action. Credentialed recipes accept environment or keychain references, never secret values in command output.
+Configuration alone does not start the server. Test a real connection separately
+with `--connect --approve-risk`. Loadout can reference credentials from environment
+variables or the OS keychain without printing their values.
 
 ## Optional runtime tools
 
-[Graphify](https://github.com/Graphify-Labs/graphify) is available as a separate,
-reviewed local runtime recipe because it installs an executable as well as an agent
-skill. It does not need an OpenAI or Anthropic API key. Loadout previews the pinned
-artifact, permissions, targets, and rollback scope before doing anything:
+[Graphify](https://github.com/Graphify-Labs/graphify) is an optional codebase graph
+tool. It installs both a command and an agent skill, so Loadout keeps it separate from
+the normal profiles. It does not require an OpenAI or Anthropic API key:
 
 ```bash
 loadout tool graphify --agents codex,claude-code
@@ -186,8 +205,7 @@ loadout tool graphify --agents codex,claude-code --yes --approve-risk
 loadout tool graphify --remove --agents codex,claude-code --yes --approve-risk
 ```
 
-Graphify is intentionally not hidden inside Stable, Power, or Maximum: executable
-tools always remain an explicit choice.
+Executable tools remain an explicit choice instead of hiding inside a profile.
 
 ## Catalog and discovery
 
@@ -250,20 +268,20 @@ Configured paths and disposable filesystem lifecycle tests do not prove that nat
 
 ## Command reference
 
-| Job                                | Command                                     |
-| ---------------------------------- | ------------------------------------------- |
-| Guided read-only path              | `loadout guide`                             |
-| Preview or apply a profile         | `loadout setup --mode stable [--yes]`       |
-| List and inspect managed state     | `loadout list`; `loadout health --explain`  |
-| Compare/manage existing skills     | `loadout reconcile [--refresh]`             |
-| Browse or search                   | `loadout catalog`; `loadout search <words>` |
-| Recommend for a project            | `loadout recommend --project .`             |
-| Preview or apply updates           | `loadout update [--yes]`                    |
-| Undo the latest supported mutation | `loadout rollback`                          |
-| Remove one managed package         | `loadout remove <package>`                  |
-| Preview complete removal           | `loadout uninstall`                         |
-| List reviewed MCP integrations     | `loadout mcp-recipe`                        |
-| Discover the full surface          | `loadout --help`; `loadout advanced`        |
+| What you want                      | Command                              |
+| ---------------------------------- | ------------------------------------ |
+| Start with guidance                | `loadout guide`                      |
+| Install the recommended setup      | `loadout setup --mode stable`        |
+| See installed and existing skills  | `loadout status`; `loadout scan`     |
+| Manage skills you already had      | `loadout reconcile --refresh`        |
+| Choose skills for the current repo | `loadout optimize --project .`       |
+| Find newly launched projects       | `loadout discover --source all`      |
+| Check for updates                  | `loadout update`                     |
+| Undo a change                      | `loadout rollback`                   |
+| Configure an MCP server            | `loadout mcp-recipe`                 |
+| Install or remove Graphify         | `loadout tool graphify [--remove]`   |
+| Remove all Loadout-managed data    | `loadout uninstall`                  |
+| See every advanced command         | `loadout advanced`; `loadout --help` |
 
 ## Development
 
@@ -291,8 +309,7 @@ The repository's mixed README product-flow test uses an isolated build, disposab
 - [Daily discovery snapshot](./docs/DISCOVERED.md)
 - [Candidate inspection and promotion](./docs/CANDIDATE_INTELLIGENCE.md)
 - [Credential and update policy](./docs/CREDENTIAL_AND_UPDATE_POLICY.md)
-- [Repository stabilization record](./docs/REPOSITORY_STABILIZATION.md)
-- [Engineering plan](./MASTER_PLAN.md) and [changelog](./CHANGELOG.md)
+- [Changelog](./CHANGELOG.md)
 
 ## Contributing, security, and attribution
 

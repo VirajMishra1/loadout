@@ -3,6 +3,7 @@ import { readFile, rm } from "node:fs/promises";
 import { forgetInstall, installStatePath, readInstallState } from "./state.js";
 import { writeMcpConfigPlan } from "./mcp.js";
 import { runMutationTransaction } from "./transaction.js";
+import { managedFileReadPath } from "./active-set.js";
 import {
   codexMcpServerFingerprint,
   removeCodexMcpServerBlock,
@@ -32,19 +33,24 @@ export async function planRemove(packageId: string): Promise<RemovePlan> {
     throw new Error(`Package is not managed by Loadout: ${packageId}`);
   const files = await Promise.all(
     (record?.files ?? []).map(async (file) => {
+      const managedPath = managedFileReadPath(
+        packageId,
+        file.path,
+        state.activations ?? [],
+      );
       try {
         const digest = createHash("sha256")
-          .update(await readFile(file.path))
+          .update(await readFile(managedPath))
           .digest("hex");
         return {
-          path: file.path,
+          path: managedPath,
           status:
             digest === file.sha256
               ? ("unchanged" as const)
               : ("modified" as const),
         };
       } catch {
-        return { path: file.path, status: "missing" as const };
+        return { path: managedPath, status: "missing" as const };
       }
     }),
   );

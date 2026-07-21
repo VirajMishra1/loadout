@@ -405,10 +405,13 @@ export interface HealthFinding {
 }
 
 export interface HealthReport {
-  status: "not-configured" | "healthy" | "attention" | "unhealthy";
+  status:
+    "not-configured" | "library-only" | "healthy" | "attention" | "unhealthy";
   generatedAt: string;
   agents: DetectedAgent[];
   installedPackages: number;
+  activeSkills?: number;
+  disabledSkills?: number;
   updatesChecked: boolean;
   updatesAvailable: number;
   driftedFiles: number;

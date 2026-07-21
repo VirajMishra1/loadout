@@ -270,6 +270,13 @@ merged `codex/relatable-readme-hero` remote branch remains safe to delete after 
       publish attempt. Every build now removes `dist` first on every platform, and the
       package smoke test rejects removed dashboard/demo JavaScript if it ever leaks
       back into the tarball. The failed OTP-gated attempt published nothing.
+- [x] `P18-37 [TERRA]` Fix the founder-discovered disabled-library uninstall bug.
+      Removal now resolves each managed file to its disabled Maximum-library copy,
+      never an unmanaged skill that later occupies the original active path. A
+      regression test preserves the replacement bytes, the real founder state now
+      previews an unblocked removal of 29 packages/2,316 disabled records, and health
+      reports `library ready (nothing active)` with explicit counts. Release as
+      `0.5.1` before continuing the complete-uninstall acceptance step.
 
 ### Release 0.3 lifecycle hardening
 

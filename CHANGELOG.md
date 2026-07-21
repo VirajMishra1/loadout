@@ -27,6 +27,8 @@
 
 ### Fixed
 
+- Clean compiled output before every build and reject removed dashboard/demo files
+  from the packed artifact, preventing stale JavaScript from leaking into npm.
 - Add human-readable rollback history with timestamps, mutation labels, affected
   roots, effective change counts, and explicit no-op guidance.
 - Report an empty managed installation as `not configured` rather than healthy.

@@ -24,6 +24,8 @@ describe("npm release contract", () => {
     expect(manifest.files).not.toContain("dashboard");
     expect(manifest.files).not.toContain("tests");
     expect(manifest.scripts?.prepack).toBe("npm run build");
+    expect(manifest.scripts?.prebuild).toBe("npm run clean");
+    expect(manifest.scripts?.clean).toBe("node scripts/clean-dist.mjs");
     expect(manifest.scripts?.["test:package"]).toBe(
       "node scripts/package-smoke.mjs",
     );

@@ -597,7 +597,7 @@ async function runSetup(options: SetupOptions): Promise<void> {
   }
 }
 
-const LOADOUT_VERSION = "0.5.2";
+const LOADOUT_VERSION = "0.5.3";
 
 function durableSchedulerLauncher(): string[] {
   return [
@@ -1759,7 +1759,7 @@ program
       console.log(JSON.stringify(plan, null, 2));
       if (!options.yes)
         return console.log(
-          "Dry run only. Re-run with --yes to remove these files.",
+          "Dry run only. Re-run with --yes to apply this removal plan.",
         );
       const snapshot = await applyRemove(plan, { force: options.force });
       console.log(`Removed ${packageId}. Snapshot: ${snapshot}`);
@@ -3540,7 +3540,7 @@ program
     [],
   )
   .option("--credential-account <account>", "account for keychain mappings")
-  .option("--timeout <milliseconds>", "real connection timeout", "8000")
+  .option("--timeout <milliseconds>", "real connection timeout", "30000")
   .option(
     "--approve-risk",
     "approve launching the reviewed pinned MCP artifact for --connect",

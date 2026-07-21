@@ -285,6 +285,15 @@ merged `codex/relatable-readme-hero` remote branch remains safe to delete after 
       counts. CLI-only TypeScript projects also reject browser-testing and
       Playwright false positives, and the default preview removes unexplained scores
       and duplicated delta output. Release as `0.5.2` before resuming activation.
+- [x] `P18-39 [TERRA]` Integrate reviewed runtime tools into the same inventory and
+      health truth as skill repositories. Founder testing proved Graphify installed
+      correctly for Claude Code and Codex, but the scanner counted Claude's target as
+      unmanaged and omitted Codex's official `~/.codex/skills` target because its
+      standard collection root is `~/.agents/skills`. Scan every registered runtime
+      target, attribute it to `runtime-tool:<id>`, count both host targets in health,
+      surface runtime/MCP totals and missing targets, label runtime snapshots, and
+      raise the default cold MCP handshake window to the tested 30 seconds. Release
+      as `0.5.3` before continuing Graphify removal and discovery/update acceptance.
 
 ### Release 0.3 lifecycle hardening
 

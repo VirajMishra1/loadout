@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 import type {
   HealthFinding,
   HealthReport,
@@ -11,6 +12,10 @@ import { detectAgents } from "./paths.js";
 import { readInstallState } from "./state.js";
 import { buildUpdatePlan, type UpdatePlan } from "./update.js";
 import { codexMcpServerFingerprint } from "./codex-mcp.js";
+import {
+  listInstalledRuntimeToolSkillTargets,
+  listInstalledRuntimeTools,
+} from "./runtime-tools.js";
 
 async function drift(
   record: InstallRecord,
@@ -65,17 +70,21 @@ export async function buildHealthReport(
   options: {
     updates?: () => Promise<UpdatePlan[]>;
     checkUpdates?: boolean;
+    agents?: () => ReturnType<typeof detectAgents>;
   } = {},
 ): Promise<HealthReport> {
-  const [agents, state, updates] = await Promise.all([
-    detectAgents(),
-    readInstallState(),
-    options.updates
-      ? options.updates()
-      : options.checkUpdates
-        ? buildUpdatePlan()
-        : Promise.resolve([]),
-  ]);
+  const [agents, state, updates, runtimeTools, runtimeTargets] =
+    await Promise.all([
+      options.agents ? options.agents() : detectAgents(),
+      readInstallState(),
+      options.updates
+        ? options.updates()
+        : options.checkUpdates
+          ? buildUpdatePlan()
+          : Promise.resolve([]),
+      listInstalledRuntimeTools(),
+      listInstalledRuntimeToolSkillTargets(),
+    ]);
   const drifted = (
     await Promise.all(
       state.installs.map((record) => drift(record, state.activations ?? [])),
@@ -94,6 +103,19 @@ export async function buildHealthReport(
     )
   ).filter(Boolean).length;
   const findings: HealthFinding[] = [];
+  const runtimeTargetPresence = await Promise.all(
+    runtimeTargets.map(async (target) => {
+      try {
+        await readFile(join(target.path, "SKILL.md"));
+        return true;
+      } catch {
+        return false;
+      }
+    }),
+  );
+  const missingRuntimeTargets = runtimeTargetPresence.filter(
+    (present) => !present,
+  ).length;
   if (!agents.some((agent) => agent.installed))
     findings.push({
       level: "error",
@@ -128,6 +150,13 @@ export async function buildHealthReport(
       message: `${driftedMcpServers} managed MCP server entry or entries changed or disappeared outside Loadout.`,
       fix: "Review the MCP config, then synchronize or remove the owning package.",
     });
+  if (missingRuntimeTargets)
+    findings.push({
+      level: "warning",
+      code: "managed-runtime-target-drift",
+      message: `${missingRuntimeTargets} managed runtime-tool skill target(s) changed or disappeared.`,
+      fix: "Review the target, then remove and reinstall the owning runtime tool.",
+    });
   const available = updates.filter(
     (update) => update.status === "update-available",
   );
@@ -149,12 +178,15 @@ export async function buildHealthReport(
       fix: "Check connectivity and retry.",
     });
   const configured =
-    state.installs.length > 0 || (state.mcpInstalls ?? []).length > 0;
-  const activeSkills = (state.activations ?? []).filter(
-    (entry) =>
-      entry.installationState === "installed" &&
-      entry.activationState === "active",
-  ).length;
+    state.installs.length > 0 ||
+    (state.mcpInstalls ?? []).length > 0 ||
+    runtimeTools.length > 0;
+  const activeSkills =
+    (state.activations ?? []).filter(
+      (entry) =>
+        entry.installationState === "installed" &&
+        entry.activationState === "active",
+    ).length + runtimeTargetPresence.filter(Boolean).length;
   const disabledSkills = (state.activations ?? []).filter(
     (entry) =>
       entry.installationState === "installed" &&
@@ -166,7 +198,10 @@ export async function buildHealthReport(
       ? "not-configured"
       : findings.some((finding) => finding.level === "warning")
         ? "attention"
-        : activeSkills === 0 && disabledSkills > 0
+        : activeSkills === 0 &&
+            disabledSkills > 0 &&
+            (state.mcpInstalls ?? []).length === 0 &&
+            runtimeTools.length === 0
           ? "library-only"
           : "healthy";
   return {
@@ -176,6 +211,8 @@ export async function buildHealthReport(
     installedPackages: state.installs.length,
     activeSkills,
     disabledSkills,
+    managedMcpServers: (state.mcpInstalls ?? []).length,
+    managedRuntimeTools: runtimeTools.length,
     updatesChecked: Boolean(options.updates || options.checkUpdates),
     updatesAvailable: available.length,
     driftedFiles: drifted.length,
@@ -195,7 +232,7 @@ export function formatHealthReport(report: HealthReport): string {
           : "✗";
   const lines = [
     `${icon} Loadout health: ${report.status === "not-configured" ? "not configured" : report.status === "library-only" ? "library ready (nothing active)" : report.status}`,
-    `Packages: ${report.installedPackages} managed; skills: ${report.activeSkills ?? 0} active, ${report.disabledSkills ?? 0} disabled; ${report.updatesChecked ? `${report.updatesAvailable} update(s)` : "updates not checked (use --updates)"}; ${report.driftedFiles} drifted file(s), ${report.driftedMcpServers} drifted MCP server(s)`,
+    `Packages: ${report.installedPackages} managed; skills: ${report.activeSkills ?? 0} active, ${report.disabledSkills ?? 0} disabled; MCP servers: ${report.managedMcpServers ?? 0}; runtime tools: ${report.managedRuntimeTools ?? 0}; ${report.updatesChecked ? `${report.updatesAvailable} update(s)` : "updates not checked (use --updates)"}; ${report.driftedFiles} drifted file(s), ${report.driftedMcpServers} drifted MCP server(s)`,
   ];
   for (const finding of report.findings)
     lines.push(

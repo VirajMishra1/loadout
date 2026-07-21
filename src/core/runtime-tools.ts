@@ -297,6 +297,42 @@ export async function listInstalledRuntimeTools(
   return Object.keys(state.tools).sort();
 }
 
+export interface InstalledRuntimeToolSkillTarget {
+  toolId: string;
+  packageId: string;
+  agent: AgentId;
+  path: string;
+}
+
+/** Return agent skill targets owned by installed reviewed runtime tools. */
+export async function listInstalledRuntimeToolSkillTargets(
+  options: {
+    stateHome?: string;
+    home?: string;
+    platform?: NodeJS.Platform;
+  } = {},
+): Promise<InstalledRuntimeToolSkillTarget[]> {
+  const state = await readState(options.stateHome ?? loadoutHome());
+  const home = options.home ?? userHome();
+  const platform = currentRecipePlatform(options.platform);
+  return Object.entries(state.tools).flatMap(([toolId, installed]) => {
+    const recipe = findRuntimeToolRecipe(toolId);
+    return installed.agents.flatMap((agent) => {
+      const target = recipe.targets[agent];
+      return target
+        ? [
+            {
+              toolId,
+              packageId: `runtime-tool:${toolId}`,
+              agent,
+              path: resolveRuntimeRecipePath(home, target.path, platform),
+            },
+          ]
+        : [];
+    });
+  });
+}
+
 async function writeState(
   state: RuntimeToolState,
   stateHome?: string,
@@ -316,14 +352,12 @@ export function findRuntimeToolRecipe(id: string): RuntimeToolRecipe {
   return recipe;
 }
 
-function currentRecipePlatform(): RuntimeRecipePlatform {
-  if (
-    process.platform === "darwin" ||
-    process.platform === "linux" ||
-    process.platform === "win32"
-  )
-    return process.platform;
-  throw new Error(`Runtime tool recipes do not support ${process.platform}`);
+function currentRecipePlatform(
+  platform: NodeJS.Platform = process.platform,
+): RuntimeRecipePlatform {
+  if (platform === "darwin" || platform === "linux" || platform === "win32")
+    return platform;
+  throw new Error(`Runtime tool recipes do not support ${platform}`);
 }
 
 function buildRuntimeToolCommands(
@@ -634,7 +668,9 @@ export async function applyRuntimeToolPlan(
         ? [plan.runtimeRoot]
         : plan.agents.map((agent) => agent.target),
     );
-    snapshot = await createSnapshot(snapshotRoots);
+    snapshot = await createSnapshot(snapshotRoots, {
+      label: `install runtime tool ${plan.recipe.displayName}`,
+    });
     const runner = options.runner ?? defaultRunner;
     const env = runtimeEnvironment(plan);
     const healthCheckStart =

@@ -8,6 +8,10 @@ import type {
   ManagedActivationRecord,
 } from "../shared/types.js";
 import { readInstallState } from "./state.js";
+import {
+  listInstalledRuntimeToolSkillTargets,
+  type InstalledRuntimeToolSkillTarget,
+} from "./runtime-tools.js";
 
 const MAX_SCAN_DEPTH = 6;
 export const RECOMMENDED_ACTIVE_SKILLS = 30;
@@ -46,6 +50,7 @@ export interface AgentSkillInventorySummary {
   managed: number;
   unmanaged: number;
   overRecommendedLimit: boolean;
+  runtimeToolTargets?: number;
 }
 
 export interface InstalledSkillInventoryReport {
@@ -81,7 +86,12 @@ function owningPackage(
   agent: AgentId,
   records: InstallRecord[],
   activations: ManagedActivationRecord[],
+  runtimeTargets: InstalledRuntimeToolSkillTarget[],
 ): string | undefined {
+  const runtime = runtimeTargets.find(
+    (target) => target.agent === agent && isInside(target.path, skillRoot),
+  );
+  if (runtime) return runtime.packageId;
   const active = activations.find(
     (record) =>
       record.agent === agent &&
@@ -106,8 +116,16 @@ async function scanAgentSkills(
   agent: DetectedAgent,
   records: InstallRecord[],
   activations: ManagedActivationRecord[],
+  runtimeTargets: InstalledRuntimeToolSkillTarget[],
 ): Promise<{ skills: InstalledSkillInventoryEntry[]; warnings: string[] }> {
-  const root = resolve(agent.skillsDirectory);
+  const primaryRoot = resolve(agent.skillsDirectory);
+  const roots = [
+    primaryRoot,
+    ...runtimeTargets
+      .filter((target) => target.agent === agent.id)
+      .map((target) => resolve(target.path))
+      .filter((target) => !isInside(primaryRoot, target)),
+  ];
   const skills: InstalledSkillInventoryEntry[] = [];
   const warnings: string[] = [];
 
@@ -144,6 +162,7 @@ async function scanAgentSkills(
           agent.id,
           records,
           activations,
+          runtimeTargets,
         );
         const sourceHints = [
           ...new Set(
@@ -201,7 +220,7 @@ async function scanAgentSkills(
     }
   }
 
-  await visit(root, 0);
+  for (const root of [...new Set(roots)]) await visit(root, 0);
   return {
     skills: skills.sort((left, right) => left.path.localeCompare(right.path)),
     warnings,
@@ -246,10 +265,18 @@ function duplicateGroups(
 export async function scanInstalledSkills(
   agents: DetectedAgent[],
 ): Promise<InstalledSkillInventoryReport> {
-  const state = await readInstallState();
+  const [state, runtimeTargets] = await Promise.all([
+    readInstallState(),
+    listInstalledRuntimeToolSkillTargets(),
+  ]);
   const scans = await Promise.all(
     agents.map((agent) =>
-      scanAgentSkills(agent, state.installs, state.activations ?? []),
+      scanAgentSkills(
+        agent,
+        state.installs,
+        state.activations ?? [],
+        runtimeTargets,
+      ),
     ),
   );
   const skills = scans.flatMap((scan) => scan.skills);
@@ -266,6 +293,9 @@ export async function scanInstalledSkills(
       managed,
       unmanaged: entries.length - managed,
       overRecommendedLimit: entries.length > RECOMMENDED_ACTIVE_SKILLS,
+      runtimeToolTargets: runtimeTargets.filter(
+        (target) => target.agent === agent.id,
+      ).length,
     };
   });
   for (const summary of summaries.filter((item) => item.overRecommendedLimit))
@@ -302,7 +332,7 @@ export function formatInstalledSkillInventory(
   ];
   for (const agent of report.agents)
     lines.push(
-      `${agent.detected ? "✓" : "○"} ${agent.displayName}: ${agent.total} skill(s) (${agent.managed} managed, ${agent.unmanaged} unmanaged) — ${agent.directory}`,
+      `${agent.detected ? "✓" : "○"} ${agent.displayName}: ${agent.total} skill(s) (${agent.managed} managed, ${agent.unmanaged} unmanaged)${agent.runtimeToolTargets ? `, including ${agent.runtimeToolTargets} runtime-tool skill(s)` : ""} — ${agent.directory}`,
     );
   for (const warning of report.warnings) lines.push(`! ${warning}`);
   lines.push(

@@ -26,7 +26,7 @@
 </p>
 
 > [!IMPORTANT]
-> Installation is version-pinned so the code you test matches these docs. The commands below target `loadout-ai@0.5.2`; review the preview before every apply.
+> Installation is version-pinned so the code you test matches these docs. The commands below target `loadout-ai@0.5.3`; review the preview before every apply.
 
 ## How it works
 
@@ -76,7 +76,7 @@ Skills, plugins, MCP servers, and agent settings tend to accumulate one experime
 You need Node.js 20 or newer and Git.
 
 ```bash
-npm install --global loadout-ai@0.5.2
+npm install --global loadout-ai@0.5.3
 loadout --version
 loadout guide
 ```

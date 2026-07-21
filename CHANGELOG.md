@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+## 0.5.3 - 2026-07-21
+
+### Fixed
+
+- Include reviewed runtime-tool skills installed at official host-specific paths in
+  inventory, provenance, capacity, and health reporting. Graphify is now recognized
+  as Loadout-managed in both `~/.claude/skills` and Codex's `~/.codex/skills` target.
+- Report managed MCP server and runtime-tool counts in health, and warn when an
+  installed runtime tool's expected skill target disappears.
+- Give runtime-tool install snapshots meaningful labels instead of `managed change`.
+- Allow 30 seconds by default for a cold reviewed MCP connection handshake and make
+  MCP-only removal preview language accurately describe a removal plan.
+
 ## 0.5.2 - 2026-07-21
 
 ### Fixed

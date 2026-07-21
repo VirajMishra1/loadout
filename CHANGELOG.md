@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.5.7 - 2026-07-21
+
 ### Changed
 
 - Explain that `setup --mode custom` reconciles the complete selected profile, while

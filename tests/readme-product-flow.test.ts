@@ -105,7 +105,7 @@ describe("README product flow", () => {
     expect(readme).toContain("Agent extensions, under control.");
     expect(readme).toContain("Choose -> Inspect -> Preview -> Apply -> Undo");
     expect(readme).toMatch(/abridged terminal transcript/i);
-    expect(readme).toContain("npm install --global loadout-ai@0.5.6");
+    expect(readme).toContain("npm install --global loadout-ai@0.5.7");
 
     expectOrderedReadmeStructure(
       readme,

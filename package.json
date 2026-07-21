@@ -1,6 +1,6 @@
 {
   "name": "loadout-ai",
-  "version": "0.5.6",
+  "version": "0.5.7",
   "private": false,
   "license": "MIT",
   "description": "Universal upgrade manager for AI coding agents",

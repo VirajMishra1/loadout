@@ -10,7 +10,7 @@ not show the retired dashboard. The final YouTube upload must be public.
 2. Confirm the release and product health:
 
    ```bash
-   npm install --global loadout-ai@0.5.6
+   npm install --global loadout-ai@0.5.7
    hash -r
    loadout --version
    loadout health

@@ -34,7 +34,7 @@
 You need Node.js 20 or newer and Git.
 
 ```bash
-npm install --global loadout-ai@0.5.6
+npm install --global loadout-ai@0.5.7
 loadout setup --mode stable
 ```
 

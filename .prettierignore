@@ -3,6 +3,8 @@ dist/
 node_modules/
 .loadout/
 .superpowers/
+.graphify/
+graphify-out/
 .worktrees/
 playwright-report/
 test-results/

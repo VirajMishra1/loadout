@@ -208,10 +208,10 @@ export const GRAPHIFY_RECIPE: RuntimeToolRecipe = deepFreeze(
       "kiro-cli": { path: [".kiro", "skills", "graphify"] },
     },
     timeouts: { commandMs: 300_000 },
-    snapshotRoots: ["{runtimeRoot}", "{agentTargets}"],
+    snapshotRoots: ["{agentTargets}"],
     removal: {
       strategy: "restore-preinstall-snapshot",
-      runtimeRoot: "restore-preinstall-state",
+      runtimeRoot: "remove-managed-runtime",
     },
     generatedFiles: {
       requiredRelativePaths: ["SKILL.md"],
@@ -604,12 +604,28 @@ export async function applyRuntimeToolPlan(
     await restoreSnapshot(snapshot, {
       requireUnchangedPostMutationState: true,
     });
+    await rm(installed.runtimeRoot, { recursive: true, force: true });
     delete state.tools[plan.recipe.id];
     await writeState(state, plan.stateHome);
     return { action: "remove", snapshotId: snapshot.id };
   }
   if (state.tools[plan.recipe.id])
     throw new Error(`${plan.recipe.displayName} is already managed by Loadout`);
+
+  try {
+    await access(plan.runtimeRoot);
+    throw new Error(
+      `${plan.recipe.displayName} runtime path already exists outside managed state: ${plan.runtimeRoot}`,
+    );
+  } catch (error) {
+    if (
+      !error ||
+      typeof error !== "object" ||
+      !("code" in error) ||
+      (error as { code?: string }).code !== "ENOENT"
+    )
+      throw error;
+  }
 
   let snapshot: Snapshot | undefined;
   try {
@@ -662,7 +678,7 @@ export async function applyRuntimeToolPlan(
     return { action: "install", snapshotId: snapshot.id };
   } catch (error) {
     if (snapshot) await restoreSnapshot(snapshot).catch(() => undefined);
-    else await rm(plan.runtimeRoot, { recursive: true, force: true });
+    await rm(plan.runtimeRoot, { recursive: true, force: true });
     throw error;
   }
 }

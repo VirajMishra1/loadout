@@ -6,4 +6,6 @@ test-results/
 .DS_Store
 .loadout/
 .superpowers/
+.graphify/
+graphify-out/
 .worktrees/

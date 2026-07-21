@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./docs/assets/loadout-workflow.png" alt="Loadout workflow: choose extensions, inspect sources, preview changes, apply through a managed snapshot, and undo safely across supported AI coding agents." width="960">
+  <img src="./docs/assets/loadout-workflow.png" alt="Loadout discovers skills, tools, and MCP servers, keeps them in a screened library, matches an active set to each project, and manages them across AI coding agents." width="960">
 </p>
 
 <h1 align="center">Loadout</h1>
@@ -7,8 +7,8 @@
 <p align="center"><strong>Agent extensions, under control.</strong></p>
 
 <p align="center">
-  <strong>One install for the GitHub skills, tools, and MCP servers worth knowing.</strong><br>
-  Find them. Screen them. Put the right ones in every coding agent. Undo anything.
+  <strong>The package manager for your AI coding setup.</strong><br>
+  Discover broadly. Activate the right tools for each project. Stay current without starting over.
 </p>
 
 <p align="center">
@@ -21,27 +21,26 @@
 </p>
 
 <p align="center">
-  <a href="#why-loadout">Why Loadout</a> ·
   <a href="#install">Install</a> ·
+  <a href="#why-loadout">Why Loadout</a> ·
   <a href="#profiles">Profiles</a> ·
   <a href="#catalog-and-discovery">Discover</a> ·
   <a href="#trust-and-limits">Trust</a> ·
   <a href="#command-reference">Commands</a>
 </p>
 
-> [!IMPORTANT]
-> Loadout previews first and changes nothing until you approve. The commands below are pinned to `loadout-ai@0.5.6` so your install matches these docs.
+## Install
+
+You need Node.js 20 or newer and Git.
 
 ```bash
-npx loadout-ai@0.5.6 setup --mode stable
+npm install --global loadout-ai@0.5.6
+loadout setup --mode stable
 ```
 
-That is it. Loadout detects your coding agents, prepares its recommended Stable
-loadout, and shows every planned change. Approve only when it looks right.
-
-> **The idea:** stop spending nights hopping between GitHub repos, Reddit threads,
-> launch posts, and half-forgotten bookmarks just to keep your agents useful.
-> Loadout turns that mess into one local, inspectable, reversible system.
+The second command detects your agents and previews the 30-skill Stable loadout.
+Nothing changes until you approve it. If anything goes wrong, start with the
+[user test guide](./docs/USER_TEST_GUIDE.md).
 
 ## How it works
 
@@ -81,10 +80,22 @@ files. Review the summary and warnings before approving an apply command.
 
 ## Why Loadout
 
-Skills, plugins, MCP servers, and agent settings tend to accumulate one experiment at a time. Eventually it becomes hard to remember what is installed, where it came from, or how to undo it. In a game, a loadout is the deliberate set of tools chosen before a mission. Loadout brings that same discipline to AI coding agents: inspect the available equipment, choose intentionally, apply it through managed changes, and remove or roll it back later.
+Loadout started with a frustrating question: **why does improving an AI coding agent
+still mean opening twenty GitHub tabs?**
+
+Useful skills, plugins, MCP servers, and settings arrive one experiment at a time.
+Soon it is hard to remember what is installed, where it came from, whether something
+better launched yesterday, or how to undo a change. The name comes from games, where
+your loadout is the set of tools you choose for the mission. This does the same for AI
+coding agents—without making you rebuild the setup for every agent and every project.
 
 Most extension tools begin with a repo you already know. Loadout begins one step
 earlier—**what is actually worth knowing?**—and stays with you after installation.
+
+Loadout watches a much wider catalog than it activates. You can keep thousands of
+technically screened skill copies in the disabled Maximum library, discover new projects as
+they appear, and let each codebase pull a focused active set instead of dumping
+everything into every prompt.
 
 | The usual workflow                                             | The Loadout workflow                                             |
 | -------------------------------------------------------------- | ---------------------------------------------------------------- |
@@ -107,36 +118,6 @@ discovery checks, MCP setup, Graphify, rollback, and complete uninstall.
 
 For now, the [end-to-end acceptance guide](./docs/USER_TEST_GUIDE.md) contains the same
 commands you can run yourself.
-
-## Install
-
-You need Node.js 20 or newer and Git.
-
-```bash
-npm install --global loadout-ai@0.5.6
-loadout --version
-loadout guide
-```
-
-For source development instead:
-
-```bash
-git clone https://github.com/VirajMishra1/loadout.git
-cd loadout
-npm ci
-npm run build
-npm link
-loadout --version
-```
-
-For your first preview, run:
-
-```bash
-loadout setup --mode stable
-```
-
-Nothing is installed until you approve the preview. If a command is not found or a
-network check fails, use the [user test guide](./docs/USER_TEST_GUIDE.md).
 
 ## Stable workflow
 
@@ -404,6 +385,30 @@ Start at the top and stop whenever Loadout does everything you need.
 Most mutating commands are dry runs first. After reading the preview, add `--yes` to
 apply. Commands with executable or connection risk require the additional approval
 shown in their output.
+
+## Built with Codex and GPT-5.6
+
+Loadout was built during OpenAI Build Week by a three-person team working with Codex
+and GPT-5.6 as an engineering partner. We did not use Codex to generate a throwaway
+demo around a prompt; we used it throughout the real product loop:
+
+- **Planning:** turning the original “one install for the best agent extensions” idea
+  into the Stable, Power, Maximum, discovery, update, and rollback architecture.
+- **Engineering:** implementing and refactoring the TypeScript CLI, agent adapters,
+  catalog pipeline, safety checks, transactions, MCP recipes, and runtime-tool flow.
+- **Research:** comparing extension ecosystems, inspecting upstream repositories,
+  checking claims, and keeping popularity separate from trust.
+- **Debugging:** reproducing hands-on test failures, tracing filesystem and update
+  behavior, and adding regression tests instead of papering over errors.
+- **Verification:** running the complete release gate, package smoke tests,
+  performance checks, and real installs against Codex and Claude Code profiles.
+- **Collaboration:** reviewing work across teammate branches, preparing focused pull
+  requests, and keeping the master plan aligned with the code that actually shipped.
+
+The humans chose the product direction, reviewed the tradeoffs, tested it on real
+machines, and made the release decisions. Codex and GPT-5.6 helped us move from idea
+to a tested CLI much faster—and gave us enough iteration time to care about rollback,
+attribution, and the unglamorous details that make a developer tool trustworthy.
 
 ## Development
 

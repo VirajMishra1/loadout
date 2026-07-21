@@ -318,6 +318,16 @@ merged `codex/relatable-readme-hero` remote branch remains safe to delete after 
       Humanizer and Turnstile update findings before any replacement, then finish
       read-only update/discovery, Graphify removal, complete uninstall, and clean
       reinstall acceptance.
+- [x] `P18-45 [TERRA]` Correct the founder-discovered update-reporting defects after
+      the real `0.5.4` Maximum/reconciliation run. Update planning now deduplicates
+      repeated agent names and shared-repository fetches, separates active updates
+      from newer commits held for disabled library copies, compacts safety output,
+      recognizes adopted sources in profile state, and labels partial quarantine
+      evidence instead of calling it a repository failure. The real profile confirms
+      39 active managed skills, 2,326 disabled copies, one Graphify runtime, zero
+      managed drift, and no active adopted-skill update. Release this correction
+      before the remaining Graphify removal, discovery, uninstall, and reinstall
+      acceptance steps.
 
 ### Release 0.3 lifecycle hardening
 

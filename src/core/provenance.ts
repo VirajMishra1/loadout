@@ -472,8 +472,12 @@ export function formatProvenanceSummary(
   report: ProvenanceInventoryReport,
 ): string {
   const value = report.provenance;
+  const quarantinedSources = value.failures.filter((failure) =>
+    /^\d+ skill unit\(s\) quarantined:/.test(failure.error),
+  ).length;
+  const preparationFailures = value.failures.length - quarantinedSources;
   return [
     `Provenance: ${value.exact} exact catalog match(es), ${value.managed} Loadout-managed, ${value.embedded} embedded-source candidate(s), ${value.nameCandidates} name-only candidate(s), ${value.unknown} unknown`,
-    `Catalog skill index: ${value.indexSource}; ${value.indexedSkills} reviewed skill(s)${value.failures.length ? `; ${value.failures.length} repository failure(s)` : ""}`,
+    `Catalog skill index: ${value.indexSource}; ${value.indexedSkills} reviewed skill(s)${quarantinedSources ? `; ${quarantinedSources} source(s) contain quarantined units` : ""}${preparationFailures ? `; ${preparationFailures} source preparation failure(s)` : ""}`,
   ].join("\n");
 }

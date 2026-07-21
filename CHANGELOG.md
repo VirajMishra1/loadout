@@ -2,6 +2,26 @@
 
 ## Unreleased
 
+### Changed
+
+- Summarize update checks as active, disabled-library, current, and unavailable
+  records; hide repetitive current-package lines by default while retaining complete
+  JSON output and focused per-package review.
+- Keep disabled Maximum-library copies pinned and explicitly state that newer
+  upstream commits neither change nor reactivate agent-visible skills.
+- Treat catalog sources represented by adopted units as present in saved-profile
+  evaluation, and describe fully quarantined or unavailable profile sources without
+  calling them missing upgrades.
+
+### Fixed
+
+- Deduplicate per-agent disabled update state and fetch a shared repository only once
+  when several adopted skill units track the same upstream source.
+- Distinguish active updates from disabled-library updates in health output, including
+  separately reported network-check failures.
+- Label partial catalog indexing accurately as sources containing quarantined units
+  instead of repository failures.
+
 ## 0.5.4 - 2026-07-21
 
 ### Added

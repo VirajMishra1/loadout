@@ -51,7 +51,8 @@ describe("saved loadout profile evaluation", () => {
       pkg("one", newCommit),
       pkg("two", newCommit),
     ]);
-    expect(status.missingPackages).toEqual(["two"]);
+    expect(status.missingPackages).toEqual([]);
+    expect(status.newlyReviewedPackages).toEqual(["two"]);
     expect(status.reviewedRevisionChanges).toEqual([
       {
         packageId: "one",
@@ -90,5 +91,37 @@ describe("saved loadout profile evaluation", () => {
     expect(
       evaluateInstalledProfileState(state, [pkg("one", reviewed)]),
     ).toMatchObject({ needsRefresh: false, reviewedRevisionChanges: [] });
+  });
+
+  it("recognizes an adopted unit from the same reviewed repository", () => {
+    const reviewed = "a".repeat(40);
+    const state: InstallState = {
+      version: 1,
+      installs: [
+        {
+          packageId: "adopted-one-review",
+          repository: "owner/one",
+          resolvedCommit: reviewed,
+          targetAgents: ["codex"],
+          files: [],
+          snapshotId: "snapshot",
+          installedAt: "2026-07-18T00:00:00Z",
+        },
+      ],
+      profile: {
+        mode: "custom",
+        packageIds: ["one"],
+        agents: ["codex"],
+        catalogPackages: [],
+        appliedAt: "2026-07-18T00:00:00Z",
+      },
+    };
+    expect(
+      evaluateInstalledProfileState(state, [pkg("one", reviewed)]),
+    ).toMatchObject({
+      needsRefresh: false,
+      newlyReviewedPackages: [],
+      missingPackages: [],
+    });
   });
 });

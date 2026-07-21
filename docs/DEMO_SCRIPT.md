@@ -113,14 +113,14 @@ loadout install --mode custom --package humanizer --agents codex
 
 ```bash
 loadout update
-loadout discover --limit 5
+loadout candidate list --limit 5
 ```
 
 **Say:**
 
-> Update checks managed pinned sources without silently changing them. Discovery
-> watches a wider ecosystem and queues new projects for review, so something going
-> viral can be noticed quickly without being trusted blindly.
+> Update checks managed pinned sources without silently changing them. The discovery
+> feed watches a wider ecosystem and ranks new projects for review. A repository can
+> be noticed quickly without being trusted or installed blindly.
 
 ### 2:25 to 2:48: Codex, GPT-5.6, and close
 

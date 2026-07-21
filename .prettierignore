@@ -3,6 +3,9 @@ dist/
 node_modules/
 .loadout/
 .superpowers/
+.worktrees/
+playwright-report/
+test-results/
 # Canonical output from scripts/daily-discovery.mjs; never hand-formatted.
 catalog/discovered.json
 docs/DISCOVERED.md

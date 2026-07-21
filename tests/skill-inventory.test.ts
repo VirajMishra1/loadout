@@ -10,10 +10,16 @@ import {
 } from "../src/core/skill-inventory.js";
 
 describe("existing skill inventory", () => {
+  const originalLoadoutHome = process.env.LOADOUT_HOME;
+  const originalUserHome = process.env.LOADOUT_USER_HOME;
   let root = "";
   afterEach(async () => {
     if (root) await rm(root, { recursive: true, force: true });
-    delete process.env.LOADOUT_HOME;
+    root = "";
+    if (originalLoadoutHome === undefined) delete process.env.LOADOUT_HOME;
+    else process.env.LOADOUT_HOME = originalLoadoutHome;
+    if (originalUserHome === undefined) delete process.env.LOADOUT_USER_HOME;
+    else process.env.LOADOUT_USER_HOME = originalUserHome;
   });
 
   it("separates managed skills, within-agent duplicates, and cross-agent mirrors", async () => {
@@ -93,6 +99,77 @@ describe("existing skill inventory", () => {
     ]);
     expect(formatInstalledSkillInventory(report)).toContain(
       "Read-only scan complete",
+    );
+  });
+
+  it("includes runtime-tool skills installed outside an agent's standard skill root", async () => {
+    root = await mkdtemp(join(tmpdir(), "loadout-runtime-inventory-"));
+    const stateHome = join(root, "state");
+    const home = join(root, "home");
+    process.env.LOADOUT_HOME = stateHome;
+    process.env.LOADOUT_USER_HOME = home;
+    const claudeRoot = join(home, ".claude", "skills");
+    const codexRoot = join(home, ".agents", "skills");
+    const targets = [
+      join(home, ".claude", "skills", "graphify"),
+      join(home, ".codex", "skills", "graphify"),
+    ];
+    for (const target of targets) {
+      await mkdir(target, { recursive: true });
+      await writeFile(
+        join(target, "SKILL.md"),
+        "---\nname: graphify\ndescription: Runtime graph tool\n---\n",
+      );
+    }
+    await mkdir(stateHome, { recursive: true });
+    await writeFile(
+      join(stateHome, "runtime-tools.json"),
+      JSON.stringify({
+        schemaVersion: 1,
+        tools: {
+          graphify: {
+            version: "0.9.17",
+            installedAt: "2026-07-21T00:00:00.000Z",
+            snapshotId: "snapshot",
+            agents: ["claude-code", "codex"],
+            runtimeRoot: join(stateHome, "runtime", "graphify"),
+          },
+        },
+      }),
+    );
+    const agents: DetectedAgent[] = [
+      {
+        id: "claude-code",
+        displayName: "Claude Code",
+        installed: true,
+        skillsDirectory: claudeRoot,
+      },
+      {
+        id: "codex",
+        displayName: "Codex",
+        installed: true,
+        skillsDirectory: codexRoot,
+      },
+    ];
+
+    const report = await scanInstalledSkills(agents);
+    expect(report).toMatchObject({ total: 2, managed: 2, unmanaged: 0 });
+    expect(report.skills).toEqual([
+      expect.objectContaining({
+        agent: "claude-code",
+        packageId: "runtime-tool:graphify",
+      }),
+      expect.objectContaining({
+        agent: "codex",
+        packageId: "runtime-tool:graphify",
+      }),
+    ]);
+    expect(report.agents).toEqual([
+      expect.objectContaining({ managed: 1, runtimeToolTargets: 1 }),
+      expect.objectContaining({ managed: 1, runtimeToolTargets: 1 }),
+    ]);
+    expect(formatInstalledSkillInventory(report)).toContain(
+      "including 1 runtime-tool skill(s)",
     );
   });
 });

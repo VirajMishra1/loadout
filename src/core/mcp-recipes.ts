@@ -302,7 +302,7 @@ export async function planMcpRecipe(
 }
 
 const MCP_PROTOCOL_VERSION = "2025-06-18";
-const DEFAULT_CONNECTION_TIMEOUT_MS = 8_000;
+const DEFAULT_CONNECTION_TIMEOUT_MS = 30_000;
 const DEFAULT_CONNECTION_OUTPUT_BYTES = 256 * 1024;
 const INITIALIZE_ID = "loadout-initialize";
 

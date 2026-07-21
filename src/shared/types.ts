@@ -412,6 +412,8 @@ export interface HealthReport {
   installedPackages: number;
   activeSkills?: number;
   disabledSkills?: number;
+  managedMcpServers?: number;
+  managedRuntimeTools?: number;
   updatesChecked: boolean;
   updatesAvailable: number;
   driftedFiles: number;

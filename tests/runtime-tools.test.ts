@@ -16,6 +16,7 @@ import {
   planRuntimeTool,
   type RuntimeToolRunner,
 } from "../src/core/runtime-tools.js";
+import { readSnapshot } from "../src/core/snapshot.js";
 import type { DetectedAgent } from "../src/shared/types.js";
 
 describe("reviewed runtime tool recipes", () => {
@@ -105,6 +106,9 @@ describe("reviewed runtime tool recipes", () => {
       runner,
     });
     expect(installed.action).toBe("install");
+    expect((await readSnapshot(installed.snapshotId)).label).toBe(
+      "install runtime tool Graphify",
+    );
     expect(calls[0].command).toBe("uv");
     expect(await readFile(join(target, "SKILL.md"), "utf8")).toContain(
       GRAPHIFY_RECIPE.artifactSha256,

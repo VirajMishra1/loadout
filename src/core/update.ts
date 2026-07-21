@@ -32,6 +32,8 @@ export interface UpdatePlan {
   availableCommit?: string;
   targetAgents: string[];
   disabledAgents?: string[];
+  /** Number of disabled per-agent skill copies represented by this package. */
+  disabledUnits?: number;
   status: UpdateStatus;
   action: string;
   /** Safe file-level summary when both revisions are cached locally. */
@@ -205,6 +207,17 @@ export async function buildUpdatePlan(
     ? state.installs.filter((record) => record.packageId === options.packageId)
     : state.installs;
   const results = new Array<UpdatePlan>(records.length);
+  const resolutions = new Map<
+    string,
+    Promise<{ commit: string; path?: string }>
+  >();
+  const resolveOnce = (repository: string) => {
+    const existing = resolutions.get(repository);
+    if (existing) return existing;
+    const pending = resolver(repository);
+    resolutions.set(repository, pending);
+    return pending;
+  };
   let cursor = 0;
   let completed = 0;
   const workers = Array.from(
@@ -219,20 +232,26 @@ export async function buildUpdatePlan(
         const index = cursor++;
         const record = records[index];
         results[index] = await (async (): Promise<UpdatePlan> => {
-          const disabledAgents = (state.activations ?? [])
-            .filter(
-              (activation) =>
-                activation.packageId === record.packageId &&
-                activation.installationState === "installed" &&
-                activation.activationState === "disabled",
-            )
-            .map((activation) => activation.agent);
+          const disabledActivations = (state.activations ?? []).filter(
+            (activation) =>
+              activation.packageId === record.packageId &&
+              activation.installationState === "installed" &&
+              activation.activationState === "disabled",
+          );
+          const disabledAgents = [
+            ...new Set(
+              disabledActivations.map((activation) => activation.agent),
+            ),
+          ].sort();
           const base = {
             packageId: record.packageId,
             repository: record.repository,
             installedCommit: record.resolvedCommit,
             targetAgents: record.targetAgents,
             ...(disabledAgents.length ? { disabledAgents } : {}),
+            ...(disabledActivations.length
+              ? { disabledUnits: disabledActivations.length }
+              : {}),
           };
           if (!record.repository || !record.resolvedCommit) {
             return {
@@ -243,7 +262,7 @@ export async function buildUpdatePlan(
             };
           }
           try {
-            const current = await resolver(record.repository);
+            const current = await resolveOnce(record.repository);
             const same =
               current.commit.toLowerCase() ===
               record.resolvedCommit.toLowerCase();
@@ -271,7 +290,7 @@ export async function buildUpdatePlan(
               action: same
                 ? "No action required."
                 : disabledAgents.length
-                  ? `Enable ${record.packageId} for ${disabledAgents.join(", ")} before applying an update; planning remains read-only.`
+                  ? `A newer upstream commit exists, but ${disabledActivations.length} reviewed library ${disabledActivations.length === 1 ? "copy is" : "copies are"} disabled for ${disabledAgents.join(" and ")}. Nothing active changed; Loadout will not update or reactivate disabled skills automatically.`
                   : approvalRequired
                     ? `Approval required: review safety warnings before updating ${record.packageId}.`
                     : `Run loadout update --package ${record.packageId} --yes after review.`,
@@ -304,20 +323,48 @@ export async function buildUpdatePlan(
 
 export function formatUpdatePlan(plans: UpdatePlan[]): string {
   if (plans.length === 0) return "No tracked installations found.";
-  return plans
-    .map((plan) => {
+  const available = plans.filter((plan) => plan.status === "update-available");
+  const activeAvailable = available.filter(
+    (plan) => !plan.disabledAgents?.length,
+  );
+  const disabledAvailable = available.filter((plan) =>
+    Boolean(plan.disabledAgents?.length),
+  );
+  const current = plans.filter((plan) => plan.status === "up-to-date");
+  const unavailable = plans.filter(
+    (plan) => plan.status === "error" || plan.status === "untracked",
+  );
+  const lines = [
+    `Update check: ${activeAvailable.length} active update(s), ${disabledAvailable.length} disabled-library update(s), ${current.length} current, ${unavailable.length} unavailable.`,
+  ];
+  const visible =
+    plans.length === 1
+      ? plans
+      : plans.filter((plan) => plan.status !== "up-to-date");
+  lines.push(
+    ...visible.map((plan) => {
       const suffix = plan.error ? ` — ${plan.error}` : "";
       const repo = plan.repository ? ` (${plan.repository})` : "";
-      const safety =
-        plan.safetyFindings
-          ?.map(
-            (finding) =>
-              ` [${finding.severity}] ${finding.message}${finding.names?.length ? ` (${finding.names.join(", ")})` : ""}`,
-          )
-          .join("") ?? "";
+      const findingCounts = new Map<string, number>();
+      for (const finding of plan.safetyFindings ?? []) {
+        const key = `${finding.severity} ${finding.category}`;
+        findingCounts.set(key, (findingCounts.get(key) ?? 0) + 1);
+      }
+      const safety = findingCounts.size
+        ? ` Safety review: ${[...findingCounts.entries()]
+            .map(([key, count]) => `${key}${count > 1 ? ` ×${count}` : ""}`)
+            .join(
+              ", ",
+            )}. Run loadout update --package ${plan.packageId} for the focused review.`
+        : "";
       return `${plan.status.toUpperCase()} ${plan.packageId}${repo}: ${plan.action}${safety}${suffix}`;
-    })
-    .join("\n");
+    }),
+  );
+  if (current.length && plans.length > 1)
+    lines.push(
+      `Current packages hidden for readability (${current.length}); use --json for every record.`,
+    );
+  return lines.join("\n");
 }
 
 /** Updates safe enough for an explicit whole-profile `update --yes` apply. */
@@ -405,14 +452,18 @@ export async function applyPackageUpdate(
   const record = state.installs.find((item) => item.packageId === packageId);
   if (!record)
     throw new Error(`Package is not managed by Loadout: ${packageId}`);
-  const disabledAgents = (state.activations ?? [])
-    .filter(
-      (activation) =>
-        activation.packageId === packageId &&
-        activation.installationState === "installed" &&
-        activation.activationState === "disabled",
-    )
-    .map((activation) => activation.agent);
+  const disabledAgents = [
+    ...new Set(
+      (state.activations ?? [])
+        .filter(
+          (activation) =>
+            activation.packageId === packageId &&
+            activation.installationState === "installed" &&
+            activation.activationState === "disabled",
+        )
+        .map((activation) => activation.agent),
+    ),
+  ].sort();
   const expectedRecord = JSON.stringify(record);
   const expectedActivations = JSON.stringify(
     (state.activations ?? [])

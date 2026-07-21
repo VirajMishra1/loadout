@@ -13,6 +13,7 @@ export interface InstalledProfileStatus {
   appliedAt?: string;
   expectedPackages: string[];
   missingPackages: string[];
+  newlyReviewedPackages: string[];
   reviewedRevisionChanges: Array<{
     packageId: string;
     previousReviewedCommit?: string;
@@ -57,6 +58,7 @@ export function evaluateInstalledProfileState(
       installed: false,
       expectedPackages: [],
       missingPackages: [],
+      newlyReviewedPackages: [],
       reviewedRevisionChanges: [],
       needsRefresh: false,
       evaluatedAt,
@@ -77,8 +79,21 @@ export function evaluateInstalledProfileState(
   const previousCatalog = new Map(
     state.profile.catalogPackages.map((record) => [record.packageId, record]),
   );
-  const missingPackages = expected
-    .filter((pkg) => !installed.has(pkg.id))
+  const representedRepositories = new Set(
+    state.installs
+      .map((record) => record.repository?.toLowerCase())
+      .filter((repository): repository is string => Boolean(repository)),
+  );
+  const missingPackages = state.profile.catalogPackages
+    .filter((item) => !installed.has(item.packageId))
+    .map((item) => item.packageId);
+  const newlyReviewedPackages = expected
+    .filter(
+      (pkg) =>
+        !previousCatalog.has(pkg.id) &&
+        !installed.has(pkg.id) &&
+        !representedRepositories.has(pkg.repository.toLowerCase()),
+    )
     .map((pkg) => pkg.id);
   const reviewedRevisionChanges = expected.flatMap((pkg) => {
     const previous = previousCatalog.get(pkg.id);
@@ -96,22 +111,17 @@ export function evaluateInstalledProfileState(
       },
     ];
   });
-  const oldIds = state.profile.catalogPackages
-    .map((item) => item.packageId)
-    .sort();
   const expectedPackages = expected.map((pkg) => pkg.id).sort();
-  const selectionChanged = oldIds.join("\0") !== expectedPackages.join("\0");
   return {
     installed: true,
     mode: state.profile.mode,
     appliedAt: state.profile.appliedAt,
     expectedPackages,
     missingPackages,
+    newlyReviewedPackages,
     reviewedRevisionChanges,
     needsRefresh:
-      selectionChanged ||
-      missingPackages.length > 0 ||
-      reviewedRevisionChanges.length > 0,
+      newlyReviewedPackages.length > 0 || reviewedRevisionChanges.length > 0,
     evaluatedAt,
     boundary,
   };
@@ -132,7 +142,14 @@ export function formatInstalledProfileStatus(
     `PROFILE ${status.mode?.toUpperCase()}: ${status.needsRefresh ? "reviewed changes available" : "current against reviewed catalog"}`,
     `Expected repositories: ${status.expectedPackages.length}`,
     ...(status.missingPackages.length
-      ? [`Missing: ${status.missingPackages.join(", ")}`]
+      ? [
+          `Not installed from the saved profile (removed, quarantined, or unavailable): ${status.missingPackages.join(", ")}`,
+        ]
+      : []),
+    ...(status.newlyReviewedPackages.length
+      ? [
+          `New reviewed catalog sources to inspect: ${status.newlyReviewedPackages.join(", ")}`,
+        ]
       : []),
     ...(status.reviewedRevisionChanges.length
       ? [

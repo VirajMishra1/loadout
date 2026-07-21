@@ -43,7 +43,10 @@ describe("local health checks", () => {
   it("records an explicitly requested update check", async () => {
     const report = await buildHealthReport({ updates: async () => [], agents });
     expect(report.updatesChecked).toBe(true);
-    expect(formatHealthReport(report)).toContain("0 update(s)");
+    expect(formatHealthReport(report)).toContain("0 active update(s)");
+    expect(formatHealthReport(report)).toContain(
+      "0 disabled-library update(s)",
+    );
   });
 
   it("describes a disabled Maximum library without claiming skills are active", async () => {
@@ -82,17 +85,35 @@ describe("local health checks", () => {
       }),
     );
 
-    const report = await buildHealthReport({ updates: async () => [], agents });
+    const report = await buildHealthReport({
+      updates: async () => [
+        {
+          packageId: "demo",
+          status: "update-available",
+          targetAgents: ["codex"],
+          disabledAgents: ["codex"],
+          disabledUnits: 1,
+          action: "held",
+        },
+      ],
+      agents,
+    });
     expect(report).toMatchObject({
       status: "library-only",
       activeSkills: 0,
       disabledSkills: 1,
+      updatesAvailable: 1,
+      activeUpdatesAvailable: 0,
+      disabledUpdatesAvailable: 1,
     });
     expect(formatHealthReport(report)).toContain(
       "Loadout health: library ready (nothing active)",
     );
     expect(formatHealthReport(report)).toContain(
       "skills: 0 active, 1 disabled",
+    );
+    expect(formatHealthReport(report)).toContain(
+      "0 active update(s), 1 disabled-library update(s)",
     );
   });
 

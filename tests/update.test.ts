@@ -121,6 +121,35 @@ describe("update planning", () => {
     expect(requested).toEqual(["owner/second"]);
   });
 
+  it("fetches a shared repository once for multiple adopted units", async () => {
+    const root = await mkdtemp(join(tmpdir(), "loadout-update-shared-"));
+    roots.push(root);
+    process.env.LOADOUT_HOME = join(root, ".loadout");
+    await mkdir(process.env.LOADOUT_HOME, { recursive: true });
+    await writeFile(
+      join(process.env.LOADOUT_HOME, "state.json"),
+      JSON.stringify({
+        version: 1,
+        installs: ["one", "two"].map((unit) => ({
+          packageId: `adopted-${unit}`,
+          repository: "owner/shared",
+          resolvedCommit: "aaa",
+          targetAgents: ["codex"],
+          files: [],
+          snapshotId: "s",
+          installedAt: "2026-07-21T00:00:00Z",
+        })),
+      }),
+    );
+    let fetches = 0;
+    const plans = await buildUpdatePlan(async () => {
+      fetches += 1;
+      return { commit: "aaa" };
+    });
+    expect(plans).toHaveLength(2);
+    expect(fetches).toBe(1);
+  });
+
   it("marks local and network-failed installs clearly", async () => {
     const root = await mkdtemp(join(tmpdir(), "loadout-update-"));
     roots.push(root);
@@ -586,8 +615,11 @@ describe("update planning", () => {
     );
     let fetched = false;
     const plans = await buildUpdatePlan(async () => ({ commit: "bbb" }));
-    expect(plans[0]).toMatchObject({ disabledAgents: ["codex"] });
-    expect(plans[0].action).toMatch(/Enable demo for codex/);
+    expect(plans[0]).toMatchObject({
+      disabledAgents: ["codex"],
+      disabledUnits: 1,
+    });
+    expect(plans[0].action).toMatch(/Nothing active changed/);
     await expect(
       applyPackageUpdate(
         "demo",

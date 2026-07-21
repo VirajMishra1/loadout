@@ -419,6 +419,11 @@ export interface HealthReport {
   managedRuntimeTools?: number;
   updatesChecked: boolean;
   updatesAvailable: number;
+  /** Updates that affect currently active packages. */
+  activeUpdatesAvailable?: number;
+  /** New upstream commits held for disabled library packages. */
+  disabledUpdatesAvailable?: number;
+  updateChecksFailed?: number;
   driftedFiles: number;
   driftedMcpServers: number;
   findings: HealthFinding[];

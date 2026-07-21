@@ -160,14 +160,27 @@ export async function buildHealthReport(
   const available = updates.filter(
     (update) => update.status === "update-available",
   );
-  if (available.length)
+  const disabledAvailable = available.filter((update) =>
+    Boolean(update.disabledAgents?.length),
+  );
+  const activeAvailable = available.filter(
+    (update) => !update.disabledAgents?.length,
+  );
+  if (activeAvailable.length)
     findings.push({
-      level: available.some((update) => update.approvalRequired)
+      level: activeAvailable.some((update) => update.approvalRequired)
         ? "warning"
         : "info",
       code: "updates-available",
-      message: `${available.length} package update(s) are available.`,
+      message: `${activeAvailable.length} active package update(s) are available.`,
       fix: "Run loadout update and review the safety findings.",
+    });
+  if (disabledAvailable.length)
+    findings.push({
+      level: "info",
+      code: "disabled-library-updates-available",
+      message: `${disabledAvailable.length} disabled-library package(s) have newer upstream commits.`,
+      fix: "Nothing active changed; disabled skills stay pinned and are never reactivated automatically.",
     });
   const errors = updates.filter((update) => update.status === "error");
   if (errors.length)
@@ -215,6 +228,9 @@ export async function buildHealthReport(
     managedRuntimeTools: runtimeTools.length,
     updatesChecked: Boolean(options.updates || options.checkUpdates),
     updatesAvailable: available.length,
+    activeUpdatesAvailable: activeAvailable.length,
+    disabledUpdatesAvailable: disabledAvailable.length,
+    updateChecksFailed: errors.length,
     driftedFiles: drifted.length,
     driftedMcpServers,
     findings,
@@ -232,7 +248,7 @@ export function formatHealthReport(report: HealthReport): string {
           : "✗";
   const lines = [
     `${icon} Loadout health: ${report.status === "not-configured" ? "not configured" : report.status === "library-only" ? "library ready (nothing active)" : report.status}`,
-    `Packages: ${report.installedPackages} managed; skills: ${report.activeSkills ?? 0} active, ${report.disabledSkills ?? 0} disabled; MCP servers: ${report.managedMcpServers ?? 0}; runtime tools: ${report.managedRuntimeTools ?? 0}; ${report.updatesChecked ? `${report.updatesAvailable} update(s)` : "updates not checked (use --updates)"}; ${report.driftedFiles} drifted file(s), ${report.driftedMcpServers} drifted MCP server(s)`,
+    `Packages: ${report.installedPackages} managed; skills: ${report.activeSkills ?? 0} active, ${report.disabledSkills ?? 0} disabled; MCP servers: ${report.managedMcpServers ?? 0}; runtime tools: ${report.managedRuntimeTools ?? 0}; ${report.updatesChecked ? `${report.activeUpdatesAvailable ?? report.updatesAvailable} active update(s), ${report.disabledUpdatesAvailable ?? 0} disabled-library update(s), ${report.updateChecksFailed ?? 0} check(s) unavailable` : "updates not checked (use --updates)"}; ${report.driftedFiles} drifted file(s), ${report.driftedMcpServers} drifted MCP server(s)`,
   ];
   for (const finding of report.findings)
     lines.push(

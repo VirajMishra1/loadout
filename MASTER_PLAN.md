@@ -6,12 +6,75 @@ Category: Developer Tools
 Team size: 3  
 Target submission: July 21, 2026 at 5:00 PM Pacific / July 22 at 4:00 AM Dubai
 
-## Current status and remaining work (July 21, 2026)
+## Launch finish line (authoritative, July 21, 2026)
 
-This is the authoritative active list. The long phase history below is retained as
-an archival engineering record, not a second active plan and not a command to build
-every speculative system before users can test Loadout. Completed implementation
-plans and contributor-specific plans have been consolidated here and removed.
+This is the only active checklist. Everything under **Archived implementation
+history** is evidence of how the product was built, not unfinished launch scope.
+
+### Product complete
+
+- [x] Publish the CLI as `loadout-ai@0.5.6`; keep the product usable without cloning
+      this repository or providing an OpenAI/Anthropic API key.
+- [x] Ship Stable, Power, Maximum, and Custom profiles with preview-first apply,
+      snapshots, drift protection, explicit rollback, removal, and complete uninstall.
+- [x] Detect and manage skills across supported agent adapters while preserving
+      unrelated and unmanaged files.
+- [x] Ship a 53-source pinned catalog, daily read-only discovery/update checks,
+      existing-skill reconciliation, and project-aware recommendation/optimization.
+- [x] Credit and support the MIT Humanizer and Obsidian Skills sources. Humanizer is
+      available through Custom mode; Obsidian is recommended for detected vaults.
+- [x] Ship three explicit MCP recipes for Playwright, Chrome DevTools, and read-only
+      GitHub, plus the separately reviewed Graphify runtime-tool recipe.
+- [x] Remove the conflicting dashboard and make the CLI the only product surface.
+- [x] Publish clear npm setup, testing, upstream attribution, trust boundaries, and a
+      detailed account of how Codex and GPT-5.6 were used in the README.
+- [x] Pass the complete local release gate and the latest hosted CI run on `main`.
+
+### Final founder acceptance
+
+- [ ] Install the exact public npm release in a fresh terminal and run the final short
+      path: Humanizer Custom preview/apply/scan/rollback, read-only update/discovery,
+      complete uninstall, and clean reinstall. Stable, Power, Maximum, project
+      optimization, Graphify, and both-host Playwright MCP lifecycles have already
+      been exercised on the founder's real profiles.
+- [ ] Decide whether to rename the GitHub repository from `loadout` to `loadout-ai`.
+      If approved, rename it before recording and update canonical links; keep the
+      product name **Loadout** and npm package/CLI identity `loadout-ai` / `loadout`.
+- [ ] Make the six unresolved upstream-license decisions explicit. Do not silently
+      convert `NOASSERTION` into a license claim because a repository is popular.
+
+### Submission work
+
+- [ ] Record the real CLI demo using `docs/DEMO_SCRIPT.md`; keep it under three
+      minutes, include a voiceover, upload it publicly to YouTube, and verify the URL.
+- [ ] Replace the README demo placeholder with the final YouTube link.
+- [ ] In the voiceover, explain what Loadout does and how Codex and GPT-5.6 were used.
+- [ ] Run `/feedback` in Codex, copy the resulting session ID, and enter it in Devpost.
+- [ ] Confirm the repository URL is accessible to Devpost and OpenAI.
+- [ ] Confirm all team invitations are accepted, select **Developer Tools**, complete
+      the edited Devpost description, and submit rather than leaving a draft.
+
+### Deliberately not part of this submission
+
+These are not launch blockers and should not be rebuilt before submission:
+
+- A dashboard or second frontend surface.
+- Hosted accounts, GitHub OAuth, cloud sync, analytics, or enterprise administration.
+- Automatic installation of newly discovered projects or arbitrary third-party
+  installer execution.
+- A universal quality score, fabricated benchmark results, or automatic claims that
+  stars prove safety or usefulness.
+- A production-hosted signed intelligence service, a second executable runtime tool,
+  speculative adapter features without user demand, or ten external user studies.
+- Restoring GitHub-hosted Actions capacity before submission; the full gate can run
+  locally, and the latest completed `main` CI is already passing.
+
+## Archived current-status diary (historical, not active scope)
+
+This section preserves the chronological implementation and founder-testing record.
+Its unchecked boxes may describe older release numbers, superseded acceptance paths,
+external research, or intentionally deferred work. They are not active launch tasks;
+use the launch finish line above.
 
 ### Implemented product work
 
@@ -2135,7 +2198,7 @@ small PRs, no long-lived branches.
 
 ## 25. Immediate next tasks
 
-Use the `Current remaining work` section at the top of this document. The next action
-is founder acceptance testing with `docs/USER_TEST_GUIDE.md`; do not add a new hosted
-service, provider dependency, or frontend surface until an observed user-testing issue
-justifies it.
+Use **Launch finish line** at the top of this document. The next actions are the short
+founder acceptance remainder, the recorded demo, `/feedback`, and Devpost submission.
+Do not add a hosted service, provider dependency, dashboard, or speculative feature
+before the deadline.

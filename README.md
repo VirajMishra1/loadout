@@ -114,7 +114,8 @@ their own explicit setup and permission steps.
 
 **Demo video coming here.** The release walkthrough will show the real path—not a
 mock UI: Stable install, cross-agent inventory, project optimization, update and
-discovery checks, MCP setup, Graphify, rollback, and complete uninstall.
+discovery checks, MCP setup, Graphify, rollback, and complete uninstall. The exact
+under-three-minute [recording and voiceover script](./docs/DEMO_SCRIPT.md) is public.
 
 For now, the [end-to-end acceptance guide](./docs/USER_TEST_GUIDE.md) contains the same
 commands you can run yourself.
@@ -224,10 +225,17 @@ relevant active loadout.
 
 ```bash
 loadout setup --mode custom --package superpowers --package context7
+
+# Install the reviewed Humanizer writing skill into Codex
+loadout setup --mode custom --package humanizer --agents codex
+
+# Install the reviewed Obsidian skills explicitly
+loadout setup --mode custom --package obsidian-skills --agents codex,claude-code
 ```
 
 Run `loadout profiles` to compare every mode. MCP servers always use a separate
-approval step.
+approval step. Obsidian skills are also proposed automatically when `recommend` or
+`optimize` detects an Obsidian vault; they are not added to the universal Stable set.
 
 ## MCP integrations
 

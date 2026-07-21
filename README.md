@@ -87,10 +87,10 @@ Useful skills, plugins, MCP servers, and settings arrive one experiment at a tim
 Soon it is hard to remember what is installed, where it came from, whether something
 better launched yesterday, or how to undo a change. The name comes from games, where
 your loadout is the set of tools you choose for the mission. This does the same for AI
-coding agents—without making you rebuild the setup for every agent and every project.
+coding agents without making you rebuild the setup for every agent and every project.
 
 Most extension tools begin with a repo you already know. Loadout begins one step
-earlier—**what is actually worth knowing?**—and stays with you after installation.
+earlier: **what is actually worth knowing?** It stays with you after installation.
 
 Loadout watches a much wider catalog than it activates. You can keep thousands of
 technically screened skill copies in the disabled Maximum library, discover new projects as
@@ -112,7 +112,7 @@ their own explicit setup and permission steps.
 
 ### Demo
 
-**Demo video coming here.** The release walkthrough will show the real path—not a
+**Demo video coming here.** The release walkthrough will show the real path, not a
 mock UI: Stable install, cross-agent inventory, project optimization, update and
 discovery checks, MCP setup, Graphify, rollback, and complete uninstall. The exact
 under-three-minute [recording and voiceover script](./docs/DEMO_SCRIPT.md) is public.
@@ -122,7 +122,7 @@ commands you can run yourself.
 
 ## Stable workflow
 
-### Stable Boost — install the essentials and start building
+### Stable Boost: install the essentials and start building
 
 Stable is the recommended daily driver: **30 selected skill directories from four
 pinned public sources**, installed into each agent you choose. It covers planning,
@@ -181,7 +181,7 @@ checked by `loadout update` without moving them to a different agent path.
 
 Loadout is opinionated when you want it to be and precise when you do not.
 
-### Power Boost — a larger cross-project toolkit
+### Power Boost: a larger cross-project toolkit
 
 Power draws a skill-level allowlist from eight major collections. The prepared set
 is deduplicated and invalid units are quarantined, so the final count can be lower
@@ -203,11 +203,11 @@ skills per agent.
 loadout setup --mode power
 ```
 
-### Maximum Library — download broadly, activate intelligently
+### Maximum Library: download broadly, activate intelligently
 
 Maximum is for explorers. It downloads every non-archived, technically screened
 skill component in the catalog into Loadout's **disabled local library**. Disabled
-means cached and available—not injected into agent context. Then let the current
+means cached and available, not injected into agent context. Then let the current
 project choose a focused active set:
 
 ```bash
@@ -221,7 +221,7 @@ This is the difference between “install everything” and “have everything r
 The first overloads agents; the second gives you a large library with a small,
 relevant active loadout.
 
-### Custom — take exact control
+### Custom: take exact control
 
 Use `setup` when the listed packages should become the complete managed profile for
 the selected agents. Packages from the previous managed profile that are not listed
@@ -353,6 +353,10 @@ The checked-in discovery report proves only its dated snapshot, not the success 
 
 <!-- loadout:current-limits:end -->
 
+The six records have an explicit public-release decision rather than an assumed
+license. Read [Upstream license decisions](./docs/UPSTREAM_LICENSE_DECISIONS.md) for
+the source-by-source record and the boundary applied to Power, Maximum, and Custom.
+
 Read the [security policy](./SECURITY.md), [catalog policy](./docs/CATALOG_POLICY.md), and [credential and update policy](./docs/CREDENTIAL_AND_UPDATE_POLICY.md) before trusting third-party content.
 
 ## Agent support
@@ -431,7 +435,7 @@ without loading thousands of skills into every prompt.
 | Ecosystem research | Compared repositories, checked source layouts and licenses, and separated popularity from evidence                           | 53 pinned catalog sources plus a discovery snapshot watching 240 repositories                               |
 | Implementation     | Wrote and refactored CLI commands, schemas, source fetchers, installers, active-set logic, and MCP configuration             | The published `loadout-ai` package and the commands documented above                                        |
 | Safety work        | Looked for scripts, hooks, binaries, credential references, target collisions, stale previews, and external edits            | Preview-first changes, quarantined skill units, explicit risk approval, drift protection, and rollback      |
-| Testing            | Generated adversarial cases, reproduced failures from real terminal sessions, and converted them into regression tests       | 620 passing tests, CLI and README end-to-end flows, package smoke tests, and a 1,000-skill performance gate |
+| Testing            | Generated adversarial cases, reproduced failures from real terminal sessions, and converted them into regression tests       | 624 passing tests, CLI and README end-to-end flows, package smoke tests, and a 1,000-skill performance gate |
 | Team integration   | Audited teammate branches, compared them with `main`, prepared focused pull requests, and checked what was actually complete | One public history instead of three disconnected prototypes                                                 |
 | Release work       | Verified npm contents, version behavior, GitHub metadata, documentation claims, and public CI                                | A public npm package, credited upstream catalog, release evidence, and a reproducible verification command  |
 
@@ -495,6 +499,7 @@ The repository's mixed README product-flow test uses an isolated build, disposab
 - [Daily discovery snapshot](./docs/DISCOVERED.md)
 - [Candidate inspection and promotion](./docs/CANDIDATE_INTELLIGENCE.md)
 - [Credential and update policy](./docs/CREDENTIAL_AND_UPDATE_POLICY.md)
+- [Upstream license decisions](./docs/UPSTREAM_LICENSE_DECISIONS.md)
 - [Changelog](./CHANGELOG.md)
 
 ## Contributing, security, and attribution

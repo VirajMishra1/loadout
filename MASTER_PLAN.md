@@ -13,7 +13,7 @@ history** is evidence of how the product was built, not unfinished launch scope.
 
 ### Product complete
 
-- [x] Publish the CLI as `loadout-ai@0.5.6`; keep the product usable without cloning
+- [x] Publish the CLI as `loadout-ai@0.5.7`; keep the product usable without cloning
       this repository or providing an OpenAI/Anthropic API key.
 - [x] Ship Stable, Power, Maximum, and Custom profiles with preview-first apply,
       snapshots, drift protection, explicit rollback, removal, and complete uninstall.
@@ -35,16 +35,14 @@ history** is evidence of how the product was built, not unfinished launch scope.
 
 ### Final founder acceptance
 
-- [ ] Install the exact public npm release in a fresh terminal and run the final short
-      path: Humanizer Custom preview/apply/scan/rollback, read-only update/discovery,
-      complete uninstall, and clean reinstall. Stable, Power, Maximum, project
-      optimization, Graphify, and both-host Playwright MCP lifecycles have already
-      been exercised on the founder's real profiles.
-- [ ] Decide whether to rename the GitHub repository from `loadout` to `loadout-ai`.
-      If approved, rename it before recording and update canonical links; keep the
-      product name **Loadout** and npm package/CLI identity `loadout-ai` / `loadout`.
-- [ ] Make the six unresolved upstream-license decisions explicit. Do not silently
-      convert `NOASSERTION` into a license claim because a repository is popular.
+- [x] Install the exact public npm release, verify `loadout --version`, and scan the
+      founder's restored real profiles. Stable, Power, Maximum, project optimization,
+      Humanizer, Graphify, both-host Playwright MCP lifecycles, rollback, complete
+      uninstall, and clean reinstall were exercised during founder acceptance.
+- [x] Keep the GitHub repository name `loadout`. The product remains **Loadout** and
+      the npm package/CLI identities remain `loadout-ai` / `loadout`.
+- [x] Record explicit decisions for all six `NOASSERTION` sources in
+      `docs/UPSTREAM_LICENSE_DECISIONS.md` without inventing a license claim.
 
 ### Submission work
 
@@ -53,9 +51,11 @@ history** is evidence of how the product was built, not unfinished launch scope.
 - [ ] Replace the README demo placeholder with the final YouTube link.
 - [ ] In the voiceover, explain what Loadout does and how Codex and GPT-5.6 were used.
 - [ ] Run `/feedback` in Codex, copy the resulting session ID, and enter it in Devpost.
-- [ ] Confirm the repository URL is accessible to Devpost and OpenAI.
-- [ ] Confirm all team invitations are accepted, select **Developer Tools**, complete
-      the edited Devpost description, and submit rather than leaving a draft.
+- [x] Confirm the public repository URL is accessible to Devpost and OpenAI.
+- [x] Confirm all team invitations are accepted. Both teammates are collaborators and
+      there are no pending repository invitations.
+- [ ] Select **Developer Tools**, complete the edited Devpost description, and submit
+      rather than leaving a draft.
 
 ### Deliberately not part of this submission
 

@@ -1,6 +1,6 @@
 # Loadout demo and voiceover
 
-Target length: **2:35–2:50**. Record the real CLI, cut fetch waits and typing, and do
+Target length: **2:35 to 2:50**. Record the real CLI, cut fetch waits and typing, and do
 not show the retired dashboard. The final YouTube upload must be public.
 
 ## Before recording
@@ -24,7 +24,7 @@ not show the retired dashboard. The final YouTube upload must be public.
 
 ## Shot list and exact narration
 
-### 0:00–0:15 — the problem
+### 0:00 to 0:15: the problem
 
 **Screen:** README hero, then a terminal showing `loadout --version`.
 
@@ -35,7 +35,7 @@ not show the retired dashboard. The final YouTube upload must be public.
 > or how to undo it. I built Loadout: one local CLI to discover, inspect, install,
 > update, and roll back agent extensions across Codex, Claude Code, and other agents.
 
-### 0:15–0:50 — one safe install
+### 0:15 to 0:50: one safe install
 
 **Screen:** Run the preview, then apply. Cut the fetch wait, not the result.
 
@@ -52,7 +52,7 @@ loadout setup --mode stable --agents codex,claude-code --api-access none --yes
 > transaction and gives me a rollback snapshot. My ChatGPT and Claude subscriptions
 > are not treated as API keys, and normal skill setup does not need one.
 
-### 0:50–1:12 — see what changed and undo it
+### 0:50 to 1:12: see what changed and undo it
 
 **Screen:**
 
@@ -70,25 +70,26 @@ loadout rollback --snapshot <stable-snapshot-id>
 > preserving unrelated skills. I use the exact snapshot ID shown by the install, so
 > there is no ambiguity. Complete uninstall is available too.
 
-### 1:12–1:42 — broad library, focused project
+### 1:12 to 1:42: broad catalog, focused project
 
-**Screen:** Use the already downloaded Maximum library from the acceptance run. Show
-the first part of `library`, then run the two read-only commands.
+**Screen:** Show the profile choices, catalog coverage, and a real project
+recommendation. These commands are read-only and do not require a prepared Maximum
+library.
 
 ```bash
-loadout library
+loadout profiles
+loadout catalog --coverage
 loadout recommend --project . --agent codex
-loadout optimize --project . --agents codex,claude-code --limit 30
 ```
 
 **Say:**
 
-> Maximum does not dump thousands of skills into every prompt. It keeps the broad
-> screened catalog disabled, detects this TypeScript CLI project, and proposes a
-> focused active set for each agent. That is the core idea: discover broadly, activate
-> narrowly, and keep every change reversible.
+> Loadout has three useful levels. Stable installs a bounded daily set. Power is
+> broader. Maximum keeps a large screened library disabled instead of dumping every
+> skill into every prompt. For this TypeScript CLI, the project recommender proposes
+> tools for documentation, testing, security, and MCP work without changing anything.
 
-### 1:42–2:05 — MCP, tools, and custom skills
+### 1:42 to 2:05: MCP, tools, and custom skills
 
 **Screen:**
 
@@ -106,7 +107,7 @@ loadout install --mode custom --package humanizer --agents codex
 > skill such as Humanizer can be installed directly through Custom mode. Each path
 > discloses permissions and credentials before approval.
 
-### 2:05–2:25 — today and tomorrow
+### 2:05 to 2:25: today and tomorrow
 
 **Screen:**
 
@@ -121,7 +122,7 @@ loadout discover --limit 5
 > watches a wider ecosystem and queues new projects for review, so something going
 > viral can be noticed quickly without being trusted blindly.
 
-### 2:25–2:48 — Codex, GPT-5.6, and close
+### 2:25 to 2:48: Codex, GPT-5.6, and close
 
 **Screen:** README section “Built with Codex and GPT-5.6”, then return to the hero.
 
@@ -138,7 +139,7 @@ loadout discover --limit 5
 
 - Remove loading screens, typing pauses, repeated commands, notifications, and secrets.
 - Keep terminal output readable at 1080p; do not use a synthetic dashboard or mock data.
-- Add a small title card: **Loadout — Agent extensions, under control.**
+- Add a small title card: **Loadout: Agent extensions, under control.**
 - Export under three minutes and upload publicly to YouTube.
 - Watch the uploaded video once, confirm audio and text are legible, then paste the
   exact public URL into README and Devpost.

@@ -348,6 +348,7 @@ export async function applySkillInstall(
       await recordInstall(freshPlan, snapshot.id, metadata);
       await options.verifyBeforeCommit?.(snapshot.id);
     },
+    { label: `install ${plan.packageId}` },
   );
   return applied.snapshotId;
 }
@@ -462,6 +463,7 @@ export async function applySkillInstallBatch(
       await recordManagedProfileReconciliation(reconciliation);
       await options.afterRecord?.();
     },
+    { label: `install ${entries.length} skill repositories` },
   );
   return applied.snapshotId;
 }
@@ -566,6 +568,7 @@ export async function applySkillLibraryBatch(
       await recordLibraryInstallBatch(freshEntries, snapshot.id);
       await options.afterRecord?.();
     },
+    { label: `download ${entries.length} repositories to Maximum library` },
   );
   return applied.snapshotId;
 }

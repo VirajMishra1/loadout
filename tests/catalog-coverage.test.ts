@@ -13,7 +13,7 @@ describe("catalog capability coverage", () => {
     expect(report.technicallyScreenedRecords).toBe(catalog.length);
     expect(report.recommendedRecords).toBe(4);
     expect(report.trustStages).toMatchObject({
-      inspected: 46,
+      inspected: 47,
       recommended: 4,
       "human-reviewed": 0,
       benchmarked: 0,
@@ -28,9 +28,9 @@ describe("catalog capability coverage", () => {
     expect(report.components.mcp).toBeGreaterThan(0);
     const output = formatCatalogCoverage(report);
     expect(output).toContain("immutable pins");
-    expect(output).toContain("Policy selection: 4 Stable sources");
-    expect(output).toContain("0 human-reviewed");
-    expect(output).toContain("0 benchmarked");
+    expect(output).toContain("4 selected for Stable");
+    expect(output).toContain("0 stored human-review attestations");
+    expect(output).toContain("0 signed benchmark results");
     expect(output).not.toMatch(/Recommendation trust|tested winner/i);
   });
 

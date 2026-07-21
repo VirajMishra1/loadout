@@ -5,6 +5,10 @@ describe("local health checks", () => {
   it("stays network-free by default and labels update state honestly", async () => {
     const report = await buildHealthReport();
     expect(report.updatesChecked).toBe(false);
+    expect(report.status).toBe("not-configured");
+    expect(formatHealthReport(report)).toContain(
+      "Loadout health: not configured",
+    );
     expect(formatHealthReport(report)).toContain(
       "updates not checked (use --updates)",
     );

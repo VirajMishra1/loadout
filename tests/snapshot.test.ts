@@ -17,6 +17,7 @@ import {
   listSnapshotIds,
   readSnapshot,
   restoreSnapshot,
+  summarizeSnapshot,
   validateSnapshot,
 } from "../src/core/snapshot.js";
 
@@ -67,6 +68,26 @@ describe("rollback snapshots", () => {
     });
 
     expect(await readFile(join(target, "file.txt"), "utf8")).toBe("before");
+  });
+
+  it("summarizes a labeled mutation and identifies a no-op snapshot", async () => {
+    root = await mkdtemp(join(tmpdir(), "loadout-snapshot-summary-"));
+    process.env.LOADOUT_HOME = join(root, ".loadout");
+    const target = join(root, "target");
+    await mkdir(target, { recursive: true });
+    await writeFile(join(target, "file.txt"), "same");
+    const snapshot = await createSnapshot([target], {
+      persist: false,
+      label: "install stable profile",
+    });
+    const postMutation = await createSnapshot([target], { persist: false });
+    snapshot.postMutationFiles = postMutation.files;
+
+    expect(summarizeSnapshot(snapshot)).toMatchObject({
+      label: "install stable profile",
+      roots: 1,
+      changedEntries: 0,
+    });
   });
 
   it.each([

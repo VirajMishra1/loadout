@@ -7,6 +7,7 @@ START HERE
 
 2. Preview the recommended everyday setup
    loadout setup --mode stable
+   loadout profiles
 
 3. Find additions that fit the project in this folder
    loadout recommend --project .
@@ -17,8 +18,10 @@ START HERE
    loadout alerts
    loadout candidate list --limit 10
 
-5. If you want a visual view, start the private local dashboard
-   loadout dashboard
+5. See reviewed MCP integrations and their credential needs
+   loadout mcp-recipe
+   loadout mcp-recipe --credential-free
+   loadout mcp-recipe playwright --agent codex
 
 If you decide to install something, Loadout shows a preview first and creates a
 snapshot before changing managed files. Recover with: loadout rollback

@@ -105,7 +105,7 @@ describe("README product flow", () => {
     expect(readme).toContain("Agent extensions, under control.");
     expect(readme).toContain("Choose -> Inspect -> Preview -> Apply -> Undo");
     expect(readme).toMatch(/abridged terminal transcript/i);
-    expect(readme).toContain("npm install --global loadout-ai@0.4.1");
+    expect(readme).toContain("npm install --global loadout-ai@0.5.0");
 
     expectOrderedReadmeStructure(
       readme,
@@ -177,24 +177,24 @@ describe("README product flow", () => {
     const schema = JSON.parse(schemaText);
 
     expect(readme).toContain(
-      '<a href="https://github.com/reddynitish/loadout/actions/workflows/ci.yml"><img src="https://github.com/reddynitish/loadout/actions/workflows/ci.yml/badge.svg" alt="CI status"></a>',
+      '<a href="https://github.com/VirajMishra1/loadout/actions/workflows/ci.yml"><img src="https://github.com/VirajMishra1/loadout/actions/workflows/ci.yml/badge.svg" alt="CI status"></a>',
     );
     expect(readme).toContain(
-      "git clone https://github.com/reddynitish/loadout.git",
+      "git clone https://github.com/VirajMishra1/loadout.git",
     );
-    expect(readme).toContain("https://github.com/reddynitish/loadout/issues");
-    expect(readme).not.toContain("https://github.com/VirajMishra1/loadout");
+    expect(readme).toContain("https://github.com/VirajMishra1/loadout/issues");
+    expect(readme).not.toContain("https://github.com/reddynitish/loadout");
     expect(packageJson.repository.url).toBe(
-      "git+https://github.com/reddynitish/loadout.git",
+      "git+https://github.com/VirajMishra1/loadout.git",
     );
     expect(packageJson.homepage).toBe(
-      "https://github.com/reddynitish/loadout#readme",
+      "https://github.com/VirajMishra1/loadout#readme",
     );
     expect(packageJson.bugs.url).toBe(
-      "https://github.com/reddynitish/loadout/issues",
+      "https://github.com/VirajMishra1/loadout/issues",
     );
     expect(schema.$id).toBe(
-      "https://github.com/reddynitish/loadout/docs/evidence/live-checks.schema.json",
+      "https://github.com/VirajMishra1/loadout/docs/evidence/live-checks.schema.json",
     );
   });
 

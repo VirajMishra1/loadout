@@ -252,15 +252,18 @@ export async function prepareCatalogInstall(
       } catch (error) {
         completed += 1;
         const reason = error instanceof Error ? error.message : String(error);
+        const fullyQuarantined =
+          rejected.size > 0 && /No SKILL\.md found/.test(reason);
         options.onProgress?.({
           packageId: pkg.id,
           completed,
           total: installable.length,
           status: "skipped",
-          message: `${pkg.displayName} could not be prepared: ${reason}`,
+          message: fullyQuarantined
+            ? `${pkg.displayName}: all ${rejected.size} discovered skill unit(s) were quarantined`
+            : `${pkg.displayName} could not be prepared: ${reason}`,
         });
-        if (rejected.size > 0 && /No SKILL\.md found/.test(reason))
-          return { quarantined: [...rejected.values()] };
+        if (fullyQuarantined) return { quarantined: [...rejected.values()] };
         return {
           result: {
             packageId: pkg.id,
@@ -338,6 +341,7 @@ export async function prepareCatalogInstall(
 
 export function formatPreparedCatalogInstall(
   prepared: PreparedCatalogInstall,
+  options: { details?: boolean } = {},
 ): string {
   const targetDirectories = prepared.entries.reduce(
     (total, entry) => total + entry.plan.files.length,
@@ -370,7 +374,7 @@ export function formatPreparedCatalogInstall(
   ];
   if (directoriesPerAgent > RECOMMENDED_ACTIVE_SKILL_LIMIT)
     lines.push(
-      `Capacity warning: about ${directoriesPerAgent} skill directories per agent exceeds the recommended active-set limit of ${RECOMMENDED_ACTIVE_SKILL_LIMIT}.${prepared.selection.mode === "maximum" ? " Maximum stores these in the disabled library; use project activation to choose the working set." : " Prefer Stable or project-aware activation for smaller context."}`,
+      `Capacity notice: about ${directoriesPerAgent} skill directories per agent exceeds Stable's ${RECOMMENDED_ACTIVE_SKILL_LIMIT}-skill bound.${prepared.selection.mode === "maximum" ? " Maximum stores them in the disabled library; optimize or activate a project-relevant working set." : prepared.selection.mode === "power" ? " Power is the explicit larger active mode; choose Stable or project optimization when lower context use matters." : " Use project-aware activation for a smaller working set."}`,
     );
   if (failures.length)
     lines.push(
@@ -379,6 +383,10 @@ export function formatPreparedCatalogInstall(
   if (quarantined.length)
     lines.push(
       `Quarantined invalid skill units: ${quarantined.length} (safe siblings remain available)`,
+    );
+  if (explicit.length)
+    lines.push(
+      `Deferred integration setup: ${explicit.length} record(s) remain opt-in through MCP/runtime commands.`,
     );
   if (prepared.collisions.length)
     lines.push(
@@ -395,14 +403,26 @@ export function formatPreparedCatalogInstall(
   }
   if (risky.length)
     lines.push(
-      `Additional risk approval required: ${risky.map((entry) => entry.package.id).join(", ")}`,
+      options.details
+        ? `Additional risk approval required: ${risky.map((entry) => entry.package.id).join(", ")}`
+        : `Additional risk approval required for ${risky.length} repositor${risky.length === 1 ? "y" : "ies"}. Run the preview with --details before approval.`,
     );
   for (const warning of prepared.resolution.warnings)
     lines.push(`Warning: ${warning}`);
-  for (const item of prepared.skipped)
-    lines.push(
-      `${item.kind === "preparation-failed" ? "Failed" : item.kind === "quarantined" ? "Quarantined" : "Deferred"} ${item.packageId}${item.unitId ? `/${item.unitId}` : ""}: ${item.reason}`,
-    );
+  if (failures.length)
+    for (const item of failures)
+      lines.push(
+        `Failed ${item.packageId}${item.unitId ? `/${item.unitId}` : ""}: ${item.reason}`,
+      );
+  if (options.details)
+    for (const item of prepared.skipped.filter(
+      (item) => item.kind !== "preparation-failed",
+    ))
+      lines.push(
+        `${item.kind === "quarantined" ? "Quarantined" : "Deferred"} ${item.packageId}${item.unitId ? `/${item.unitId}` : ""}: ${item.reason}`,
+      );
+  else if (quarantined.length || explicit.length)
+    lines.push("Use --details to show every quarantined or deferred unit.");
   return lines.join("\n");
 }
 
@@ -447,5 +467,7 @@ export async function applyPreparedCatalogInstall(
 export function formatCatalogApplyGuidance(
   riskApprovalRequired: boolean,
 ): string {
-  return `Preview complete; nothing was changed. Re-run with --yes${riskApprovalRequired ? " --approve-risk" : ""} to install this exact screened plan.`;
+  return riskApprovalRequired
+    ? "Preview complete; nothing was changed. Inspect the plan with --details, then re-run with --yes --approve-risk only if you accept every reported finding."
+    : "Preview complete; nothing was changed. Re-run with --yes to install this exact screened plan.";
 }

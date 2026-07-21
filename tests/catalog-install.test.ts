@@ -21,7 +21,7 @@ describe("CLI-first catalog setup", () => {
       "Preview complete; nothing was changed. Re-run with --yes to install this exact screened plan.",
     );
     expect(formatCatalogApplyGuidance(true)).toBe(
-      "Preview complete; nothing was changed. Re-run with --yes --approve-risk to install this exact screened plan.",
+      "Preview complete; nothing was changed. Inspect the plan with --details, then re-run with --yes --approve-risk only if you accept every reported finding.",
     );
   });
 
@@ -268,6 +268,12 @@ describe("CLI-first catalog setup", () => {
     expect(formatPreparedCatalogInstall(prepared)).toContain(
       "Quarantined invalid skill units: 1",
     );
+    expect(formatPreparedCatalogInstall(prepared)).not.toContain(
+      "mixed-collection/invalid-skill",
+    );
+    expect(formatPreparedCatalogInstall(prepared, { details: true })).toContain(
+      "mixed-collection/invalid-skill",
+    );
   });
 
   it("quarantines an invalid selected Power skill without discarding its safe siblings", async () => {
@@ -393,7 +399,7 @@ describe("CLI-first catalog setup", () => {
       collisions: [],
     };
     expect(formatPreparedCatalogInstall(prepared)).toContain(
-      "recommended active-set limit of 30",
+      "exceeds Stable's 30-skill bound",
     );
   });
 

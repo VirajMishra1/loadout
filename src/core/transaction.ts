@@ -189,6 +189,7 @@ export async function withMutationLock<T>(
 export async function runMutationTransaction<Prepared, Result>(
   prepare: () => Promise<{ targets: string[]; value: Prepared }>,
   mutate: (value: Prepared, snapshot: Snapshot) => Promise<Result>,
+  options: { label?: string } = {},
 ): Promise<{ snapshotId: string; result: Result }> {
   const mutationLock = await acquireMutationLock();
   let transaction: TransactionHandle | undefined;
@@ -196,6 +197,7 @@ export async function runMutationTransaction<Prepared, Result>(
     const prepared = await prepare();
     const snapshot = await createSnapshot(prepared.targets, {
       persist: false,
+      label: options.label,
     });
     transaction = await beginTransaction(snapshot, prepared.targets, {
       mutationLock,

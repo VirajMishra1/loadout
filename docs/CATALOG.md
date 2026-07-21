@@ -1,6 +1,6 @@
 # Catalog and upstream credits
 
-Loadout's bundled catalog indexes 50 public upstream repositories. This page gives every project a direct source link and exposes the exact reviewed revision used by Loadout.
+Loadout's bundled catalog indexes 51 public upstream repositories. This page gives every project a direct source link and exposes the exact reviewed revision used by Loadout.
 
 Thank you to every maintainer and contributor whose work appears here. Loadout does not own, endorse for its authors, or relicense these projects. Each project remains governed by its upstream license and current terms.
 
@@ -14,7 +14,7 @@ Thank you to every maintainer and contributor whose work appears here. Loadout d
 
 The machine-readable catalog remains the source of truth. Run `loadout catalog --coverage --json` to inspect coverage and `loadout capabilities` to inspect what each local agent adapter can actually manage.
 
-## All 50 credited repositories
+## All 51 credited repositories
 
 | Upstream source                                                                   | Loadout ID                       | Category                 | Reviewed components        | License status      | Reviewed revision                                                                                                       |
 | --------------------------------------------------------------------------------- | -------------------------------- | ------------------------ | -------------------------- | ------------------- | ----------------------------------------------------------------------------------------------------------------------- |
@@ -68,6 +68,7 @@ The machine-readable catalog remains the source of truth. Run `loadout catalog -
 | [MCP Toolbox for Databases](https://github.com/googleapis/mcp-toolbox)            | `mcp-toolbox-for-databases`      | database                 | `mcp`                      | `Apache-2.0`        | [`b574b071fc27`](https://github.com/googleapis/mcp-toolbox/tree/b574b071fc27f717e90b4362864b1086be0c8995)               |
 | [Browserbase MCP Server](https://github.com/browserbase/mcp-server-browserbase)   | `browserbase-mcp-server`         | browser-automation       | `mcp`                      | `Apache-2.0`        | [`1e196b3d3c4d`](https://github.com/browserbase/mcp-server-browserbase/tree/1e196b3d3c4dc70944e0d19038dd9eb3608b207a)   |
 | [Bright Data MCP](https://github.com/brightdata/brightdata-mcp)                   | `bright-data-mcp`                | web-research             | `mcp`                      | `MIT`               | [`adbfdd49b880`](https://github.com/brightdata/brightdata-mcp/tree/adbfdd49b8805136662a264490118c2688da3e29)            |
+| [Obsidian Skills](https://github.com/kepano/obsidian-skills)                      | `obsidian-skills`                | knowledge-management     | `skill`, `plugin`          | `MIT`               | [`a1dc48e68138`](https://github.com/kepano/obsidian-skills/tree/a1dc48e68138490d522c04cbf5822214c6eb1202)               |
 
 ## Catalog maintenance
 

@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/reddynitish/loadout/actions/workflows/ci.yml"><img src="https://github.com/reddynitish/loadout/actions/workflows/ci.yml/badge.svg" alt="CI status"></a>
+  <a href="https://github.com/VirajMishra1/loadout/actions/workflows/ci.yml"><img src="https://github.com/VirajMishra1/loadout/actions/workflows/ci.yml/badge.svg" alt="CI status"></a>
   <a href="./package.json"><img src="https://img.shields.io/badge/Node.js-%3E%3D20-339933?logo=node.js&amp;logoColor=white" alt="Node.js 20 or newer"></a>
   <a href="./LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="MIT License"></a>
 </p>
@@ -26,7 +26,7 @@
 </p>
 
 > [!IMPORTANT]
-> Installation is version-pinned so the code you test matches these docs. The commands below target `loadout-ai@0.4.1`; review the preview before every apply.
+> Installation is version-pinned so the code you test matches these docs. The commands below target `loadout-ai@0.5.0`; review the preview before every apply.
 
 ## How it works
 
@@ -76,7 +76,7 @@ Skills, plugins, MCP servers, and agent settings tend to accumulate one experime
 You need Node.js 20 or newer and Git.
 
 ```bash
-npm install --global loadout-ai@0.4.1
+npm install --global loadout-ai@0.5.0
 loadout --version
 loadout guide
 ```
@@ -84,7 +84,7 @@ loadout guide
 For source development instead:
 
 ```bash
-git clone https://github.com/reddynitish/loadout.git
+git clone https://github.com/VirajMishra1/loadout.git
 cd loadout
 npm ci
 npm run build
@@ -92,13 +92,13 @@ npm link
 loadout --version
 ```
 
-For a disposable first success, run:
+For a first read-only preview, run:
 
 ```bash
-loadout demo
+loadout setup --mode stable
 ```
 
-The demo uses temporary state and cleans it up; it does not write to your normal agent configuration. See the [user test guide](./docs/USER_TEST_GUIDE.md) if linking, `PATH`, networking, risk approval, or rollback needs attention.
+Nothing is installed until you explicitly approve the preview. See the [user test guide](./docs/USER_TEST_GUIDE.md) if linking, `PATH`, networking, risk approval, or rollback needs attention.
 
 ## Stable workflow
 
@@ -119,26 +119,64 @@ Stable currently selects 30 skill directories from four pinned, SPDX-identified,
 
 ## Profiles
 
-| Profile     | Scope                                                                  |
-| ----------- | ---------------------------------------------------------------------- |
-| **Stable**  | Bounded default: 30 skills from four policy-selected sources           |
-| **Power**   | Broader cross-project set from eight checked-in collections            |
-| **Maximum** | Valid skill-bearing contents in a managed, disabled-by-default library |
-| **Custom**  | Only package IDs explicitly supplied by the user                       |
+| Profile     | Scope                                                                 |
+| ----------- | --------------------------------------------------------------------- |
+| **Stable**  | 30 active everyday skills from four pinned sources                    |
+| **Power**   | A deliberately larger active toolkit from eight pinned collections    |
+| **Maximum** | Every screened skill in a disabled library; activate relevant subsets |
+| **Custom**  | Only package IDs explicitly supplied by the user                      |
 
-Preview choices with `loadout profiles` and `loadout setup --mode <profile>`. Maximum counts are computed from pinned contents after validation and duplicate resolution; MCP-only entries stay on a separate approval path.
+Run `loadout profiles` to compare them and `loadout setup --mode <profile>` to preview one. Stable limits context. Power trades more context for broader always-available capability. Maximum gives you the largest library without injecting thousands of skills into every prompt; `loadout optimize --project .` chooses a relevant working set. MCP-only entries stay on a separate approval path.
+
+## MCP integrations
+
+MCP servers are not silently started by Stable, Power, or Maximum. List the reviewed recipes and their credential requirements:
+
+```bash
+loadout mcp-recipe
+loadout mcp-recipe --credential-free
+```
+
+Preview and configure one for the host you use:
+
+```bash
+loadout mcp-recipe playwright --agent codex
+loadout mcp-recipe playwright --agent codex --yes
+loadout mcp-recipe playwright --agent codex --verify
+
+loadout mcp-recipe playwright --agent claude-code
+loadout mcp-recipe playwright --agent claude-code --yes
+```
+
+Configuration does not launch the server. A real bounded handshake requires the separate `--connect --approve-risk` action. Credentialed recipes accept environment or keychain references, never secret values in command output.
+
+## Optional runtime tools
+
+[Graphify](https://github.com/Graphify-Labs/graphify) is available as a separate,
+reviewed local runtime recipe because it installs an executable as well as an agent
+skill. It does not need an OpenAI or Anthropic API key. Loadout previews the pinned
+artifact, permissions, targets, and rollback scope before doing anything:
+
+```bash
+loadout tool graphify --agents codex,claude-code
+loadout tool graphify --agents codex,claude-code --yes --approve-risk
+loadout tool graphify --remove --agents codex,claude-code --yes --approve-risk
+```
+
+Graphify is intentionally not hidden inside Stable, Power, or Maximum: executable
+tools always remain an explicit choice.
 
 ## Catalog and discovery
 
 <!-- loadout:catalog-coverage:start -->
 
-The bundled catalog currently contains **50 credited public repositories** across **37 categories**: **31 have skill components** and **19 are MCP-only**. All 50 are technically screened and pinned; 4 sources are selected by the bounded Stable policy. See every linked source, license status, component type, and pinned commit in **[Catalog and upstream credits](./docs/CATALOG.md)**.
+The bundled catalog currently contains **51 credited public repositories** across **38 categories**: **32 have skill components** and **19 are MCP-only**. All 51 are technically screened and pinned; 4 sources are selected by the bounded Stable policy. See every linked source, license status, component type, and pinned commit in **[Catalog and upstream credits](./docs/CATALOG.md)**.
 
 <!-- loadout:catalog-coverage:end -->
 
 <!-- loadout:evidence-stages:start -->
 
-Catalog evidence-stage counts: **0 benchmarked**, **0 discovered**, **0 human-reviewed**, **46 inspected**, **4 policy-selected**. Stage definitions and Stable selection criteria are in the [catalog policy](./docs/CATALOG_POLICY.md).
+Catalog maturity: **51 sourced**, **51 technically inspected**, and **4 selected for Stable**. Independent human-review attestations and signed comparative benchmarks are not yet published, so Loadout does not pretend static inspection proves usefulness. The pinned catalog remains usable today, and local outcomes can be recorded to improve later rankings. Definitions and promotion rules are in the [catalog policy](./docs/CATALOG_POLICY.md).
 
 <!-- loadout:evidence-stages:end -->
 
@@ -146,7 +184,7 @@ Loadout does not claim there is one universally “best” configuration. Recomm
 
 <!-- loadout:daily-discovery:start -->
 
-**Discovery snapshot (generated 2026-07-17):** [242 repositories observed](./docs/DISCOVERED.md), including 219 uncataloged review candidates and 23 repositories already in the inspected catalog.
+**Discovery snapshot (generated 2026-07-21):** [240 repositories observed](./docs/DISCOVERED.md), including 216 uncataloged review candidates and 24 repositories already in the inspected catalog.
 <!-- loadout:daily-discovery:end -->
 
 The checked-in discovery report proves only its dated snapshot, not the success of every scheduled run. Use `loadout discover --source all --queue`, `loadout review-queue`, and `loadout candidate inspect owner/repository` to inspect candidates before catalog promotion.
@@ -200,7 +238,7 @@ Configured paths and disposable filesystem lifecycle tests do not prove that nat
 | Undo the latest supported mutation | `loadout rollback`                          |
 | Remove one managed package         | `loadout remove <package>`                  |
 | Preview complete removal           | `loadout uninstall`                         |
-| Test with temporary state          | `loadout demo`                              |
+| List reviewed MCP integrations     | `loadout mcp-recipe`                        |
 | Discover the full surface          | `loadout --help`; `loadout advanced`        |
 
 ## Development
@@ -213,7 +251,7 @@ npm run verify:full
 
 <!-- loadout:verification-summary:start -->
 
-`verify` invokes `format:check`, `lint`, `typecheck`, `check:evidence`, `test`, `test:e2e:cli`, `test:e2e:readme`, `test:package`, `test:performance` in that order. Use `npm run verify:full` to include the optional Playwright dashboard check.
+`verify` invokes `format:check`, `lint`, `typecheck`, `check:evidence`, `test`, `test:e2e:cli`, `test:e2e:readme`, `test:package`, `test:performance` in that order. `npm run verify:full` is an alias for the same complete CLI release gate.
 
 <!-- loadout:verification-summary:end -->
 
@@ -234,9 +272,9 @@ The repository's mixed README product-flow test uses an isolated build, disposab
 
 ## Contributing, security, and attribution
 
-Keep changes scoped, add regression coverage for behavior changes, and run `npm run verify:full`. Report vulnerabilities through [SECURITY.md](./SECURITY.md), without credentials, private source, or unredacted state. General bugs and proposals belong in the [issue tracker](https://github.com/reddynitish/loadout/issues).
+Keep changes scoped, add regression coverage for behavior changes, and run `npm run verify:full`. Report vulnerabilities through [SECURITY.md](./SECURITY.md), without credentials, private source, or unredacted state. General bugs and proposals belong in the [issue tracker](https://github.com/VirajMishra1/loadout/issues).
 
-The catalog contains 50 credited public repositories. Inclusion records discovery and attribution; it does not transfer ownership, imply endorsement, or relicense upstream work.
+The catalog contains 51 credited public repositories. Inclusion records discovery and attribution; it does not transfer ownership, imply endorsement, or relicense upstream work.
 
 ## License
 

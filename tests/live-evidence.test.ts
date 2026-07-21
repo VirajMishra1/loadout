@@ -11,7 +11,7 @@ import {
 const packageJson = {
   name: "loadout-ai",
   version: "0.3.2",
-  repository: { url: "git+https://github.com/reddynitish/loadout.git" },
+  repository: { url: "git+https://github.com/VirajMishra1/loadout.git" },
 };
 const fixtureTarball = Buffer.from("fixture npm tarball bytes");
 const fixtureIntegrity = `sha512-${createHash("sha512").update(fixtureTarball).digest("base64")}`;

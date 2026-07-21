@@ -112,26 +112,20 @@ Run the entire required gate with one command:
 npm run verify
 ```
 
-Use `npm run verify:full` when Playwright Chromium is installed and you also want the
-optional dashboard browser check. The individual stages are listed below for focused
-reruns and diagnosis.
+`npm run verify:full` is an alias for the same CLI release gate. The individual stages
+are listed below for focused reruns and diagnosis.
 
-| Command                      | Coverage                                                                | Expected result                                    |
-| ---------------------------- | ----------------------------------------------------------------------- | -------------------------------------------------- |
-| `npm run format:check`       | Repository formatting                                                   | Exit 0; no files changed.                          |
-| `npm run lint`               | TypeScript lint rules                                                   | Exit 0.                                            |
-| `npm run typecheck`          | TypeScript contract                                                     | Exit 0.                                            |
-| `npm run check:evidence`     | Catalog/discovery attribution, README claims, and release boundaries    | Exit 0; no claim is silently promoted.             |
-| `npm test`                   | Unit, integration, native filesystem, safety, and regression suites     | All tests pass.                                    |
-| `npm run test:e2e:cli`       | Disposable scan → compare → optimize → apply → rollback journey         | Prints a successful CLI product flow.              |
-| `npm run test:e2e:readme`    | Isolated library/activation/manifest/card/rollback journey              | Prints README product flow success.                |
-| `npm run test:package`       | `npm pack`, install outside the checkout, packaged CLI install/rollback | Prints package smoke success.                      |
-| `npm run test:performance`   | Seven scans of 1,000 real on-disk skill directories                     | p95 remains below the enforced five-second budget. |
-| `npm run test:e2e:dashboard` | Loopback dashboard first-run browser test                               | Playwright passes; no real profile is used.        |
-
-The dashboard test needs a Playwright browser. If the browser executable is absent,
-run `npx playwright install chromium` once; that download is not a Loadout product
-side effect.
+| Command                    | Coverage                                                                | Expected result                                    |
+| -------------------------- | ----------------------------------------------------------------------- | -------------------------------------------------- |
+| `npm run format:check`     | Repository formatting                                                   | Exit 0; no files changed.                          |
+| `npm run lint`             | TypeScript lint rules                                                   | Exit 0.                                            |
+| `npm run typecheck`        | TypeScript contract                                                     | Exit 0.                                            |
+| `npm run check:evidence`   | Catalog/discovery attribution, README claims, and release boundaries    | Exit 0; no claim is silently promoted.             |
+| `npm test`                 | Unit, integration, native filesystem, safety, and regression suites     | All tests pass.                                    |
+| `npm run test:e2e:cli`     | Disposable scan → compare → optimize → apply → rollback journey         | Prints a successful CLI product flow.              |
+| `npm run test:e2e:readme`  | Isolated library/activation/manifest/card/rollback journey              | Prints README product flow success.                |
+| `npm run test:package`     | `npm pack`, install outside the checkout, packaged CLI install/rollback | Prints package smoke success.                      |
+| `npm run test:performance` | Seven scans of 1,000 real on-disk skill directories                     | p95 remains below the enforced five-second budget. |
 
 The focused regression contract for the v0.3.x profile lifecycle is:
 
@@ -360,11 +354,6 @@ Maximum downloads the screened skill library, quarantines invalid individual uni
 and preserves matching active Stable units at the same reviewed commit; MCP-only
 packages remain explicit setup items. `--approve-risk` acknowledges displayed static
 findings but does not execute third-party repository scripts.
-
-`loadout demo --json` is a shorter N smoke test. It creates its own isolated profile,
-performs a real public-repository install and rollback, and must report that local
-agent configuration was untouched. Add `--keep` only when you intend to inspect and
-manually remove the printed demo directory.
 
 ## 5. Existing-skill provenance, adoption, comparison, and freshness (R/S/A)
 
@@ -716,16 +705,14 @@ systemd/cron facility selected on Linux. `LOADOUT_HOME` does not make the native
 scheduler disposable, so never skip the remove command. The lower-level `schedule`
 and `unschedule` commands remain available for job-specific control.
 
-Loopback services are X but do not require the dashboard for normal product use:
+The optional read-only loopback API can be checked separately:
 
 ```bash
 loadout serve --port 0
-loadout dashboard --port 0
 ```
 
-Run them separately, open the printed `127.0.0.1` URL, confirm status/health/catalog
-render from disposable state, and stop each with Ctrl-C. They must not bind a public
-interface.
+Confirm that it binds only to `127.0.0.1`, inspect the API response, and stop it with
+Ctrl-C. It must not bind a public interface.
 
 ## 11. Improvement-cycle records (S)
 
@@ -815,5 +802,5 @@ sections. Parenthesized numbers identify the track above.
   `catalog-verify`, `catalog-update` (8, 9).
 - MCP/conversion/sandbox: `mcp`, `inspect`, `evaluate`, `mcp-recipe`, `mcp-config`,
   `codex-mcp-config`, `convert`, `sandbox-run` (7).
-- Host/secondary surfaces: `completion`, `autopilot`, `schedule`, `unschedule`,
-  `serve`, `dashboard` (10).
+- Host/automation surfaces: `completion`, `autopilot`, `schedule`, `unschedule`,
+  `serve` (10).

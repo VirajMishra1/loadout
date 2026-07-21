@@ -1146,5 +1146,31 @@
       "evidencePaths": ["server.js", "package.json"],
       "verifiedAt": "2026-07-16T08:45:18Z"
     }
+  },
+  {
+    "id": "obsidian-skills",
+    "displayName": "Obsidian Skills",
+    "repository": "kepano/obsidian-skills",
+    "description": "Agent skills for working with Obsidian Markdown, Bases, JSON Canvas, Defuddle, and the Obsidian CLI.",
+    "category": "knowledge-management",
+    "tier": "community",
+    "license": "MIT",
+    "components": ["skill", "plugin"],
+    "operatingSystems": ["windows", "macos", "linux"],
+    "stars": 42827,
+    "pushedAt": "2026-06-08T16:12:01Z",
+    "source": {
+      "type": "github",
+      "url": "https://github.com/kepano/obsidian-skills",
+      "defaultBranch": "main",
+      "commit": "a1dc48e68138490d522c04cbf5822214c6eb1202",
+      "evidencePaths": [
+        "skills/obsidian-markdown/SKILL.md",
+        "skills/obsidian-bases/SKILL.md",
+        "skills/json-canvas/SKILL.md",
+        ".claude-plugin/plugin.json"
+      ],
+      "verifiedAt": "2026-07-21T08:45:00Z"
+    }
   }
 ]

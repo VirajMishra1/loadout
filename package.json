@@ -1,6 +1,6 @@
 {
   "name": "loadout-ai",
-  "version": "0.4.1",
+  "version": "0.5.0",
   "private": false,
   "license": "MIT",
   "description": "Universal upgrade manager for AI coding agents",
@@ -10,7 +10,6 @@
   },
   "files": [
     "dist/src",
-    "dashboard",
     "catalog",
     "docs",
     "README.md",
@@ -21,11 +20,11 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/reddynitish/loadout.git"
+    "url": "git+https://github.com/VirajMishra1/loadout.git"
   },
-  "homepage": "https://github.com/reddynitish/loadout#readme",
+  "homepage": "https://github.com/VirajMishra1/loadout#readme",
   "bugs": {
-    "url": "https://github.com/reddynitish/loadout/issues"
+    "url": "https://github.com/VirajMishra1/loadout/issues"
   },
   "publishConfig": {
     "access": "public"
@@ -44,14 +43,12 @@
     "build": "tsc -p tsconfig.json",
     "prepack": "npm run build",
     "dev": "tsx src/cli.ts",
-    "dashboard": "tsx src/dashboard.ts",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "eslint src tests vitest.config.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "npm run test:e2e:cli",
-    "test:e2e:dashboard": "playwright test",
     "pretest:e2e:cli": "npm run build",
     "test:e2e:cli": "node scripts/cli-product-flow.mjs",
     "test:e2e:readme": "node scripts/readme-product-flow.mjs",
@@ -66,7 +63,7 @@
     "check:evidence": "node scripts/check-catalog-attribution.mjs && node scripts/check-discovery-artifacts.mjs && npm run check:readme-claims && node --import tsx scripts/check-release-claims.ts",
     "feed:build": "node --import tsx scripts/build-intelligence-feed.ts",
     "verify": "npm run format:check && npm run lint && npm run typecheck && npm run check:evidence && npm test -- --run && npm run test:e2e:cli && npm run test:e2e:readme && npm run test:package && npm run test:performance",
-    "verify:full": "npm run verify && npm run test:e2e:dashboard"
+    "verify:full": "npm run verify"
   },
   "dependencies": {
     "commander": "^12.1.0",
@@ -74,7 +71,6 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",
-    "@playwright/test": "^1.61.1",
     "@types/node": "^22.10.0",
     "eslint": "^9.39.5",
     "eslint-config-prettier": "^10.1.8",

@@ -19,8 +19,9 @@ describe("npm release contract", () => {
     expect(manifest.license).toBe("MIT");
     expect(manifest.bin).toEqual({ loadout: "dist/src/cli.js" });
     expect(manifest.files).toEqual(
-      expect.arrayContaining(["dist/src", "dashboard", "catalog"]),
+      expect.arrayContaining(["dist/src", "catalog"]),
     );
+    expect(manifest.files).not.toContain("dashboard");
     expect(manifest.files).not.toContain("tests");
     expect(manifest.scripts?.prepack).toBe("npm run build");
     expect(manifest.scripts?.["test:package"]).toBe(

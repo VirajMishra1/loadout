@@ -1,7 +1,7 @@
 # Optional GitHub authorization
 
 Public discovery remains anonymous. Private discovery is opt-in and begins only
-when the user explicitly connects GitHub from the local CLI or loopback dashboard.
+when the user explicitly connects GitHub from the local CLI.
 
 ## Authorization model
 
@@ -15,7 +15,7 @@ issues, pull-request write, or repository-write permission is requested.
 The app client ID, redirect URI, and application slug may be committed as public
 configuration. The private key and client secret cannot: they belong to a hosted
 broker or a user-controlled local credential manager. Loadout never asks the user to
-paste a token into a manifest, catalog, log, or dashboard URL.
+paste a token into a manifest, catalog, log, or command argument.
 
 ## Local flow and failure modes
 

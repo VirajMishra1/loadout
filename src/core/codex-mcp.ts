@@ -1,7 +1,11 @@
 import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { basename, dirname, join, resolve } from "node:path";
 import { createHash, randomUUID } from "node:crypto";
-import type { McpConfigSnapshot, McpServer } from "../shared/types.js";
+import type {
+  McpConfigSnapshot,
+  McpServer,
+  Snapshot,
+} from "../shared/types.js";
 import { loadoutHome, userHome } from "./paths.js";
 import { runMutationTransaction } from "./transaction.js";
 
@@ -30,6 +34,65 @@ function tomlString(value: string): string {
 
 function tableHeader(name: string): string {
   return `[mcp_servers.${tomlString(name)}]`;
+}
+
+function tablePrefix(name: string): string {
+  return `[mcp_servers.${tomlString(name)}`;
+}
+
+export function codexMcpServerBlock(
+  content: string,
+  name: string,
+): string | undefined {
+  safeName(name);
+  const lines = content.match(/.*(?:\n|$)/g)?.filter(Boolean) ?? [];
+  const header = tableHeader(name);
+  const start = lines.findIndex((line) => line.trim() === header);
+  if (start < 0) return undefined;
+  const prefix = tablePrefix(name);
+  let end = start + 1;
+  while (end < lines.length) {
+    const trimmed = lines[end].trim();
+    if (trimmed.startsWith("[") && !trimmed.startsWith(`${prefix}.`)) break;
+    end += 1;
+  }
+  return lines.slice(start, end).join("");
+}
+
+export function codexMcpServerFingerprint(
+  content: string,
+  name: string,
+): string | undefined {
+  const block = codexMcpServerBlock(content, name);
+  return block ? createHash("sha256").update(block).digest("hex") : undefined;
+}
+
+export function removeCodexMcpServerBlock(
+  content: string,
+  name: string,
+): string {
+  const block = codexMcpServerBlock(content, name);
+  if (!block) return content;
+  return content.replace(block, "").replace(/\n{3,}/g, "\n\n");
+}
+
+export async function writeCodexMcpConfigContent(
+  path: string,
+  content: string,
+): Promise<void> {
+  const target = resolve(path);
+  await mkdir(dirname(target), { recursive: true });
+  const temporary = join(
+    dirname(target),
+    `.${basename(target)}.loadout-${randomUUID()}.tmp`,
+  );
+  try {
+    await writeFile(temporary, content, { mode: 0o600 });
+    await rename(temporary, target);
+  } catch (error) {
+    await rm(temporary, { force: true });
+    throw error;
+  }
 }
 
 export function defaultCodexMcpConfigPath(): string {
@@ -101,6 +164,13 @@ async function snapshotPath(id: string): Promise<string> {
 
 export async function applyCodexMcpConfigPlan(
   plan: CodexMcpConfigPlan,
+  options: {
+    extraTargets?: string[];
+    afterApply?: (
+      result: McpConfigSnapshot,
+      transactionSnapshot: Snapshot,
+    ) => Promise<void>;
+  } = {},
 ): Promise<McpConfigSnapshot> {
   const applied = await runMutationTransaction(
     async () => {
@@ -128,11 +198,11 @@ export async function applyCodexMcpConfigPlan(
       };
       const stored = await snapshotPath(snapshot.id);
       return {
-        targets: [plan.path, stored],
+        targets: [plan.path, stored, ...(options.extraTargets ?? [])],
         value: { plan, snapshot, stored },
       };
     },
-    async ({ plan: freshPlan, snapshot, stored }) => {
+    async ({ plan: freshPlan, snapshot, stored }, transactionSnapshot) => {
       await mkdir(dirname(freshPlan.path), { recursive: true });
       const temporary = join(
         dirname(freshPlan.path),
@@ -143,12 +213,14 @@ export async function applyCodexMcpConfigPlan(
         await rename(temporary, freshPlan.path);
         await mkdir(dirname(stored), { recursive: true });
         await writeFile(stored, JSON.stringify(snapshot), { mode: 0o600 });
+        await options.afterApply?.(snapshot, transactionSnapshot);
       } catch (error) {
         await rm(temporary, { force: true });
         throw error;
       }
       return snapshot;
     },
+    { label: `configure Codex MCP ${plan.serverName}` },
   );
-  return applied.result;
+  return { ...applied.result, rollbackSnapshotId: applied.snapshotId };
 }

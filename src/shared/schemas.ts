@@ -317,6 +317,7 @@ export const installRecordSchema = z
     files: z.array(fileHashSchema),
     snapshotId: text,
     installedAt: text,
+    configFormat: z.enum(["json", "codex-toml"]).optional(),
     staticAssessment: z
       .object({
         status: z.enum(["clear", "warning", "blocking"]),

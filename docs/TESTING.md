@@ -27,7 +27,7 @@ snapshot back:
 npm run test:e2e:cli
 ```
 
-This test does not use the dashboard, network, mock command output, or any real agent
+This test does not use the network, mock command output, or any real agent
 profile. It is a required CI gate on Ubuntu; the manual cross-platform workflow runs
 the broader native filesystem suite.
 
@@ -67,9 +67,8 @@ is universally safe. The opt-in `LOADOUT_TEST_LIVE_CATALOG=1` extension separate
 checks the current pinned Stable sources and remains network-dependent.
 
 Run `npm run verify` for formatting, lint, types, deterministic evidence checks, all
-Vitest suites, both CLI journeys, package smoke, and the performance gate. Run
-`npm run verify:full` only when Playwright Chromium is installed and the optional
-dashboard browser test is also wanted.
+Vitest suites, both CLI journeys, package smoke, and the performance gate.
+`npm run verify:full` is retained as an alias for the same complete CLI gate.
 
 Current npm publication, the current pinned Stable repositories, and GitHub repository
 settings are external state. Check them separately with:
@@ -280,18 +279,6 @@ output must never contain the token value; the config should contain only
 `${LOADOUT_TEST_GITHUB_TOKEN}`. OS-keychain references are supported by the separate,
 explicit `--connect --approve-risk` verification path because an arbitrary MCP host
 cannot resolve Loadout's keychain reference by itself.
-
-## Optional dashboard
-
-The dashboard is a secondary inspection surface, not the onboarding requirement:
-
-```bash
-npx . dashboard
-```
-
-Open the printed loopback URL. CLI setup, updates, removal, discovery, and rollback all
-work without it. Browser automation is also optional and runs only when manually
-dispatched in CI; locally, use `npm run test:e2e:dashboard`.
 
 ## Final cleanup test
 

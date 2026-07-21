@@ -118,6 +118,8 @@ describe("README fact generator", () => {
     expect(blocks["evidence-stages"]).toContain(
       "[catalog policy](./docs/CATALOG_POLICY.md)",
     );
+    expect(blocks["evidence-stages"]).toContain("technically inspected");
+    expect(blocks["evidence-stages"]).not.toContain("0 discovered");
     expect(blocks["evidence-stages"]).not.toMatch(/^\|/m);
     expect(blocks["support-summary"]).toContain("**12 agents**");
     expect(blocks["support-summary"]).toContain(
@@ -193,7 +195,7 @@ describe("README fact generator", () => {
     expect(blocks["catalog-coverage"]).toContain(
       "7 sources are selected by the bounded Stable policy",
     );
-    expect(blocks["evidence-stages"]).toContain("**7 policy-selected**");
+    expect(blocks["evidence-stages"]).toContain("**7 selected for Stable**");
     expect(blocks["evidence-stages"]).not.toContain("recommended");
     expect(blocks["support-summary"]).toContain(
       "covers **2 agents**: Alpha, Zulu",

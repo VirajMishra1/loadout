@@ -230,6 +230,11 @@ const SIGNAL_RULES: Array<{
     label: "security policy",
   },
   {
+    signal: (project) => project.roles.includes("obsidian-vault"),
+    pattern: /obsidian|json-canvas|defuddle/,
+    label: "Obsidian vault",
+  },
+  {
     signal: (project) => project.tools.includes("vitest"),
     pattern: /vitest/,
     label: "Vitest",

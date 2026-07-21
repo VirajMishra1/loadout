@@ -215,14 +215,6 @@
       ]
     },
     {
-      "id": "dashboard.local",
-      "section": "Current beta limits",
-      "summary": "The dashboard presents local Loadout data and does not establish hosted-service availability.",
-      "evidenceClass": "integration-verified",
-      "status": "bounded",
-      "evidence": ["src/dashboard.ts", "tests/dashboard.test.ts"]
-    },
-    {
       "id": "uninstall.complete",
       "section": "Troubleshooting and uninstall",
       "summary": "Complete uninstall previews and removes Loadout-managed files, runtime tools, scheduled jobs, and state while preserving unmanaged files and blocking drift unless forced.",

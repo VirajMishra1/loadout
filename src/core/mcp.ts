@@ -13,6 +13,7 @@ import type {
   McpConfigSnapshot,
   McpManifest,
   McpServer,
+  Snapshot,
 } from "../shared/types.js";
 import { loadoutHome } from "./paths.js";
 import { runMutationTransaction, withMutationLock } from "./transaction.js";
@@ -274,6 +275,13 @@ async function snapshotPath(id: string): Promise<string> {
 
 export async function applyMcpConfigPlan(
   plan: McpConfigPlan,
+  options: {
+    extraTargets?: string[];
+    afterApply?: (
+      result: McpConfigSnapshot,
+      transactionSnapshot: Snapshot,
+    ) => Promise<void>;
+  } = {},
 ): Promise<McpConfigSnapshot> {
   const applied = await runMutationTransaction(
     async () => {
@@ -297,18 +305,20 @@ export async function applyMcpConfigPlan(
       };
       const stored = await snapshotPath(snapshot.id);
       return {
-        targets: [plan.path, stored],
+        targets: [plan.path, stored, ...(options.extraTargets ?? [])],
         value: { plan, snapshot, stored },
       };
     },
-    async ({ plan: freshPlan, snapshot, stored }) => {
+    async ({ plan: freshPlan, snapshot, stored }, transactionSnapshot) => {
       await writeMcpConfigPlan(freshPlan);
       await mkdir(dirname(stored), { recursive: true });
       await writeFile(stored, JSON.stringify(snapshot), { mode: 0o600 });
+      await options.afterApply?.(snapshot, transactionSnapshot);
       return snapshot;
     },
+    { label: `configure MCP ${plan.serverName}` },
   );
-  return applied.result;
+  return { ...applied.result, rollbackSnapshotId: applied.snapshotId };
 }
 
 /** Write an already-reviewed plan atomically; transaction callers own snapshot/rollback. */

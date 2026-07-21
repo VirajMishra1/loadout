@@ -3,6 +3,11 @@ import { readFile, rm } from "node:fs/promises";
 import { forgetInstall, installStatePath, readInstallState } from "./state.js";
 import { writeMcpConfigPlan } from "./mcp.js";
 import { runMutationTransaction } from "./transaction.js";
+import {
+  codexMcpServerFingerprint,
+  removeCodexMcpServerBlock,
+  writeCodexMcpConfigContent,
+} from "./codex-mcp.js";
 
 export interface RemovePlan {
   packageId: string;
@@ -10,6 +15,7 @@ export interface RemovePlan {
   mcpServers: Array<{
     configPath: string;
     serverName: string;
+    configFormat: "json" | "codex-toml";
     status: "unchanged" | "modified" | "missing";
   }>;
   blocked: boolean;
@@ -46,6 +52,23 @@ export async function planRemove(packageId: string): Promise<RemovePlan> {
   const mcpServers = await Promise.all(
     trackedMcp.map(async (entry) => {
       try {
+        if (entry.configFormat === "codex-toml") {
+          const content = await readFile(entry.configPath, "utf8");
+          const fingerprint = codexMcpServerFingerprint(
+            content,
+            entry.serverName,
+          );
+          return {
+            configPath: entry.configPath,
+            serverName: entry.serverName,
+            configFormat: "codex-toml" as const,
+            status: !fingerprint
+              ? ("missing" as const)
+              : fingerprint === entry.fingerprint
+                ? ("unchanged" as const)
+                : ("modified" as const),
+          };
+        }
         const config = JSON.parse(await readFile(entry.configPath, "utf8")) as {
           mcpServers?: Record<string, unknown>;
         };
@@ -53,6 +76,7 @@ export async function planRemove(packageId: string): Promise<RemovePlan> {
           return {
             configPath: entry.configPath,
             serverName: entry.serverName,
+            configFormat: "json" as const,
             status: "missing" as const,
           };
         const fingerprint = createHash("sha256")
@@ -61,6 +85,7 @@ export async function planRemove(packageId: string): Promise<RemovePlan> {
         return {
           configPath: entry.configPath,
           serverName: entry.serverName,
+          configFormat: "json" as const,
           status:
             fingerprint === entry.fingerprint
               ? ("unchanged" as const)
@@ -70,6 +95,7 @@ export async function planRemove(packageId: string): Promise<RemovePlan> {
         return {
           configPath: entry.configPath,
           serverName: entry.serverName,
+          configFormat: entry.configFormat ?? "json",
           status: "missing" as const,
         };
       }
@@ -124,16 +150,24 @@ export async function applyRemove(
     async ({ fresh, existing, configPaths }) => {
       for (const file of existing) await rm(file, { force: true });
       for (const configPath of configPaths) {
+        const relevant = fresh.mcpServers.filter(
+          (entry) =>
+            entry.configPath === configPath && entry.status !== "missing",
+        );
+        if (relevant.some((entry) => entry.configFormat === "codex-toml")) {
+          let content = await readFile(configPath, "utf8");
+          for (const entry of relevant)
+            content = removeCodexMcpServerBlock(content, entry.serverName);
+          await writeCodexMcpConfigContent(configPath, content);
+          continue;
+        }
         const current = JSON.parse(
           await readFile(configPath, "utf8"),
         ) as Record<string, unknown>;
         const servers = {
           ...((current.mcpServers ?? {}) as Record<string, unknown>),
         };
-        const removals = fresh.mcpServers.filter(
-          (entry) =>
-            entry.configPath === configPath && entry.status !== "missing",
-        );
+        const removals = relevant;
         for (const entry of removals) delete servers[entry.serverName];
         await writeMcpConfigPlan({
           path: configPath,
@@ -149,6 +183,7 @@ export async function applyRemove(
       }
       await forgetInstall(plan.packageId);
     },
+    { label: `remove ${plan.packageId}` },
   );
   return applied.snapshotId;
 }

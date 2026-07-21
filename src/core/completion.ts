@@ -18,8 +18,6 @@ const commands = [
   "add",
   "unadd",
   "list",
-  "demo",
-  "test-drive",
   "scan",
   "status",
   "versions",
@@ -88,7 +86,6 @@ const commands = [
   "outcomes",
   "remove",
   "uninstall",
-  "dashboard",
   "serve",
   "completion",
 ];

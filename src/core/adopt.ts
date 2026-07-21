@@ -334,6 +334,7 @@ export async function applySkillAdoption(
         },
       );
     },
+    { label: `adopt ${plan.packageId}` },
   );
   return applied.snapshotId;
 }

@@ -26,4 +26,15 @@ describe("history-dependent workflow jobs", () => {
       );
     }
   });
+
+  it("lets discovery refresh commits trigger CI on the new main head", async () => {
+    const discovery = await readFile(
+      ".github/workflows/daily-discovery.yml",
+      "utf8",
+    );
+
+    expect(discovery).not.toMatch(
+      /\[(?:skip ci|ci skip|no ci|skip actions|actions skip)\]/i,
+    );
+  });
 });

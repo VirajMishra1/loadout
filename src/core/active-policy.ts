@@ -75,15 +75,62 @@ const FOUNDATION = new Set([
   "code-review-excellence",
   "api-design-principles",
   "architecture-patterns",
-  "accessibility-compliance",
   "deployment-pipeline-design",
   "documentation-writer",
   "openai-docs",
-  "web-design-guidelines",
 ]);
 
 const SPECIALIZED_WITHOUT_SIGNAL =
-  /(?:appstore|backtesting|bats-|oracle|salesforce|power-bi|dataverse|qdrant|azure-|aws-|mcp-server-generator|sandbox-npm|migration)/;
+  /(?:appstore|msstore|backtesting|bats-|oracle|salesforce|power-bi|dataverse|qdrant|azure-|aws-|mcp-server-generator|sandbox-npm|migration|social-(?:publish|media)|marketing|copywriting)/;
+
+/**
+ * A matching word such as `mcp`, `cli`, or `publish` is not enough to make a
+ * skill compatible with the detected project. These gates run before scoring
+ * so a strong generic signal cannot pull in tooling for another ecosystem.
+ * Explicit pins remain an intentional user override.
+ */
+function hasProjectCompatibility(
+  name: string,
+  project: ProjectSignals,
+): boolean {
+  const hasLanguage = (language: string) =>
+    project.languages.includes(language);
+  const languageRequirements: Array<[RegExp, string]> = [
+    [/(?:dotnet|csharp|aspnet|nuget|maui)/, ".net"],
+    [
+      /(?:python|pytest|fastapi|django|flask|pydantic|poetry|uv-package)/,
+      "python",
+    ],
+    [/(?:^|-)go(?:-|$)|golang/, "go"],
+    [/(?:rust|cargo)/, "rust"],
+    [/(?:^|-)java(?:-|$)|spring-boot/, "java"],
+    [/(?:ruby|rails|bundler)/, "ruby"],
+    [/(?:elixir|phoenix)/, "elixir"],
+  ];
+  for (const [pattern, language] of languageRequirements)
+    if (pattern.test(name) && !hasLanguage(language)) return false;
+
+  if (
+    /(?:nodejs-)?backend|api-server/.test(name) &&
+    !project.roles.includes("backend")
+  )
+    return false;
+
+  if (
+    /(?:^|-)vercel(?:-|$)/.test(name) &&
+    !project.frameworks.includes("next.js") &&
+    !project.files.includes("vercel.json")
+  )
+    return false;
+  if (
+    /(?:publish-to-pages|github-pages|cloudflare-pages)/.test(name) &&
+    !project.frameworks.some((framework) =>
+      ["react", "next.js", "vue", "svelte"].includes(framework),
+    )
+  )
+    return false;
+  return true;
+}
 
 const SOURCE_PRIORITY: Record<string, number> = {
   superpowers: 80,
@@ -114,7 +161,7 @@ const SIGNAL_RULES: Array<{
 }> = [
   {
     signal: (project) => project.languages.includes("javascript/typescript"),
-    pattern: /(?:javascript|typescript|nodejs|npm|webapp)/,
+    pattern: /(?:javascript|typescript|nodejs|webapp)|(?:^|-)npm(?:-|$)/,
     label: "JavaScript/TypeScript project",
   },
   {
@@ -158,12 +205,13 @@ const SIGNAL_RULES: Array<{
   },
   {
     signal: (project) => project.roles.includes("node-cli"),
-    pattern: /(?:^|-)cli(?:-|$)|command-line/,
+    pattern:
+      /^(?:cli|cli-design|cli-mastery|node-cli|command-line|command-line-tools?|building-cli(?:-apps?)?)$/,
     label: "Node CLI",
   },
   {
     signal: (project) => project.roles.includes("npm-package"),
-    pattern: /npm|package|publish/,
+    pattern: /(?:^|-)npm(?:-|$)|package|publish/,
     label: "npm package",
   },
   {
@@ -188,12 +236,13 @@ const SIGNAL_RULES: Array<{
   },
   {
     signal: (project) => project.tools.includes("commander"),
-    pattern: /(?:^|-)cli(?:-|$)|commander|command-line/,
+    pattern:
+      /^(?:cli|cli-design|cli-mastery|node-cli|commander|command-line|command-line-tools?|building-cli(?:-apps?)?)$/,
     label: "Commander CLI",
   },
   {
     signal: (project) => project.tools.includes("zod"),
-    pattern: /zod|schema|validation/,
+    pattern: /zod|schema-validation|(?:^|-)validation(?:-|$)/,
     label: "Zod schemas",
   },
 ];
@@ -252,6 +301,8 @@ function scoreCandidate(
     reasons.push("explicitly pinned");
   }
   const explicitlyPinned = score >= 1000;
+  if (!explicitlyPinned && !hasProjectCompatibility(name, project))
+    return undefined;
   if (!explicitlyPinned && SPECIALIZED_WITHOUT_SIGNAL.test(name))
     return undefined;
   if (FOUNDATION.has(name)) {

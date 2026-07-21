@@ -31,6 +31,7 @@ import {
 } from "./safety.js";
 import { formatModelApiAccess, type SetupAccessProfile } from "./access.js";
 import { recordInstalledProfile } from "./profile-state.js";
+import { readInstallState } from "./state.js";
 
 export const RECOMMENDED_ACTIVE_SKILL_LIMIT = 30;
 
@@ -293,11 +294,46 @@ export async function prepareCatalogInstall(
   // Broad collections frequently publish the same conventional skill name.
   // Resolution order is already deterministic and evidence-ranked, so keep
   // the first source for a target and defer only the lower-ranked duplicate
-  // instead of overwriting it or blocking every other useful skill.
+  // instead of overwriting it or blocking every other useful skill. Maximum
+  // must reserve targets already owned by active managed units before applying
+  // that ordinary ranking, or a higher-ranked overlapping package can remove
+  // the source needed to preserve the active unit.
+  const reservedTargets = new Map<string, string>();
+  if (selection.mode === "maximum") {
+    const selectedPackages = new Set(
+      entries.map((entry) => entry.plan.packageId),
+    );
+    const state = await readInstallState();
+    for (const activation of state.activations ?? []) {
+      if (
+        !selectedPackages.has(activation.packageId) ||
+        activation.installationState !== "installed" ||
+        activation.activationState !== "active"
+      )
+        continue;
+      for (const target of activation.targets) {
+        const owner = reservedTargets.get(target.activePath);
+        if (owner && owner !== activation.packageId)
+          throw new Error(
+            `Maximum Library cannot reserve active target '${target.activePath}' because it is claimed by both '${owner}' and '${activation.packageId}'.`,
+          );
+        reservedTargets.set(target.activePath, activation.packageId);
+      }
+    }
+  }
   const claimedTargets = new Map<string, string>();
   const collisions: CatalogInstallCollision[] = [];
   for (const entry of entries) {
     entry.plan.files = entry.plan.files.filter((file) => {
+      const reservedPackageId = reservedTargets.get(file.target);
+      if (reservedPackageId && reservedPackageId !== entry.plan.packageId) {
+        collisions.push({
+          target: file.target,
+          keptPackageId: reservedPackageId,
+          deferredPackageId: entry.plan.packageId,
+        });
+        return false;
+      }
       const keptPackageId = claimedTargets.get(file.target);
       if (!keptPackageId) {
         claimedTargets.set(file.target, entry.plan.packageId);

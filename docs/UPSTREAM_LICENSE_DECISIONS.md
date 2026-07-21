@@ -1,6 +1,6 @@
 # Upstream license decisions
 
-Reviewed on July 21, 2026 for the public `0.5.7` release.
+Reviewed on July 21, 2026 for the public `0.5.8` release.
 
 Loadout records `NOASSERTION` when it cannot identify one repository-wide SPDX
 license from the inspected source. Popularity, an official publisher, or a public

@@ -62,6 +62,7 @@ export interface CatalogInstallProgress {
 
 export interface PreparedCatalogInstall {
   selection: InstallSelection;
+  additive?: boolean;
   resolution: ProfileResolution;
   agents: DetectedAgent[];
   entries: CatalogInstallEntry[];
@@ -82,6 +83,8 @@ export interface PrepareCatalogInstallOptions {
     options?: RepositoryFetchOptions,
   ) => Promise<RepositorySnapshot>;
   access?: SetupAccessProfile;
+  /** Add selected Custom packages without retiring the current managed profile. */
+  additive?: boolean;
 }
 
 async function parallelMap<T, R>(
@@ -319,7 +322,7 @@ export async function prepareCatalogInstall(
     return false;
   });
   const reconciliation =
-    selection.mode === "maximum"
+    selection.mode === "maximum" || options.additive
       ? {
           obsoleteActivationKeys: [],
           obsoletePackageIds: [],
@@ -329,6 +332,7 @@ export async function prepareCatalogInstall(
       : await planManagedProfileReconciliation(usableEntries);
   return {
     selection,
+    additive: options.additive ?? false,
     resolution,
     agents,
     entries: usableEntries,
@@ -372,6 +376,8 @@ export function formatPreparedCatalogInstall(
     `Separately billed model API access: ${formatModelApiAccess(prepared.access)} (ChatGPT and Claude subscriptions do not count as API access)`,
     "Automatic skill setup does not require an OpenAI, Anthropic, or OpenRouter API key; credentialed MCP/runtime integrations remain explicit and deferred.",
   ];
+  if (prepared.additive)
+    lines.push("Additive install: existing managed skills will stay active.");
   if (directoriesPerAgent > RECOMMENDED_ACTIVE_SKILL_LIMIT)
     lines.push(
       `Capacity notice: about ${directoriesPerAgent} skill directories per agent exceeds Stable's ${RECOMMENDED_ACTIVE_SKILL_LIMIT}-skill bound.${prepared.selection.mode === "maximum" ? " Maximum stores them in the disabled library; optimize or activate a project-relevant working set." : prepared.selection.mode === "power" ? " Power is the explicit larger active mode; choose Stable or project optimization when lower context use matters." : " Use project-aware activation for a smaller working set."}`,
@@ -455,12 +461,16 @@ export async function applyPreparedCatalogInstall(
       })
     : applySkillInstallBatch(prepared.entries, [], {
         replaceManagedTargets: true,
-        reconcileManagedTargets: true,
+        reconcileManagedTargets: !prepared.additive,
         ...(prepared.reconciliation
           ? { expectedReconciliation: prepared.reconciliation }
           : {}),
-        afterRecord: () =>
-          recordInstalledProfile(prepared).then(() => undefined),
+        ...(prepared.additive
+          ? {}
+          : {
+              afterRecord: () =>
+                recordInstalledProfile(prepared).then(() => undefined),
+            }),
       });
 }
 

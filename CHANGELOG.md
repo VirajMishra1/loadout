@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## 0.5.8 - 2026-07-21
+
+### Fixed
+
+- Make `install --mode custom` genuinely additive: it now keeps existing managed
+  skills active and does not replace the saved profile.
+
 ## 0.5.7 - 2026-07-21
 
 ### Changed

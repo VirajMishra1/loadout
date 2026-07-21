@@ -52,7 +52,7 @@ architecture, implementation, repository research, threat modelling, cross-platf
 work, and the founder testing loop. Real tests on Codex and Claude Code exposed bugs
 in rollback history, update performance, project activation, MCP configuration,
 runtime-tool inventory, and adopted-skill removal. Each reproducible failure became a
-regression test. The current release passes 624 tests, packaged CLI journeys, public
+regression test. The current release passes 625 tests, packaged CLI journeys, public
 CI, and a 1,000-skill performance gate.
 
 Loadout is published on npm and the code is public. The dashboard was deliberately
@@ -64,13 +64,13 @@ the extensions around every AI coding agent.
 
 - GitHub: https://github.com/VirajMishra1/loadout
 - npm: https://www.npmjs.com/package/loadout-ai
-- Release: https://github.com/VirajMishra1/loadout/releases/tag/v0.5.7
+- Release: https://github.com/VirajMishra1/loadout/releases/tag/v0.5.8
 - Demo: PASTE_PUBLIC_YOUTUBE_URL_HERE
 
 ## Judge testing path
 
 ```bash
-npm install --global loadout-ai@0.5.7
+npm install --global loadout-ai@0.5.8
 loadout --version
 loadout guide
 loadout setup --mode stable

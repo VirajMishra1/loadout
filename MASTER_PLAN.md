@@ -13,7 +13,7 @@ history** is evidence of how the product was built, not unfinished launch scope.
 
 ### Product complete
 
-- [x] Publish the CLI as `loadout-ai@0.5.7`; keep the product usable without cloning
+- [x] Publish the CLI as `loadout-ai@0.5.8`; keep the product usable without cloning
       this repository or providing an OpenAI/Anthropic API key.
 - [x] Ship Stable, Power, Maximum, and Custom profiles with preview-first apply,
       snapshots, drift protection, explicit rollback, removal, and complete uninstall.

@@ -203,6 +203,85 @@ describe("CLI-first catalog setup", () => {
     );
   });
 
+  it("adds a Custom package without retiring existing managed skills", async () => {
+    root = await mkdtemp(join(tmpdir(), "loadout-additive-custom-"));
+    process.env.LOADOUT_HOME = join(root, ".loadout");
+    const target = join(root, "home", ".codex", "skills");
+    const agent: DetectedAgent = {
+      id: "codex",
+      displayName: "Codex",
+      installed: true,
+      skillsDirectory: target,
+    };
+    const oldSource = join(root, "old-source");
+    await mkdir(oldSource, { recursive: true });
+    await writeFile(
+      join(oldSource, "SKILL.md"),
+      "---\nname: old-only\ndescription: Existing managed skill\n---\n",
+    );
+    await applySkillInstallBatch([
+      { plan: await buildSkillPlan(oldSource, "old-only", [agent]) },
+    ]);
+
+    const newSource = join(root, "new-source");
+    await mkdir(newSource, { recursive: true });
+    await writeFile(
+      join(newSource, "SKILL.md"),
+      "---\nname: new-only\ndescription: Additive managed skill\n---\n",
+    );
+    const pkg: CatalogPackage = {
+      id: "new-only",
+      displayName: "New Only",
+      repository: "example/new-only",
+      description: "Additive package",
+      category: "test",
+      tier: "stable",
+      components: ["skill"],
+      source: {
+        type: "github",
+        url: "https://github.com/example/new-only",
+        defaultBranch: "main",
+        commit,
+        evidencePaths: ["SKILL.md"],
+        verifiedAt: "2026-07-15T00:00:00Z",
+      },
+    };
+    const prepared = await prepareCatalogInstall(
+      { mode: "custom", packageIds: ["new-only"] },
+      {
+        additive: true,
+        catalog: [pkg],
+        detectedAgents: [agent],
+        fetchSnapshot: async () => ({
+          repository: pkg.repository,
+          commit,
+          path: newSource,
+        }),
+      },
+    );
+
+    expect(prepared.reconciliation!.obsoleteTargets).toEqual([]);
+    expect(formatPreparedCatalogInstall(prepared)).toContain(
+      "Additive install: existing managed skills will stay active.",
+    );
+    expect(formatPreparedCatalogInstall(prepared)).not.toContain(
+      "will be retired",
+    );
+
+    await applyPreparedCatalogInstall(prepared);
+    await expect(
+      readFile(join(target, "old-only", "SKILL.md"), "utf8"),
+    ).resolves.toContain("Existing managed skill");
+    await expect(
+      readFile(join(target, "new-only", "SKILL.md"), "utf8"),
+    ).resolves.toContain("Additive managed skill");
+    const state = await readInstallState();
+    expect(state.installs.map((item) => item.packageId).sort()).toEqual([
+      "new-only",
+      "old-only",
+    ]);
+  });
+
   it("quarantines an invalid Maximum skill without discarding its safe siblings", async () => {
     root = await mkdtemp(join(tmpdir(), "loadout-maximum-quarantine-"));
     const repository = join(root, "repository");

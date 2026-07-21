@@ -602,7 +602,7 @@ async function runSetup(options: SetupOptions): Promise<void> {
   }
 }
 
-const LOADOUT_VERSION = "0.5.7";
+const LOADOUT_VERSION = "0.5.8";
 
 function durableSchedulerLauncher(): string[] {
   return [
@@ -4473,6 +4473,7 @@ program
           {
             requestedAgents: parseAgentSelection(options.agents),
             onProgress: printSetupProgress,
+            additive: options.mode === "custom",
           },
         );
         console.log(

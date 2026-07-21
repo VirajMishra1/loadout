@@ -176,6 +176,11 @@ export async function uninstallGlobalCli(): Promise<void> {
 }
 
 export function formatUninstallPlan(plan: CompleteUninstallPlan): string {
+  const modifiedPaths = plan.packages.flatMap((entry) =>
+    entry.files
+      .filter((file) => file.status === "modified")
+      .map((file) => file.path),
+  );
   return [
     "Complete Loadout uninstall preview",
     "",
@@ -185,7 +190,14 @@ export function formatUninstallPlan(plan: CompleteUninstallPlan): string {
     `Daily jobs to remove: ${plan.schedulers.map((item) => item.job).join(", ") || "none"}`,
     `State and cache: ${plan.stateHome}`,
     ...(plan.blocked
-      ? ["", "BLOCKED: managed files were changed outside Loadout."]
+      ? [
+          "",
+          "BLOCKED: managed files were changed outside Loadout.",
+          ...modifiedPaths.slice(0, 10).map((path) => `  Modified: ${path}`),
+          ...(modifiedPaths.length > 10
+            ? [`  …and ${modifiedPaths.length - 10} more`]
+            : []),
+        ]
       : []),
     "",
     ...plan.warnings.map((warning) => `Warning: ${warning}`),

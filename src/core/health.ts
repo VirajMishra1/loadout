@@ -150,18 +150,32 @@ export async function buildHealthReport(
     });
   const configured =
     state.installs.length > 0 || (state.mcpInstalls ?? []).length > 0;
+  const activeSkills = (state.activations ?? []).filter(
+    (entry) =>
+      entry.installationState === "installed" &&
+      entry.activationState === "active",
+  ).length;
+  const disabledSkills = (state.activations ?? []).filter(
+    (entry) =>
+      entry.installationState === "installed" &&
+      entry.activationState === "disabled",
+  ).length;
   const status = findings.some((finding) => finding.level === "error")
     ? "unhealthy"
     : !configured
       ? "not-configured"
       : findings.some((finding) => finding.level === "warning")
         ? "attention"
-        : "healthy";
+        : activeSkills === 0 && disabledSkills > 0
+          ? "library-only"
+          : "healthy";
   return {
     status,
     generatedAt: new Date().toISOString(),
     agents,
     installedPackages: state.installs.length,
+    activeSkills,
+    disabledSkills,
     updatesChecked: Boolean(options.updates || options.checkUpdates),
     updatesAvailable: available.length,
     driftedFiles: drifted.length,
@@ -172,7 +186,7 @@ export async function buildHealthReport(
 
 export function formatHealthReport(report: HealthReport): string {
   const icon =
-    report.status === "not-configured"
+    report.status === "not-configured" || report.status === "library-only"
       ? "•"
       : report.status === "healthy"
         ? "✓"
@@ -180,8 +194,8 @@ export function formatHealthReport(report: HealthReport): string {
           ? "!"
           : "✗";
   const lines = [
-    `${icon} Loadout health: ${report.status === "not-configured" ? "not configured" : report.status}`,
-    `Packages: ${report.installedPackages} installed, ${report.updatesChecked ? `${report.updatesAvailable} update(s)` : "updates not checked (use --updates)"}, ${report.driftedFiles} drifted file(s), ${report.driftedMcpServers} drifted MCP server(s)`,
+    `${icon} Loadout health: ${report.status === "not-configured" ? "not configured" : report.status === "library-only" ? "library ready (nothing active)" : report.status}`,
+    `Packages: ${report.installedPackages} managed; skills: ${report.activeSkills ?? 0} active, ${report.disabledSkills ?? 0} disabled; ${report.updatesChecked ? `${report.updatesAvailable} update(s)` : "updates not checked (use --updates)"}; ${report.driftedFiles} drifted file(s), ${report.driftedMcpServers} drifted MCP server(s)`,
   ];
   for (const finding of report.findings)
     lines.push(

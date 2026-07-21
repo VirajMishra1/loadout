@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+## 0.5.1 - 2026-07-21
+
+### Fixed
+
+- Remove disabled Maximum-library copies during package removal and complete
+  uninstall without inspecting or deleting unrelated skills that later occupy the
+  original agent path.
+- Describe a disabled-only Maximum library as ready with nothing active, including
+  explicit active and disabled skill counts, instead of calling it a healthy active
+  installation.
+- Name modified managed paths in blocked complete-uninstall previews so users can
+  review real drift before deciding whether to force removal.
+
+## 0.5.0 - 2026-07-21
+
 ### Added
 
 - Add the pinned MIT-licensed Obsidian Skills collection and recommend it only when an

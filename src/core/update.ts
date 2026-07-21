@@ -1,6 +1,6 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { basename, join } from "node:path";
-import { fetchRepositorySnapshot } from "./source.js";
+import { fetchRepositorySnapshot, resolveRepositoryHead } from "./source.js";
 import { repositoryCachePath } from "./source.js";
 import { diffRepositorySnapshots, type ChangedFileDiff } from "./diff.js";
 import { hashDirectory, readInstallState } from "./state.js";
@@ -60,6 +60,10 @@ export interface UpdatePlanOptions {
     total: number;
     packageId: string;
   }) => void;
+  /** Injectable lightweight HEAD resolver used by deterministic tests. */
+  resolveHead?: CommitResolver;
+  /** Injectable changed-revision fetcher used by deterministic tests. */
+  fetchChangedSnapshot?: CommitResolver;
 }
 
 export interface UpdateSmokeTestContext {
@@ -198,8 +202,7 @@ async function analyzeManagedUpdate(
 
 /** Builds a read-only update plan from persisted installs and live GitHub snapshots. */
 export async function buildUpdatePlan(
-  resolver: CommitResolver = async (repository) =>
-    fetchRepositorySnapshot(repository, { timeoutMs: 30_000 }),
+  resolver?: CommitResolver,
   options: UpdatePlanOptions = {},
 ): Promise<UpdatePlan[]> {
   const state = await readInstallState();
@@ -207,6 +210,11 @@ export async function buildUpdatePlan(
     ? state.installs.filter((record) => record.packageId === options.packageId)
     : state.installs;
   const results = new Array<UpdatePlan>(records.length);
+  const lightweightResolver: CommitResolver =
+    resolver ??
+    options.resolveHead ??
+    ((repository: string) =>
+      resolveRepositoryHead(repository, { timeoutMs: 30_000 }));
   const resolutions = new Map<
     string,
     Promise<{ commit: string; path?: string }>
@@ -214,8 +222,25 @@ export async function buildUpdatePlan(
   const resolveOnce = (repository: string) => {
     const existing = resolutions.get(repository);
     if (existing) return existing;
-    const pending = resolver(repository);
+    const pending = lightweightResolver(repository);
     resolutions.set(repository, pending);
+    return pending;
+  };
+  const changedSnapshots = new Map<
+    string,
+    Promise<{ commit: string; path?: string }>
+  >();
+  const fetchChangedOnce = (repository: string, commit: string) => {
+    const key = `${repository}\0${commit.toLowerCase()}`;
+    const existing = changedSnapshots.get(key);
+    if (existing) return existing;
+    const pending = options.fetchChangedSnapshot
+      ? options.fetchChangedSnapshot(repository)
+      : fetchRepositorySnapshot(repository, {
+          ref: commit,
+          timeoutMs: 120_000,
+        });
+    changedSnapshots.set(key, pending);
     return pending;
   };
   let cursor = 0;
@@ -269,14 +294,26 @@ export async function buildUpdatePlan(
             let diff: ChangedFileDiff[] | undefined;
             let safetyFindings: SafetyFinding[] | undefined;
             let approvalRequired = false;
-            if (!same && current.path) {
+            let currentPath = current.path;
+            if (!same && !currentPath && !resolver) {
+              const fetched = await fetchChangedOnce(
+                record.repository,
+                current.commit,
+              );
+              if (fetched.commit.toLowerCase() !== current.commit.toLowerCase())
+                throw new Error(
+                  `Resolved ${current.commit}, but fetched ${fetched.commit} for safety review`,
+                );
+              currentPath = fetched.path;
+            }
+            if (!same && currentPath) {
               const oldPath = repositoryCachePath(
                 record.repository,
                 record.resolvedCommit,
               );
               const analysis = await analyzeManagedUpdate(
                 oldPath,
-                current.path,
+                currentPath,
                 managedUnitIds(state, record.packageId),
               );
               diff = analysis.diff;

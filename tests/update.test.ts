@@ -150,6 +150,46 @@ describe("update planning", () => {
     expect(fetches).toBe(1);
   });
 
+  it("uses a lightweight shared HEAD check without fetching current repositories", async () => {
+    const root = await mkdtemp(join(tmpdir(), "loadout-update-head-"));
+    roots.push(root);
+    process.env.LOADOUT_HOME = join(root, ".loadout");
+    await mkdir(process.env.LOADOUT_HOME, { recursive: true });
+    await writeFile(
+      join(process.env.LOADOUT_HOME, "state.json"),
+      JSON.stringify({
+        version: 1,
+        installs: ["one", "two"].map((unit) => ({
+          packageId: `adopted-${unit}`,
+          repository: "owner/shared",
+          resolvedCommit: "aaa",
+          targetAgents: ["codex"],
+          files: [],
+          snapshotId: "s",
+          installedAt: "2026-07-21T00:00:00Z",
+        })),
+      }),
+    );
+    let headChecks = 0;
+    let snapshotFetches = 0;
+    const plans = await buildUpdatePlan(undefined, {
+      resolveHead: async () => {
+        headChecks += 1;
+        return { commit: "aaa" };
+      },
+      fetchChangedSnapshot: async () => {
+        snapshotFetches += 1;
+        throw new Error("current repositories must not be downloaded");
+      },
+    });
+    expect(plans.map((plan) => plan.status)).toEqual([
+      "up-to-date",
+      "up-to-date",
+    ]);
+    expect(headChecks).toBe(1);
+    expect(snapshotFetches).toBe(0);
+  });
+
   it("marks local and network-failed installs clearly", async () => {
     const root = await mkdtemp(join(tmpdir(), "loadout-update-"));
     roots.push(root);

@@ -204,6 +204,51 @@ export function normalizeRepository(input: string): string {
   return value;
 }
 
+export function parseRepositoryHead(
+  repository: string,
+  output: string,
+): string {
+  const commit = output
+    .split(/\r?\n/)
+    .map((line) => line.split(/\s+/))
+    .find(
+      (parts) => parts[1] === "HEAD" && /^[0-9a-f]{40}$/i.test(parts[0]),
+    )?.[0];
+  if (!commit)
+    throw new Error(
+      `Git returned an invalid default-branch HEAD for ${repository}`,
+    );
+  return commit;
+}
+
+/** Resolve the public default-branch commit without downloading repository files. */
+export async function resolveRepositoryHead(
+  input: string,
+  options: Pick<RepositoryFetchOptions, "timeoutMs"> = {},
+): Promise<{ repository: string; commit: string }> {
+  const repository = normalizeRepository(input);
+  const gitEnvironment = await isolatedGitEnvironment(loadoutHome());
+  const url = `https://github.com/${repository}.git`;
+  try {
+    const { stdout } = await execFileAsync(
+      "git",
+      ["ls-remote", "--symref", "--", url, "HEAD"],
+      {
+        maxBuffer: 1024 * 1024,
+        timeout: options.timeoutMs,
+        env: gitEnvironment,
+      },
+    );
+    return {
+      repository,
+      commit: parseRepositoryHead(repository, stdout),
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`Could not resolve ${repository}: ${message}`);
+  }
+}
+
 function normalizeRef(ref: string): string {
   if (
     !/^[A-Za-z0-9][A-Za-z0-9._/-]*$/.test(ref) ||

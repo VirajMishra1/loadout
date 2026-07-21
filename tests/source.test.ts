@@ -8,6 +8,7 @@ import {
   fetchGitSnapshot,
   fetchRepositorySnapshot,
   normalizeRepository,
+  parseRepositoryHead,
   repositoryCachePath,
   validateGitHubTreeBounds,
 } from "../src/core/source.js";
@@ -27,6 +28,19 @@ describe("repository sources", () => {
   it("rejects non-GitHub or malformed references", () => {
     expect(() => normalizeRepository("https://example.com/tool.git")).toThrow();
     expect(() => normalizeRepository("owner/repo/extra")).toThrow();
+  });
+
+  it("parses only a full SHA bound to the remote HEAD ref", () => {
+    const commit = "a".repeat(40);
+    expect(
+      parseRepositoryHead(
+        "owner/repo",
+        `ref: refs/heads/main\tHEAD\n${commit}\tHEAD\n`,
+      ),
+    ).toBe(commit);
+    expect(() =>
+      parseRepositoryHead("owner/repo", "ref: refs/heads/main\tHEAD\n"),
+    ).toThrow(/invalid default-branch HEAD/);
   });
 
   it("rejects unsafe Git refs before invoking Git", async () => {

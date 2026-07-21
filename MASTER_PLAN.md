@@ -328,6 +328,14 @@ merged `codex/relatable-readme-hero` remote branch remains safe to delete after 
       managed drift, and no active adopted-skill update. Release this correction
       before the remaining Graphify removal, discovery, uninstall, and reinstall
       acceptance steps.
+- [x] `P18-46 [TERRA]` Eliminate the repeated large-repository timeout exposed by the
+      published `0.5.5` founder check. Resolve remote HEAD metadata before fetching
+      content, download only changed revisions that require static safety analysis,
+      reuse immutable cached snapshots, and allow those bounded reviews 120 seconds.
+      The real 40-record Maximum state now completes with 19 disabled-library
+      changes, 21 current packages, zero active updates, and zero unavailable checks;
+      both previously failing large repositories complete without changing or
+      activating any agent-visible skill.
 
 ### Release 0.3 lifecycle hardening
 

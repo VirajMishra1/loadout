@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Fixed
+
+- Preserve active Stable skills when preparing Maximum Library by reserving their
+  managed targets before ordinary overlap deferral, while retaining fail-closed
+  commit, quarantine, and missing-source validation.
+
 ## 0.5.8 - 2026-07-21
 
 ### Fixed

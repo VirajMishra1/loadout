@@ -5,6 +5,7 @@ import {
   mkdtemp,
   readFile,
   rm,
+  symlink,
   writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -70,6 +71,13 @@ describe("reviewed runtime tool recipes", () => {
     const runner: RuntimeToolRunner = async (command, args, options) => {
       calls.push({ command, args });
       expect(options.env).not.toHaveProperty("OPENAI_API_KEY");
+      if (command === "uv") {
+        const executable = join(plan.runtimeRoot, "uv", "graphify");
+        await mkdir(join(plan.runtimeRoot, "bin"), { recursive: true });
+        await mkdir(join(plan.runtimeRoot, "uv"), { recursive: true });
+        await writeFile(executable, "#!/bin/sh\n");
+        await symlink(executable, join(plan.runtimeRoot, "bin", "graphify"));
+      }
       if (args.includes("install") && command !== "uv") {
         await mkdir(join(target, "references"), { recursive: true });
         await writeFile(

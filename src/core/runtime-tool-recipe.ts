@@ -246,14 +246,13 @@ export const runtimeToolRecipeSchema = z
     snapshotRoots: z
       .array(z.enum(["{runtimeRoot}", "{agentTargets}"]))
       .refine(
-        (values) =>
-          values.includes("{runtimeRoot}") && values.includes("{agentTargets}"),
-        "runtime and agent targets must both be snapshotted",
+        (values) => values.includes("{agentTargets}"),
+        "agent targets must be snapshotted",
       ),
     removal: z
       .object({
         strategy: z.literal("restore-preinstall-snapshot"),
-        runtimeRoot: z.literal("restore-preinstall-state"),
+        runtimeRoot: z.literal("remove-managed-runtime"),
       })
       .strict(),
     generatedFiles: generatedFilesSchema,

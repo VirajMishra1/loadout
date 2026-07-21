@@ -314,6 +314,7 @@ export async function applySkillAdoption(
         freshPlan.installPlan,
         snapshot.id,
         {
+          ownershipOrigin: "adopted",
           ...(freshPlan.repository ? { repository: freshPlan.repository } : {}),
           ...(freshPlan.resolvedCommit
             ? { resolvedCommit: freshPlan.resolvedCommit }

@@ -166,6 +166,14 @@ describe("CLI contract", () => {
     expect(result.stdout).toContain("--yes");
   });
 
+  it("does not call an approved uninstall a dry run", async () => {
+    const result = await runCli("uninstall", "--yes");
+    expect(result.code).toBe(0);
+    expect(result.stdout).toContain("Approved removal is starting");
+    expect(result.stdout).not.toContain("Dry run only");
+    expect(result.stdout).toContain("Removed 0 managed package(s)");
+  });
+
   it("can emit structured color-free errors for automation", async () => {
     const result = await runCli("--json-errors", "setup", "--mode", "unknown");
     expect(result.code).not.toBe(0);

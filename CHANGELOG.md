@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+### Changed
+
+- Explain that `setup --mode custom` reconciles the complete selected profile, while
+  `install --mode custom --package <id>` adds a package without retiring the current
+  managed profile.
+- Show package-by-package progress during complete uninstall and stop calling an
+  approved `uninstall --yes` operation a dry run.
+
+### Fixed
+
+- Preserve pre-existing skill trees that users explicitly adopted into Loadout when
+  removing one package or completely uninstalling Loadout. Removal now forgets
+  ownership and leaves adopted bytes in place, including legacy `adopted-*` records.
+
 ## 0.5.6 - 2026-07-21
 
 ### Changed

@@ -1784,10 +1784,13 @@ program
       removeCli?: boolean;
     }) => {
       const plan = await buildUninstallPlan();
-      console.log(formatUninstallPlan(plan));
+      console.log(
+        formatUninstallPlan(plan, { applying: Boolean(options.yes) }),
+      );
       if (!options.yes) return;
       const result = await applyUninstall(plan, undefined, {
         force: options.force,
+        onProgress: (message) => console.log(`→ ${message}`),
       });
       console.log(
         `Removed ${result.removedPackages} managed package(s), ${result.removedRuntimeTools} runtime tool(s), daily jobs, cache, library, and Loadout state.`,

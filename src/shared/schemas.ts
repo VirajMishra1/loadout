@@ -311,6 +311,7 @@ const fileHashSchema = z.object({ path: text, sha256 });
 export const installRecordSchema = z
   .object({
     packageId: text,
+    ownershipOrigin: z.enum(["installed", "adopted"]).optional(),
     repository: optionalText,
     resolvedCommit: optionalText,
     targetAgents: z.array(agentIdSchema),

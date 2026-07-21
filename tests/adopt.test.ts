@@ -85,6 +85,7 @@ describe("explicit unmanaged skill adoption", () => {
     expect(await readFile(join(skillPath, "SKILL.md"), "utf8")).toBe(content);
     const state = await readInstallState();
     expect(state.installs[0].packageId).toBe("adopted-codex-my-skill");
+    expect(state.installs[0].ownershipOrigin).toBe("adopted");
     expect(state.installs[0].files).toEqual(
       expect.arrayContaining([
         expect.objectContaining({

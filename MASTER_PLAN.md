@@ -29,6 +29,9 @@ history** is evidence of how the product was built, not unfinished launch scope.
 - [x] Publish clear npm setup, testing, upstream attribution, trust boundaries, and a
       detailed account of how Codex and GPT-5.6 were used in the README.
 - [x] Pass the complete local release gate and the latest hosted CI run on `main`.
+- [x] Preserve pre-existing adopted skills during removal and complete uninstall;
+      distinguish additive Custom installation from whole-profile Custom setup, and
+      show truthful progress during large approved uninstalls.
 
 ### Final founder acceptance
 

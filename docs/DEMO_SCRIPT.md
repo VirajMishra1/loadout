@@ -96,7 +96,7 @@ loadout optimize --project . --agents codex,claude-code --limit 30
 loadout mcp-recipe --credential-free
 loadout mcp-recipe playwright --agent codex
 loadout tool graphify --agents codex,claude-code
-loadout setup --mode custom --package humanizer --agents codex
+loadout install --mode custom --package humanizer --agents codex
 ```
 
 **Say:**

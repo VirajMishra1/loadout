@@ -225,6 +225,9 @@ async function createInstallRecord(
   ).flat();
   return {
     packageId: plan.packageId,
+    ...(metadata.ownershipOrigin
+      ? { ownershipOrigin: metadata.ownershipOrigin }
+      : {}),
     ...(metadata.repository ? { repository: metadata.repository } : {}),
     ...(metadata.resolvedCommit
       ? { resolvedCommit: metadata.resolvedCommit }
@@ -460,7 +463,10 @@ export async function recordMcpInstall(
   await writeInstallState(state);
 }
 
-export async function forgetInstall(packageId: string): Promise<void> {
+export async function forgetInstall(
+  packageId: string,
+  options: { dropActivations?: boolean } = {},
+): Promise<void> {
   const state = await readInstallState();
   const installs = state.installs.filter(
     (entry) => entry.packageId !== packageId,
@@ -478,15 +484,19 @@ export async function forgetInstall(packageId: string): Promise<void> {
     installs,
     ...(state.profile ? { profile: state.profile } : {}),
     mcpInstalls,
-    activations: (state.activations ?? []).map((entry) =>
-      entry.packageId === packageId
-        ? {
-            ...entry,
-            installationState: "removed" as const,
-            activationState: "disabled" as const,
-            updatedAt: new Date().toISOString(),
-          }
-        : entry,
-    ),
+    activations: options.dropActivations
+      ? (state.activations ?? []).filter(
+          (entry) => entry.packageId !== packageId,
+        )
+      : (state.activations ?? []).map((entry) =>
+          entry.packageId === packageId
+            ? {
+                ...entry,
+                installationState: "removed" as const,
+                activationState: "disabled" as const,
+                updatedAt: new Date().toISOString(),
+              }
+            : entry,
+        ),
   });
 }

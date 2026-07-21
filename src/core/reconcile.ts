@@ -403,6 +403,7 @@ export async function applyReconcilePlan(
   const entries = selected.map((item) => ({
     plan: installPlanFor(item, item.status === "outdated"),
     metadata: {
+      ownershipOrigin: "adopted",
       repository: item.candidate!.repository,
       resolvedCommit: item.candidate!.commit,
       reviewed: true,

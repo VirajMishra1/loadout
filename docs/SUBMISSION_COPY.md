@@ -65,7 +65,7 @@ the extensions around every AI coding agent.
 - GitHub: https://github.com/VirajMishra1/loadout
 - npm: https://www.npmjs.com/package/loadout-ai
 - Release: https://github.com/VirajMishra1/loadout/releases/tag/v0.5.8
-- Demo: PASTE_PUBLIC_YOUTUBE_URL_HERE
+- Demo: https://www.youtube.com/watch?v=opNqJKX7xMw
 
 ## Judge testing path
 

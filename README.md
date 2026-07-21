@@ -112,13 +112,19 @@ their own explicit setup and permission steps.
 
 ### Demo
 
-**Demo video coming here.** The release walkthrough will show the real path, not a
-mock UI: Stable install, cross-agent inventory, project optimization, update and
-discovery checks, MCP setup, Graphify, rollback, and complete uninstall. The exact
-under-three-minute [recording and voiceover script](./docs/DEMO_SCRIPT.md) is public.
+<p align="center">
+  <a href="https://www.youtube.com/watch?v=opNqJKX7xMw">
+    <img src="https://img.youtube.com/vi/opNqJKX7xMw/maxresdefault.jpg" alt="Watch the 72-second Loadout demo" width="880">
+  </a>
+</p>
 
-For now, the [end-to-end acceptance guide](./docs/USER_TEST_GUIDE.md) contains the same
-commands you can run yourself.
+**[Watch the 72-second Loadout demo on YouTube](https://www.youtube.com/watch?v=opNqJKX7xMw).**
+It shows the real CLI product, including profiles, project-aware selection,
+discovery, explicit integrations, and snapshot-backed rollback. The exact
+[recording and voiceover script](./docs/DEMO_SCRIPT.md) is public.
+
+The [end-to-end acceptance guide](./docs/USER_TEST_GUIDE.md) contains the commands
+you can run yourself.
 
 ## Stable workflow
 

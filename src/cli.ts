@@ -194,6 +194,11 @@ import {
   planSkillAdoption,
 } from "./core/adopt.js";
 import {
+  applyReconcilePlan,
+  buildReconcilePlan,
+  formatReconcilePlan,
+} from "./core/reconcile.js";
+import {
   formatReviewQueue,
   mergeReviewQueue,
   readReviewQueue,
@@ -597,7 +602,7 @@ async function runSetup(options: SetupOptions): Promise<void> {
   }
 }
 
-const LOADOUT_VERSION = "0.5.3";
+const LOADOUT_VERSION = "0.5.4";
 
 function durableSchedulerLauncher(): string[] {
   return [
@@ -2066,6 +2071,74 @@ program
         options.json
           ? JSON.stringify(enriched, null, 2)
           : `${formatInstalledSkillInventory(enriched)}\n${formatProvenanceSummary(enriched)}`,
+      );
+    },
+  );
+
+program
+  .command("reconcile")
+  .description(
+    "Match existing unmanaged skills to pinned sources, group mirrors, and preview safe ownership or updates",
+  )
+  .option(
+    "--agents <ids>",
+    "comma-separated agent ids; defaults to detected agents",
+  )
+  .option("--refresh", "rebuild the inspected catalog skill index")
+  .option(
+    "--replace-outdated",
+    "replace unambiguous outdated trees with their reviewed pinned source",
+  )
+  .option(
+    "--approve-risk",
+    "approve the exact safety findings shown for outdated replacements",
+  )
+  .option("--yes", "apply the displayed transaction; otherwise preview")
+  .option("--json", "emit machine-readable output")
+  .action(
+    async (options: {
+      agents?: string;
+      refresh?: boolean;
+      replaceOutdated?: boolean;
+      approveRisk?: boolean;
+      yes?: boolean;
+      json?: boolean;
+    }) => {
+      const detected = await detectAgents();
+      const requested = parseAgentSelection(options.agents);
+      const selected = requested?.length
+        ? detected.filter(
+            (agent) => requested.includes(agent.id) && agent.installed,
+          )
+        : detected.filter((agent) => agent.installed);
+      if (!selected.length)
+        throw new Error("No detected agent profile is available to reconcile");
+      const resolved = await resolveCatalogSkillIndex({
+        refresh: options.refresh,
+        build: {
+          catalog: await loadEffectiveCatalog(),
+          onProgress: options.refresh ? printProvenanceProgress : undefined,
+        },
+      });
+      if (!resolved.index)
+        throw new Error("No reviewed catalog skill index is available");
+      const plan = await buildReconcilePlan(selected, resolved.index);
+      if (!options.yes) {
+        console.log(
+          options.json
+            ? JSON.stringify(plan, null, 2)
+            : `${formatReconcilePlan(plan)}\n\nDry run only. Re-run with --yes to adopt exact matches.${plan.summary.outdated ? " Add --replace-outdated to include the reviewed updates shown above." : ""}`,
+        );
+        return;
+      }
+      const result = await applyReconcilePlan(plan, {
+        replaceOutdated: options.replaceOutdated,
+        approveRisk: options.approveRisk,
+      });
+      console.log(
+        options.json
+          ? JSON.stringify({ plan, result }, null, 2)
+          : `${formatReconcilePlan(plan)}\n\nReconciled ${result.adopted} exact group(s) and ${result.updated} outdated group(s). Snapshot: ${result.snapshotId}`,
       );
     },
   );

@@ -15,6 +15,7 @@ describe("CLI completion", () => {
       expect(renderShellCompletion(shell)).toContain("skill-audit");
       expect(renderShellCompletion(shell)).toContain("interop");
       expect(renderShellCompletion(shell)).toContain("optimize");
+      expect(renderShellCompletion(shell)).toContain("reconcile");
       expect(renderShellCompletion(shell)).toContain("catalog-update");
       expect(renderShellCompletion(shell)).toContain("candidate");
       expect(renderShellCompletion(shell)).toContain("propose");

@@ -27,6 +27,8 @@ export interface InstalledSkillInventoryEntry {
   packageId?: string;
   /** Repository identifiers mentioned by the skill text; evidence, not proof. */
   sourceHints?: string[];
+  /** Git worktree origin when the installed skill itself is a repository clone. */
+  repositoryOrigin?: string;
 }
 
 export interface SkillDuplicateGroup {
@@ -51,6 +53,7 @@ export interface AgentSkillInventorySummary {
   unmanaged: number;
   overRecommendedLimit: boolean;
   runtimeToolTargets?: number;
+  additionalDirectories?: string[];
 }
 
 export interface InstalledSkillInventoryReport {
@@ -121,6 +124,7 @@ async function scanAgentSkills(
   const primaryRoot = resolve(agent.skillsDirectory);
   const roots = [
     primaryRoot,
+    ...(agent.additionalSkillsDirectories ?? []).map((path) => resolve(path)),
     ...runtimeTargets
       .filter((target) => target.agent === agent.id)
       .map((target) => resolve(target.path))
@@ -164,14 +168,40 @@ async function scanAgentSkills(
           activations,
           runtimeTargets,
         );
-        const sourceHints = [
+        let gitConfig = "";
+        try {
+          const gitConfigPath = join(directory, ".git", "config");
+          const gitConfigInfo = await lstat(gitConfigPath);
+          if (gitConfigInfo.isFile() && !gitConfigInfo.isSymbolicLink())
+            gitConfig = await readFile(gitConfigPath, "utf8");
+        } catch {
+          // Most installed skills are copied directories, not Git worktrees.
+        }
+        const originSection =
+          gitConfig.match(
+            /\[remote\s+["']origin["']\]([\s\S]*?)(?=\n\s*\[|$)/i,
+          )?.[1] ?? "";
+        const gitOrigins = [
           ...new Set(
             [
+              ...originSection.matchAll(
+                /https?:\/\/github\.com\/([A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]*[A-Za-z0-9_-])/g,
+              ),
+              ...originSection.matchAll(
+                /git@github\.com:([A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]*[A-Za-z0-9_-])/g,
+              ),
+            ].map((match) => match[1].replace(/\.git$/, "")),
+          ),
+        ].sort();
+        const sourceHints = [
+          ...new Set([
+            ...[
               ...content.matchAll(
                 /https?:\/\/github\.com\/([A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]*[A-Za-z0-9_-])/g,
               ),
             ].map((match) => match[1].replace(/\.git$/, "")),
-          ),
+            ...gitOrigins,
+          ]),
         ].sort();
         skills.push({
           agent: agent.id,
@@ -194,6 +224,9 @@ async function scanAgentSkills(
           managed: Boolean(packageId),
           ...(packageId ? { packageId } : {}),
           ...(sourceHints.length ? { sourceHints } : {}),
+          ...(gitOrigins.length === 1
+            ? { repositoryOrigin: gitOrigins[0] }
+            : {}),
         });
       } catch (error) {
         warnings.push(
@@ -211,6 +244,7 @@ async function scanAgentSkills(
     for (const child of children) {
       if (
         child.name === ".git" ||
+        child.name === ".system" ||
         child.name === "node_modules" ||
         child.name === ".cache"
       )
@@ -220,7 +254,14 @@ async function scanAgentSkills(
     }
   }
 
-  for (const root of [...new Set(roots)]) await visit(root, 0);
+  const scanRoots = [...new Set(roots)].filter(
+    (root, index, values) =>
+      !values.some(
+        (candidate, candidateIndex) =>
+          candidateIndex !== index && isInside(candidate, root),
+      ),
+  );
+  for (const root of scanRoots) await visit(root, 0);
   return {
     skills: skills.sort((left, right) => left.path.localeCompare(right.path)),
     warnings,
@@ -296,6 +337,9 @@ export async function scanInstalledSkills(
       runtimeToolTargets: runtimeTargets.filter(
         (target) => target.agent === agent.id,
       ).length,
+      ...(agent.additionalSkillsDirectories?.length
+        ? { additionalDirectories: [...agent.additionalSkillsDirectories] }
+        : {}),
     };
   });
   for (const summary of summaries.filter((item) => item.overRecommendedLimit))
@@ -332,7 +376,7 @@ export function formatInstalledSkillInventory(
   ];
   for (const agent of report.agents)
     lines.push(
-      `${agent.detected ? "✓" : "○"} ${agent.displayName}: ${agent.total} skill(s) (${agent.managed} managed, ${agent.unmanaged} unmanaged)${agent.runtimeToolTargets ? `, including ${agent.runtimeToolTargets} runtime-tool skill(s)` : ""} — ${agent.directory}`,
+      `${agent.detected ? "✓" : "○"} ${agent.displayName}: ${agent.total} skill(s) (${agent.managed} managed, ${agent.unmanaged} unmanaged)${agent.runtimeToolTargets ? `, including ${agent.runtimeToolTargets} runtime-tool skill(s)` : ""} — ${[agent.directory, ...(agent.additionalDirectories ?? [])].join(", ")}`,
     );
   for (const warning of report.warnings) lines.push(`! ${warning}`);
   lines.push(

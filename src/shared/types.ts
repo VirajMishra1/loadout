@@ -113,7 +113,10 @@ export interface DetectedAgent {
   displayName: string;
   binary?: string;
   installed: boolean;
+  /** Canonical destination for new Loadout-managed skills. */
   skillsDirectory: string;
+  /** Additional host-visible roots included in inventory and capacity checks. */
+  additionalSkillsDirectories?: string[];
 }
 
 export interface PlannedFile {

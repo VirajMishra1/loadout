@@ -19,6 +19,7 @@ const commands = [
   "unadd",
   "list",
   "scan",
+  "reconcile",
   "status",
   "versions",
   "intelligence",

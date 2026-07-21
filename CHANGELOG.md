@@ -2,6 +2,32 @@
 
 ## Unreleased
 
+## 0.5.4 - 2026-07-21
+
+### Added
+
+- Add `loadout reconcile` to compare complete existing skill trees with pinned
+  catalog units, group identical cross-agent mirrors, adopt exact matches without
+  rewriting them, and preview unambiguous outdated replacements separately.
+- Add immutable, licensed catalog records for the official Cloudflare Skills
+  collection and Humanizer, with direct upstream credit links.
+
+### Changed
+
+- Index safe skill siblings even when another unit in the same collection is
+  quarantined; repository metadata such as `.git`, caches, and `node_modules` is
+  excluded from the distributable security tree.
+- Scan both Codex's canonical `~/.agents/skills` directory and its current
+  `~/.codex/skills` compatibility directory while excluding host-bundled `.system`
+  skills.
+
+### Fixed
+
+- Preserve the exact existing host path and exact adopted skill unit during later
+  repository updates instead of broadening a collection or moving a Codex skill.
+- Verify every outdated reconciliation copy byte-for-byte before ownership state is
+  committed, with one rollback snapshot for the grouped transaction.
+
 ## 0.5.3 - 2026-07-21
 
 ### Fixed

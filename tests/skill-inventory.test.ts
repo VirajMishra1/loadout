@@ -149,6 +149,7 @@ describe("existing skill inventory", () => {
         displayName: "Codex",
         installed: true,
         skillsDirectory: codexRoot,
+        additionalSkillsDirectories: [join(home, ".codex", "skills")],
       },
     ];
 
@@ -171,5 +172,46 @@ describe("existing skill inventory", () => {
     expect(formatInstalledSkillInventory(report)).toContain(
       "including 1 runtime-tool skill(s)",
     );
+  });
+
+  it("counts Codex skills from canonical and compatibility roots", async () => {
+    root = await mkdtemp(join(tmpdir(), "loadout-codex-roots-"));
+    process.env.LOADOUT_HOME = join(root, "state");
+    process.env.LOADOUT_USER_HOME = join(root, "home");
+    const canonical = join(root, "home", ".agents", "skills");
+    const compatibility = join(root, "home", ".codex", "skills");
+    for (const [base, name] of [
+      [canonical, "canonical"],
+      [compatibility, "compatibility"],
+    ]) {
+      const target = join(base, name);
+      await mkdir(target, { recursive: true });
+      await writeFile(
+        join(target, "SKILL.md"),
+        `---\nname: ${name}\ndescription: Test\n---\n`,
+      );
+    }
+    const bundled = join(compatibility, ".system", "bundled");
+    await mkdir(bundled, { recursive: true });
+    await writeFile(
+      join(bundled, "SKILL.md"),
+      "---\nname: bundled\ndescription: Host managed\n---\n",
+    );
+
+    const report = await scanInstalledSkills([
+      {
+        id: "codex",
+        displayName: "Codex",
+        installed: true,
+        skillsDirectory: canonical,
+        additionalSkillsDirectories: [compatibility],
+      },
+    ]);
+    expect(report).toMatchObject({ total: 2, managed: 0, unmanaged: 2 });
+    expect(report.agents[0]).toMatchObject({
+      total: 2,
+      additionalDirectories: [compatibility],
+    });
+    expect(formatInstalledSkillInventory(report)).toContain(compatibility);
   });
 });

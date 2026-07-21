@@ -411,6 +411,78 @@ describe("update planning", () => {
     });
   });
 
+  it("preserves an adopted compatibility-root target during updates", async () => {
+    const root = await mkdtemp(join(tmpdir(), "loadout-adopted-update-"));
+    roots.push(root);
+    process.env.LOADOUT_HOME = join(root, ".loadout");
+    const oldRepository = repositoryCachePath("owner/repo", "aaa");
+    const oldSkill = join(oldRepository, "skills", "review");
+    const newRepository = join(root, "new");
+    const newSkill = join(newRepository, "skills", "review");
+    await mkdir(oldSkill, { recursive: true });
+    await mkdir(newSkill, { recursive: true });
+    await writeFile(
+      join(oldSkill, "SKILL.md"),
+      "---\nname: review\ndescription: Review\n---\nOld\n",
+    );
+    await writeFile(
+      join(newSkill, "SKILL.md"),
+      "---\nname: review\ndescription: Review\n---\nNew\n",
+    );
+    const compatibilityRoot = join(root, "home", ".codex", "skills");
+    const target = join(compatibilityRoot, "review");
+    await applySkillInstall(
+      {
+        packageId: "adopted-review",
+        targetAgents: ["codex"],
+        warnings: [],
+        files: [
+          {
+            source: oldSkill,
+            target,
+            targetAgent: "codex",
+            componentType: "skill",
+            skillName: "review",
+          },
+        ],
+      },
+      {
+        repository: "owner/repo",
+        resolvedCommit: "aaa",
+        reviewed: true,
+      },
+    );
+
+    await applyPackageUpdate(
+      "adopted-review",
+      {},
+      {
+        fetchSnapshot: async () => ({
+          repository: "owner/repo",
+          commit: "bbb",
+          path: newRepository,
+        }),
+        detectAgents: async () => [
+          {
+            id: "codex",
+            displayName: "Codex",
+            installed: true,
+            skillsDirectory: join(root, "home", ".agents", "skills"),
+            additionalSkillsDirectories: [compatibilityRoot],
+          },
+        ],
+      },
+    );
+
+    expect(await readFile(join(target, "SKILL.md"), "utf8")).toContain("New");
+    await expect(
+      readFile(
+        join(root, "home", ".agents", "skills", "review", "SKILL.md"),
+        "utf8",
+      ),
+    ).rejects.toMatchObject({ code: "ENOENT" });
+  });
+
   it("quarantines a blocked update without installing or executing it", async () => {
     const root = await mkdtemp(join(tmpdir(), "loadout-quarantine-"));
     roots.push(root);

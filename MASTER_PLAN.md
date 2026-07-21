@@ -294,6 +294,30 @@ merged `codex/relatable-readme-hero` remote branch remains safe to delete after 
       surface runtime/MCP totals and missing targets, label runtime snapshots, and
       raise the default cold MCP handshake window to the tested 30 seconds. Release
       as `0.5.3` before continuing Graphify removal and discovery/update acceptance.
+- [x] `P18-40 [TERRA]` Scan both Codex's canonical and current compatibility skill
+      roots, exclude host-bundled `.system` entries, and count runtime-tool targets
+      once. The real founder preview now reports 47 visible skills: 13 Claude, 12
+      Codex, 11 Cursor, and 11 Windsurf.
+- [x] `P18-41 [TERRA]` Credit and pin the official Apache-2.0 Cloudflare Skills
+      collection and MIT Humanizer repository as catalog sources. Index safe siblings
+      independently so one quarantined unit cannot hide every valid skill in a large
+      collection.
+- [x] `P18-42 [TERRA]` Add grouped existing-skill reconciliation. Exact complete-tree
+      matches can be adopted without rewriting bytes; Git origins disambiguate
+      same-name candidates; outdated replacement remains explicit, risk-gated,
+      byte-verified, and one rollback-safe transaction.
+- [x] `P18-43 [TERRA]` Preserve an adopted skill's exact unit and existing host path
+      during future updates, including Codex compatibility-root installations. The
+      real read-only preview found eight exact groups, two unambiguous old groups,
+      and left two quarantined/unknown groups untouched. The complete local release
+      gate passes 114 test files with 616 passing tests and one intentional skip,
+      both CLI product journeys, package smoke, and a 1,000-skill scan at 1,422.7 ms
+      p95 across seven real CLI runs.
+- [ ] `P18-44 [HUMAN+TERRA]` Publish and install `loadout-ai@0.5.4`, run
+      `loadout reconcile --refresh`, adopt the eight exact groups, inspect the
+      Humanizer and Turnstile update findings before any replacement, then finish
+      read-only update/discovery, Graphify removal, complete uninstall, and clean
+      reinstall acceptance.
 
 ### Release 0.3 lifecycle hardening
 

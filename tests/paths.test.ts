@@ -34,6 +34,9 @@ describe("platform paths", () => {
     expect(agents.find((agent) => agent.id === "codex")?.skillsDirectory).toBe(
       join(home, ".agents", "skills"),
     );
+    expect(
+      agents.find((agent) => agent.id === "codex")?.additionalSkillsDirectories,
+    ).toEqual([join(home, ".codex", "skills")]);
   });
 
   it("prefers USERPROFILE for native Windows home resolution", () => {
@@ -170,6 +173,9 @@ describe("platform paths", () => {
       );
       expect(codex?.installed).toBe(true);
       expect(codex?.skillsDirectory).toBe(join(root, ".agents", "skills"));
+      expect(codex?.additionalSkillsDirectories).toEqual([
+        join(root, ".codex", "skills"),
+      ]);
     } finally {
       await rm(root, { recursive: true, force: true });
     }

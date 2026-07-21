@@ -240,7 +240,15 @@ export async function buildCatalogSkillIndex(
           throw new Error(
             `resolved ${snapshot.commit}, expected ${pkg.source!.commit}`,
           );
-        const directories = await discoverSkillDirectories(snapshot.path);
+        const rejected: Array<{ name: string; reason: string }> = [];
+        const directories = await discoverSkillDirectories(snapshot.path, {
+          continueOnRejected: true,
+          onRejected: (skill) =>
+            rejected.push({
+              name: skill.name ?? skill.targetName,
+              reason: skill.reason,
+            }),
+        });
         const records = await Promise.all(
           directories.map(async (directory): Promise<CatalogSkillEvidence> => {
             const content = await readFile(join(directory, "SKILL.md"), "utf8");
@@ -271,9 +279,23 @@ export async function buildCatalogSkillIndex(
           completed,
           total: packages.length,
           status: "ready",
-          message: `${pkg.displayName}: ${records.length} reviewed skill(s) indexed`,
+          message: `${pkg.displayName}: ${records.length} reviewed skill(s) indexed${rejected.length ? `; ${rejected.length} quarantined` : ""}`,
         });
-        return { records };
+        return {
+          records,
+          ...(rejected.length
+            ? {
+                failure: {
+                  packageId: pkg.id,
+                  repository: pkg.repository,
+                  error: `${rejected.length} skill unit(s) quarantined: ${rejected
+                    .map((item) => item.name)
+                    .sort()
+                    .join(", ")}`,
+                },
+              }
+            : {}),
+        };
       } catch (error) {
         completed += 1;
         const failure = {

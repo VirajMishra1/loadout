@@ -13,6 +13,7 @@ import {
   type AgentHealthPackageEvidence,
   type AgentHealthScore,
 } from "./agent-health-score.js";
+import { DEFAULT_ACTIVE_SKILL_LIMIT } from "./active-limit.js";
 import { managedFileReadPath } from "./active-set.js";
 import { adapterCapabilities } from "./adapters.js";
 import { loadEffectiveCatalog } from "./catalog.js";
@@ -22,8 +23,6 @@ import { readSnapshot } from "./snapshot.js";
 import { scanInstalledSkills } from "./skill-inventory.js";
 import { readInstallState } from "./state.js";
 import { transactionRoot } from "./transaction.js";
-
-const ACTIVE_SET_CAPACITY = 30;
 
 function freshness(
   pkg: CatalogPackage | undefined,
@@ -189,7 +188,7 @@ export async function collectLocalAgentHealthEvidence(
               },
               activeSet: {
                 active,
-                capacity: ACTIVE_SET_CAPACITY,
+                capacity: DEFAULT_ACTIVE_SKILL_LIMIT,
                 disabled: activations.filter(
                   (item) => item.activationState === "disabled",
                 ).length,

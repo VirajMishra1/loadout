@@ -2,11 +2,22 @@
 
 ## Unreleased
 
+## 0.5.9 - 2026-07-21
+
 ### Fixed
 
 - Preserve active Stable skills when preparing Maximum Library by reserving their
   managed targets before ordinary overlap deferral, while retaining fail-closed
   commit, quarantine, and missing-source validation.
+- Run the canonical `npm run verify` release gate on ordinary pushes and pull
+  requests so CI cannot silently omit evidence, README-flow, or package checks.
+
+### Changed
+
+- Use one shared 30-skill recommended active-set limit in planning, inventory,
+  upgrade guidance, CLI defaults, and public workflow documentation.
+- Clearly archive superseded dashboard-era release notes and keep the public launch
+  checklist aligned with completed demo work and the current CLI-only product.
 
 ## 0.5.8 - 2026-07-21
 

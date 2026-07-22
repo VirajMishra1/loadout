@@ -25,16 +25,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npm run format:check
-      - run: npm run lint
-      - run: npm run typecheck
-      - run: node scripts/check-catalog-attribution.mjs
-      - run: node scripts/check-discovery-artifacts.mjs
-      - run: npm test -- --run
-      # The shipped CLI is the product gate: isolated profile, real state, no network.
-      - run: npm run test:e2e:cli
-      - run: npm run test:package
-      - run: npm run test:performance
+      # Keep ordinary pushes and pull requests on the same gate used by releases.
+      - run: npm run verify
 
   cross-platform:
     name: Native install (Node ${{ matrix.node }}, ${{ matrix.os }})

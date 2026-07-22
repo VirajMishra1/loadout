@@ -188,6 +188,7 @@ import {
   formatProjectActivation,
   planProjectActivation,
 } from "./core/active-policy.js";
+import { DEFAULT_ACTIVE_SKILL_LIMIT } from "./core/active-limit.js";
 import {
   applySkillAdoption,
   formatAdoptionPlan,
@@ -602,7 +603,7 @@ async function runSetup(options: SetupOptions): Promise<void> {
   }
 }
 
-const LOADOUT_VERSION = "0.5.8";
+const LOADOUT_VERSION = "0.5.9";
 
 function durableSchedulerLauncher(): string[] {
   return [
@@ -1342,7 +1343,11 @@ for (const workflow of ["activate", "optimize"] as const) {
     )
     .option("--project <path>", "project directory to scan", ".")
     .option("--agents <ids>", "comma-separated agent ids")
-    .option("--limit <count>", "maximum active skills per agent", "40")
+    .option(
+      "--limit <count>",
+      `maximum active skills per agent (recommended default: ${DEFAULT_ACTIVE_SKILL_LIMIT})`,
+      String(DEFAULT_ACTIVE_SKILL_LIMIT),
+    )
     .option(
       "--pin <selector>",
       "always prioritize package/skill or skill",

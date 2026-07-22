@@ -295,6 +295,25 @@ describe("project-aware active-set policy", () => {
     expect(active.filter((entry) => entry.agent === "codex")).toHaveLength(30);
   });
 
+  it("uses the recommended 30-skill bound by default while preserving explicit limits", async () => {
+    root = await mkdtemp(join(tmpdir(), "loadout-active-default-limit-"));
+    const project = await writeTwoAgentLibrary(40);
+
+    const defaultPlan = await planProjectActivation(project, {
+      agents: ["codex"],
+    });
+    expect(defaultPlan.limit).toBe(30);
+    expect(defaultPlan.agentPlans[0]).toMatchObject({ capacity: 30 });
+    expect(defaultPlan.agentPlans[0]!.selected.length).toBeLessThanOrEqual(30);
+
+    const explicitPlan = await planProjectActivation(project, {
+      agents: ["codex"],
+      limit: 3,
+    });
+    expect(explicitPlan.limit).toBe(3);
+    expect(explicitPlan.agentPlans[0]?.selected).toHaveLength(3);
+  });
+
   it("aborts apply when an agent consumes capacity after preview", async () => {
     root = await mkdtemp(join(tmpdir(), "loadout-active-race-"));
     const project = await writeTwoAgentLibrary(2);

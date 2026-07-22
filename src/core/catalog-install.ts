@@ -3,6 +3,7 @@ import type {
   CatalogPackage,
   DetectedAgent,
 } from "../shared/types.js";
+import { DEFAULT_ACTIVE_SKILL_LIMIT } from "./active-limit.js";
 import { loadEffectiveCatalog, type InstallSelection } from "./catalog.js";
 import { detectAgents } from "./paths.js";
 import {
@@ -32,8 +33,6 @@ import {
 import { formatModelApiAccess, type SetupAccessProfile } from "./access.js";
 import { recordInstalledProfile } from "./profile-state.js";
 import { readInstallState } from "./state.js";
-
-export const RECOMMENDED_ACTIVE_SKILL_LIMIT = 30;
 
 export interface CatalogInstallEntry extends InstallBatchEntry {
   package: CatalogPackage;
@@ -414,9 +413,9 @@ export function formatPreparedCatalogInstall(
   ];
   if (prepared.additive)
     lines.push("Additive install: existing managed skills will stay active.");
-  if (directoriesPerAgent > RECOMMENDED_ACTIVE_SKILL_LIMIT)
+  if (directoriesPerAgent > DEFAULT_ACTIVE_SKILL_LIMIT)
     lines.push(
-      `Capacity notice: about ${directoriesPerAgent} skill directories per agent exceeds Stable's ${RECOMMENDED_ACTIVE_SKILL_LIMIT}-skill bound.${prepared.selection.mode === "maximum" ? " Maximum stores them in the disabled library; optimize or activate a project-relevant working set." : prepared.selection.mode === "power" ? " Power is the explicit larger active mode; choose Stable or project optimization when lower context use matters." : " Use project-aware activation for a smaller working set."}`,
+      `Capacity notice: about ${directoriesPerAgent} skill directories per agent exceeds Stable's ${DEFAULT_ACTIVE_SKILL_LIMIT}-skill bound.${prepared.selection.mode === "maximum" ? " Maximum stores them in the disabled library; optimize or activate a project-relevant working set." : prepared.selection.mode === "power" ? " Power is the explicit larger active mode; choose Stable or project optimization when lower context use matters." : " Use project-aware activation for a smaller working set."}`,
     );
   if (failures.length)
     lines.push(

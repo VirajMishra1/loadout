@@ -34,7 +34,7 @@
 You need Node.js 20 or newer and Git.
 
 ```bash
-npm install --global loadout-ai@0.5.8
+npm install --global loadout-ai@0.5.9
 loadout setup --mode stable
 ```
 
@@ -441,7 +441,7 @@ without loading thousands of skills into every prompt.
 | Ecosystem research | Compared repositories, checked source layouts and licenses, and separated popularity from evidence                           | 53 pinned catalog sources plus a discovery snapshot watching 240 repositories                               |
 | Implementation     | Wrote and refactored CLI commands, schemas, source fetchers, installers, active-set logic, and MCP configuration             | The published `loadout-ai` package and the commands documented above                                        |
 | Safety work        | Looked for scripts, hooks, binaries, credential references, target collisions, stale previews, and external edits            | Preview-first changes, quarantined skill units, explicit risk approval, drift protection, and rollback      |
-| Testing            | Generated adversarial cases, reproduced failures from real terminal sessions, and converted them into regression tests       | 625 passing tests, CLI and README end-to-end flows, package smoke tests, and a 1,000-skill performance gate |
+| Testing            | Generated adversarial cases, reproduced failures from real terminal sessions, and converted them into regression tests       | 632 passing tests, CLI and README end-to-end flows, package smoke tests, and a 1,000-skill performance gate |
 | Team integration   | Audited teammate branches, compared them with `main`, prepared focused pull requests, and checked what was actually complete | One public history instead of three disconnected prototypes                                                 |
 | Release work       | Verified npm contents, version behavior, GitHub metadata, documentation claims, and public CI                                | A public npm package, credited upstream catalog, release evidence, and a reproducible verification command  |
 

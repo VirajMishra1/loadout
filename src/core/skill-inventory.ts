@@ -7,6 +7,7 @@ import type {
   InstallRecord,
   ManagedActivationRecord,
 } from "../shared/types.js";
+import { DEFAULT_ACTIVE_SKILL_LIMIT } from "./active-limit.js";
 import { readInstallState } from "./state.js";
 import {
   listInstalledRuntimeToolSkillTargets,
@@ -14,7 +15,6 @@ import {
 } from "./runtime-tools.js";
 
 const MAX_SCAN_DEPTH = 6;
-export const RECOMMENDED_ACTIVE_SKILLS = 30;
 
 export interface InstalledSkillInventoryEntry {
   agent: AgentId;
@@ -333,7 +333,7 @@ export async function scanInstalledSkills(
       total: entries.length,
       managed,
       unmanaged: entries.length - managed,
-      overRecommendedLimit: entries.length > RECOMMENDED_ACTIVE_SKILLS,
+      overRecommendedLimit: entries.length > DEFAULT_ACTIVE_SKILL_LIMIT,
       runtimeToolTargets: runtimeTargets.filter(
         (target) => target.agent === agent.id,
       ).length,
@@ -344,7 +344,7 @@ export async function scanInstalledSkills(
   });
   for (const summary of summaries.filter((item) => item.overRecommendedLimit))
     warnings.push(
-      `${summary.displayName} exposes ${summary.total} skills; the recommended active set is at most ${RECOMMENDED_ACTIVE_SKILLS}.`,
+      `${summary.displayName} exposes ${summary.total} skills; the recommended active set is at most ${DEFAULT_ACTIVE_SKILL_LIMIT}.`,
     );
   const managed = skills.filter((entry) => entry.managed).length;
   return {

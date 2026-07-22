@@ -58,6 +58,12 @@ describe("CLI contract", () => {
     expect(result.stdout).not.toContain("sandbox-run");
   });
 
+  it("documents the shared recommended active-skill default", async () => {
+    const result = await runCli("optimize", "--help");
+    expect(result.code).toBe(0);
+    expect(result.stdout).toContain("recommended default: 30");
+  });
+
   it("gives beginners one read-only guide while retaining advanced commands", async () => {
     const guide = await runCli("guide");
     expect(guide.code).toBe(0);

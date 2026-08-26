@@ -443,7 +443,7 @@ export async function runSetup(options: SetupOptions): Promise<void> {
     if (!mode) {
       if (!interactive) {
         console.log(
-          "Loadout is CLI-first. Run `loadout setup --mode stable` for Loadout's bounded policy selection, `--mode power` for broader opt-in skills, or `--mode maximum` to download the screened library without activating it.",
+          "Pick a loadout to preview: `loadout setup --mode stable` (recommended), `--mode power` (broader), or `--mode maximum` (full library, activate per project). Nothing installs until you add --yes.",
         );
         return;
       }
@@ -453,7 +453,14 @@ export async function runSetup(options: SetupOptions): Promise<void> {
       });
       const answer = (
         await reader.question(
-          "Choose a loadout: [1] Stable Daily Driver (Loadout policy selection), [2] Power Boost, [3] Maximum Library, [4] Custom: ",
+          [
+            "Choose a loadout:",
+            "  [1] Stable   — a small, reviewed set of everyday skills (recommended)",
+            "  [2] Power    — a broader daily-driver set",
+            "  [3] Maximum  — download the full reviewed library, activate per project later",
+            "  [4] Custom   — pick exact package ids",
+            "> ",
+          ].join("\n"),
         )
       ).trim();
       mode =
@@ -481,7 +488,7 @@ export async function runSetup(options: SetupOptions): Promise<void> {
       });
       access = interactiveModelApiAccess(
         await reader.question(
-          "Separately billed model API access (ChatGPT/Claude subscriptions do not count): [0] None, [1] OpenAI API, [2] Anthropic API, [3] Both, [4] OpenRouter, [5] Other: ",
+          "Any billed model API key to declare? (ChatGPT/Claude subscriptions don't count) [0] No, [1] OpenAI, [2] Anthropic, [3] Both, [4] OpenRouter, [5] Other: ",
         ),
       );
     }

@@ -159,7 +159,18 @@ ripping it out mid-stream (lower risk; candidate for a later cut). Original deta
   of drift/staleness/overlap). Keep it one screen, actionable.
 - Gate: `status` renders clearly on a real profile; suite green.
 
-## Phase 8 — Copy rewrite (voice)
+## Phase 8 — Copy rewrite — DONE (primary flow)
+Cut the defensive footnotes from the highest-visibility surfaces:
+- setup/wizard preview no longer prints the "Separately billed model API access (ChatGPT
+  and Claude subscriptions do not count)" line or the "does not require an OpenAI/Anthropic
+  key" footnote; counts merged into one useful line; the API-access line only appears when
+  a key is actually declared.
+- the interactive mode prompt is now a readable menu (Stable recommended / Power / Maximum /
+  Custom with one-line descriptions) instead of a dense single line.
+- the non-interactive hint and the API-key question are shorter and plainer.
+Broader per-command copy remains a future sweep; this covered what a first-time user sees.
+
+
 - Every user-facing line answers: what changes, is it safe, how to undo. Cut defensive
   footnotes (e.g. the "separately billed model API access" line in previews).
 - Consistent, warm, terse developer voice. Errors are actionable.

@@ -98,7 +98,22 @@ Do this AFTER deletion so far less code is moved.
 - `src/commands/experimental.ts` (everything gated)
 - Each module exports `register(program)`. Gate: build clean, suite green, no behavior change.
 
-## Phase 5 — Modes catalog-derived + resolve-at-commit test (reliability)
+## Phase 5 — Modes reliability — PARTIAL (offline guard done)
+Findings during execution:
+- The `isStableSkillSelected` "footgun" is INTENTIONAL, not a bug: stable mode's
+  eligiblePackages returns only allowlisted packages, so the `!selected -> true` branch
+  only fires in the reviewed-tier fallback (downstream catalogs without bundled ids),
+  where installing all skills is the intended behavior. Left as-is.
+- DONE: offline anti-rot guard (tests/profiles.test.ts) — fails loudly if any Stable/Power
+  allowlist package is missing/archived, empty, duplicated, or (Stable) off reviewed tier.
+- BACKLOG (network, unverifiable in this sandbox): a scripts/ check that fetches each
+  allowlist package at its pinned commit and asserts every named skill still resolves —
+  catches skill-name-level rot. Belongs in `npm run verify`, matching check-*.mjs.
+- Did NOT rip out the curated allowlists for pure policy-derived selection: the curation
+  encodes real judgment and full derivation would change what installs (product risk).
+  Original Phase 5 plan retained below.
+
+
 - Replace hardcoded `STABLE_SKILL_ALLOWLIST` / `POWER_SKILL_ALLOWLIST` name lists in
   `profiles.ts` with **policy filters** over the catalog (tier + category + trust-stage +
   max-count). Modes then evolve with the catalog; new entries flow in by policy.

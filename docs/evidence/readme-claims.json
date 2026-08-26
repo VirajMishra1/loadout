@@ -31,7 +31,10 @@
       "summary": "Stable selection is defined by the checked-in policy and allowlist.",
       "evidenceClass": "policy-selected",
       "status": "proven",
-      "evidence": ["src/core/profiles.ts", "tests/profiles.test.ts"]
+      "evidence": [
+        "src/core/profiles.ts",
+        "tests/profiles.test.ts"
+      ]
     },
     {
       "id": "selection.power",
@@ -39,7 +42,10 @@
       "summary": "Power selection is defined by the checked-in policy and allowlist.",
       "evidenceClass": "policy-selected",
       "status": "proven",
-      "evidence": ["src/core/profiles.ts", "tests/profiles.test.ts"]
+      "evidence": [
+        "src/core/profiles.ts",
+        "tests/profiles.test.ts"
+      ]
     },
     {
       "id": "selection.maximum",
@@ -47,7 +53,10 @@
       "summary": "Maximum selection keeps optional components in Loadout's managed library rather than activating every component.",
       "evidenceClass": "integration-verified",
       "status": "bounded",
-      "evidence": ["src/core/active-set.ts", "tests/active-set.test.ts"]
+      "evidence": [
+        "src/core/active-set.ts",
+        "tests/active-set.test.ts"
+      ]
     },
     {
       "id": "agents.support",
@@ -90,7 +99,10 @@
       "summary": "Update workflows present a bounded local plan before an explicit apply step.",
       "evidenceClass": "integration-verified",
       "status": "proven",
-      "evidence": ["src/core/update.ts", "tests/update.test.ts"]
+      "evidence": [
+        "src/core/update.ts",
+        "tests/update.test.ts"
+      ]
     },
     {
       "id": "updates.saved-profile",
@@ -111,7 +123,10 @@
       "summary": "Managed installation treats recursively empty leftover skill directories as unoccupied while retaining collision protection for files and symlinks.",
       "evidenceClass": "integration-verified",
       "status": "proven",
-      "evidence": ["src/core/install.ts", "tests/install.test.ts"]
+      "evidence": [
+        "src/core/install.ts",
+        "tests/install.test.ts"
+      ]
     },
     {
       "id": "rollback.snapshot",
@@ -131,7 +146,10 @@
       "summary": "Recommendations expose bounded repository and local evidence rather than universal quality claims.",
       "evidenceClass": "unit-verified",
       "status": "bounded",
-      "evidence": ["src/core/recommend.ts", "tests/recommend.test.ts"]
+      "evidence": [
+        "src/core/recommend.ts",
+        "tests/recommend.test.ts"
+      ]
     },
     {
       "id": "trust.stages",
@@ -140,8 +158,8 @@
       "evidenceClass": "structural",
       "status": "proven",
       "evidence": [
-        "src/core/benchmark-trust.ts",
-        "tests/benchmark-trust.test.ts",
+        "src/core/profiles.ts",
+        "tests/profiles.test.ts",
         "docs/CATALOG_POLICY.md"
       ]
     },
@@ -188,7 +206,10 @@
       "summary": "MCP configuration uses explicit plans and keeps credentials outside persisted shared manifests.",
       "evidenceClass": "integration-verified",
       "status": "proven",
-      "evidence": ["src/core/mcp.ts", "tests/mcp-config.test.ts"]
+      "evidence": [
+        "src/core/mcp.ts",
+        "tests/mcp-config.test.ts"
+      ]
     },
     {
       "id": "manifests.portability",
@@ -200,18 +221,6 @@
         "src/core/manifest.ts",
         "src/shared/schemas.ts",
         "tests/manifest.test.ts"
-      ]
-    },
-    {
-      "id": "benchmarks.protocol",
-      "section": "Development and verification",
-      "summary": "Benchmark planning and protocol artifacts do not by themselves prove a source is benchmarked.",
-      "evidenceClass": "structural",
-      "status": "bounded",
-      "evidence": [
-        "docs/EVALUATION_PROTOCOL_V1.md",
-        "src/core/benchmark-campaign.ts",
-        "tests/benchmark-campaign.test.ts"
       ]
     },
     {
@@ -237,7 +246,9 @@
         "README.md",
         "docs/evidence/live-checks-2026-07-19.json"
       ],
-      "externalPrerequisites": ["Current npm registry availability"]
+      "externalPrerequisites": [
+        "Current npm registry availability"
+      ]
     },
     {
       "id": "release.state",
@@ -272,7 +283,10 @@
       "summary": "Current limitations are stated explicitly instead of being represented as present capabilities.",
       "evidenceClass": "structural",
       "status": "proven",
-      "evidence": ["README.md", "docs/FEATURE_TEST_MATRIX.md"]
+      "evidence": [
+        "README.md",
+        "docs/FEATURE_TEST_MATRIX.md"
+      ]
     }
   ]
 }

@@ -1,4 +1,5 @@
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import { loadoutHome } from "./paths.js";
 
@@ -135,7 +136,7 @@ export async function fetchGitHubMetadata(
   await mkdir(join(loadoutHome(), "cache", "github-metadata"), {
     recursive: true,
   });
-  const temporary = `${path}.${process.pid}.tmp`;
+  const temporary = `${path}.${process.pid}.${randomUUID()}.tmp`;
   await writeFile(temporary, JSON.stringify(metadata, null, 2), "utf8");
   await rename(temporary, path);
   return metadata;
@@ -216,7 +217,7 @@ export async function fetchGitHubReleaseMetadata(
   await mkdir(join(loadoutHome(), "cache", "github-releases"), {
     recursive: true,
   });
-  const temporary = `${path}.${process.pid}.tmp`;
+  const temporary = `${path}.${process.pid}.${randomUUID()}.tmp`;
   await writeFile(temporary, JSON.stringify(metadata, null, 2), "utf8");
   await rename(temporary, path);
   return metadata;

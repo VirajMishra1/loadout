@@ -60,7 +60,12 @@ import {
   removeManifestPackage,
   writeLockfile,
 } from "../core/manifest.js";
-import { buildHealthReport, formatHealthReport } from "../core/health.js";
+import {
+  buildHealthReport,
+  formatHealthReport,
+  formatStatusScreen,
+  gradeHealth,
+} from "../core/health.js";
 import {
   installStatePath,
   readInstallState,
@@ -847,14 +852,29 @@ program
 program
   .command("status")
   .description(
-    "Show detected coding agents and their managed component inventory",
+    "Home screen: a health grade, detected agents, and the next thing to do",
   )
-  .option("--json", "emit machine-readable inventory")
+  .option("--json", "emit machine-readable status")
   .action(async (options: { json?: boolean }) => {
     const agents = await detectAgents();
-    const inventory = await inspectAgents(agents);
-    if (options.json) return console.log(JSON.stringify(inventory, null, 2));
-    for (const item of inventory) console.log(formatAgentInventory(item));
+    const [inventory, report] = await Promise.all([
+      inspectAgents(agents),
+      buildHealthReport({}),
+    ]);
+    if (options.json)
+      return console.log(
+        JSON.stringify(
+          { grade: gradeHealth(report), report, inventory },
+          null,
+          2,
+        ),
+      );
+    console.log(
+      formatStatusScreen(
+        report,
+        inventory.map((item) => formatAgentInventory(item)),
+      ),
+    );
   });
 
 program

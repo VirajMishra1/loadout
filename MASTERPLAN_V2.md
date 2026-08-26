@@ -143,7 +143,16 @@ install logic.
 - Gate: manual TTY walkthrough + a non-interactive test that bare invocation with a mode flag
   still works headless.
 
-## Phase 7 — `status` home screen with health grade
+## Phase 7 — status home screen with health grade — DONE
+`loadout status` is now a home screen: an A/B/C/D/F/— grade with a headline, the per-agent
+inventory, then the concrete reasons and fix-it commands. gradeHealth derives the grade from
+the report the health command already builds (drift dominates -> F; error findings -> D;
+library-only -> C; warnings -> B; healthy -> A; not-configured -> —). Verified live: empty
+profile -> "—: Not set up", stable install -> "A", tampered managed file -> "F" with a
+rollback fix. Kept the 842-LOC agent-health-score behind `health --explain` rather than
+ripping it out mid-stream (lower risk; candidate for a later cut). Original detail below.
+
+
 - `loadout status` becomes the home screen: per agent an A–F grade, installed count, drift,
   duplicates, overlap warnings, and the one command to fix each ("run `loadout optimize`").
 - Replace the 842-LOC signed `agent-health-score.ts` with a fast, legible grade (grep-and-count

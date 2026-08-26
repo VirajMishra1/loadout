@@ -66,9 +66,9 @@ describe("CLI contract", () => {
     expect(guide.stdout).toContain("loadout mcp-recipe");
     expect(guide.stdout).toContain("Nothing above changes your agents");
 
-    const advanced = await runCli("registry-serve", "--help");
+    const advanced = await runCli("serve", "--help");
     expect(advanced.code).toBe(0);
-    expect(advanced.stdout).toContain("Loadout registry protocol server");
+    expect(advanced.stdout).toContain("loopback");
   });
 
   it("lists reviewed runtime tools without changing the profile", async () => {

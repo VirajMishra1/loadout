@@ -102,7 +102,6 @@ import {
   publishRemotePackage,
   searchLocalRegistry,
 } from "./core/registry.js";
-import { startRegistryServer } from "./core/registry-api.js";
 import { auditLoadout, formatAuditReport } from "./core/audit.js";
 import {
   ADAPTER_CAPABILITIES,
@@ -114,11 +113,6 @@ import {
   formatAgentInventory,
   inspectAgents,
 } from "./core/agent-inspection.js";
-import {
-  generateSigningKeys,
-  signJsonFile,
-  verifyJsonFile,
-} from "./core/signing.js";
 import {
   applyPortableImport,
   exportPortableLoadout,
@@ -248,13 +242,6 @@ import {
   unpinReplacement,
 } from "./core/freshness-alerts.js";
 import {
-  runHeadToHeadHarness,
-  replacementEvidenceFromSignedSnapshot,
-  writeSignedHeadToHeadEvidence,
-  type HeadToHeadFixture,
-  type HeadToHeadTrial,
-} from "./core/head-to-head.js";
-import {
   parseCompletionShell,
   renderShellCompletion,
 } from "./core/completion.js";
@@ -276,11 +263,6 @@ import {
   verifyCandidateDossierSource,
   writeCandidateDossier,
 } from "./core/candidate-intelligence.js";
-import {
-  applyCatalogRelease,
-  formatCatalogReleasePreview,
-  previewCatalogRelease,
-} from "./core/catalog-release.js";
 import type { OperatingSystem, PackageTier } from "./shared/types.js";
 import {
   recoverPendingTransactions,
@@ -306,12 +288,6 @@ import {
 import { discoverSkillsSh } from "./core/skills-sh-discovery.js";
 import { discoverOfficialMcpRegistry } from "./core/mcp-registry-discovery.js";
 import {
-  createBenchmarkRun,
-  formatBenchmarkCampaignSummary,
-  parseBenchmarkCampaign,
-  summarizeBenchmarkCampaign,
-} from "./core/benchmark-campaign.js";
-import {
   buildLoadoutCard,
   compareLoadoutReports,
   formatLoadoutCard,
@@ -322,26 +298,7 @@ import {
   formatLoadoutBadgeUsage,
   parseLoadoutBadgeMetric,
 } from "./core/loadout-badge.js";
-import {
-  auditReleaseClaims,
-  formatReleaseEvidenceIndex,
-  releaseEvidenceRoot,
-} from "./core/release-claims.js";
-import {
-  applyIntelligenceFeed,
-  previewIntelligenceFeed,
-  readCachedIntelligenceFeed,
-} from "./core/intelligence-feed.js";
 import { scanSkillSecurity } from "./core/skill-security.js";
-import {
-  planApmImportFiles,
-  planOpenPackageImportFiles,
-  type EcosystemImportFiles,
-} from "./core/ecosystem-import.js";
-import {
-  buildCompatibilityIntelligence,
-  parseCompatibilityNoticeSet,
-} from "./core/compatibility-intelligence.js";
 import {
   ADVANCED_GUIDE,
   BEGINNER_GUIDE,
@@ -970,58 +927,6 @@ program
   );
 
 program
-  .command("registry-serve")
-  .description("Run the Loadout registry protocol server")
-  .option("--host <host>", "listen host", "127.0.0.1")
-  .option("--port <port>", "listen port", "7331")
-  .option(
-    "--credential-keychain <service>",
-    "resolve the server token from the OS credential store",
-  )
-  .option("--credential-account <account>", "OS credential account")
-  .action(
-    async (options: {
-      host: string;
-      port: string;
-      credentialKeychain?: string;
-      credentialAccount?: string;
-    }) => {
-      const token = await createCredentialResolver()(
-        options.credentialKeychain
-          ? {
-              kind: "os-keychain",
-              service: options.credentialKeychain,
-              ...(options.credentialAccount
-                ? { account: options.credentialAccount }
-                : {}),
-            }
-          : { kind: "environment", name: "LOADOUT_REGISTRY_TOKEN" },
-      );
-      if (!token)
-        throw new Error(
-          "Set LOADOUT_REGISTRY_TOKEN before starting a registry server",
-        );
-      const handle = await startRegistryServer({
-        host: options.host,
-        port: Number(options.port),
-        token,
-      });
-      console.log(
-        `Loadout registry listening at http://${handle.host}:${handle.port}.`,
-      );
-      await new Promise<void>((resolve) => {
-        const stop = () => {
-          process.off("SIGINT", stop);
-          process.off("SIGTERM", stop);
-          void handle.close().then(resolve);
-        };
-        process.on("SIGINT", stop);
-        process.on("SIGTERM", stop);
-      });
-    },
-  );
-
-program
   .command("search")
   .description("Search the bundled catalog and local registry")
   .argument("[query]", "search text", "")
@@ -1504,30 +1409,6 @@ program
   });
 
 program
-  .command("claims")
-  .description(
-    "Audit public product claims against current repository evidence and boundaries",
-  )
-  .option("--json", "emit the machine-readable release evidence index")
-  .action(async (options: { json?: boolean }) => {
-    const root = releaseEvidenceRoot();
-    const catalog = await loadEffectiveCatalog();
-    const readme = await readFile(resolve(root, "README.md"), "utf8");
-    const index = await auditReleaseClaims({
-      root,
-      readme,
-      catalogCount: catalog.length,
-      verifyEvidenceFiles: existsSync(join(root, "tests")),
-    });
-    console.log(
-      options.json
-        ? JSON.stringify(index, null, 2)
-        : formatReleaseEvidenceIndex(index),
-    );
-    if (index.releaseBlocked) process.exitCode = 1;
-  });
-
-program
   .command("tool")
   .description(
     "Preview, install, or remove an explicitly reviewed runtime-tool recipe",
@@ -1661,30 +1542,11 @@ program
   )
   .option("--updates", "perform live update safety checks")
   .option("--all", "include ignored alerts")
-  .option("--evidence <path>", "verified signed head-to-head evidence path")
-  .option("--public-key <path>", "trusted public key for --evidence")
   .option("--json", "emit machine-readable JSON")
   .action(
-    async (options: {
-      updates?: boolean;
-      all?: boolean;
-      evidence?: string;
-      publicKey?: string;
-      json?: boolean;
-    }) => {
-      if (Boolean(options.evidence) !== Boolean(options.publicKey))
-        throw new Error(
-          "--evidence and --public-key must be provided together",
-        );
-      const replacementEvidence = options.evidence
-        ? replacementEvidenceFromSignedSnapshot(
-            JSON.parse(await readFile(resolve(options.evidence), "utf8")),
-            await readFile(resolve(options.publicKey!), "utf8"),
-          )
-        : undefined;
+    async (options: { updates?: boolean; all?: boolean; json?: boolean }) => {
       const alerts = await buildFreshnessAlerts({
         checkUpdates: options.updates,
-        replacementEvidence,
       });
       const selected = options.all
         ? alerts
@@ -2306,132 +2168,6 @@ program
   });
 
 program
-  .command("intelligence")
-  .description(
-    "Verify and optionally cache a signed read-only discovery and compatibility feed",
-  )
-  .requiredOption("--source <path-or-url>", "signed feed file or HTTPS URL")
-  .requiredOption("--public-key <path>", "trusted Ed25519 public key")
-  .option("--state <path>", "alternate replay-protection state path")
-  .option("--cache <path>", "alternate verified feed cache path")
-  .option(
-    "--yes",
-    "cache this exact verified feed and advance replay protection",
-  )
-  .option("--json", "emit the machine-readable preview or result")
-  .action(
-    async (options: {
-      source: string;
-      publicKey: string;
-      state?: string;
-      cache?: string;
-      yes?: boolean;
-      json?: boolean;
-    }) => {
-      const preview = await previewIntelligenceFeed({
-        source: options.source,
-        publicKeyPath: options.publicKey,
-        ...(options.state ? { statePath: options.state } : {}),
-        ...(options.cache ? { cachePath: options.cache } : {}),
-      });
-      const applied = options.yes
-        ? await applyIntelligenceFeed(preview)
-        : undefined;
-      if (options.json) {
-        console.log(
-          JSON.stringify(
-            {
-              source: preview.source,
-              fingerprint: preview.fingerprint,
-              sequence: preview.payload.sequence,
-              createdAt: preview.payload.createdAt,
-              expiresAt: preview.payload.expiresAt,
-              summary: preview.summary,
-              firstPin: preview.firstPin,
-              keyRotation: preview.keyRotation,
-              boundary: preview.boundary,
-              applied: Boolean(applied),
-              ...(applied ? { cachePath: applied.cachePath } : {}),
-            },
-            null,
-            2,
-          ),
-        );
-        return;
-      }
-      console.log(
-        [
-          `Signed intelligence sequence ${preview.payload.sequence} (${preview.payload.createdAt})`,
-          `Signer: ${preview.fingerprint}${preview.firstPin ? " (first pin on apply)" : preview.keyRotation ? " (authorized rotation)" : " (pinned)"}`,
-          `Public observations: ${preview.summary.discoveryObservations}; compatibility notices: ${preview.summary.compatibilityNotices}; candidate summaries: ${preview.summary.candidateSummaries}; benchmark changes: ${preview.summary.benchmarkChanges}`,
-          "Boundary: read-only intelligence; this cannot install, promote, update, or execute a candidate.",
-          applied
-            ? `Verified feed cached at ${applied.cachePath}.`
-            : "Preview only; nothing changed. Re-run with --yes to cache this exact verified feed.",
-        ].join("\n"),
-      );
-    },
-  );
-
-program
-  .command("compatibility")
-  .description(
-    "Match signed compatibility notices to local agent versions and managed content",
-  )
-  .requiredOption("--public-key <path>", "trusted intelligence-feed public key")
-  .option(
-    "--source <path-or-url>",
-    "preview a fresh feed instead of the applied cache",
-  )
-  .option("--state <path>", "alternate replay-protection state path")
-  .option("--cache <path>", "alternate verified feed cache path")
-  .option("--json", "emit the full evidence and migration preview")
-  .action(
-    async (options: {
-      publicKey: string;
-      source?: string;
-      state?: string;
-      cache?: string;
-      json?: boolean;
-    }) => {
-      const paths = {
-        publicKeyPath: options.publicKey,
-        ...(options.state ? { statePath: options.state } : {}),
-        ...(options.cache ? { cachePath: options.cache } : {}),
-      };
-      const loaded = options.source
-        ? await previewIntelligenceFeed({ source: options.source, ...paths })
-        : await readCachedIntelligenceFeed(paths);
-      const payload = loaded.payload;
-      const report = buildCompatibilityIntelligence({
-        versions: await inspectAgentVersions(),
-        state: await readInstallState(),
-        feed: parseCompatibilityNoticeSet({
-          schemaVersion: 1,
-          generatedAt: payload.createdAt,
-          expiresAt: payload.expiresAt,
-          notices: payload.compatibilityNotices,
-        }),
-        sourceStatus: options.source ? "verified" : "offline-cache",
-      });
-      console.log(
-        options.json
-          ? JSON.stringify(report, null, 2)
-          : [
-              `Compatibility intelligence: ${report.freshness.status} (${report.freshness.sourceStatus})`,
-              `Notices: ${report.assessments.length}; applicable/potential: ${report.assessments.filter((item) => item.applicability !== "not-applicable").length}`,
-              `Affected managed components: ${report.affectedManagedContent.length}; migration steps: ${report.migrationPreview.length}`,
-              ...report.assessments.map(
-                (item) =>
-                  `${item.applicability === "applies" ? "!" : item.applicability === "potential" ? "?" : "○"} ${item.notice.id}: ${item.applicability} — ${item.reason}`,
-              ),
-              "Migration output is preview-only and always requires explicit approval; no files were changed.",
-            ].join("\n"),
-      );
-    },
-  );
-
-program
   .command("skill-audit")
   .description(
     "Statically inspect one Agent Skill and emit its security/capability inventory",
@@ -2460,129 +2196,6 @@ program
     );
     if (report.verdict === "blocked") process.exitCode = 2;
   });
-
-function formatEcosystemImport(result: EcosystemImportFiles): string {
-  const plans = [result.manifest, result.lockEvidence].filter(
-    (item): item is NonNullable<typeof item> => Boolean(item),
-  );
-  return [
-    `Interoperability preview: ${result.manifest.format}`,
-    ...plans.flatMap((plan) => [
-      `${plan.artifact}: ${plan.source.filename} (sha256:${plan.source.sha256})`,
-      `  ${plan.candidates.length} candidate declarations; ${plan.unsupported.length} loss-reported fields; trust ${plan.trust.level}`,
-      ...plan.candidates.map(
-        (candidate) =>
-          `  - ${candidate.id}: ${candidate.dependencyKind}, ${candidate.disposition}`,
-      ),
-    ]),
-    "Read-only boundary: no external CLI, network request, file write, install, or registry claim occurred.",
-  ].join("\n");
-}
-
-const interop = program
-  .command("interop")
-  .description(
-    "Loss-reportingly inspect Microsoft APM or OpenPackage manifests without invoking them",
-  );
-
-interop
-  .command("apm")
-  .description("Inspect an OpenAPM manifest and optional lock evidence")
-  .argument("<manifest>", "apm.yml path")
-  .option("--lock <path>", "optional apm.lock.yaml path")
-  .option("--json", "emit the complete read-only plan")
-  .action(
-    async (manifest: string, options: { lock?: string; json?: boolean }) => {
-      const result = await planApmImportFiles(manifest, options.lock);
-      console.log(
-        options.json
-          ? JSON.stringify(result, null, 2)
-          : formatEcosystemImport(result),
-      );
-    },
-  );
-
-interop
-  .command("openpackage")
-  .description("Inspect an OpenPackage manifest and optional workspace index")
-  .argument("<manifest>", "openpackage.yml path")
-  .option("--index <path>", "optional workspace index path")
-  .option("--json", "emit the complete read-only plan")
-  .action(
-    async (manifest: string, options: { index?: string; json?: boolean }) => {
-      const result = await planOpenPackageImportFiles(manifest, options.index);
-      console.log(
-        options.json
-          ? JSON.stringify(result, null, 2)
-          : formatEcosystemImport(result),
-      );
-    },
-  );
-
-const benchmark = program
-  .command("benchmark")
-  .description(
-    "Validate deterministic evaluation campaigns without making model calls",
-  );
-
-benchmark
-  .command("plan")
-  .description(
-    "Validate a campaign, preview its worst-case budget, and optionally write resumable run metadata",
-  )
-  .argument("<campaign>", "benchmark campaign JSON file")
-  .option("--run-id <id>", "create resumable run metadata with this id")
-  .option("--output <path>", "write run metadata to this path")
-  .option("--json", "emit a machine-readable campaign summary")
-  .action(
-    async (
-      campaignPath: string,
-      options: { runId?: string; output?: string; json?: boolean },
-    ) => {
-      if (Boolean(options.runId) !== Boolean(options.output))
-        throw new Error("--run-id and --output must be provided together");
-      const campaign = parseBenchmarkCampaign(
-        JSON.parse(await readFile(resolve(campaignPath), "utf8")) as unknown,
-      );
-      const summary = summarizeBenchmarkCampaign(campaign);
-      if (options.output) {
-        if (!summary.withinBudget)
-          throw new Error(
-            `Refusing to write runnable benchmark metadata because declared ceilings are exceeded: ${summary.blockers.join("; ")}`,
-          );
-        const run = createBenchmarkRun(campaign, options.runId!);
-        await writeFileAtomically(
-          resolve(options.output),
-          `${JSON.stringify(run, null, 2)}\n`,
-          0o600,
-        );
-      }
-      console.log(
-        options.json
-          ? JSON.stringify(
-              {
-                summary,
-                executed: false,
-                ...(options.output
-                  ? { runMetadataPath: resolve(options.output) }
-                  : {}),
-                safetyBoundary:
-                  "Planning only: no model call, prompt, output, credential, or candidate execution occurred.",
-              },
-              null,
-              2,
-            )
-          : [
-              formatBenchmarkCampaignSummary(campaign),
-              options.output
-                ? `Run metadata: ${resolve(options.output)}`
-                : "No run metadata written; add --run-id <id> --output <path> to create it.",
-              "Planning only; no model call or candidate execution occurred.",
-            ].join("\n"),
-      );
-      if (!summary.withinBudget) process.exitCode = 2;
-    },
-  );
 
 program
   .command("capabilities")
@@ -2940,67 +2553,6 @@ candidate
           "Proposal preview only. Human review is still required; use --approve --output <path> to persist it.",
         );
       else console.log(`Approved proposal written to ${output}.`);
-    },
-  );
-
-program
-  .command("catalog-update")
-  .allowExcessArguments(false)
-  .description(
-    "Verify, diff, and explicitly apply a signed catalog release from a file or HTTPS",
-  )
-  .requiredOption("--source <path-or-url>", "signed catalog envelope")
-  .requiredOption("--public-key <path>", "trusted Ed25519 public key")
-  .option("--yes", "atomically apply after signature and evidence validation")
-  .option(
-    "--allow-removals",
-    "explicitly allow reviewed packages to be removed by this release",
-  )
-  .option("--json", "emit machine-readable preview")
-  .action(
-    async (options: {
-      source: string;
-      publicKey: string;
-      yes?: boolean;
-      allowRemovals?: boolean;
-      json?: boolean;
-    }) => {
-      const preview = await previewCatalogRelease({
-        source: options.source,
-        publicKeyPath: options.publicKey,
-        currentCatalog: await loadEffectiveCatalog(),
-      });
-      const result = options.yes
-        ? await applyCatalogRelease(preview, {
-            allowRemovals: options.allowRemovals,
-          })
-        : undefined;
-      if (options.json)
-        return console.log(
-          JSON.stringify(
-            {
-              source: preview.source,
-              createdAt: preview.createdAt,
-              fingerprint: preview.fingerprint,
-              packageCount: preview.packageCount,
-              diff: result?.diff ?? preview.diff,
-              replay: preview.replay,
-              applied: Boolean(result),
-              ...(result
-                ? { path: result.path, snapshotId: result.snapshotId }
-                : {}),
-            },
-            null,
-            2,
-          ),
-        );
-      console.log(formatCatalogReleasePreview(preview));
-      if (!result)
-        console.log("Preview only. Re-run with --yes to trust this release.");
-      else
-        console.log(
-          `Applied signed catalog atomically. Snapshot: ${result.snapshotId}\nState: ${result.path}`,
-        );
     },
   );
 
@@ -3532,57 +3084,6 @@ models
   });
 
 program
-  .command("keygen")
-  .description("Generate an Ed25519 signing keypair outside the repository")
-  .requiredOption("--private-key <path>", "new private key path (owner-only)")
-  .requiredOption("--public-key <path>", "new public key path")
-  .action(async (options: { privateKey: string; publicKey: string }) => {
-    const result = await generateSigningKeys(
-      options.privateKey,
-      options.publicKey,
-    );
-    console.log(
-      `Generated signing keys. Public fingerprint: ${result.fingerprint}\nPrivate key: ${result.privateKey}\nPublic key: ${result.publicKey}`,
-    );
-  });
-
-program
-  .command("catalog-sign")
-  .description("Create a signed immutable catalog envelope")
-  .requiredOption("--catalog <path>", "catalog JSON path")
-  .requiredOption("--private-key <path>", "Ed25519 private key path")
-  .requiredOption("--output <path>", "new signed snapshot path")
-  .action(
-    async (options: {
-      catalog: string;
-      privateKey: string;
-      output: string;
-    }) => {
-      const envelope = await signJsonFile(
-        options.catalog,
-        options.privateKey,
-        options.output,
-      );
-      console.log(
-        `Signed catalog snapshot with ${envelope.publicKeyFingerprint}.`,
-      );
-    },
-  );
-
-program
-  .command("catalog-verify")
-  .description("Verify a signed catalog snapshot before trusting it")
-  .requiredOption("--snapshot <path>", "signed snapshot path")
-  .requiredOption("--public-key <path>", "trusted Ed25519 public key path")
-  .action(async (options: { snapshot: string; publicKey: string }) => {
-    const result = await verifyJsonFile(options.snapshot, options.publicKey);
-    console.log(
-      `${result.valid ? "VALID" : "INVALID"} catalog signature (${result.fingerprint})`,
-    );
-    if (!result.valid) process.exitCode = 1;
-  });
-
-program
   .command("completion")
   .description(
     "Print a shell-completion script; redirect it to your shell profile",
@@ -3967,47 +3468,6 @@ program
         options.json
           ? JSON.stringify(result, null, 2)
           : formatPackageEvaluation(result),
-      );
-    },
-  );
-
-program
-  .command("head-to-head")
-  .description(
-    "Score synthetic workflow or code-review trials and write signed evidence; never executes candidate content",
-  )
-  .requiredOption("--fixture <path>", "synthetic fixture JSON path")
-  .requiredOption("--trials <path>", "declared trial observations JSON path")
-  .requiredOption("--private-key <path>", "Ed25519 private key PEM path")
-  .requiredOption("--output <path>", "new signed evidence JSON path")
-  .option("--json", "emit the signed envelope as JSON")
-  .action(
-    async (options: {
-      fixture: string;
-      trials: string;
-      privateKey: string;
-      output: string;
-      json?: boolean;
-    }) => {
-      const [fixture, trials, privateKey] = await Promise.all([
-        readFile(resolve(options.fixture), "utf8").then(
-          (value) => JSON.parse(value) as HeadToHeadFixture,
-        ),
-        readFile(resolve(options.trials), "utf8").then(
-          (value) => JSON.parse(value) as HeadToHeadTrial[],
-        ),
-        readFile(resolve(options.privateKey), "utf8"),
-      ]);
-      const evidence = runHeadToHeadHarness(fixture, trials);
-      const envelope = await writeSignedHeadToHeadEvidence(
-        evidence,
-        privateKey,
-        options.output,
-      );
-      console.log(
-        options.json
-          ? JSON.stringify(envelope, null, 2)
-          : `Signed ${evidence.category} evidence for ${evidence.results.length} trial(s).\nOutput: ${resolve(options.output)}\nFingerprint: ${envelope.publicKeyFingerprint}`,
       );
     },
   );

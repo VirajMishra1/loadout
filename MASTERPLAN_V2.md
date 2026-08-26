@@ -38,7 +38,14 @@ branch + lying comment and added a regression test pinning the real guard.
 - [x] Regression test added (tests/skills-symlink.test.ts) — nested symlink rejected.
 - Gate: build clean; targeted tests pass; full suite pending confirmation.
 
-## Phase 2 — The big delete (~11k+ LOC gone, tests stay green)
+## Phase 2 — The big delete — DONE (src 40,111 -> 30,202 LOC; 14 core modules cut)
+Correction to the plan: `registry.ts` was KEPT (sync.ts depends on its client resolvers);
+only the registry *server* (registry-api.ts + registry-serve command) was removed. The
+signed-catalog overlay was severed from catalog.ts (loadEffectiveCatalog now returns the
+bundled catalog + GitHub-freshness cache). head-to-head + signing removed together. All
+14 test-suite failures after the cut were 2 real contract updates (completion assertions,
+help probe) + 12 sandbox subprocess-timeout flakes that pass in isolation.
+
 Remove ceremony that no user path reaches or that defends a non-existent server.
 Delete in dependency-safe order (leaf modules + their commands + their tests together).
 - **Benchmark complex** — `benchmark-trust.ts`, `benchmark-evidence.ts`, `benchmark-runner.ts`,

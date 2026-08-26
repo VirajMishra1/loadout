@@ -125,7 +125,16 @@ Findings during execution:
   (guards silent allowlist rot).
 - Gate: modes produce a sensible, tested selection from the live catalog; suite green.
 
-## Phase 6 — Zero-arg wizard (the front door)
+## Phase 6 — Zero-arg wizard — DONE
+Bare `loadout` on a TTY now runs `runWizard` (support.ts): welcome -> detected agents ->
+current skill inventory -> rollback promise -> the existing interactive setup flow
+(mode prompt -> preview -> confirm -> snapshot+apply). Non-TTY / piped / CI keeps printing
+the read-only beginner guide and never mutates (preserves scriptability and the existing
+"non-interactive default" contract test). Verified under a pty: the "Choose a loadout"
+prompt appears; verified non-TTY still prints START HERE. Reused runSetup rather than new
+install logic.
+
+
 - `npx loadout-ai` with no args on a TTY → interactive:
   detect agents → show current inventory (installed / duplicated) → offer Stable / Power /
   Maximum / Custom → preview exact plan → confirm → snapshot + apply → show rollback hint.

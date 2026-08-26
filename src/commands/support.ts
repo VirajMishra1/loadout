@@ -558,6 +558,36 @@ export async function runSetup(options: SetupOptions): Promise<void> {
   }
 }
 
+/**
+ * Zero-argument front door. On a TTY, bare `loadout` detects agents, shows the
+ * current inventory, then hands off to the interactive setup flow. Non-TTY
+ * callers never reach here (cli.ts prints the read-only guide instead), so this
+ * stays safe to run without arguments in a real terminal only.
+ */
+export async function runWizard(): Promise<void> {
+  console.log("Loadout — make your AI coding agents more capable\n");
+  const detected = await detectAgents();
+  const present = detected.filter((agent) => agent.installed);
+  if (!present.length) {
+    console.log(
+      "No supported agents detected yet. Loadout works with Claude Code, Codex, Cursor,",
+    );
+    console.log(
+      "Gemini CLI, OpenCode, and more. Install one, then run `loadout` again.\n",
+    );
+    printBeginnerGuide();
+    return;
+  }
+  console.log(
+    `Detected ${present.length} agent(s): ${present.map((agent) => agent.displayName).join(", ")}`,
+  );
+  console.log(formatInstalledSkillInventory(await scanInstalledSkills(present)));
+  console.log(
+    "\nPreview first — nothing changes until you approve, and every change is snapshotted for rollback.\n",
+  );
+  await runSetup({ package: [] });
+}
+
 export const LOADOUT_VERSION = "0.5.8";
 
 export function durableSchedulerLauncher(): string[] {

@@ -2,7 +2,11 @@
 import { Command, CommanderError } from "commander";
 import { HIDDEN_FROM_FIRST_SCREEN } from "./core/cli-guide.js";
 import { recoverPendingTransactions } from "./core/transaction.js";
-import { LOADOUT_VERSION, printBeginnerGuide } from "./commands/support.js";
+import {
+  LOADOUT_VERSION,
+  printBeginnerGuide,
+  runWizard,
+} from "./commands/support.js";
 import { registerSetup } from "./commands/setup.js";
 import { registerSharing } from "./commands/sharing.js";
 import { registerAgents } from "./commands/agents.js";
@@ -54,11 +58,17 @@ program.addHelpText(
 );
 
 program.argument("[unknown-command]");
-program.action((unknownCommand?: string) => {
+program.action(async (unknownCommand?: string) => {
   if (unknownCommand)
     throw new Error(
       `Unknown command '${unknownCommand}'. Run 'loadout --help' to list available commands.`,
     );
+  // A real terminal gets the interactive front door; piped/CI callers get the
+  // read-only guide and never mutate, keeping bare invocation scriptable.
+  if (process.stdin.isTTY && process.stdout.isTTY) {
+    await runWizard();
+    return;
+  }
   printBeginnerGuide();
 });
 

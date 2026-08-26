@@ -63,7 +63,15 @@ Delete in dependency-safe order (leaf modules + their commands + their tests tog
   modules. No dangling imports.
 - Gate: build clean, suite green, `grep` shows no references to deleted symbols outside history.
 
-## Phase 3 — Cut command surface 98 → ~20 core + ~20 experimental
+## Phase 3 — Cut command surface — DONE (default help now 24 core commands)
+Reused the existing `HIDDEN_FROM_FIRST_SCREEN` mechanism (cli-guide.ts + cli.ts _hidden
+flag) rather than building a new gate. Visible core: setup, scan, status, health, doctor,
+recommend, library, list, optimize, activate, enable, disable, install, remove, update,
+upgrade, rollback, sync, reconcile, catalog, alerts, mcp, guide, advanced. Everything else
+stays runnable but off the first screen; `loadout advanced` lists it. Fixed ADVANCED_GUIDE,
+which still named deleted commands. Original Phase 3 detail retained below.
+
+
 - **KEEP (~20):** setup, scan, recommend, install, update, rollback, plan, list, library,
   add, remove, uninstall, search, status, health, doctor, sync, reconcile, adopt, profiles,
   catalog, mcp (consolidated), completion, init, export, import, lock.

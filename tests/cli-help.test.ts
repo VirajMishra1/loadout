@@ -39,10 +39,10 @@ describe("CLI contract", () => {
     );
     expect(result.stdout).toContain("guide");
     expect(result.stdout).toContain("Start here");
+    // The first screen shows only the everyday core, so it reads as a focused
+    // product rather than a tool dump.
     expect(result.stdout).toContain("status");
-    expect(result.stdout).toContain("versions");
     expect(result.stdout).toContain("scan");
-    expect(result.stdout).toContain("compare");
     expect(result.stdout).toContain("library");
     expect(result.stdout).toContain("enable");
     expect(result.stdout).toContain("disable");
@@ -50,12 +50,15 @@ describe("CLI contract", () => {
     expect(result.stdout).toContain("upgrade");
     expect(result.stdout).toContain("doctor");
     expect(result.stdout).toContain("rollback");
-    expect(result.stdout).toContain("uninstall");
+    expect(result.stdout).toContain("install");
     expect(result.stdout).toContain("optimize");
-    expect(result.stdout).toContain("autopilot");
-    expect(result.stdout).toContain("tool");
+    expect(result.stdout).toContain("recommend");
+    expect(result.stdout).toContain("health");
+    // Specialist/advanced commands remain runnable but are off the first screen.
     expect(result.stdout).not.toContain("registry-serve");
     expect(result.stdout).not.toContain("sandbox-run");
+    expect(result.stdout).not.toContain("autopilot");
+    expect(result.stdout).not.toContain("skill-audit");
   });
 
   it("gives beginners one read-only guide while retaining advanced commands", async () => {

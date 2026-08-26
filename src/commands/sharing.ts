@@ -1,0 +1,862 @@
+import { Command, CommanderError } from "commander";
+import { existsSync } from "node:fs";
+import { createInterface } from "node:readline/promises";
+import {
+  explainCatalogScore,
+  loadEffectiveCatalog,
+  loadCatalog,
+  rankCatalog,
+  refreshCatalog,
+  type InstallSelectionMode,
+} from "../core/catalog.js";
+import { detectAgents, parseAgentSelection, userHome } from "../core/paths.js";
+import { readFile } from "node:fs/promises";
+import { dirname, join, resolve } from "node:path";
+import {
+  buildSkillPlan,
+  applySkillInstall,
+  installedAgents,
+} from "../core/install.js";
+import {
+  listSnapshotIds,
+  readSnapshot,
+  restoreSnapshot,
+  summarizeSnapshot,
+} from "../core/snapshot.js";
+import type { AgentId } from "../shared/types.js";
+import { fetchRepositorySnapshot } from "../core/source.js";
+import {
+  discoverMcpManifests,
+  summarizeMcpManifest,
+  planMcpConfig,
+  summarizeMcpConfigPlan,
+  applyMcpConfigPlan,
+} from "../core/mcp.js";
+import {
+  REVIEWED_MCP_RECIPES,
+  buildMcpRecipeServer,
+  findMcpRecipe,
+  formatMcpRecipePlan,
+  planMcpRecipe,
+  verifyMcpRecipe,
+  verifyMcpRecipeConnection,
+  type McpSetupRecipe,
+} from "../core/mcp-recipes.js";
+import type { CredentialReference, McpServer } from "../shared/types.js";
+import { runDoctor, formatDoctorReport } from "../core/doctor.js";
+import {
+  applyPackageUpdate,
+  buildUpdatePlan,
+  formatUpdatePlan,
+  selectSafeAutomaticUpdates,
+} from "../core/update.js";
+import { startApiServer } from "../core/api.js";
+import { inspectPackage, formatPackageInspection } from "../core/package.js";
+import {
+  addManifestPackage,
+  applyProfileToManifest,
+  initManifest,
+  readManifest,
+  removeManifestPackage,
+  writeLockfile,
+} from "../core/manifest.js";
+import { buildHealthReport, formatHealthReport } from "../core/health.js";
+import {
+  installStatePath,
+  readInstallState,
+  recordInstallTransaction,
+  recordMcpInstall,
+} from "../core/state.js";
+import { applyRemove, planRemove } from "../core/remove.js";
+import {
+  applyUninstall,
+  buildUninstallPlan,
+  formatUninstallPlan,
+  uninstallGlobalCli,
+} from "../core/uninstall.js";
+import {
+  evaluateInstalledProfile,
+  formatInstalledProfileStatus,
+} from "../core/profile-state.js";
+import {
+  formatRecommendations,
+  personalizeRecommendations,
+  profileManifestPackages,
+  recommendPackages,
+  RECOMMENDATION_BOUNDARY,
+  scanProject,
+  TESTED_PROFILES,
+} from "../core/recommend.js";
+import {
+  buildImprovementCycle,
+  formatImprovementCycle,
+  recordImprovementOutcome,
+  writeImprovementCycle,
+} from "../core/improve.js";
+import { applySyncPlan, buildSyncPlan } from "../core/sync.js";
+import {
+  createPackage,
+  packPackage,
+  publishLocalPackage,
+  publishRemotePackage,
+  searchLocalRegistry,
+} from "../core/registry.js";
+import { auditLoadout, formatAuditReport } from "../core/audit.js";
+import {
+  ADAPTER_CAPABILITIES,
+  buildAdapterCapabilityGaps,
+  formatAdapterCapabilityGaps,
+  formatCapabilityMatrix,
+} from "../core/adapters.js";
+import {
+  formatAgentInventory,
+  inspectAgents,
+} from "../core/agent-inspection.js";
+import {
+  applyPortableImport,
+  exportPortableLoadout,
+  planPortableImport,
+} from "../core/portable.js";
+import {
+  applyCodexMcpConfigPlan,
+  codexMcpServerFingerprint,
+  defaultCodexMcpConfigPath,
+  planCodexMcpConfig,
+} from "../core/codex-mcp.js";
+import {
+  catalogTrustStage,
+  formatCatalogTrustStage,
+  resolveCatalogProfile,
+} from "../core/profiles.js";
+import { discoverHackerNewsRepositories } from "../core/community.js";
+import { discoverPrivateRepositories } from "../core/private-discovery.js";
+import {
+  defaultGitHubDiscoveryQueries,
+  discoverGitHubRepositories,
+} from "../core/github-discovery.js";
+import {
+  formatStarHistory,
+  readCatalogObservations,
+} from "../core/observations.js";
+import { evaluatePackage, formatPackageEvaluation } from "../core/evaluate.js";
+import { checkForUpdates, startUpdateWatcher } from "../core/update-watch.js";
+import { runDisposableSandbox } from "../core/sandbox.js";
+import {
+  compileConversion,
+  type ConversionKind,
+  type ConversionTarget,
+} from "../core/conversion.js";
+import { writeFileAtomically } from "../core/atomic-file.js";
+import { formatCanaryResult, runCanary } from "../core/canary.js";
+import {
+  applyPreparedCatalogInstall,
+  formatCatalogApplyGuidance,
+  formatPreparedCatalogInstall,
+  prepareCatalogInstall,
+  type CatalogInstallProgress,
+  type PreparedCatalogInstall,
+} from "../core/catalog-install.js";
+import {
+  formatInstalledSkillInventory,
+  scanInstalledSkills,
+} from "../core/skill-inventory.js";
+import {
+  enrichInventoryWithProvenance,
+  formatProvenanceSummary,
+  resolveCatalogSkillIndex,
+  type CatalogSkillIndexProgress,
+} from "../core/provenance.js";
+import { compareSkill, formatSkillComparison } from "../core/skill-compare.js";
+import {
+  applyActivationChange,
+  buildLibraryStateReport,
+  formatActivationPlan,
+  formatLibrarySummary,
+  formatLibraryStateReport,
+  planActivationChange,
+  type ActivationAction,
+} from "../core/active-set.js";
+import {
+  applyProjectActivation,
+  formatProjectActivation,
+  planProjectActivation,
+} from "../core/active-policy.js";
+import {
+  applySkillAdoption,
+  formatAdoptionPlan,
+  planSkillAdoption,
+} from "../core/adopt.js";
+import {
+  applyReconcilePlan,
+  buildReconcilePlan,
+  formatReconcilePlan,
+} from "../core/reconcile.js";
+import {
+  formatReviewQueue,
+  mergeReviewQueue,
+  readReviewQueue,
+  setReviewDecision,
+  type ReviewDecision,
+  type ReviewQueueLead,
+} from "../core/review-queue.js";
+import {
+  applyProviderModelSelection,
+  defaultModelConfigurationPath,
+  formatProviderModelConfiguration,
+  planProviderModelSelection,
+  readProviderModelConfiguration,
+  requestOpenRouter,
+} from "../core/model-config.js";
+import {
+  applyNativeScheduler,
+  applyNativeSchedulerBundle,
+  formatNativeScheduler,
+  planNativeScheduler,
+  type SchedulerAction,
+} from "../core/scheduler.js";
+import {
+  REVIEWED_RUNTIME_TOOLS,
+  applyRuntimeToolPlan,
+  formatRuntimeToolPlan,
+  planRuntimeTool,
+} from "../core/runtime-tools.js";
+import {
+  buildPrivacySafeReport,
+  formatPrivacySafeReport,
+  parsePrivacySafeLoadoutReport,
+  writePrivacySafeReport,
+} from "../core/share-report.js";
+import {
+  readLocalOutcomes,
+  recordLocalOutcome,
+  type OutcomeResult,
+  type OutcomeTaskFamily,
+} from "../core/outcomes.js";
+import {
+  buildFreshnessAlerts,
+  formatFreshnessAlerts,
+  ignoreFreshnessAlert,
+  pinReplacement,
+  readReplacementPins,
+  unpinReplacement,
+} from "../core/freshness-alerts.js";
+import {
+  parseCompletionShell,
+  renderShellCompletion,
+} from "../core/completion.js";
+import {
+  buildCatalogCoverage,
+  formatCatalogCoverage,
+} from "../core/catalog-coverage.js";
+import {
+  createCredentialResolver,
+  createOsCredentialStore,
+} from "../core/credentials.js";
+import {
+  buildCandidateDossier,
+  buildCatalogProposal,
+  formatCandidateDossier,
+  formatCandidateSummaries,
+  listDiscoveryCandidates,
+  readCandidateDossier,
+  verifyCandidateDossierSource,
+  writeCandidateDossier,
+} from "../core/candidate-intelligence.js";
+import type { OperatingSystem, PackageTier } from "../shared/types.js";
+import {
+  recoverPendingTransactions,
+  withMutationLock,
+} from "../core/transaction.js";
+import {
+  applyUpgrade,
+  formatUpgradePlan,
+  planUpgrade,
+  summarizeUpgradePlan,
+} from "../core/upgrade.js";
+import {
+  formatAgentVersions,
+  inspectAgentVersions,
+} from "../core/agent-versions.js";
+import { formatAgentHealthScore } from "../core/agent-health-score.js";
+import { buildLocalAgentHealthScores } from "../core/health-score-evidence.js";
+import {
+  interactiveModelApiAccess,
+  parseModelApiAccess,
+  type SetupAccessProfile,
+} from "../core/access.js";
+import { discoverSkillsSh } from "../core/skills-sh-discovery.js";
+import { discoverOfficialMcpRegistry } from "../core/mcp-registry-discovery.js";
+import {
+  buildLoadoutCard,
+  compareLoadoutReports,
+  formatLoadoutCard,
+  formatLoadoutComparison,
+} from "../core/loadout-card.js";
+import {
+  buildLoadoutBadge,
+  formatLoadoutBadgeUsage,
+  parseLoadoutBadgeMetric,
+} from "../core/loadout-badge.js";
+import { scanSkillSecurity } from "../core/skill-security.js";
+import {
+  ADVANCED_GUIDE,
+  BEGINNER_GUIDE,
+  HIDDEN_FROM_FIRST_SCREEN,
+} from "../core/cli-guide.js";
+import {
+  collectOption,
+  parseMcpCredentialMappings,
+  readCredentialFromStdin,
+  setupSelection,
+  printSetupProgress,
+  printProvenanceProgress,
+  riskyPackageSummary,
+  runSetup,
+  durableSchedulerLauncher,
+  printBeginnerGuide,
+  LOADOUT_VERSION,
+  type SetupOptions,
+} from "./support.js";
+
+export function registerSharing(program: Command): void {
+program
+  .command("init")
+  .description("Create a shareable loadout.json manifest")
+  .option("--path <path>", "manifest path", "loadout.json")
+  .option("--name <name>", "Loadout name")
+  .option("--agents <ids>", "comma-separated agent ids", "codex,claude-code")
+  .option("--scope <scope>", "project or global", "project")
+  .action(
+    async (options: {
+      path: string;
+      name?: string;
+      agents: string;
+      scope: string;
+    }) => {
+      const manifest = await initManifest(options.path, {
+        name: options.name,
+        agents: parseAgentSelection(options.agents)!,
+        scope: options.scope as "project" | "global",
+      });
+      console.log(`Created ${options.path} for ${manifest.agents.join(", ")}.`);
+    },
+  );
+
+program
+  .command("lock")
+  .description("Write exact installed state to loadout.lock")
+  .option("--manifest <path>", "manifest path", "loadout.json")
+  .option("--output <path>", "lockfile path", "loadout.lock")
+  .action(async (options: { manifest: string; output: string }) => {
+    const lockfile = await writeLockfile(
+      await readManifest(options.manifest),
+      options.output,
+    );
+    console.log(
+      `Wrote ${options.output} with ${lockfile.packages.length} resolved package(s).`,
+    );
+  });
+
+program
+  .command("export")
+  .description("Export a portable Loadout manifest and optional lockfile")
+  .argument("<output>", "new portable JSON file")
+  .option("--manifest <path>", "manifest path", "loadout.json")
+  .option("--lock <path>", "include this exact lockfile")
+  .action(
+    async (output: string, options: { manifest: string; lock?: string }) => {
+      const bundle = await exportPortableLoadout(
+        options.manifest,
+        output,
+        options.lock,
+      );
+      console.log(
+        `Exported ${bundle.manifest.packages.length} package(s) to ${output}.${bundle.lockfile ? " Exact lockfile included." : ""}`,
+      );
+    },
+  );
+
+program
+  .command("import")
+  .description("Preview or apply a portable Loadout manifest and lockfile")
+  .argument("<source>", "portable JSON file")
+  .option("--manifest <path>", "manifest destination", "loadout.json")
+  .option("--lock <path>", "lockfile destination", "loadout.lock")
+  .option("--yes", "apply the import; otherwise remain read-only")
+  .option(
+    "--overwrite",
+    "replace existing destination files after snapshotting them",
+  )
+  .action(
+    async (
+      source: string,
+      options: {
+        manifest: string;
+        lock: string;
+        yes?: boolean;
+        overwrite?: boolean;
+      },
+    ) => {
+      const preview = await planPortableImport(
+        source,
+        options.manifest,
+        options.lock,
+      );
+      console.log(JSON.stringify(preview.plan, null, 2));
+      if (!options.yes)
+        return console.log(
+          "Dry run only. Re-run with --yes to import this Loadout.",
+        );
+      const result = await applyPortableImport(
+        source,
+        options.manifest,
+        options.lock,
+        { overwrite: options.overwrite },
+      );
+      console.log(
+        `Imported successfully. Recovery snapshot: ${result.snapshotId}.`,
+      );
+    },
+  );
+
+program
+  .command("audit")
+  .description(
+    "Verify manifest, lockfile, installed state, and managed file hashes for CI",
+  )
+  .option("--manifest <path>", "manifest path", "loadout.json")
+  .option("--lock <path>", "lockfile path", "loadout.lock")
+  .option("--json", "emit machine-readable JSON")
+  .action(
+    async (options: { manifest: string; lock: string; json?: boolean }) => {
+      const report = await auditLoadout(options.manifest, options.lock);
+      console.log(
+        options.json
+          ? JSON.stringify(report, null, 2)
+          : formatAuditReport(report),
+      );
+      if (!report.valid) process.exitCode = 1;
+    },
+  );
+
+program
+  .command("create")
+  .description("Create a new Loadout package directory")
+  .argument("<directory>", "new package directory")
+  .requiredOption("--name <name>", "lowercase package name")
+  .option("--description <text>", "package description")
+  .option("--version <version>", "semantic version", "0.1.0")
+  .action(
+    async (
+      directory: string,
+      options: { name: string; description?: string; version: string },
+    ) => {
+      const descriptor = await createPackage(directory, options);
+      console.log(
+        `Created ${descriptor.name}@${descriptor.version} in ${directory}.`,
+      );
+    },
+  );
+
+program
+  .command("pack")
+  .description(
+    "Validate a package and print its deterministic inventory digest",
+  )
+  .argument("[directory]", "package directory", ".")
+  .option("--json", "emit machine-readable JSON")
+  .action(async (directory: string, options: { json?: boolean }) => {
+    const packed = await packPackage(directory);
+    console.log(
+      options.json
+        ? JSON.stringify(packed, null, 2)
+        : `${packed.descriptor.name}@${packed.descriptor.version} — ${packed.files.length} file(s) — sha256:${packed.digest}`,
+    );
+  });
+
+program
+  .command("publish")
+  .description(
+    "Publish an immutable package version to a local or remote Loadout registry",
+  )
+  .argument("[directory]", "package directory", ".")
+  .option("--local", "publish to the local registry")
+  .option("--registry-url <url>", "remote registry base URL")
+  .option(
+    "--credential-keychain <service>",
+    "resolve the remote registry token from the OS credential store",
+  )
+  .option("--credential-account <account>", "OS credential account")
+  .option(
+    "--approve-risk",
+    "explicitly approve publishing scripts, hooks, or binaries",
+  )
+  .action(
+    async (
+      directory: string,
+      options: {
+        local?: boolean;
+        registryUrl?: string;
+        credentialKeychain?: string;
+        credentialAccount?: string;
+        approveRisk?: boolean;
+      },
+    ) => {
+      if (
+        Number(Boolean(options.local)) +
+          Number(Boolean(options.registryUrl)) !==
+        1
+      )
+        throw new Error(
+          "Choose exactly one destination: --local or --registry-url",
+        );
+      if (options.local) {
+        if (options.credentialKeychain)
+          throw new Error("Local publishing does not require a credential");
+        const packed = await publishLocalPackage(directory, {
+          approveRisk: options.approveRisk,
+        });
+        console.log(
+          `Published ${packed.descriptor.name}@${packed.descriptor.version} with digest ${packed.digest}.`,
+        );
+        return;
+      }
+      const token = await createCredentialResolver()(
+        options.credentialKeychain
+          ? {
+              kind: "os-keychain",
+              service: options.credentialKeychain,
+              ...(options.credentialAccount
+                ? { account: options.credentialAccount }
+                : {}),
+            }
+          : { kind: "environment", name: "LOADOUT_REGISTRY_TOKEN" },
+      );
+      if (!token)
+        throw new Error(
+          "Remote publishing credential did not resolve; set LOADOUT_REGISTRY_TOKEN or use --credential-keychain",
+        );
+      const published = await publishRemotePackage(
+        directory,
+        options.registryUrl!,
+        token,
+        { approveRisk: options.approveRisk },
+      );
+      console.log(
+        `Published ${published.name}@${published.version} with digest ${published.digest}.`,
+      );
+    },
+  );
+
+program
+  .command("search")
+  .description("Search the bundled catalog and local registry")
+  .argument("[query]", "search text", "")
+  .option("--json", "emit machine-readable JSON")
+  .action(async (query: string, options: { json?: boolean }) => {
+    const catalog = (await loadEffectiveCatalog())
+      .filter(
+        (pkg) =>
+          !query ||
+          `${pkg.id} ${pkg.displayName} ${pkg.description}`
+            .toLowerCase()
+            .includes(query.toLowerCase()),
+      )
+      .map((pkg) => ({
+        source: "catalog",
+        name: pkg.id,
+        description: pkg.description,
+        repository: pkg.repository,
+      }));
+    const local = (await searchLocalRegistry(query)).map((pkg) => ({
+      source: "registry",
+      ...pkg,
+    }));
+    if (options.json)
+      return console.log(JSON.stringify([...catalog, ...local], null, 2));
+    for (const item of [...catalog, ...local])
+      console.log(
+        `${item.name}${"version" in item ? `@${item.version}` : ""} [${item.source}] — ${item.description}`,
+      );
+    if (!catalog.length && !local.length)
+      console.log("No matching packages found.");
+  });
+
+program
+  .command("add")
+  .description("Add a catalog, GitHub, or local package to loadout.json")
+  .argument("<id>", "package id")
+  .option("--manifest <path>", "manifest path", "loadout.json")
+  .option("--catalog <id>", "catalog package id")
+  .option("--repository <owner/repo>", "public GitHub repository")
+  .option("--git <url>", "generic HTTPS or SSH Git repository")
+  .option("--registry <name@version>", "exact local registry package version")
+  .option(
+    "--remote-registry <url>",
+    "fetch --registry name@version from this remote registry",
+  )
+  .option("--ref <ref>", "Git branch, tag, or ref")
+  .option("--path <path>", "GitHub repository subpath or local path")
+  .option("--local", "treat --path as a local source")
+  .option("--agents <ids>", "comma-separated target agents")
+  .option("--depends-on <ids>", "comma-separated package dependencies")
+  .action(
+    async (
+      id: string,
+      options: {
+        manifest: string;
+        catalog?: string;
+        repository?: string;
+        git?: string;
+        registry?: string;
+        remoteRegistry?: string;
+        ref?: string;
+        path?: string;
+        local?: boolean;
+        agents?: string;
+        dependsOn?: string;
+      },
+    ) => {
+      const selected =
+        Number(Boolean(options.catalog)) +
+        Number(Boolean(options.repository)) +
+        Number(Boolean(options.git)) +
+        Number(Boolean(options.registry)) +
+        Number(Boolean(options.local));
+      if (selected !== 1)
+        throw new Error(
+          "Choose exactly one source: --catalog, --repository, --git, --registry, or --local with --path",
+        );
+      if (options.local && !options.path)
+        throw new Error("--local requires --path <directory>");
+      const registry = options.registry?.match(/^([a-z0-9][a-z0-9._-]*)@(.+)$/);
+      if (options.registry && !registry)
+        throw new Error("--registry expects name@version");
+      if (options.remoteRegistry && !registry)
+        throw new Error("--remote-registry requires --registry name@version");
+      const source = options.catalog
+        ? { type: "catalog" as const, id: options.catalog }
+        : options.repository
+          ? {
+              type: "github" as const,
+              repository: options.repository,
+              ...(options.ref ? { ref: options.ref } : {}),
+              ...(options.path ? { path: options.path } : {}),
+            }
+          : options.git
+            ? {
+                type: "git" as const,
+                url: options.git,
+                ...(options.ref ? { ref: options.ref } : {}),
+                ...(options.path ? { path: options.path } : {}),
+              }
+            : registry && options.remoteRegistry
+              ? {
+                  type: "remote-registry" as const,
+                  registry: options.remoteRegistry,
+                  name: registry[1],
+                  version: registry[2],
+                }
+              : registry
+                ? {
+                    type: "registry" as const,
+                    name: registry[1],
+                    version: registry[2],
+                  }
+                : { type: "local" as const, path: options.path! };
+      const manifest = await addManifestPackage(options.manifest, {
+        id,
+        source,
+        ...(options.agents
+          ? { agents: parseAgentSelection(options.agents)! }
+          : {}),
+        ...(options.dependsOn
+          ? { dependsOn: options.dependsOn.split(",") }
+          : {}),
+      });
+      console.log(
+        `Added ${id} to ${options.manifest}. ${manifest.packages.length} package(s) configured.`,
+      );
+    },
+  );
+
+program
+  .command("unadd")
+  .description(
+    "Remove a desired package from loadout.json without touching installed files",
+  )
+  .argument("<id>", "package id")
+  .option("--manifest <path>", "manifest path", "loadout.json")
+  .action(async (id: string, options: { manifest: string }) => {
+    const manifest = await removeManifestPackage(options.manifest, id);
+    console.log(
+      `Removed ${id} from ${options.manifest}. ${manifest.packages.length} package(s) configured.`,
+    );
+  });
+
+program
+  .command("list")
+  .alias("ls")
+  .description("List packages managed by Loadout")
+  .option("--json", "emit machine-readable JSON")
+  .action(async (options: { json?: boolean }) => {
+    const state = await readInstallState();
+    if (options.json)
+      return console.log(JSON.stringify(state.installs, null, 2));
+    if (!state.installs.length)
+      return console.log("No Loadout-managed packages are installed.");
+    for (const item of state.installs)
+      console.log(
+        `${item.packageId} — ${item.targetAgents.join(", ")} — ${item.resolvedCommit?.slice(0, 12) ?? "local"} — ${item.files.length} file(s)`,
+      );
+  });
+
+program
+  .command("library")
+  .description(
+    "Show separate cache, review, installation, and per-agent activation state",
+  )
+  .option("--json", "emit machine-readable JSON")
+  .option("--all", "show every managed skill and its source package")
+  .action(async (options: { json?: boolean; all?: boolean }) => {
+    const report = await buildLibraryStateReport();
+    console.log(
+      options.json
+        ? JSON.stringify(report, null, 2)
+        : options.all
+          ? formatLibraryStateReport(report)
+          : formatLibrarySummary(report),
+    );
+  });
+
+program
+  .command("report")
+  .description(
+    "Print a privacy-safe shareable summary without paths, code, prompts, or secrets",
+  )
+  .option("--json", "emit the machine-readable artifact")
+  .action(async (options: { json?: boolean }) => {
+    const report = await buildPrivacySafeReport();
+    console.log(
+      options.json
+        ? JSON.stringify(report, null, 2)
+        : formatPrivacySafeReport(report),
+    );
+  });
+
+program
+  .command("outcomes")
+  .description(
+    "Show privacy-safe local outcome signals; never uploads project or prompt data",
+  )
+  .option("--json", "emit machine-readable JSON")
+  .action(async (options: { json?: boolean }) => {
+    const store = await readLocalOutcomes();
+    console.log(
+      options.json
+        ? JSON.stringify(store, null, 2)
+        : [
+            `Local outcomes: ${store.events.length}`,
+            ...store.events.map(
+              (event) =>
+                `${event.recordedAt} — ${event.selector} — ${event.agent}/${event.taskFamily} — ${event.result}`,
+            ),
+            "Privacy: local only; no project names, paths, prompts, code, filenames, or secrets.",
+          ].join("\n"),
+    );
+  });
+
+program
+  .command("outcome")
+  .description("Record an explicit local, agent/task-scoped skill outcome")
+  .argument("<selector>", "exact package/skill selector")
+  .requiredOption("--agent <id>", "agent id")
+  .requiredOption(
+    "--task <family>",
+    "general, frontend, testing, javascript, python, backend, security, or documentation",
+  )
+  .requiredOption(
+    "--result <value>",
+    "accept, reject, success, failure, activation, disable, or rollback",
+  )
+  .action(
+    async (
+      selector: string,
+      options: { agent: string; task: string; result: string },
+    ) => {
+      const knownAgents = new Set(
+        (await detectAgents()).map((agent) => agent.id),
+      );
+      if (!knownAgents.has(options.agent as AgentId))
+        throw new Error(`Unknown agent id: ${options.agent}`);
+      const event = await recordLocalOutcome({
+        selector,
+        agent: options.agent as AgentId,
+        taskFamily: options.task as OutcomeTaskFamily,
+        result: options.result as OutcomeResult,
+      });
+      console.log(
+        `Recorded local outcome ${event.id}. No project, prompt, or source data was stored.`,
+      );
+    },
+  );
+
+program
+  .command("share")
+  .description("Write the privacy-safe Loadout report to a JSON artifact")
+  .argument("<output>", "new or replacement report path")
+  .action(async (output: string) => {
+    const report = await buildPrivacySafeReport();
+    await writePrivacySafeReport(output, report);
+    console.log(
+      `Wrote privacy-safe Loadout report to ${output}. Review it before sharing.`,
+    );
+  });
+
+program
+  .command("card")
+  .description(
+    "Render a privacy-safe Markdown evidence card without project or repository details",
+  )
+  .option("--output <path>", "write the Markdown card to a file")
+  .option("--json", "emit the underlying privacy-safe card as JSON")
+  .action(async (options: { output?: string; json?: boolean }) => {
+    if (options.output && options.json)
+      throw new Error("--output and --json cannot be used together");
+    const card = await buildLoadoutCard();
+    const markdown = formatLoadoutCard(card);
+    if (options.output) {
+      await writeFileAtomically(resolve(options.output), `${markdown}\n`);
+      console.log(
+        `Wrote privacy-safe Loadout card to ${resolve(options.output)}. Review it before sharing.`,
+      );
+      return;
+    }
+    console.log(options.json ? JSON.stringify(card, null, 2) : markdown);
+  });
+
+program
+  .command("compare-loadouts")
+  .description(
+    "Compare aggregate counts from two explicit privacy-safe Loadout reports",
+  )
+  .argument("<left>", "earlier privacy-safe report JSON")
+  .argument("<right>", "later privacy-safe report JSON")
+  .option("--json", "emit machine-readable count deltas")
+  .action(async (left: string, right: string, options: { json?: boolean }) => {
+    const [before, after] = await Promise.all(
+      [left, right].map(async (path) =>
+        parsePrivacySafeLoadoutReport(
+          JSON.parse(await readFile(resolve(path), "utf8")) as unknown,
+        ),
+      ),
+    );
+    const comparison = compareLoadoutReports(before, after);
+    console.log(
+      options.json
+        ? JSON.stringify(comparison, null, 2)
+        : formatLoadoutComparison(comparison),
+    );
+  });
+
+}

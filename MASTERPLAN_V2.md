@@ -176,7 +176,22 @@ Broader per-command copy remains a future sweep; this covered what a first-time 
 - Consistent, warm, terse developer voice. Errors are actionable.
 - Gate: previews/`setup`/`status`/wizard read cleanly to a first-time developer.
 
-## Phase 9 — Catalog freshness pipeline (connect discovery → review → promote)
+## Phase 9 — Catalog freshness re-verify — DONE (contained slice)
+scripts/check-catalog-freshness.mjs (`npm run check:catalog-freshness`) re-contacts every
+cataloged GitHub repo via fetchGitHubMetadata and reports the decay a commit-pinned catalog
+cannot see: archived upstreams (hard fail unless already flagged archived in the catalog),
+default-branch changes (advisory), and staleness past a freshness window (advisory). Network
+gate, not in the offline verify chain. It immediately found a real one: browserbase-mcp-server
+is archived upstream — now marked archived:true in the catalog (installer skips archived
+records), so the gate passes with it as an acknowledged advisory.
+
+BACKLOG (deliberately not done — high-risk internal churn, weak test signal, not needed to
+ship/test): unifying the six discovery connectors behind one interface, and wiring
+discovery -> review-queue -> promote into one automated (still human-gated) pipeline. The
+pieces exist as separate commands; connecting them is a larger design task for later.
+Original Phase 9 detail below.
+
+
 - Wire the 6 discovery connectors behind one `Discovery` interface with a shared bounded-fetch
   + normalize core (kills duplication).
 - `catalog-update` re-verifies pinned commits, license, archive status, and refreshes

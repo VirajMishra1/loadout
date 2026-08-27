@@ -7,8 +7,15 @@
     "category": "engineering-workflow",
     "tier": "stable",
     "license": "MIT",
-    "components": ["skill", "plugin"],
-    "operatingSystems": ["windows", "macos", "linux"],
+    "components": [
+      "skill",
+      "plugin"
+    ],
+    "operatingSystems": [
+      "windows",
+      "macos",
+      "linux"
+    ],
     "stars": 254615,
     "source": {
       "type": "github",
@@ -30,8 +37,16 @@
     "category": "documentation",
     "tier": "stable",
     "license": "MIT",
-    "components": ["skill", "mcp", "plugin"],
-    "operatingSystems": ["windows", "macos", "linux"],
+    "components": [
+      "skill",
+      "mcp",
+      "plugin"
+    ],
+    "operatingSystems": [
+      "windows",
+      "macos",
+      "linux"
+    ],
     "stars": 59102,
     "source": {
       "type": "github",
@@ -54,15 +69,25 @@
     "category": "browser-verification",
     "tier": "official",
     "license": "Apache-2.0",
-    "components": ["mcp"],
-    "operatingSystems": ["windows", "macos", "linux"],
+    "components": [
+      "mcp"
+    ],
+    "operatingSystems": [
+      "windows",
+      "macos",
+      "linux"
+    ],
     "stars": 35074,
     "source": {
       "type": "github",
       "url": "https://github.com/microsoft/playwright-mcp",
       "defaultBranch": "main",
       "commit": "5f8fc00210b27b4407c375b59cda4838045d429c",
-      "evidencePaths": ["README.md", "package.json", "index.js"],
+      "evidencePaths": [
+        "README.md",
+        "package.json",
+        "index.js"
+      ],
       "verifiedAt": "2026-07-14T18:17:03Z"
     }
   },
@@ -74,8 +99,15 @@
     "category": "frontend-design",
     "tier": "stable",
     "license": "MIT",
-    "components": ["skill", "plugin"],
-    "operatingSystems": ["windows", "macos", "linux"],
+    "components": [
+      "skill",
+      "plugin"
+    ],
+    "operatingSystems": [
+      "windows",
+      "macos",
+      "linux"
+    ],
     "stars": 105540,
     "source": {
       "type": "github",
@@ -97,15 +129,25 @@
     "category": "source-control",
     "tier": "official",
     "license": "MIT",
-    "components": ["mcp"],
-    "operatingSystems": ["windows", "macos", "linux"],
+    "components": [
+      "mcp"
+    ],
+    "operatingSystems": [
+      "windows",
+      "macos",
+      "linux"
+    ],
     "stars": 31437,
     "source": {
       "type": "github",
       "url": "https://github.com/github/github-mcp-server",
       "defaultBranch": "main",
       "commit": "c36e4e4493c76eafe2c1a9cbc5272e8eede29189",
-      "evidencePaths": ["README.md", "cmd/github-mcp-server/main.go", "go.mod"],
+      "evidencePaths": [
+        "README.md",
+        "cmd/github-mcp-server/main.go",
+        "go.mod"
+      ],
       "verifiedAt": "2026-07-14T18:17:03Z"
     }
   },
@@ -117,8 +159,14 @@
     "category": "agent-skills",
     "tier": "official",
     "license": "NOASSERTION",
-    "components": ["skill"],
-    "operatingSystems": ["windows", "macos", "linux"],
+    "components": [
+      "skill"
+    ],
+    "operatingSystems": [
+      "windows",
+      "macos",
+      "linux"
+    ],
     "stars": 23702,
     "source": {
       "type": "github",
@@ -140,8 +188,14 @@
     "category": "agent-skills",
     "tier": "official",
     "license": "NOASSERTION",
-    "components": ["skill"],
-    "operatingSystems": ["windows", "macos", "linux"],
+    "components": [
+      "skill"
+    ],
+    "operatingSystems": [
+      "windows",
+      "macos",
+      "linux"
+    ],
     "stars": 161108,
     "source": {
       "type": "github",
@@ -163,8 +217,15 @@
     "category": "agent-skills",
     "tier": "stable",
     "license": "MIT",
-    "components": ["skill", "plugin"],
-    "operatingSystems": ["windows", "macos", "linux"],
+    "components": [
+      "skill",
+      "plugin"
+    ],
+    "operatingSystems": [
+      "windows",
+      "macos",
+      "linux"
+    ],
     "stars": 37906,
     "source": {
       "type": "github",
@@ -186,8 +247,14 @@
     "category": "frontend-development",
     "tier": "official",
     "license": "NOASSERTION",
-    "components": ["skill"],
-    "operatingSystems": ["windows", "macos", "linux"],
+    "components": [
+      "skill"
+    ],
+    "operatingSystems": [
+      "windows",
+      "macos",
+      "linux"
+    ],
     "stars": 29060,
     "source": {
       "type": "github",
@@ -209,15 +276,23 @@
     "category": "skill-discovery",
     "tier": "stable",
     "license": "NOASSERTION",
-    "components": ["skill"],
-    "operatingSystems": ["windows", "macos", "linux"],
+    "components": [
+      "skill"
+    ],
+    "operatingSystems": [
+      "windows",
+      "macos",
+      "linux"
+    ],
     "stars": 26124,
     "source": {
       "type": "github",
       "url": "https://github.com/vercel-labs/skills",
       "defaultBranch": "main",
       "commit": "5527c09adc367612b0bffd9c80e3bc28a6b01b6d",
-      "evidencePaths": ["skills/find-skills/SKILL.md"],
+      "evidencePaths": [
+        "skills/find-skills/SKILL.md"
+      ],
       "verifiedAt": "2026-07-14T18:17:03Z"
     }
   },
@@ -229,15 +304,24 @@
     "category": "cloud-platform",
     "tier": "official",
     "license": "Apache-2.0",
-    "components": ["mcp"],
-    "operatingSystems": ["windows", "macos", "linux"],
+    "components": [
+      "mcp"
+    ],
+    "operatingSystems": [
+      "windows",
+      "macos",
+      "linux"
+    ],
     "stars": 3941,
     "source": {
       "type": "github",
       "url": "https://github.com/cloudflare/mcp-server-cloudflare",
       "defaultBranch": "main",
       "commit": "52c633e37684fadb94ae236f74909b9bbefc0db8",
-      "evidencePaths": ["README.md", "apps/ai-gateway/package.json"],
+      "evidencePaths": [
+        "README.md",
+        "apps/ai-gateway/package.json"
+      ],
       "verifiedAt": "2026-07-14T18:17:03Z"
     }
   },
@@ -249,8 +333,14 @@
     "category": "database",
     "tier": "official",
     "license": "Apache-2.0",
-    "components": ["mcp"],
-    "operatingSystems": ["windows", "macos", "linux"],
+    "components": [
+      "mcp"
+    ],
+    "operatingSystems": [
+      "windows",
+      "macos",
+      "linux"
+    ],
     "stars": 2805,
     "source": {
       "type": "github",
@@ -272,15 +362,25 @@
     "category": "observability",
     "tier": "official",
     "license": "NOASSERTION",
-    "components": ["skill", "mcp"],
-    "operatingSystems": ["windows", "macos", "linux"],
+    "components": [
+      "skill",
+      "mcp"
+    ],
+    "operatingSystems": [
+      "windows",
+      "macos",
+      "linux"
+    ],
     "stars": 771,
     "source": {
       "type": "github",
       "url": "https://github.com/getsentry/sentry-mcp",
       "defaultBranch": "main",
       "commit": "ce099fd251973774116749016847b78a6049ba0a",
-      "evidencePaths": ["README.md", ".agents/skills/mcp-audit/SKILL.md"],
+      "evidencePaths": [
+        "README.md",
+        ".agents/skills/mcp-audit/SKILL.md"
+      ],
       "verifiedAt": "2026-07-14T18:17:03Z"
     }
   },
@@ -292,8 +392,16 @@
     "category": "web-research",
     "tier": "stable",
     "license": "MIT",
-    "components": ["skill", "mcp", "plugin"],
-    "operatingSystems": ["windows", "macos", "linux"],
+    "components": [
+      "skill",
+      "mcp",
+      "plugin"
+    ],
+    "operatingSystems": [
+      "windows",
+      "macos",
+      "linux"
+    ],
     "stars": 4717,
     "source": {
       "type": "github",
@@ -316,15 +424,25 @@
     "category": "web-research",
     "tier": "stable",
     "license": "MIT",
-    "components": ["mcp"],
-    "operatingSystems": ["windows", "macos", "linux"],
+    "components": [
+      "mcp"
+    ],
+    "operatingSystems": [
+      "windows",
+      "macos",
+      "linux"
+    ],
     "stars": 6953,
     "source": {
       "type": "github",
       "url": "https://github.com/firecrawl/firecrawl-mcp-server",
       "defaultBranch": "main",
       "commit": "3eb1115b1f2883ff2fb74e61b5c4acf5a9ac0fb0",
-      "evidencePaths": ["README.md", "src/index.ts", "package.json"],
+      "evidencePaths": [
+        "README.md",
+        "src/index.ts",
+        "package.json"
+      ],
       "verifiedAt": "2026-07-14T18:17:03Z"
     }
   },
@@ -336,15 +454,25 @@
     "category": "devops",
     "tier": "official",
     "license": "MIT",
-    "components": ["mcp"],
-    "operatingSystems": ["windows", "macos", "linux"],
+    "components": [
+      "mcp"
+    ],
+    "operatingSystems": [
+      "windows",
+      "macos",
+      "linux"
+    ],
     "stars": 1887,
     "source": {
       "type": "github",
       "url": "https://github.com/microsoft/azure-devops-mcp",
       "defaultBranch": "main",
       "commit": "0a08dc649c951208eda942154c66187dec9985bd",
-      "evidencePaths": ["README.md", "mcp.json", "src/index.ts"],
+      "evidencePaths": [
+        "README.md",
+        "mcp.json",
+        "src/index.ts"
+      ],
       "verifiedAt": "2026-07-14T18:17:03Z"
     }
   },
@@ -356,8 +484,15 @@
     "category": "containers",
     "tier": "official",
     "license": "MIT",
-    "components": ["skill", "mcp"],
-    "operatingSystems": ["windows", "macos", "linux"],
+    "components": [
+      "skill",
+      "mcp"
+    ],
+    "operatingSystems": [
+      "windows",
+      "macos",
+      "linux"
+    ],
     "stars": 1484,
     "source": {
       "type": "github",
@@ -380,8 +515,14 @@
     "category": "machine-learning",
     "tier": "official",
     "license": "MIT",
-    "components": ["mcp"],
-    "operatingSystems": ["windows", "macos", "linux"],
+    "components": [
+      "mcp"
+    ],
+    "operatingSystems": [
+      "windows",
+      "macos",
+      "linux"
+    ],
     "stars": 261,
     "source": {
       "type": "github",
@@ -404,8 +545,16 @@
     "category": "agent-skills",
     "tier": "stable",
     "license": "MIT",
-    "components": ["skill", "agent", "mcp"],
-    "operatingSystems": ["windows", "macos", "linux"],
+    "components": [
+      "skill",
+      "agent",
+      "mcp"
+    ],
+    "operatingSystems": [
+      "windows",
+      "macos",
+      "linux"
+    ],
     "stars": 36595,
     "source": {
       "type": "github",
@@ -428,8 +577,15 @@
     "category": "agent-skills",
     "tier": "official",
     "license": "Apache-2.0",
-    "components": ["skill", "agent"],
-    "operatingSystems": ["windows", "macos", "linux"],
+    "components": [
+      "skill",
+      "agent"
+    ],
+    "operatingSystems": [
+      "windows",
+      "macos",
+      "linux"
+    ],
     "stars": 98249,
     "source": {
       "type": "github",
@@ -451,8 +607,15 @@
     "category": "code-simplification",
     "tier": "trending",
     "license": "MIT",
-    "components": ["skill", "plugin"],
-    "operatingSystems": ["windows", "macos", "linux"],
+    "components": [
+      "skill",
+      "plugin"
+    ],
+    "operatingSystems": [
+      "windows",
+      "macos",
+      "linux"
+    ],
     "stars": 84287,
     "pushedAt": "2026-07-15T21:32:15Z",
     "source": {
@@ -475,8 +638,15 @@
     "category": "software-engineering",
     "tier": "stable",
     "license": "MIT",
-    "components": ["skill", "plugin"],
-    "operatingSystems": ["windows", "macos", "linux"],
+    "components": [
+      "skill",
+      "plugin"
+    ],
+    "operatingSystems": [
+      "windows",
+      "macos",
+      "linux"
+    ],
     "stars": 78646,
     "pushedAt": "2026-07-16T07:22:11Z",
     "source": {
@@ -500,8 +670,14 @@
     "category": "scientific-research",
     "tier": "stable",
     "license": "MIT",
-    "components": ["skill"],
-    "operatingSystems": ["windows", "macos", "linux"],
+    "components": [
+      "skill"
+    ],
+    "operatingSystems": [
+      "windows",
+      "macos",
+      "linux"
+    ],
     "stars": 30995,
     "pushedAt": "2026-07-15T17:44:16Z",
     "source": {
@@ -524,8 +700,15 @@
     "category": "planning",
     "tier": "stable",
     "license": "MIT",
-    "components": ["skill", "plugin"],
-    "operatingSystems": ["windows", "macos", "linux"],
+    "components": [
+      "skill",
+      "plugin"
+    ],
+    "operatingSystems": [
+      "windows",
+      "macos",
+      "linux"
+    ],
     "stars": 25403,
     "pushedAt": "2026-07-14T14:32:40Z",
     "source": {
@@ -548,8 +731,15 @@
     "category": "product-management",
     "tier": "stable",
     "license": "MIT",
-    "components": ["skill", "plugin"],
-    "operatingSystems": ["windows", "macos", "linux"],
+    "components": [
+      "skill",
+      "plugin"
+    ],
+    "operatingSystems": [
+      "windows",
+      "macos",
+      "linux"
+    ],
     "stars": 23791,
     "pushedAt": "2026-07-03T11:34:49Z",
     "source": {
@@ -573,8 +763,14 @@
     "category": "content-creation",
     "tier": "stable",
     "license": "MIT",
-    "components": ["skill"],
-    "operatingSystems": ["windows", "macos", "linux"],
+    "components": [
+      "skill"
+    ],
+    "operatingSystems": [
+      "windows",
+      "macos",
+      "linux"
+    ],
     "stars": 23700,
     "pushedAt": "2026-07-04T16:25:18Z",
     "source": {
@@ -597,8 +793,15 @@
     "category": "security",
     "tier": "stable",
     "license": "CC-BY-SA-4.0",
-    "components": ["skill", "plugin"],
-    "operatingSystems": ["windows", "macos", "linux"],
+    "components": [
+      "skill",
+      "plugin"
+    ],
+    "operatingSystems": [
+      "windows",
+      "macos",
+      "linux"
+    ],
     "stars": 6141,
     "pushedAt": "2026-07-15T16:33:40Z",
     "source": {
@@ -621,8 +824,14 @@
     "category": "frontend-development",
     "tier": "stable",
     "license": "MIT",
-    "components": ["skill"],
-    "operatingSystems": ["windows", "macos", "linux"],
+    "components": [
+      "skill"
+    ],
+    "operatingSystems": [
+      "windows",
+      "macos",
+      "linux"
+    ],
     "stars": 5603,
     "pushedAt": "2026-06-23T00:14:36Z",
     "source": {
@@ -645,8 +854,16 @@
     "category": "dotnet-development",
     "tier": "official",
     "license": "MIT",
-    "components": ["skill", "agent", "plugin"],
-    "operatingSystems": ["windows", "macos", "linux"],
+    "components": [
+      "skill",
+      "agent",
+      "plugin"
+    ],
+    "operatingSystems": [
+      "windows",
+      "macos",
+      "linux"
+    ],
     "stars": 4632,
     "pushedAt": "2026-07-15T23:43:32Z",
     "source": {
@@ -670,8 +887,16 @@
     "category": "cloud-development",
     "tier": "official",
     "license": "MIT",
-    "components": ["skill", "agent", "plugin"],
-    "operatingSystems": ["windows", "macos", "linux"],
+    "components": [
+      "skill",
+      "agent",
+      "plugin"
+    ],
+    "operatingSystems": [
+      "windows",
+      "macos",
+      "linux"
+    ],
     "stars": 2752,
     "pushedAt": "2026-07-15T23:29:24Z",
     "source": {
@@ -695,8 +920,15 @@
     "category": "web-quality",
     "tier": "stable",
     "license": "MIT",
-    "components": ["skill", "plugin"],
-    "operatingSystems": ["windows", "macos", "linux"],
+    "components": [
+      "skill",
+      "plugin"
+    ],
+    "operatingSystems": [
+      "windows",
+      "macos",
+      "linux"
+    ],
     "stars": 2507,
     "pushedAt": "2026-06-14T09:08:35Z",
     "source": {
@@ -720,8 +952,14 @@
     "category": "engineering-productivity",
     "tier": "stable",
     "license": "MIT",
-    "components": ["skill"],
-    "operatingSystems": ["windows", "macos", "linux"],
+    "components": [
+      "skill"
+    ],
+    "operatingSystems": [
+      "windows",
+      "macos",
+      "linux"
+    ],
     "stars": 2195,
     "pushedAt": "2026-03-05T16:46:24Z",
     "source": {
@@ -744,8 +982,14 @@
     "category": "diagramming",
     "tier": "stable",
     "license": "MIT",
-    "components": ["skill"],
-    "operatingSystems": ["windows", "macos", "linux"],
+    "components": [
+      "skill"
+    ],
+    "operatingSystems": [
+      "windows",
+      "macos",
+      "linux"
+    ],
     "stars": 5848,
     "pushedAt": "2026-07-14T11:41:30Z",
     "source": {
@@ -753,7 +997,9 @@
       "url": "https://github.com/Agents365-ai/drawio-skill",
       "defaultBranch": "main",
       "commit": "9f52925770334e9bd2794e40a7fa64c234e9f545",
-      "evidencePaths": ["skills/drawio-skill/SKILL.md"],
+      "evidencePaths": [
+        "skills/drawio-skill/SKILL.md"
+      ],
       "verifiedAt": "2026-07-16T08:44:36Z"
     }
   },
@@ -765,8 +1011,16 @@
     "category": "browser-debugging",
     "tier": "official",
     "license": "Apache-2.0",
-    "components": ["skill", "mcp", "plugin"],
-    "operatingSystems": ["windows", "macos", "linux"],
+    "components": [
+      "skill",
+      "mcp",
+      "plugin"
+    ],
+    "operatingSystems": [
+      "windows",
+      "macos",
+      "linux"
+    ],
     "stars": 47050,
     "pushedAt": "2026-07-15T14:10:27Z",
     "source": {
@@ -790,8 +1044,14 @@
     "category": "code-intelligence",
     "tier": "stable",
     "license": "MIT",
-    "components": ["mcp"],
-    "operatingSystems": ["windows", "macos", "linux"],
+    "components": [
+      "mcp"
+    ],
+    "operatingSystems": [
+      "windows",
+      "macos",
+      "linux"
+    ],
     "stars": 26505,
     "pushedAt": "2026-07-16T08:35:29Z",
     "source": {
@@ -799,7 +1059,10 @@
       "url": "https://github.com/oraios/serena",
       "defaultBranch": "main",
       "commit": "465c5eb627883ec310c5b7e643fe445af84589b3",
-      "evidencePaths": ["src/serena/mcp.py", "pyproject.toml"],
+      "evidencePaths": [
+        "src/serena/mcp.py",
+        "pyproject.toml"
+      ],
       "verifiedAt": "2026-07-16T08:45:18Z"
     }
   },
@@ -811,8 +1074,14 @@
     "category": "mcp-reference",
     "tier": "official",
     "license": "NOASSERTION",
-    "components": ["mcp"],
-    "operatingSystems": ["windows", "macos", "linux"],
+    "components": [
+      "mcp"
+    ],
+    "operatingSystems": [
+      "windows",
+      "macos",
+      "linux"
+    ],
     "stars": 88530,
     "pushedAt": "2026-07-10T03:30:19Z",
     "source": {
@@ -836,8 +1105,14 @@
     "category": "cloud-platform",
     "tier": "official",
     "license": "Apache-2.0",
-    "components": ["mcp"],
-    "operatingSystems": ["windows", "macos", "linux"],
+    "components": [
+      "mcp"
+    ],
+    "operatingSystems": [
+      "windows",
+      "macos",
+      "linux"
+    ],
     "stars": 9451,
     "pushedAt": "2026-07-16T05:55:03Z",
     "source": {
@@ -860,8 +1135,15 @@
     "category": "database",
     "tier": "stable",
     "license": "MIT",
-    "components": ["skill", "mcp"],
-    "operatingSystems": ["windows", "macos", "linux"],
+    "components": [
+      "skill",
+      "mcp"
+    ],
+    "operatingSystems": [
+      "windows",
+      "macos",
+      "linux"
+    ],
     "stars": 3167,
     "pushedAt": "2026-07-10T18:02:19Z",
     "source": {
@@ -885,8 +1167,14 @@
     "category": "api-development",
     "tier": "stable",
     "license": "MIT",
-    "components": ["mcp"],
-    "operatingSystems": ["windows", "macos", "linux"],
+    "components": [
+      "mcp"
+    ],
+    "operatingSystems": [
+      "windows",
+      "macos",
+      "linux"
+    ],
     "stars": 11945,
     "pushedAt": "2025-11-24T14:51:54Z",
     "source": {
@@ -894,7 +1182,10 @@
       "url": "https://github.com/tadata-org/fastapi_mcp",
       "defaultBranch": "main",
       "commit": "e5cad13cabfc725bbcb047e526816d887d96da62",
-      "evidencePaths": ["fastapi_mcp/server.py", "pyproject.toml"],
+      "evidencePaths": [
+        "fastapi_mcp/server.py",
+        "pyproject.toml"
+      ],
       "verifiedAt": "2026-07-16T08:45:18Z"
     }
   },
@@ -906,8 +1197,14 @@
     "category": "browser-automation",
     "tier": "stable",
     "license": "Apache-2.0",
-    "components": ["mcp"],
-    "operatingSystems": ["windows", "macos", "linux"],
+    "components": [
+      "mcp"
+    ],
+    "operatingSystems": [
+      "windows",
+      "macos",
+      "linux"
+    ],
     "stars": 6832,
     "pushedAt": "2025-04-24T21:49:44Z",
     "source": {
@@ -915,7 +1212,10 @@
       "url": "https://github.com/BrowserMCP/mcp",
       "defaultBranch": "main",
       "commit": "9db12f2b4f61294f0bc11708986abc47db539d6c",
-      "evidencePaths": ["src/server.ts", "package.json"],
+      "evidencePaths": [
+        "src/server.ts",
+        "package.json"
+      ],
       "verifiedAt": "2026-07-16T08:45:18Z"
     }
   },
@@ -927,8 +1227,14 @@
     "category": "data-visualization",
     "tier": "official",
     "license": "MIT",
-    "components": ["mcp"],
-    "operatingSystems": ["windows", "macos", "linux"],
+    "components": [
+      "mcp"
+    ],
+    "operatingSystems": [
+      "windows",
+      "macos",
+      "linux"
+    ],
     "stars": 4241,
     "pushedAt": "2026-05-06T07:58:59Z",
     "source": {
@@ -936,7 +1242,10 @@
       "url": "https://github.com/antvis/mcp-server-chart",
       "defaultBranch": "main",
       "commit": "33178096abfa58f245b456f5bacb18bc37f5cbaf",
-      "evidencePaths": ["src/server.ts", "package.json"],
+      "evidencePaths": [
+        "src/server.ts",
+        "package.json"
+      ],
       "verifiedAt": "2026-07-16T08:45:18Z"
     }
   },
@@ -948,8 +1257,14 @@
     "category": "spreadsheets",
     "tier": "stable",
     "license": "MIT",
-    "components": ["mcp"],
-    "operatingSystems": ["windows", "macos", "linux"],
+    "components": [
+      "mcp"
+    ],
+    "operatingSystems": [
+      "windows",
+      "macos",
+      "linux"
+    ],
     "stars": 4033,
     "pushedAt": "2026-04-12T06:14:45Z",
     "source": {
@@ -957,7 +1272,10 @@
       "url": "https://github.com/haris-musa/excel-mcp-server",
       "defaultBranch": "main",
       "commit": "f51340ecd5778952405044b203d3a2d4c8a46833",
-      "evidencePaths": ["src/excel_mcp/server.py", "pyproject.toml"],
+      "evidencePaths": [
+        "src/excel_mcp/server.py",
+        "pyproject.toml"
+      ],
       "verifiedAt": "2026-07-16T08:45:18Z"
     }
   },
@@ -969,8 +1287,16 @@
     "category": "academic-research",
     "tier": "stable",
     "license": "Apache-2.0",
-    "components": ["skill", "mcp", "plugin"],
-    "operatingSystems": ["windows", "macos", "linux"],
+    "components": [
+      "skill",
+      "mcp",
+      "plugin"
+    ],
+    "operatingSystems": [
+      "windows",
+      "macos",
+      "linux"
+    ],
     "stars": 2961,
     "pushedAt": "2026-05-18T18:00:11Z",
     "source": {
@@ -995,8 +1321,16 @@
     "category": "productivity",
     "tier": "stable",
     "license": "MIT",
-    "components": ["skill", "mcp", "plugin"],
-    "operatingSystems": ["windows", "macos", "linux"],
+    "components": [
+      "skill",
+      "mcp",
+      "plugin"
+    ],
+    "operatingSystems": [
+      "windows",
+      "macos",
+      "linux"
+    ],
     "stars": 2856,
     "pushedAt": "2026-07-07T15:21:48Z",
     "source": {
@@ -1021,8 +1355,14 @@
     "category": "database",
     "tier": "official",
     "license": "Apache-2.0",
-    "components": ["mcp"],
-    "operatingSystems": ["windows", "macos", "linux"],
+    "components": [
+      "mcp"
+    ],
+    "operatingSystems": [
+      "windows",
+      "macos",
+      "linux"
+    ],
     "stars": 1081,
     "pushedAt": "2026-07-16T08:27:53Z",
     "source": {
@@ -1030,7 +1370,10 @@
       "url": "https://github.com/mongodb-js/mongodb-mcp-server",
       "defaultBranch": "main",
       "commit": "f45d7c777d88d77069da36b3133e68901dc0697a",
-      "evidencePaths": ["src/server.ts", "package.json"],
+      "evidencePaths": [
+        "src/server.ts",
+        "package.json"
+      ],
       "verifiedAt": "2026-07-16T08:45:18Z"
     }
   },
@@ -1042,8 +1385,14 @@
     "category": "database",
     "tier": "official",
     "license": "MIT",
-    "components": ["mcp"],
-    "operatingSystems": ["windows", "macos", "linux"],
+    "components": [
+      "mcp"
+    ],
+    "operatingSystems": [
+      "windows",
+      "macos",
+      "linux"
+    ],
     "stars": 547,
     "pushedAt": "2026-06-22T11:06:06Z",
     "source": {
@@ -1067,8 +1416,16 @@
     "category": "payments",
     "tier": "official",
     "license": "MIT",
-    "components": ["skill", "mcp", "plugin"],
-    "operatingSystems": ["windows", "macos", "linux"],
+    "components": [
+      "skill",
+      "mcp",
+      "plugin"
+    ],
+    "operatingSystems": [
+      "windows",
+      "macos",
+      "linux"
+    ],
     "stars": 1680,
     "pushedAt": "2026-07-16T00:45:28Z",
     "source": {
@@ -1092,8 +1449,14 @@
     "category": "database",
     "tier": "official",
     "license": "Apache-2.0",
-    "components": ["mcp"],
-    "operatingSystems": ["windows", "macos", "linux"],
+    "components": [
+      "mcp"
+    ],
+    "operatingSystems": [
+      "windows",
+      "macos",
+      "linux"
+    ],
     "stars": 15963,
     "pushedAt": "2026-07-16T08:34:35Z",
     "source": {
@@ -1101,7 +1464,11 @@
       "url": "https://github.com/googleapis/mcp-toolbox",
       "defaultBranch": "main",
       "commit": "b574b071fc27f717e90b4362864b1086be0c8995",
-      "evidencePaths": ["internal/server/server.go", "main.go", "go.mod"],
+      "evidencePaths": [
+        "internal/server/server.go",
+        "main.go",
+        "go.mod"
+      ],
       "verifiedAt": "2026-07-16T08:45:18Z"
     }
   },
@@ -1113,8 +1480,14 @@
     "category": "browser-automation",
     "tier": "stable",
     "license": "Apache-2.0",
-    "components": ["mcp"],
-    "operatingSystems": ["windows", "macos", "linux"],
+    "components": [
+      "mcp"
+    ],
+    "operatingSystems": [
+      "windows",
+      "macos",
+      "linux"
+    ],
     "stars": 3407,
     "pushedAt": "2026-07-07T05:50:51Z",
     "source": {
@@ -1122,9 +1495,13 @@
       "url": "https://github.com/browserbase/mcp-server-browserbase",
       "defaultBranch": "main",
       "commit": "1e196b3d3c4dc70944e0d19038dd9eb3608b207a",
-      "evidencePaths": ["src/server.ts", "package.json"],
+      "evidencePaths": [
+        "src/server.ts",
+        "package.json"
+      ],
       "verifiedAt": "2026-07-16T08:45:18Z"
-    }
+    },
+    "archived": true
   },
   {
     "id": "bright-data-mcp",
@@ -1134,8 +1511,14 @@
     "category": "web-research",
     "tier": "stable",
     "license": "MIT",
-    "components": ["mcp"],
-    "operatingSystems": ["windows", "macos", "linux"],
+    "components": [
+      "mcp"
+    ],
+    "operatingSystems": [
+      "windows",
+      "macos",
+      "linux"
+    ],
     "stars": 2499,
     "pushedAt": "2026-06-21T08:55:29Z",
     "source": {
@@ -1143,7 +1526,10 @@
       "url": "https://github.com/brightdata/brightdata-mcp",
       "defaultBranch": "main",
       "commit": "adbfdd49b8805136662a264490118c2688da3e29",
-      "evidencePaths": ["server.js", "package.json"],
+      "evidencePaths": [
+        "server.js",
+        "package.json"
+      ],
       "verifiedAt": "2026-07-16T08:45:18Z"
     }
   },
@@ -1155,8 +1541,15 @@
     "category": "knowledge-management",
     "tier": "community",
     "license": "MIT",
-    "components": ["skill", "plugin"],
-    "operatingSystems": ["windows", "macos", "linux"],
+    "components": [
+      "skill",
+      "plugin"
+    ],
+    "operatingSystems": [
+      "windows",
+      "macos",
+      "linux"
+    ],
     "stars": 42827,
     "pushedAt": "2026-06-08T16:12:01Z",
     "source": {
@@ -1181,8 +1574,16 @@
     "category": "cloud-platform",
     "tier": "official",
     "license": "Apache-2.0",
-    "components": ["skill", "plugin", "mcp"],
-    "operatingSystems": ["windows", "macos", "linux"],
+    "components": [
+      "skill",
+      "plugin",
+      "mcp"
+    ],
+    "operatingSystems": [
+      "windows",
+      "macos",
+      "linux"
+    ],
     "stars": 2443,
     "pushedAt": "2026-07-13T22:00:33Z",
     "source": {
@@ -1207,8 +1608,14 @@
     "category": "writing",
     "tier": "community",
     "license": "MIT",
-    "components": ["skill"],
-    "operatingSystems": ["windows", "macos", "linux"],
+    "components": [
+      "skill"
+    ],
+    "operatingSystems": [
+      "windows",
+      "macos",
+      "linux"
+    ],
     "stars": 30153,
     "pushedAt": "2026-06-29T20:43:06Z",
     "source": {
@@ -1216,7 +1623,11 @@
       "url": "https://github.com/blader/humanizer",
       "defaultBranch": "main",
       "commit": "1b48564898e999219882660237fde01bf4843a0f",
-      "evidencePaths": ["SKILL.md", "README.md", "LICENSE"],
+      "evidencePaths": [
+        "SKILL.md",
+        "README.md",
+        "LICENSE"
+      ],
       "verifiedAt": "2026-07-21T13:38:00Z"
     }
   }

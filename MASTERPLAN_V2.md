@@ -186,7 +186,14 @@ Broader per-command copy remains a future sweep; this covered what a first-time 
 - Resolve the 6 `NOASSERTION` licenses (clear or drop).
 - Gate: a dry-run refresh reports staleness/drift; promotion path works end to end on a fixture.
 
-## Phase 10 — Share card → team sync story (growth)
+## Phase 10 — Share card growth loop — DONE
+`loadout card` now leads with the Phase 7 health grade and headline, shows totals across
+agents, and ends with a copy-paste CTA (`npx loadout-ai`) so a shared card is also an
+invitation. Still fully privacy-safe (no project paths, names, prompts, code, or secrets).
+The "team story" is positioning on the existing manifest/lock/sync/export commands rather
+than new code. Original detail below.
+
+
 - `loadout share` → a real, seeable artifact (card/page): "My AI stack: N skills, M agents,
   grade A. Reproduce: `loadout sync <url>`."
 - Lean into **reproducible team loadouts** as the wedge: locked, safe, one-command team sync

@@ -1,5 +1,6 @@
 import type { AgentHealthScore } from "./agent-health-score.js";
 import { buildLocalAgentHealthScores } from "./health-score-evidence.js";
+import { buildHealthReport, gradeHealth } from "./health.js";
 import {
   buildPrivacySafeReport,
   type PrivacySafeLoadoutReport,
@@ -8,6 +9,7 @@ import {
 export interface LoadoutCard {
   schemaVersion: 1;
   generatedAt: string;
+  grade: { letter: string; headline: string };
   agents: Array<{
     id: string;
     health: number;
@@ -32,15 +34,18 @@ export async function buildLoadoutCard(
     now?: Date;
   } = {},
 ): Promise<LoadoutCard> {
-  const [report, scores] = await Promise.all([
+  const [report, scores, healthReport] = await Promise.all([
     options.report ? Promise.resolve(options.report) : buildPrivacySafeReport(),
     options.scores
       ? Promise.resolve(options.scores)
       : buildLocalAgentHealthScores({ asOf: options.now }),
+    buildHealthReport({}),
   ]);
+  const grade = gradeHealth(healthReport);
   return {
     schemaVersion: 1,
     generatedAt: (options.now ?? new Date()).toISOString(),
+    grade: { letter: grade.letter, headline: grade.headline },
     agents: scores
       .map((score) => ({
         id: score.agent,
@@ -81,11 +86,19 @@ export function formatLoadoutCard(card: LoadoutCard): string {
   return [
     "# My Loadout",
     "",
-    `**${card.totals.activeSkills} active skills · ${card.totals.managedPackages} managed packages · ${card.totals.mcpEntries} MCP entries**`,
+    `### Grade ${card.grade.letter} — ${card.grade.headline}`,
+    "",
+    `**${card.totals.activeSkills} active skills · ${card.totals.managedPackages} managed packages · ${card.totals.mcpEntries} MCP entries** across ${card.agents.length} agent(s)`,
     "",
     "| Agent | Evidence health | Rating | Evidence coverage |",
     "| --- | ---: | --- | ---: |",
     agentCells,
+    "",
+    "Set up your own agents the same way — reviewed, previewed, and rollback-safe:",
+    "",
+    "```bash",
+    "npx loadout-ai",
+    "```",
     "",
     `Updated: ${card.generatedAt}`,
     "",

@@ -54,7 +54,9 @@ async function main() {
         unreachable += 1;
         continue;
       }
-      advisories.push(`${pkg.id}: metadata error: ${error instanceof Error ? error.message : String(error)}`);
+      advisories.push(
+        `${pkg.id}: metadata error: ${error instanceof Error ? error.message : String(error)}`,
+      );
       continue;
     }
     if (meta.archived) {
@@ -75,7 +77,9 @@ async function main() {
       advisories.push(
         `${pkg.id}: default branch changed ${pkg.source.defaultBranch} -> ${meta.defaultBranch} (commit pin still valid)`,
       );
-    const age = pkg.source?.verifiedAt ? ageInDays(pkg.source.verifiedAt) : undefined;
+    const age = pkg.source?.verifiedAt
+      ? ageInDays(pkg.source.verifiedAt)
+      : undefined;
     if (age !== undefined && age > FRESHNESS_WINDOW_DAYS)
       advisories.push(
         `${pkg.id}: last verified ${age}d ago (> ${FRESHNESS_WINDOW_DAYS}d) — re-review and refresh verifiedAt`,
@@ -85,7 +89,8 @@ async function main() {
   process.stdout.write(
     `Catalog freshness: ${github.length} GitHub record(s) checked, ${unreachable} unreachable this run.\n`,
   );
-  for (const advisory of advisories) process.stdout.write(`  advisory: ${advisory}\n`);
+  for (const advisory of advisories)
+    process.stdout.write(`  advisory: ${advisory}\n`);
 
   if (archived.length) {
     process.stderr.write(

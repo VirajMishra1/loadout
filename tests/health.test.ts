@@ -2,7 +2,11 @@ import { afterEach, describe, expect, it } from "vitest";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { buildHealthReport, formatHealthReport, gradeHealth } from "../src/core/health.js";
+import {
+  buildHealthReport,
+  formatHealthReport,
+  gradeHealth,
+} from "../src/core/health.js";
 import type { DetectedAgent, HealthReport } from "../src/shared/types.js";
 
 const ORIGINAL_LOADOUT_HOME = process.env.LOADOUT_HOME;
@@ -172,7 +176,11 @@ describe("gradeHealth", () => {
     findings: [] as HealthReport["findings"],
   };
   it("returns an em-dash when nothing is configured", () => {
-    const g = gradeHealth({ ...base, status: "not-configured", installedPackages: 0 });
+    const g = gradeHealth({
+      ...base,
+      status: "not-configured",
+      installedPackages: 0,
+    });
     expect(g.letter).toBe("—");
     expect(g.fixes[0]).toMatch(/setup/);
   });
@@ -183,13 +191,22 @@ describe("gradeHealth", () => {
     const g = gradeHealth({
       ...base,
       status: "attention",
-      findings: [{ level: "warning", code: "updates-available", message: "2 updates", fix: "run loadout update" }],
+      findings: [
+        {
+          level: "warning",
+          code: "updates-available",
+          message: "2 updates",
+          fix: "run loadout update",
+        },
+      ],
     });
     expect(g.letter).toBe("B");
     expect(g.fixes).toContain("run loadout update");
   });
   it("grades library-only C", () => {
-    expect(gradeHealth({ ...base, status: "library-only", activeSkills: 0 }).letter).toBe("C");
+    expect(
+      gradeHealth({ ...base, status: "library-only", activeSkills: 0 }).letter,
+    ).toBe("C");
   });
   it("grades error findings D", () => {
     const g = gradeHealth({

@@ -218,10 +218,19 @@ describe("mode allowlist integrity (anti-rot guard)", () => {
     ] as const) {
       for (const [packageId, skills] of Object.entries(allowlist)) {
         const pkg = byId.get(packageId);
-        expect(pkg, `${name} allowlist package '${packageId}' missing from catalog`).toBeDefined();
+        expect(
+          pkg,
+          `${name} allowlist package '${packageId}' missing from catalog`,
+        ).toBeDefined();
         expect(pkg!.archived ?? false).toBe(false);
-        expect(skills.length, `${name} allowlist for '${packageId}' is empty`).toBeGreaterThan(0);
-        expect(new Set(skills).size, `${name} allowlist for '${packageId}' has duplicates`).toBe(skills.length);
+        expect(
+          skills.length,
+          `${name} allowlist for '${packageId}' is empty`,
+        ).toBeGreaterThan(0);
+        expect(
+          new Set(skills).size,
+          `${name} allowlist for '${packageId}' has duplicates`,
+        ).toBe(skills.length);
       }
     }
   });
@@ -231,7 +240,10 @@ describe("mode allowlist integrity (anti-rot guard)", () => {
     const byId = new Map(catalog.map((pkg) => [pkg.id, pkg]));
     for (const packageId of Object.keys(STABLE_SKILL_ALLOWLIST)) {
       const tier = byId.get(packageId)?.tier;
-      expect(["stable", "official"], `Stable package '${packageId}' has tier '${tier}'`).toContain(tier);
+      expect(
+        ["stable", "official"],
+        `Stable package '${packageId}' has tier '${tier}'`,
+      ).toContain(tier);
     }
   });
 });

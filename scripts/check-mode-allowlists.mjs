@@ -19,13 +19,17 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 // Import the built output (run after `npm run build`), matching the other
 // evidence scripts. Importing src/*.ts directly trips Node's type-stripping on
 // the transitive .js specifiers inside core modules.
-const [{ loadCatalog }, { fetchRepositorySnapshot }, { discoverSkillDirectories }, profiles] =
-  await Promise.all([
-    import("../dist/src/core/catalog.js"),
-    import("../dist/src/core/source.js"),
-    import("../dist/src/core/skills.js"),
-    import("../dist/src/core/profiles.js"),
-  ]);
+const [
+  { loadCatalog },
+  { fetchRepositorySnapshot },
+  { discoverSkillDirectories },
+  profiles,
+] = await Promise.all([
+  import("../dist/src/core/catalog.js"),
+  import("../dist/src/core/source.js"),
+  import("../dist/src/core/skills.js"),
+  import("../dist/src/core/profiles.js"),
+]);
 
 const { STABLE_SKILL_ALLOWLIST, POWER_SKILL_ALLOWLIST } = profiles;
 
@@ -107,7 +111,9 @@ async function main() {
     process.exitCode = 1;
     return;
   }
-  process.stdout.write("\nMode allowlist gate: PASS (all named skills resolve)\n");
+  process.stdout.write(
+    "\nMode allowlist gate: PASS (all named skills resolve)\n",
+  );
 }
 
 await main();

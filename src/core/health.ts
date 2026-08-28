@@ -262,8 +262,12 @@ export function gradeHealth(report: HealthReport): HealthGrade {
     return {
       letter: "—",
       headline: "Not set up yet",
-      reasons: ["No Loadout-managed packages, MCP servers, or tools installed."],
-      fixes: ["Run `loadout setup --mode stable` (preview first, nothing changes)."],
+      reasons: [
+        "No Loadout-managed packages, MCP servers, or tools installed.",
+      ],
+      fixes: [
+        "Run `loadout setup --mode stable` (preview first, nothing changes).",
+      ],
     };
 
   let letter: HealthGrade["letter"] = "A";
@@ -272,7 +276,9 @@ export function gradeHealth(report: HealthReport): HealthGrade {
     reasons.push(
       `${drift} managed item(s) changed or disappeared outside Loadout.`,
     );
-    fixes.push("Run `loadout rollback` to restore the last snapshot, or `loadout reconcile` to re-adopt.");
+    fixes.push(
+      "Run `loadout rollback` to restore the last snapshot, or `loadout reconcile` to re-adopt.",
+    );
   }
   for (const error of errors) {
     if (letter !== "F") letter = "D";
@@ -283,7 +289,9 @@ export function gradeHealth(report: HealthReport): HealthGrade {
     if (report.status === "library-only") {
       letter = "C";
       reasons.push("Skills are installed but none are active for any agent.");
-      fixes.push("Run `loadout optimize --project .` to activate a relevant set.");
+      fixes.push(
+        "Run `loadout optimize --project .` to activate a relevant set.",
+      );
     } else if (warnings.length) {
       letter = "B";
       for (const warning of warnings) {

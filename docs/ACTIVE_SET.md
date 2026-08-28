@@ -45,7 +45,7 @@ loadout library
 loadout disable <package-or-package/skill> [more-selectors] [--agents codex,claude-code]
 loadout disable <package-or-package/skill> --yes
 loadout enable <package-or-package/skill> --yes
-loadout activate --project . --limit 40
+loadout activate --project . --limit 30
 loadout optimize --project .
 loadout rollback --snapshot <id>
 ```

@@ -34,7 +34,7 @@ filled with fake benchmark or feedback data.
 ## Commands
 
 ```bash
-loadout activate --project . --limit 40
+loadout activate --project . --limit 30
 loadout activate --project . --pin openai-skills/playwright
 loadout optimize --project .
 loadout optimize --project . --yes

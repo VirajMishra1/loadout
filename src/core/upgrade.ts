@@ -15,10 +15,10 @@ import {
   applyPreparedCatalogInstall,
   formatPreparedCatalogInstall,
   prepareCatalogInstall,
-  RECOMMENDED_ACTIVE_SKILL_LIMIT,
   type PreparedCatalogInstall,
   type PrepareCatalogInstallOptions,
 } from "./catalog-install.js";
+import { DEFAULT_ACTIVE_SKILL_LIMIT } from "./active-limit.js";
 import { loadEffectiveCatalog, type InstallSelection } from "./catalog.js";
 import { buildHealthReport, formatHealthReport } from "./health.js";
 import { buildLocalAgentHealthScores } from "./health-score-evidence.js";
@@ -194,27 +194,27 @@ export async function planUpgrade(
     selection.mode === "maximum"
       ? {
           policy: "disabled-library",
-          recommendedLimit: RECOMMENDED_ACTIVE_SKILL_LIMIT,
+          recommendedLimit: DEFAULT_ACTIVE_SKILL_LIMIT,
           plannedDirectoriesPerAgent,
           exceedsRecommendedLimit:
-            plannedDirectoriesPerAgent > RECOMMENDED_ACTIVE_SKILL_LIMIT,
+            plannedDirectoriesPerAgent > DEFAULT_ACTIVE_SKILL_LIMIT,
           explanation:
             "Maximum stores reviewed skills in the disabled library; it does not expose the full library to agent context.",
-          nextCommand: `loadout optimize --project ${project.root} --limit ${RECOMMENDED_ACTIVE_SKILL_LIMIT}`,
+          nextCommand: `loadout optimize --project ${project.root} --limit ${DEFAULT_ACTIVE_SKILL_LIMIT}`,
         }
       : {
           policy: "bounded-active",
-          recommendedLimit: RECOMMENDED_ACTIVE_SKILL_LIMIT,
+          recommendedLimit: DEFAULT_ACTIVE_SKILL_LIMIT,
           plannedDirectoriesPerAgent,
           exceedsRecommendedLimit:
-            plannedDirectoriesPerAgent > RECOMMENDED_ACTIVE_SKILL_LIMIT,
+            plannedDirectoriesPerAgent > DEFAULT_ACTIVE_SKILL_LIMIT,
           explanation:
-            plannedDirectoriesPerAgent <= RECOMMENDED_ACTIVE_SKILL_LIMIT
+            plannedDirectoriesPerAgent <= DEFAULT_ACTIVE_SKILL_LIMIT
               ? "The prepared profile stays within the recommended active-set ceiling."
               : "The prepared profile exceeds the recommended active-set ceiling; use Stable or project optimization before treating it as a daily active set.",
-          ...(plannedDirectoriesPerAgent > RECOMMENDED_ACTIVE_SKILL_LIMIT
+          ...(plannedDirectoriesPerAgent > DEFAULT_ACTIVE_SKILL_LIMIT
             ? {
-                nextCommand: `loadout optimize --project ${project.root} --limit ${RECOMMENDED_ACTIVE_SKILL_LIMIT}`,
+                nextCommand: `loadout optimize --project ${project.root} --limit ${DEFAULT_ACTIVE_SKILL_LIMIT}`,
               }
             : {}),
         };

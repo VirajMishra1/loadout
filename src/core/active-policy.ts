@@ -9,6 +9,7 @@ import {
   planActivationChange,
   type ActivationPlan,
 } from "./active-set.js";
+import { DEFAULT_ACTIVE_SKILL_LIMIT } from "./active-limit.js";
 import { detectAgents } from "./paths.js";
 import { formatDetectedSignals, scanProject } from "./recommend.js";
 import { scanInstalledSkills } from "./skill-inventory.js";
@@ -417,7 +418,7 @@ export async function planProjectActivation(
     pins?: string[];
   } = {},
 ): Promise<ProjectActiveSetPlan> {
-  const limit = options.limit ?? 40;
+  const limit = options.limit ?? DEFAULT_ACTIVE_SKILL_LIMIT;
   if (!Number.isInteger(limit) || limit < 1 || limit > 200)
     throw new Error("--limit must be an integer from 1 to 200");
   const project = await scanProject(projectPath);

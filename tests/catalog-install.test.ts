@@ -28,6 +28,7 @@ describe("CLI-first catalog setup", () => {
   let root = "";
   afterEach(async () => {
     if (root) await rm(root, { recursive: true, force: true });
+    delete process.env.LOADOUT_HOME;
   });
 
   it("prepares pinned skill repositories and defers explicit MCP setup", async () => {
@@ -353,6 +354,168 @@ describe("CLI-first catalog setup", () => {
     expect(formatPreparedCatalogInstall(prepared, { details: true })).toContain(
       "mixed-collection/invalid-skill",
     );
+  });
+
+  it("reserves active Stable units before Maximum overlap deferral", async () => {
+    root = await mkdtemp(join(tmpdir(), "loadout-maximum-reservation-"));
+    process.env.LOADOUT_HOME = join(root, ".loadout");
+    const target = join(root, "home", ".agents", "skills");
+    const agent: DetectedAgent = {
+      id: "codex",
+      displayName: "Codex",
+      installed: true,
+      skillsDirectory: target,
+    };
+    const activeRepository = join(root, "active-repository");
+    const competingRepository = join(root, "competing-repository");
+    const activeSource = join(
+      activeRepository,
+      "skills",
+      "test-driven-development",
+    );
+    const competingSource = join(
+      competingRepository,
+      "skills",
+      "test-driven-development",
+    );
+    const extraSource = join(competingRepository, "skills", "maximum-extra");
+    const invalidSource = join(competingRepository, "skills", "invalid-skill");
+    await mkdir(activeSource, { recursive: true });
+    await mkdir(competingSource, { recursive: true });
+    await mkdir(extraSource, { recursive: true });
+    await mkdir(invalidSource, { recursive: true });
+    await writeFile(
+      join(activeSource, "SKILL.md"),
+      "---\nname: test-driven-development\ndescription: Active Stable workflow\n---\n",
+    );
+    await writeFile(
+      join(competingSource, "SKILL.md"),
+      "---\nname: test-driven-development\ndescription: Competing Maximum workflow\n---\n",
+    );
+    await writeFile(
+      join(extraSource, "SKILL.md"),
+      "---\nname: maximum-extra\ndescription: Additional reviewed Maximum unit\n---\n",
+    );
+    await writeFile(
+      join(invalidSource, "SKILL.md"),
+      "---\nname: invalid-skill\n---\n",
+    );
+    const activePackage: CatalogPackage = {
+      id: "superpowers",
+      displayName: "Superpowers",
+      repository: "example/superpowers",
+      description: "Existing Stable package",
+      category: "test",
+      tier: "stable",
+      stars: 1,
+      components: ["skill"],
+      source: {
+        type: "github",
+        url: "https://github.com/example/superpowers",
+        defaultBranch: "main",
+        commit,
+        evidencePaths: ["skills/test-driven-development/SKILL.md"],
+        verifiedAt: "2026-07-15T00:00:00Z",
+      },
+    };
+    const competingPackage: CatalogPackage = {
+      ...activePackage,
+      id: "addyosmani-agent-skills",
+      displayName: "Addy Osmani Agent Skills",
+      repository: "example/addyosmani-agent-skills",
+      stars: 10_000,
+      source: {
+        ...activePackage.source!,
+        url: "https://github.com/example/addyosmani-agent-skills",
+      },
+    };
+    const stable = await prepareCatalogInstall(
+      { mode: "stable" },
+      {
+        catalog: [activePackage],
+        detectedAgents: [agent],
+        fetchSnapshot: async (repository) => ({
+          repository,
+          commit,
+          path: activeRepository,
+        }),
+      },
+    );
+    await applyPreparedCatalogInstall(stable);
+
+    const prepared = await prepareCatalogInstall(
+      { mode: "maximum" },
+      {
+        catalog: [competingPackage, activePackage],
+        detectedAgents: [agent],
+        fetchSnapshot: async (repository) => ({
+          repository,
+          commit,
+          path:
+            repository === activePackage.repository
+              ? activeRepository
+              : competingRepository,
+        }),
+      },
+    );
+
+    expect(
+      prepared.entries
+        .find((entry) => entry.plan.packageId === activePackage.id)
+        ?.plan.files.map((file) => file.target),
+    ).toContain(join(target, "test-driven-development"));
+    expect(
+      prepared.entries
+        .find((entry) => entry.plan.packageId === competingPackage.id)
+        ?.plan.files.map((file) => file.target) ?? [],
+    ).not.toContain(join(target, "test-driven-development"));
+    expect(prepared.collisions).toContainEqual({
+      target: join(target, "test-driven-development"),
+      keptPackageId: activePackage.id,
+      deferredPackageId: competingPackage.id,
+    });
+    expect(prepared.skipped).toContainEqual(
+      expect.objectContaining({
+        packageId: competingPackage.id,
+        unitId: "invalid-skill",
+        kind: "quarantined",
+      }),
+    );
+
+    const beforeMaximum = await readInstallState();
+    const snapshot = await applyPreparedCatalogInstall(prepared);
+    await expect(
+      readFile(join(target, "test-driven-development", "SKILL.md"), "utf8"),
+    ).resolves.toContain("Active Stable workflow");
+    await expect(
+      readFile(join(target, "maximum-extra", "SKILL.md"), "utf8"),
+    ).rejects.toMatchObject({ code: "ENOENT" });
+    const afterMaximum = await readInstallState();
+    expect(afterMaximum.activations).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          packageId: activePackage.id,
+          unitId: "test-driven-development",
+          activationState: "active",
+          cacheState: "downloaded",
+        }),
+        expect.objectContaining({
+          packageId: competingPackage.id,
+          unitId: "maximum-extra",
+          activationState: "disabled",
+          cacheState: "downloaded",
+        }),
+      ]),
+    );
+    expect(
+      afterMaximum.activations?.some(
+        (activation) => activation.unitId === "invalid-skill",
+      ),
+    ).toBe(false);
+    await restoreSnapshot(await readSnapshot(snapshot), {
+      requireUnchangedPostMutationState: true,
+    });
+    expect(await readInstallState()).toEqual(beforeMaximum);
   });
 
   it("quarantines an invalid selected Power skill without discarding its safe siblings", async () => {

@@ -13,7 +13,7 @@ history** is evidence of how the product was built, not unfinished launch scope.
 
 ### Product complete
 
-- [x] Publish the CLI as `loadout-ai@0.5.8`; keep the product usable without cloning
+- [x] Publish the CLI as `loadout-ai`; keep the product usable without cloning
       this repository or providing an OpenAI/Anthropic API key.
 - [x] Ship Stable, Power, Maximum, and Custom profiles with preview-first apply,
       snapshots, drift protection, explicit rollback, removal, and complete uninstall.
@@ -46,10 +46,10 @@ history** is evidence of how the product was built, not unfinished launch scope.
 
 ### Submission work
 
-- [ ] Record the real CLI demo using `docs/DEMO_SCRIPT.md`; keep it under three
+- [x] Record the real CLI demo using `docs/DEMO_SCRIPT.md`; keep it under three
       minutes, include a voiceover, upload it publicly to YouTube, and verify the URL.
-- [ ] Replace the README demo placeholder with the final YouTube link.
-- [ ] In the voiceover, explain what Loadout does and how Codex and GPT-5.6 were used.
+- [x] Replace the README demo placeholder with the final YouTube link.
+- [x] In the voiceover, explain what Loadout does and how Codex and GPT-5.6 were used.
 - [ ] Run `/feedback` in Codex, copy the resulting session ID, and enter it in Devpost.
 - [x] Confirm the public repository URL is accessible to Devpost and OpenAI.
 - [x] Confirm all team invitations are accepted. Both teammates are collaborators and
@@ -72,12 +72,12 @@ These are not launch blockers and should not be rebuilt before submission:
 - Restoring GitHub-hosted Actions capacity before submission; the full gate can run
   locally, and the latest completed `main` CI is already passing.
 
-## Archived current-status diary (historical, not active scope)
+## Archived implementation diary (historical, not active scope)
 
-This section preserves the chronological implementation and founder-testing record.
-Its unchecked boxes may describe older release numbers, superseded acceptance paths,
-external research, or intentionally deferred work. They are not active launch tasks;
-use the launch finish line above.
+Everything below this heading is a frozen chronological implementation record. Its
+dashboard references, old release numbers, unchecked boxes, and superseded acceptance
+paths describe earlier product states; they are neither current capabilities nor
+active launch tasks. Use only the launch finish line above for current status.
 
 ### Implemented product work
 

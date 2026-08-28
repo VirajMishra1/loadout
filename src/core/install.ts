@@ -520,12 +520,22 @@ export async function applySkillLibraryBatch(
           throw new Error(
             `Maximum Library cannot preserve active '${activation.packageId}/${activation.unitId ?? "skill"}' because its reviewed revision differs or is unknown. Update or disable it explicitly first.`,
           );
-        const includesActiveUnit = incoming.plan.files.some(
-          (file) =>
-            (file.targetAgent === activation.agent ||
-              (!file.targetAgent && incoming.plan.targetAgents.length === 1)) &&
-            basename(file.target) === activation.unitId,
+        const incomingActiveTargets = new Set(
+          incoming.plan.files
+            .filter(
+              (file) =>
+                (file.targetAgent === activation.agent ||
+                  (!file.targetAgent &&
+                    incoming.plan.targetAgents.length === 1)) &&
+                basename(file.target) === activation.unitId,
+            )
+            .map((file) => file.target),
         );
+        const includesActiveUnit =
+          activation.targets.length > 0 &&
+          activation.targets.every((target) =>
+            incomingActiveTargets.has(target.activePath),
+          );
         if (!includesActiveUnit)
           throw new Error(
             `Maximum Library cannot preserve active '${activation.packageId}/${activation.unitId ?? "skill"}' because that unit is absent from the prepared library.`,

@@ -595,7 +595,7 @@ export async function runWizard(): Promise<void> {
   await runSetup({ package: [] });
 }
 
-export const LOADOUT_VERSION = "0.5.8";
+export const LOADOUT_VERSION = "0.5.9";
 
 export function durableSchedulerLauncher(): string[] {
   return [

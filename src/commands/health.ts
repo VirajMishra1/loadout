@@ -1,74 +1,10 @@
 import { Command } from "commander";
 
-
 import { parseAgentSelection } from "../core/paths.js";
 
-
-
-
-
-
-
-
-import {
-  buildUpdatePlan,
-} from "../core/update.js";
-
+import { buildUpdatePlan } from "../core/update.js";
 
 import { buildHealthReport, formatHealthReport } from "../core/health.js";
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 import {
   buildFreshnessAlerts,
@@ -79,31 +15,8 @@ import {
   unpinReplacement,
 } from "../core/freshness-alerts.js";
 
-
-
-
-
-
-
-
-
-
-
-
-
-
 import { formatAgentHealthScore } from "../core/agent-health-score.js";
 import { buildLocalAgentHealthScores } from "../core/health-score-evidence.js";
-
-
-
-
-
-
-
-
-
-
 
 export function registerHealth(program: Command): void {
   program

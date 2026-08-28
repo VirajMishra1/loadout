@@ -1,50 +1,10 @@
 import { createInterface } from "node:readline/promises";
-import {
-  type InstallSelectionMode,
-} from "../core/catalog.js";
+import { type InstallSelectionMode } from "../core/catalog.js";
 import { detectAgents, parseAgentSelection } from "../core/paths.js";
 import { dirname, join } from "node:path";
 
-
-
-
-
-
-import {
-  type McpSetupRecipe,
-} from "../core/mcp-recipes.js";
+import { type McpSetupRecipe } from "../core/mcp-recipes.js";
 import type { CredentialReference } from "../shared/types.js";
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 import {
   applyPreparedCatalogInstall,
@@ -58,44 +18,7 @@ import {
   formatInstalledSkillInventory,
   scanInstalledSkills,
 } from "../core/skill-inventory.js";
-import {
-  type CatalogSkillIndexProgress,
-} from "../core/provenance.js";
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+import { type CatalogSkillIndexProgress } from "../core/provenance.js";
 
 import {
   interactiveModelApiAccess,
@@ -103,12 +26,7 @@ import {
   type SetupAccessProfile,
 } from "../core/access.js";
 
-
-
-
-import {
-  BEGINNER_GUIDE,
-} from "../core/cli-guide.js";
+import { BEGINNER_GUIDE } from "../core/cli-guide.js";
 
 export const collectOption = (
   value: string,

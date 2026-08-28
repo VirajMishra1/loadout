@@ -1,12 +1,8 @@
 import { Command } from "commander";
 
-
 import { userHome } from "../core/paths.js";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-
-
-
 
 import { fetchRepositorySnapshot } from "../core/source.js";
 import {
@@ -27,30 +23,13 @@ import {
 } from "../core/mcp-recipes.js";
 import type { McpServer } from "../shared/types.js";
 
-
 import { inspectPackage, formatPackageInspection } from "../core/package.js";
-
 
 import {
   installStatePath,
   recordInstallTransaction,
   recordMcpInstall,
 } from "../core/state.js";
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 import {
   applyCodexMcpConfigPlan,
@@ -59,33 +38,9 @@ import {
   planCodexMcpConfig,
 } from "../core/codex-mcp.js";
 
-
-
-
-
-
 import { evaluatePackage, formatPackageEvaluation } from "../core/evaluate.js";
 import { checkForUpdates, startUpdateWatcher } from "../core/update-watch.js";
 import { runDisposableSandbox } from "../core/sandbox.js";
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 import {
   applyNativeScheduler,
@@ -93,35 +48,6 @@ import {
   planNativeScheduler,
   type SchedulerAction,
 } from "../core/scheduler.js";
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 import {
   collectOption,

@@ -9,37 +9,6 @@ import {
 import { parseAgentSelection } from "../core/paths.js";
 import { resolve } from "node:path";
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 import {
   catalogTrustStage,
   formatCatalogTrustStage,
@@ -55,21 +24,7 @@ import {
   readCatalogObservations,
 } from "../core/observations.js";
 
-
 import { writeFileAtomically } from "../core/atomic-file.js";
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 import {
   formatReviewQueue,
@@ -87,15 +42,6 @@ import {
   readProviderModelConfiguration,
   requestOpenRouter,
 } from "../core/model-config.js";
-
-
-
-
-
-
-
-
-
 
 import {
   parseCompletionShell,
@@ -121,24 +67,10 @@ import {
 } from "../core/candidate-intelligence.js";
 import type { OperatingSystem, PackageTier } from "../shared/types.js";
 
-
-
-
-
-
-
-
 import { discoverSkillsSh } from "../core/skills-sh-discovery.js";
 import { discoverOfficialMcpRegistry } from "../core/mcp-registry-discovery.js";
 
-
-
-
-
-
-import {
-  readCredentialFromStdin,
-} from "./support.js";
+import { readCredentialFromStdin } from "./support.js";
 
 export function registerCatalog(program: Command): void {
   program

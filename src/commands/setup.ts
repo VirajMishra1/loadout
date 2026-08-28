@@ -1,85 +1,8 @@
 import { Command } from "commander";
 
-
 import { parseAgentSelection } from "../core/paths.js";
 
-
-
-
-
-
-
-
-
-
-
-
 import { formatHealthReport } from "../core/health.js";
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 import {
   applyUpgrade,
@@ -88,17 +11,9 @@ import {
   summarizeUpgradePlan,
 } from "../core/upgrade.js";
 
+import { parseModelApiAccess } from "../core/access.js";
 
-import {
-  parseModelApiAccess,
-} from "../core/access.js";
-
-
-
-
-import {
-  ADVANCED_GUIDE,
-} from "../core/cli-guide.js";
+import { ADVANCED_GUIDE } from "../core/cli-guide.js";
 import {
   collectOption,
   setupSelection,

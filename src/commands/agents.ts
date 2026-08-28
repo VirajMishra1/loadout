@@ -1,56 +1,12 @@
 import { Command } from "commander";
 
-
 import { detectAgents, parseAgentSelection } from "../core/paths.js";
 import { DEFAULT_ACTIVE_SKILL_LIMIT } from "../core/active-limit.js";
 import { resolve } from "node:path";
 
-
-
-
 import type { AgentId } from "../shared/types.js";
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 import { writeFileAtomically } from "../core/atomic-file.js";
-
-
-
-
-
 
 import {
   applyActivationChange,
@@ -63,13 +19,6 @@ import {
   formatProjectActivation,
   planProjectActivation,
 } from "../core/active-policy.js";
-
-
-
-
-
-
-
 
 import {
   applyNativeSchedulerBundle,
@@ -84,41 +33,14 @@ import {
   planRuntimeTool,
 } from "../core/runtime-tools.js";
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-import {
-  buildLoadoutCard,
-} from "../core/loadout-card.js";
+import { buildLoadoutCard } from "../core/loadout-card.js";
 import {
   buildLoadoutBadge,
   formatLoadoutBadgeUsage,
   parseLoadoutBadgeMetric,
 } from "../core/loadout-badge.js";
 
-
-import {
-  collectOption,
-  durableSchedulerLauncher,
-} from "./support.js";
+import { collectOption, durableSchedulerLauncher } from "./support.js";
 
 export function registerAgents(program: Command): void {
   for (const workflow of ["activate", "optimize"] as const) {

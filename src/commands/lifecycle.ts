@@ -19,9 +19,6 @@ import {
 } from "../core/snapshot.js";
 import { fetchRepositorySnapshot } from "../core/source.js";
 
-
-
-
 import {
   applyPackageUpdate,
   buildUpdatePlan,
@@ -30,36 +27,14 @@ import {
 } from "../core/update.js";
 import { startApiServer } from "../core/api.js";
 
-
-import {
-  readInstallState,
-} from "../core/state.js";
-
+import { readInstallState } from "../core/state.js";
 
 import {
   evaluateInstalledProfile,
   formatInstalledProfileStatus,
 } from "../core/profile-state.js";
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-import {
-  resolveCatalogProfile,
-} from "../core/profiles.js";
-
-
-
+import { resolveCatalogProfile } from "../core/profiles.js";
 
 import {
   compileConversion,
@@ -75,58 +50,9 @@ import {
   prepareCatalogInstall,
 } from "../core/catalog-install.js";
 
+import { withMutationLock } from "../core/transaction.js";
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-import {
-  withMutationLock,
-} from "../core/transaction.js";
-
-
-
-
-
-
-
-
-
-
-
-
-import {
-  setupSelection,
-  printSetupProgress,
-} from "./support.js";
+import { setupSelection, printSetupProgress } from "./support.js";
 
 export function registerLifecycle(program: Command): void {
   program

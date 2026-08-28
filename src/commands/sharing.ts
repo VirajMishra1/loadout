@@ -1,20 +1,10 @@
 import { Command } from "commander";
-import {
-  loadEffectiveCatalog,
-} from "../core/catalog.js";
+import { loadEffectiveCatalog } from "../core/catalog.js";
 import { detectAgents, parseAgentSelection } from "../core/paths.js";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
-
-
-
 import type { AgentId } from "../shared/types.js";
-
-
-
-
-
 
 import {
   addManifestPackage,
@@ -23,16 +13,7 @@ import {
   removeManifestPackage,
   writeLockfile,
 } from "../core/manifest.js";
-import {
-  readInstallState,
-} from "../core/state.js";
-
-
-
-
-
-
-
+import { readInstallState } from "../core/state.js";
 
 import {
   createPackage,
@@ -43,49 +24,19 @@ import {
 } from "../core/registry.js";
 import { auditLoadout, formatAuditReport } from "../core/audit.js";
 
-
-
-
 import {
   applyPortableImport,
   exportPortableLoadout,
   planPortableImport,
 } from "../core/portable.js";
 
-
-
-
-
-
-
-
-
-
 import { writeFileAtomically } from "../core/atomic-file.js";
-
-
-
-
-
 
 import {
   buildLibraryStateReport,
   formatLibrarySummary,
   formatLibraryStateReport,
 } from "../core/active-set.js";
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 import {
   buildPrivacySafeReport,
@@ -100,23 +51,7 @@ import {
   type OutcomeTaskFamily,
 } from "../core/outcomes.js";
 
-
-
-
-
-
-import {
-  createCredentialResolver,
-} from "../core/credentials.js";
-
-
-
-
-
-
-
-
-
+import { createCredentialResolver } from "../core/credentials.js";
 
 import {
   buildLoadoutCard,
@@ -124,12 +59,6 @@ import {
   formatLoadoutCard,
   formatLoadoutComparison,
 } from "../core/loadout-card.js";
-
-
-
-
-
-
 
 export function registerSharing(program: Command): void {
   program

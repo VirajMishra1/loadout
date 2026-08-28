@@ -1,30 +1,18 @@
 import { Command } from "commander";
-import {
-  loadEffectiveCatalog,
-} from "../core/catalog.js";
+import { loadEffectiveCatalog } from "../core/catalog.js";
 import { detectAgents, parseAgentSelection } from "../core/paths.js";
 import { resolve } from "node:path";
 
-
-
-
 import type { AgentId } from "../shared/types.js";
-
-
-
 
 import { runDoctor, formatDoctorReport } from "../core/doctor.js";
 
-
-import {
-  applyProfileToManifest,
-} from "../core/manifest.js";
+import { applyProfileToManifest } from "../core/manifest.js";
 import {
   buildHealthReport,
   formatStatusScreen,
   gradeHealth,
 } from "../core/health.js";
-
 
 import { applyRemove, planRemove } from "../core/remove.js";
 import {
@@ -33,7 +21,6 @@ import {
   formatUninstallPlan,
   uninstallGlobalCli,
 } from "../core/uninstall.js";
-
 
 import {
   formatRecommendations,
@@ -52,7 +39,6 @@ import {
 } from "../core/improve.js";
 import { applySyncPlan, buildSyncPlan } from "../core/sync.js";
 
-
 import {
   ADAPTER_CAPABILITIES,
   buildAdapterCapabilityGaps,
@@ -63,19 +49,6 @@ import {
   formatAgentInventory,
   inspectAgents,
 } from "../core/agent-inspection.js";
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 import {
   formatInstalledSkillInventory,
@@ -88,9 +61,6 @@ import {
 } from "../core/provenance.js";
 import { compareSkill, formatSkillComparison } from "../core/skill-compare.js";
 
-
-
-
 import {
   applySkillAdoption,
   formatAdoptionPlan,
@@ -102,48 +72,16 @@ import {
   formatReconcilePlan,
 } from "../core/reconcile.js";
 
-
-
-
-
-
-
-
-
-
-import {
-  readLocalOutcomes,
-} from "../core/outcomes.js";
-
-
-
-
-
-
-
-
-
-
-
-
-
+import { readLocalOutcomes } from "../core/outcomes.js";
 
 import {
   formatAgentVersions,
   inspectAgentVersions,
 } from "../core/agent-versions.js";
 
-
-
-
-
-
 import { scanSkillSecurity } from "../core/skill-security.js";
 
-
-import {
-  printProvenanceProgress,
-} from "./support.js";
+import { printProvenanceProgress } from "./support.js";
 
 export function registerInventory(program: Command): void {
   program

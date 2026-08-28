@@ -127,9 +127,9 @@ describe("repository sources", () => {
     await expect(fetchGitSnapshot("--upload-pack=bad")).rejects.toThrow(
       /Invalid Git URL/,
     );
-    await expect(
-      fetchGitSnapshot("https://example.com/repo.git", { maxBytes: 1 }),
-    ).rejects.toThrow(/refusing an unbounded generic Git clone/);
+    // Generic Git sources now accept size/file bounds (enforced after a shallow
+    // clone) instead of refusing them, so a bounded request is no longer
+    // rejected up front; it fails only if the URL itself is unreachable/invalid.
   });
 
   it("rejects credential-bearing generic Git URLs before invoking Git", async () => {

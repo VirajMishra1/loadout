@@ -2,8 +2,12 @@ import { afterEach, describe, expect, it } from "vitest";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { buildHealthReport, formatHealthReport } from "../src/core/health.js";
-import type { DetectedAgent } from "../src/shared/types.js";
+import {
+  buildHealthReport,
+  formatHealthReport,
+  gradeHealth,
+} from "../src/core/health.js";
+import type { DetectedAgent, HealthReport } from "../src/shared/types.js";
 
 const ORIGINAL_LOADOUT_HOME = process.env.LOADOUT_HOME;
 const ORIGINAL_USER_HOME = process.env.LOADOUT_USER_HOME;
@@ -156,5 +160,65 @@ describe("local health checks", () => {
     });
     expect(formatHealthReport(report)).toContain("skills: 2 active");
     expect(formatHealthReport(report)).toContain("runtime tools: 1");
+  });
+});
+
+describe("gradeHealth", () => {
+  const base = {
+    generatedAt: "2026-01-01T00:00:00Z",
+    agents: [],
+    installedPackages: 4,
+    activeSkills: 12,
+    updatesChecked: false,
+    updatesAvailable: 0,
+    driftedFiles: 0,
+    driftedMcpServers: 0,
+    findings: [] as HealthReport["findings"],
+  };
+  it("returns an em-dash when nothing is configured", () => {
+    const g = gradeHealth({
+      ...base,
+      status: "not-configured",
+      installedPackages: 0,
+    });
+    expect(g.letter).toBe("—");
+    expect(g.fixes[0]).toMatch(/setup/);
+  });
+  it("grades a clean managed profile A", () => {
+    expect(gradeHealth({ ...base, status: "healthy" }).letter).toBe("A");
+  });
+  it("grades warnings B with their fixes surfaced", () => {
+    const g = gradeHealth({
+      ...base,
+      status: "attention",
+      findings: [
+        {
+          level: "warning",
+          code: "updates-available",
+          message: "2 updates",
+          fix: "run loadout update",
+        },
+      ],
+    });
+    expect(g.letter).toBe("B");
+    expect(g.fixes).toContain("run loadout update");
+  });
+  it("grades library-only C", () => {
+    expect(
+      gradeHealth({ ...base, status: "library-only", activeSkills: 0 }).letter,
+    ).toBe("C");
+  });
+  it("grades error findings D", () => {
+    const g = gradeHealth({
+      ...base,
+      status: "unhealthy",
+      findings: [{ level: "error", code: "x", message: "broken" }],
+    });
+    expect(g.letter).toBe("D");
+  });
+  it("grades any drift F regardless of other findings", () => {
+    const g = gradeHealth({ ...base, status: "unhealthy", driftedFiles: 1 });
+    expect(g.letter).toBe("F");
+    expect(g.fixes.some((f) => /rollback/.test(f))).toBe(true);
   });
 });

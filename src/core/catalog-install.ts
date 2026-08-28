@@ -402,15 +402,25 @@ export function formatPreparedCatalogInstall(
     (item) => item.kind === "quarantined",
   );
   const retired = prepared.reconciliation?.obsoleteUnits ?? [];
+  const modeLabel =
+    prepared.selection.mode === "maximum"
+      ? "Maximum Library"
+      : prepared.selection.mode === "power"
+        ? "Power Boost"
+        : prepared.selection.mode === "stable"
+          ? "Stable Boost"
+          : "Custom";
   const lines = [
-    `Loadout: ${prepared.selection.mode === "maximum" ? "Maximum Library" : prepared.selection.mode === "power" ? "Power Boost" : prepared.selection.mode === "stable" ? "Stable Boost" : "Custom"}`,
+    `Loadout: ${modeLabel}`,
     `Detected agents: ${prepared.agents.map((agent) => agent.displayName).join(", ")}`,
-    `Catalog selection: ${prepared.resolution.packages.length} repositories`,
-    `Ready to install: ${prepared.entries.length} skill repositories (${targetDirectories} agent skill directories)`,
-    `Explicit setup later: ${explicit.length} repository/repositories`,
-    `Separately billed model API access: ${formatModelApiAccess(prepared.access)} (ChatGPT and Claude subscriptions do not count as API access)`,
-    "Automatic skill setup does not require an OpenAI, Anthropic, or OpenRouter API key; credentialed MCP/runtime integrations remain explicit and deferred.",
+    `Ready to install: ${prepared.entries.length} skill repositories (${targetDirectories} skill directories) from ${prepared.resolution.packages.length} reviewed source(s)`,
   ];
+  if (explicit.length)
+    lines.push(`Deferred to explicit setup: ${explicit.length} source(s)`);
+  if (prepared.access?.modelApis?.length)
+    lines.push(
+      `Declared model API access: ${formatModelApiAccess(prepared.access)}`,
+    );
   if (prepared.additive)
     lines.push("Additive install: existing managed skills will stay active.");
   if (directoriesPerAgent > DEFAULT_ACTIVE_SKILL_LIMIT)

@@ -339,6 +339,7 @@ try {
     "agents",
     "claimBoundary",
     "generatedAt",
+    "grade",
     "privacy",
     "schemaVersion",
     "totals",

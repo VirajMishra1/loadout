@@ -2,7 +2,6 @@ import { existsSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { createHash } from "node:crypto";
 import type { CatalogPackage } from "../shared/types.js";
 import { catalogSchema, formatSchemaError } from "../shared/schemas.js";
 import { fetchGitHubMetadata, type GitHubMetadataOptions } from "./github.js";
@@ -10,11 +9,6 @@ import { loadoutHome } from "./paths.js";
 import { compareCatalogPackages, explainCatalogScore } from "./ranking.js";
 import { resolveCatalogProfile } from "./profiles.js";
 import { recordCatalogObservations } from "./observations.js";
-import {
-  publicKeyFingerprint,
-  verifyEnvelope,
-  type SignedEnvelope,
-} from "./signing.js";
 
 export type InstallSelectionMode = "stable" | "power" | "maximum" | "custom";
 
@@ -25,76 +19,6 @@ export interface InstallSelection {
 }
 
 const cachedCatalogPath = () => join(loadoutHome(), "catalog.json");
-export const trustedCatalogPath = (): string =>
-  join(loadoutHome(), "catalog-releases", "trusted.json");
-export const catalogTrustPath = (): string =>
-  join(loadoutHome(), "catalog-releases", "trust.json");
-
-export interface CatalogTrustState {
-  schemaVersion: 1;
-  fingerprint: string;
-  publicKeyPem: string;
-  highWaterCreatedAt: string;
-  pinnedAt: string;
-  pendingCreatedAt?: string;
-  pendingEnvelopeSha256?: string;
-  pendingFirstPin?: boolean;
-}
-
-export interface TrustedCatalogState {
-  schemaVersion: 1;
-  appliedAt: string;
-  source: string;
-  publicKeyPem: string;
-  envelope: SignedEnvelope<CatalogPackage[]>;
-  snapshotId?: string;
-}
-
-export async function readCatalogTrustState(): Promise<
-  CatalogTrustState | undefined
-> {
-  let value: unknown;
-  try {
-    value = JSON.parse(await readFile(catalogTrustPath(), "utf8"));
-  } catch (error) {
-    if (
-      error &&
-      typeof error === "object" &&
-      "code" in error &&
-      (error as { code?: string }).code === "ENOENT"
-    )
-      return undefined;
-    throw new Error(
-      `Catalog trust anchor is unreadable at ${catalogTrustPath()}`,
-    );
-  }
-  if (!value || typeof value !== "object" || Array.isArray(value))
-    throw new Error("Catalog trust anchor is invalid");
-  const state = value as Partial<CatalogTrustState>;
-  if (
-    state.schemaVersion !== 1 ||
-    typeof state.fingerprint !== "string" ||
-    !/^sha256:[a-f0-9]{64}$/.test(state.fingerprint) ||
-    typeof state.publicKeyPem !== "string" ||
-    publicKeyFingerprint(state.publicKeyPem) !== state.fingerprint ||
-    !validDateString(state.highWaterCreatedAt) ||
-    !validDateString(state.pinnedAt) ||
-    (state.pendingCreatedAt !== undefined &&
-      !validDateString(state.pendingCreatedAt)) ||
-    (state.pendingEnvelopeSha256 !== undefined &&
-      !/^[a-f0-9]{64}$/.test(state.pendingEnvelopeSha256)) ||
-    (state.pendingCreatedAt !== undefined) !==
-      (state.pendingEnvelopeSha256 !== undefined) ||
-    (state.pendingFirstPin !== undefined &&
-      (state.pendingFirstPin !== true || state.pendingCreatedAt === undefined))
-  )
-    throw new Error("Catalog trust anchor is invalid");
-  return state as CatalogTrustState;
-}
-
-function validDateString(value: unknown): value is string {
-  return typeof value === "string" && !Number.isNaN(Date.parse(value));
-}
 
 function bundledCatalogPath(): string {
   const moduleDirectory = dirname(fileURLToPath(import.meta.url));
@@ -278,81 +202,11 @@ export async function loadCatalog(
   return value;
 }
 
-/** Re-verify persisted signed catalog state on every use; public keys are not secrets. */
-export async function readTrustedCatalogState(): Promise<
-  TrustedCatalogState | undefined
-> {
-  let value: unknown;
-  try {
-    value = JSON.parse(await readFile(trustedCatalogPath(), "utf8"));
-  } catch (error) {
-    if (
-      error &&
-      typeof error === "object" &&
-      "code" in error &&
-      (error as { code?: string }).code === "ENOENT"
-    )
-      return undefined;
-    throw new Error(
-      `Trusted catalog state is unreadable at ${trustedCatalogPath()}: ${error instanceof Error ? error.message : String(error)}`,
-    );
-  }
-  if (!value || typeof value !== "object" || Array.isArray(value))
-    throw new Error("Trusted catalog state is invalid");
-  const state = value as Partial<TrustedCatalogState>;
-  if (
-    state.schemaVersion !== 1 ||
-    typeof state.appliedAt !== "string" ||
-    Number.isNaN(Date.parse(state.appliedAt)) ||
-    typeof state.source !== "string" ||
-    typeof state.publicKeyPem !== "string" ||
-    (state.snapshotId !== undefined &&
-      !/^\d+-[a-f0-9]{12}$/.test(state.snapshotId)) ||
-    !state.envelope ||
-    typeof state.envelope !== "object" ||
-    typeof state.envelope.createdAt !== "string" ||
-    Number.isNaN(Date.parse(state.envelope.createdAt))
-  )
-    throw new Error("Trusted catalog state is invalid");
-  const verification = verifyEnvelope(state.envelope, state.publicKeyPem);
-  if (!verification.valid)
-    throw new Error("Trusted catalog state has an invalid Ed25519 signature");
-  const trust = await readCatalogTrustState();
-  if (!trust)
-    throw new Error("Trusted catalog state has no pinned trust anchor");
-  const anchored = verifyEnvelope(state.envelope, trust.publicKeyPem);
-  if (!anchored.valid || anchored.fingerprint !== trust.fingerprint)
-    throw new Error(
-      "Trusted catalog state does not match the pinned signing key",
-    );
-  if (
-    Date.parse(state.envelope.createdAt) > Date.parse(trust.highWaterCreatedAt)
-  ) {
-    const coordinatedPending =
-      state.envelope.createdAt === trust.pendingCreatedAt &&
-      createHash("sha256").update(state.envelope.signature).digest("hex") ===
-        trust.pendingEnvelopeSha256;
-    const transactionStillPending = Boolean(
-      state.snapshotId &&
-      existsSync(join(loadoutHome(), "staging", state.snapshotId)),
-    );
-    if (!coordinatedPending || transactionStillPending)
-      throw new Error(
-        transactionStillPending
-          ? "Trusted catalog release is still pending transaction recovery"
-          : "Trusted catalog state is not coordinated with its trust anchor",
-      );
-  }
-  validateCatalog(state.envelope.payload, { requireEvidence: true });
-  return state as TrustedCatalogState;
-}
-
-/** Load the most recently refreshed catalog, falling back to the bundled catalog offline. */
+/** Load the bundled catalog, then overlay the local GitHub-freshness cache offline. */
 export async function loadEffectiveCatalog(
   path = bundledCatalogPath(),
 ): Promise<CatalogPackage[]> {
-  const trusted = await readTrustedCatalogState();
-  const base = trusted?.envelope.payload ?? (await loadCatalog(path));
+  const base = await loadCatalog(path);
   try {
     const raw = await readFile(cachedCatalogPath(), "utf8");
     const value: unknown = JSON.parse(raw);

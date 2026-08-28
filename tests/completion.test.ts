@@ -9,14 +9,9 @@ describe("CLI completion", () => {
     for (const shell of ["bash", "zsh", "fish", "powershell"] as const) {
       expect(renderShellCompletion(shell)).toContain("loadout");
       expect(renderShellCompletion(shell)).toContain("upgrade");
-      expect(renderShellCompletion(shell)).toContain("benchmark");
-      expect(renderShellCompletion(shell)).toContain("intelligence");
-      expect(renderShellCompletion(shell)).toContain("compatibility");
       expect(renderShellCompletion(shell)).toContain("skill-audit");
-      expect(renderShellCompletion(shell)).toContain("interop");
       expect(renderShellCompletion(shell)).toContain("optimize");
       expect(renderShellCompletion(shell)).toContain("reconcile");
-      expect(renderShellCompletion(shell)).toContain("catalog-update");
       expect(renderShellCompletion(shell)).toContain("candidate");
       expect(renderShellCompletion(shell)).toContain("propose");
       expect(renderShellCompletion(shell)).toContain("autopilot");
@@ -24,7 +19,6 @@ describe("CLI completion", () => {
       expect(renderShellCompletion(shell)).toContain("card");
       expect(renderShellCompletion(shell)).toContain("compare-loadouts");
       expect(renderShellCompletion(shell)).toContain("badge");
-      expect(renderShellCompletion(shell)).toContain("claims");
     }
   });
 
@@ -45,7 +39,6 @@ describe("CLI completion", () => {
     expect(script).toContain("COMP_WORDS[COMP_CWORD]");
     expect(script).toContain('COMP_WORDS[1]}" == "models"');
     expect(script).toContain("status set verify");
-    expect(script).toContain("catalog-sign");
     expect(script).toContain("sandbox-run");
     expect(script).toContain('COMP_WORDS[1]}" == "candidate"');
     expect(script).toContain("list inspect propose");

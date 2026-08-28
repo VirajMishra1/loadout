@@ -624,43 +624,6 @@ async function hasStructuredHumanReview(root, evidence, claim) {
   return false;
 }
 
-function releaseCommandFailures(releaseIndex, packageJson) {
-  const failures = [];
-  if (releaseIndex.releaseBlocked && !(releaseIndex.blockers ?? []).length)
-    failures.push(
-      failure(
-        "release.state",
-        "Release evidence index is blocked without an actionable blocker.",
-        "src/core/release-claims.ts",
-        "Add the concrete blocker to the release index, then resolve it without weakening the boundary.",
-      ),
-    );
-  for (const blocker of releaseIndex.blockers ?? [])
-    failures.push(
-      failure(
-        "release.state",
-        blocker,
-        "src/core/release-claims.ts",
-        "Resolve the release evidence blocker without weakening its stated boundary.",
-      ),
-    );
-  for (const claim of releaseIndex.claims ?? []) {
-    for (const command of claim.evidence?.commands ?? []) {
-      const script = referencedNpmScript(command);
-      if (script && !packageJson.scripts?.[script])
-        failures.push(
-          failure(
-            claim.id,
-            `Release evidence references missing package script '${script}' via '${command}'.`,
-            "package.json#scripts",
-            `Restore the '${script}' script or update the release evidence index to an executable command.`,
-          ),
-        );
-    }
-  }
-  return failures;
-}
-
 /** Audit a README and claim manifest using only checked-in/offline evidence. */
 export async function auditReadmeClaims({
   root,
@@ -668,7 +631,6 @@ export async function auditReadmeClaims({
   manifest,
   packageJson,
   facts,
-  releaseIndex,
   cliPath,
 }) {
   const failures = [];
@@ -886,7 +848,6 @@ export async function auditReadmeClaims({
       );
   }
 
-  failures.push(...releaseCommandFailures(releaseIndex, packageJson));
   failures.push(...(await auditDocumentedCommands({ readme, cliPath })));
   failures.sort(
     (left, right) =>
@@ -914,7 +875,6 @@ async function loadRepositoryInputs(root = projectRoot) {
     { ADAPTER_CAPABILITIES },
     { deriveReadmeFacts },
     { POWER_SKILL_ALLOWLIST, STABLE_SKILL_ALLOWLIST },
-    { buildReleaseEvidenceIndex },
   ] = await Promise.all([
     readFile(resolve(root, "package.json"), "utf8").then(JSON.parse),
     readFile(resolve(root, "docs/evidence/readme-claims.json"), "utf8").then(
@@ -927,7 +887,6 @@ async function loadRepositoryInputs(root = projectRoot) {
     import("../src/core/adapters.ts"),
     import("../src/core/readme-facts.ts"),
     import("../src/core/profiles.ts"),
-    import("./check-release-claims.ts"),
   ]);
   return {
     root,
@@ -943,7 +902,6 @@ async function loadRepositoryInputs(root = projectRoot) {
         power: POWER_SKILL_ALLOWLIST,
       },
     }),
-    releaseIndex: await buildReleaseEvidenceIndex(root),
     cliPath: resolve(root, packageJson.bin.loadout),
   };
 }

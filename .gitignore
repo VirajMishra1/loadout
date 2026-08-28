@@ -9,3 +9,6 @@ test-results/
 .graphify/
 graphify-out/
 .worktrees/
+
+# readme-product-flow test scratch build dirs
+.readme-build-*/

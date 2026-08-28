@@ -330,7 +330,7 @@ The bundled catalog currently contains **53 credited public repositories** acros
 
 <!-- loadout:evidence-stages:start -->
 
-Catalog maturity: **53 sourced**, **53 technically inspected**, and **4 selected for Stable**. Independent human-review attestations and signed comparative benchmarks are not yet published, so Loadout does not pretend static inspection proves usefulness. The pinned catalog remains usable today, and local outcomes can be recorded to improve later rankings. Definitions and promotion rules are in the [catalog policy](./docs/CATALOG_POLICY.md).
+Catalog maturity: **53 sourced**, **53 technically inspected**, and **4 selected for Stable**. Independent human-review attestations are not yet published, so Loadout does not pretend static inspection proves usefulness. The pinned catalog remains usable today, and local outcomes can be recorded to improve later rankings. Definitions and promotion rules are in the [catalog policy](./docs/CATALOG_POLICY.md).
 
 <!-- loadout:evidence-stages:end -->
 
@@ -347,7 +347,7 @@ The checked-in discovery report proves only its dated snapshot, not the success 
 
 - A pinned commit identifies source bytes; it does not prove safety, correct licensing, usefulness, or future compatibility.
 - Static inspection reports scripts, hooks, binaries, domains, credential references, and unsupported components. It is not a security audit.
-- No bundled source is called benchmarked until isolated real trials, signed evidence, and human approval exist.
+- No bundled source is called proven until human review and recorded local outcomes support it; static inspection alone never earns that label.
 - Project recommendations read bounded local metadata. The documented local flow does not upload project source.
 - Catalog fetches, discovery, update checks, and optional live checks use the network where stated.
 - MCP servers and executable tools have separate preview and approval paths because they can use credentials, start processes, or contact services.

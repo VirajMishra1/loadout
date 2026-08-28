@@ -237,6 +237,105 @@ export async function buildHealthReport(
   };
 }
 
+export interface HealthGrade {
+  letter: "A" | "B" | "C" | "D" | "F" | "—";
+  headline: string;
+  reasons: string[];
+  fixes: string[];
+}
+
+/**
+ * A one-glance grade derived from the same report the health command already
+ * builds. Drift (managed files changed outside Loadout) is an integrity
+ * violation and dominates; error findings are next; warnings cap at B. This is
+ * a legible summary, not a scored policy — the detailed dimensions live behind
+ * `loadout health --explain`.
+ */
+export function gradeHealth(report: HealthReport): HealthGrade {
+  const reasons: string[] = [];
+  const fixes: string[] = [];
+  const drift = report.driftedFiles + report.driftedMcpServers;
+  const errors = report.findings.filter((f) => f.level === "error");
+  const warnings = report.findings.filter((f) => f.level === "warning");
+
+  if (report.status === "not-configured")
+    return {
+      letter: "—",
+      headline: "Not set up yet",
+      reasons: [
+        "No Loadout-managed packages, MCP servers, or tools installed.",
+      ],
+      fixes: [
+        "Run `loadout setup --mode stable` (preview first, nothing changes).",
+      ],
+    };
+
+  let letter: HealthGrade["letter"] = "A";
+  if (drift > 0) {
+    letter = "F";
+    reasons.push(
+      `${drift} managed item(s) changed or disappeared outside Loadout.`,
+    );
+    fixes.push(
+      "Run `loadout rollback` to restore the last snapshot, or `loadout reconcile` to re-adopt.",
+    );
+  }
+  for (const error of errors) {
+    if (letter !== "F") letter = "D";
+    reasons.push(error.message);
+    if (error.fix) fixes.push(error.fix);
+  }
+  if (letter !== "F" && letter !== "D") {
+    if (report.status === "library-only") {
+      letter = "C";
+      reasons.push("Skills are installed but none are active for any agent.");
+      fixes.push(
+        "Run `loadout optimize --project .` to activate a relevant set.",
+      );
+    } else if (warnings.length) {
+      letter = "B";
+      for (const warning of warnings) {
+        reasons.push(warning.message);
+        if (warning.fix) fixes.push(warning.fix);
+      }
+    }
+  }
+
+  const headline =
+    letter === "A"
+      ? "Healthy and up to date"
+      : letter === "B"
+        ? "Healthy, with items to review"
+        : letter === "C"
+          ? "Ready, but nothing active"
+          : letter === "D"
+            ? "Needs attention"
+            : "Integrity problem — managed files drifted";
+  return { letter, headline, reasons, fixes: [...new Set(fixes)] };
+}
+
+/** The `loadout status` home screen: a grade, per-agent lines, then fixes. */
+export function formatStatusScreen(
+  report: HealthReport,
+  agentLines: string[],
+): string {
+  const grade = gradeHealth(report);
+  const lines = [
+    `Loadout — grade ${grade.letter}: ${grade.headline}`,
+    "",
+    ...agentLines,
+  ];
+  if (grade.reasons.length) {
+    lines.push("");
+    for (const reason of grade.reasons) lines.push(`  • ${reason}`);
+  }
+  if (grade.fixes.length) {
+    lines.push("");
+    for (const fix of grade.fixes) lines.push(`  → ${fix}`);
+  }
+  return lines.join("\n");
+}
+
 export function formatHealthReport(report: HealthReport): string {
   const icon =
     report.status === "not-configured" || report.status === "library-only"

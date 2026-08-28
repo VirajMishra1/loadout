@@ -422,10 +422,15 @@ export async function fetchGitSnapshot(
   input: string,
   options: RepositoryFetchOptions = {},
 ): Promise<RepositorySnapshot> {
-  if (options.maxBytes !== undefined || options.maxFiles !== undefined)
-    throw new Error(
-      "Pre-check size/file bounds are supported only for public GitHub owner/repository sources; refusing an unbounded generic Git clone",
-    );
+  // A generic Git host has no cheap pre-clone tree API, so size cannot be
+  // checked before fetching the way the GitHub path does. Enforce a bound
+  // AFTER a shallow clone instead of refusing bounded requests, giving parity
+  // with the catalog path and a default ceiling against an adversarial repo.
+  const boundedOptions: RepositoryFetchOptions = {
+    ...options,
+    maxBytes: options.maxBytes ?? 128 * 1024 * 1024,
+    maxFiles: options.maxFiles ?? 20_000,
+  };
   const url = normalizeGitUrl(input);
   const temporary = await mkdtemp(join(tmpdir(), "loadout-git-"));
   try {
@@ -450,7 +455,7 @@ export async function fetchGitSnapshot(
     const commit = stdout.trim();
     if (!/^[0-9a-f]{40}$/i.test(commit))
       throw new Error("Git returned an invalid commit");
-    await enforceRepositoryBounds(temporary, options);
+    await enforceRepositoryBounds(temporary, boundedOptions);
     const key = createHash("sha256").update(url).digest("hex");
     const cachePath = join(loadoutHome(), "cache", "git", key, commit);
     await ensureDirectory(join(loadoutHome(), "cache", "git", key));

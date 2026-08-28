@@ -196,3 +196,54 @@ describe("catalog profile conflict resolution", () => {
     ).toBe(false);
   });
 });
+
+describe("mode allowlist integrity (anti-rot guard)", () => {
+  // These hardcoded allowlists silently degrade if a catalog package they name
+  // is renamed or removed: the mode just installs less, with no error. This
+  // guard fails loudly instead. (Skill-name-level rot at a pinned commit needs
+  // a network fetch and is checked separately in scripts, not here.)
+  const loadBundledCatalog = async (): Promise<CatalogPackage[]> => {
+    const { loadCatalog } = await import("../src/core/catalog.js");
+    return loadCatalog(
+      new URL("../catalog/packages.json", import.meta.url).pathname,
+    );
+  };
+
+  it("keeps every Stable and Power allowlist package present and installable", async () => {
+    const catalog = await loadBundledCatalog();
+    const byId = new Map(catalog.map((pkg) => [pkg.id, pkg]));
+    for (const [name, allowlist] of [
+      ["stable", STABLE_SKILL_ALLOWLIST],
+      ["power", POWER_SKILL_ALLOWLIST],
+    ] as const) {
+      for (const [packageId, skills] of Object.entries(allowlist)) {
+        const pkg = byId.get(packageId);
+        expect(
+          pkg,
+          `${name} allowlist package '${packageId}' missing from catalog`,
+        ).toBeDefined();
+        expect(pkg!.archived ?? false).toBe(false);
+        expect(
+          skills.length,
+          `${name} allowlist for '${packageId}' is empty`,
+        ).toBeGreaterThan(0);
+        expect(
+          new Set(skills).size,
+          `${name} allowlist for '${packageId}' has duplicates`,
+        ).toBe(skills.length);
+      }
+    }
+  });
+
+  it("only draws Stable from reviewed (stable/official) tiers", async () => {
+    const catalog = await loadBundledCatalog();
+    const byId = new Map(catalog.map((pkg) => [pkg.id, pkg]));
+    for (const packageId of Object.keys(STABLE_SKILL_ALLOWLIST)) {
+      const tier = byId.get(packageId)?.tier;
+      expect(
+        ["stable", "official"],
+        `Stable package '${packageId}' has tier '${tier}'`,
+      ).toContain(tier);
+    }
+  });
+});

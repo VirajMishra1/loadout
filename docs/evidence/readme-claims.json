@@ -140,8 +140,8 @@
       "evidenceClass": "structural",
       "status": "proven",
       "evidence": [
-        "src/core/benchmark-trust.ts",
-        "tests/benchmark-trust.test.ts",
+        "src/core/profiles.ts",
+        "tests/profiles.test.ts",
         "docs/CATALOG_POLICY.md"
       ]
     },
@@ -200,18 +200,6 @@
         "src/core/manifest.ts",
         "src/shared/schemas.ts",
         "tests/manifest.test.ts"
-      ]
-    },
-    {
-      "id": "benchmarks.protocol",
-      "section": "Development and verification",
-      "summary": "Benchmark planning and protocol artifacts do not by themselves prove a source is benchmarked.",
-      "evidenceClass": "structural",
-      "status": "bounded",
-      "evidence": [
-        "docs/EVALUATION_PROTOCOL_V1.md",
-        "src/core/benchmark-campaign.ts",
-        "tests/benchmark-campaign.test.ts"
       ]
     },
     {

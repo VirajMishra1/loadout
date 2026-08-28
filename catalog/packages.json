@@ -1124,7 +1124,8 @@
       "commit": "1e196b3d3c4dc70944e0d19038dd9eb3608b207a",
       "evidencePaths": ["src/server.ts", "package.json"],
       "verifiedAt": "2026-07-16T08:45:18Z"
-    }
+    },
+    "archived": true
   },
   {
     "id": "bright-data-mcp",

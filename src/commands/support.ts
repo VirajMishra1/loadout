@@ -1,7 +1,9 @@
 import { createInterface } from "node:readline/promises";
+import { createRequire } from "node:module";
 import { type InstallSelectionMode } from "../core/catalog.js";
 import { detectAgents, parseAgentSelection } from "../core/paths.js";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { type McpSetupRecipe } from "../core/mcp-recipes.js";
 import type { CredentialReference } from "../shared/types.js";
@@ -323,7 +325,17 @@ export async function runWizard(): Promise<void> {
   await runSetup({ package: [] });
 }
 
-export const LOADOUT_VERSION = "0.5.9";
+const _require = createRequire(import.meta.url);
+const _packageJsonPath = resolve(
+  dirname(fileURLToPath(import.meta.url)),
+  "..",
+  "..",
+  "..",
+  "package.json",
+);
+export const LOADOUT_VERSION: string = (
+  _require(_packageJsonPath) as { version: string }
+).version;
 
 export function durableSchedulerLauncher(): string[] {
   return [

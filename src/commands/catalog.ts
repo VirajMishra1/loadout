@@ -3,11 +3,15 @@ import {
   explainCatalogScore,
   loadEffectiveCatalog,
   loadCatalog,
+  promoteCatalogCandidate,
   rankCatalog,
   refreshCatalog,
+  validateCatalog,
 } from "../core/catalog.js";
 import { parseAgentSelection } from "../core/paths.js";
 import { resolve } from "node:path";
+import { readFile } from "node:fs/promises";
+import type { CatalogPackage } from "../shared/types.js";
 
 import {
   catalogTrustStage,
@@ -28,6 +32,7 @@ import { writeFileAtomically } from "../core/atomic-file.js";
 
 import {
   formatReviewQueue,
+  markPromoted,
   mergeReviewQueue,
   readReviewQueue,
   setReviewDecision,
@@ -376,6 +381,64 @@ export function registerCatalog(program: Command): void {
             "Proposal preview only. Human review is still required; use --approve --output <path> to persist it.",
           );
         else console.log(`Approved proposal written to ${output}.`);
+      },
+    );
+
+  candidate
+    .command("promote")
+    .allowExcessArguments(false)
+    .description(
+      "Merge a reviewed proposal into the local catalog; requires --approve",
+    )
+    .argument(
+      "<proposal>",
+      "proposal JSON file from `candidate propose --approve`",
+    )
+    .option("--approve", "confirm human review and write to catalog")
+    .option("--json", "emit machine-readable JSON")
+    .action(
+      async (
+        proposalPath: string,
+        options: { approve?: boolean; json?: boolean },
+      ) => {
+        const proposal: CatalogPackage = JSON.parse(
+          await readFile(resolve(proposalPath), "utf8"),
+        );
+        validateCatalog([proposal], { requireEvidence: true });
+        if (!options.approve) {
+          if (options.json)
+            return console.log(
+              JSON.stringify(
+                { proposal, promoted: false, catalogMutated: false },
+                null,
+                2,
+              ),
+            );
+          console.log(JSON.stringify(proposal, null, 2));
+          console.log(
+            "Preview only. Re-run with --approve to merge into the catalog.",
+          );
+          return;
+        }
+        const result = await promoteCatalogCandidate(proposal);
+        const item = await markPromoted(proposal.repository);
+        if (options.json)
+          return console.log(
+            JSON.stringify(
+              {
+                proposal,
+                promoted: true,
+                catalogMutated: true,
+                ...result,
+                reviewQueue: item,
+              },
+              null,
+              2,
+            ),
+          );
+        console.log(
+          `Promoted '${proposal.id}' into ${result.catalogPath} (${result.totalRecords} records). Review queue: ${item.repository} marked promoted.`,
+        );
       },
     );
 

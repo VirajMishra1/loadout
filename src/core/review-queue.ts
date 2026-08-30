@@ -8,7 +8,7 @@ import type { McpRegistryDiscoveryRecord } from "./mcp-registry-discovery.js";
 import { ensureDirectory, loadoutHome } from "./paths.js";
 import type { SkillsShDiscoveryRecord } from "./skills-sh-discovery.js";
 
-export type ReviewDecision = "pending" | "shortlisted" | "ignored";
+export type ReviewDecision = "pending" | "shortlisted" | "ignored" | "promoted";
 export type ReviewQueueSource =
   "github-search" | "hacker-news" | "skills-sh" | "official-mcp-registry";
 
@@ -67,7 +67,7 @@ function isQueue(value: unknown): value is ReviewQueue {
         item &&
         typeof item === "object" &&
         typeof (item as ReviewQueueItem).repository === "string" &&
-        ["pending", "shortlisted", "ignored"].includes(
+        ["pending", "shortlisted", "ignored", "promoted"].includes(
           (item as ReviewQueueItem).decision,
         ),
     )
@@ -167,7 +167,8 @@ function fromLead(
 function decisionPriority(decision: ReviewDecision): number {
   if (decision === "shortlisted") return 0;
   if (decision === "pending") return 1;
-  return 2;
+  if (decision === "ignored") return 2;
+  return 3;
 }
 
 function compareQueueItems(
@@ -282,6 +283,12 @@ export async function setReviewDecision(
   queue.updatedAt = new Date().toISOString();
   await writeFileAtomically(queuePath(), `${JSON.stringify(queue, null, 2)}\n`);
   return item;
+}
+
+export async function markPromoted(
+  repository: string,
+): Promise<ReviewQueueItem> {
+  return setReviewDecision(repository, "promoted");
 }
 
 export function formatReviewQueue(queue: ReviewQueue): string {

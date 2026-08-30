@@ -289,6 +289,33 @@ export async function refreshCatalog(
   };
 }
 
+/** Merge a human-approved proposal into the bundled catalog. */
+export async function promoteCatalogCandidate(
+  proposal: CatalogPackage,
+): Promise<{ catalogPath: string; totalRecords: number }> {
+  const catalogPath = bundledCatalogPath();
+  const current: CatalogPackage[] = JSON.parse(
+    await readFile(catalogPath, "utf8"),
+  );
+  if (current.some((pkg) => pkg.id === proposal.id))
+    throw new Error(`Catalog already contains id '${proposal.id}'`);
+  if (
+    current.some(
+      (pkg) =>
+        pkg.repository.toLowerCase() === proposal.repository.toLowerCase(),
+    )
+  )
+    throw new Error(
+      `Catalog already contains repository '${proposal.repository}'`,
+    );
+  const merged = [...current, proposal].sort((a, b) =>
+    a.id.localeCompare(b.id),
+  );
+  validateCatalog(merged, { requireEvidence: true });
+  await writeFile(catalogPath, `${JSON.stringify(merged, null, 2)}\n`);
+  return { catalogPath, totalRecords: merged.length };
+}
+
 export function rankCatalog(packages: CatalogPackage[]): CatalogPackage[] {
   return [...packages].sort(compareCatalogPackages);
 }

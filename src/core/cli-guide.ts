@@ -23,7 +23,7 @@ START HERE
 5. See reviewed MCP integrations and their credential needs
    loadout mcp-recipe
    loadout mcp-recipe --credential-free
-   loadout mcp-recipe playwright --agent codex
+   loadout mcp-recipe playwright --agent claude-code
 
 If you decide to install something, Loadout shows a preview first and creates a
 snapshot before changing managed files. Recover with: loadout rollback
@@ -42,14 +42,14 @@ loadout advanced
 export const ADVANCED_GUIDE = [
   "ADVANCED COMMANDS",
   "",
-  "These remain available, but are hidden from the first screen so daily use stays simple.",
+  "Hidden from the first screen so daily use stays focused.",
   "",
-  "Discovery and evidence: candidate, discover, review-queue, compare, evaluate, capabilities, skill-audit.",
-  "Manifests and sharing: init, add, unadd, lock, export, import, audit, create, pack, publish, share, card, badge.",
-  "Integrations and safety: mcp-recipe, mcp-config, codex-mcp-config, credentials, models, sandbox-run, canary, convert.",
-  "Lifecycle extras: plan, adopt, uninstall, profiles, versions, outcomes, improve, autopilot, tool, watch, schedule, unschedule, serve.",
+  "Discovery:    candidate, discover, review-queue, evaluate, skill-audit",
+  "Sharing:      init, lock, export, import, share, card, badge",
+  "Integrations: mcp-recipe, mcp-config, credentials, models, convert",
+  "Lifecycle:    plan, adopt, uninstall, profiles, autopilot, tool, watch",
   "",
-  "Use `loadout <command> --help` for exact options. Every mutation-capable command previews first or requires --yes.",
+  "`loadout <command> --help` for options. Mutations preview first or require --yes.",
 ].join("\n");
 
 /**

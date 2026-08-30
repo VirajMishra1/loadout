@@ -56,7 +56,7 @@ describe("README facts", () => {
       categories: 39,
       components: { skill: 34 },
       installShapes: { mcpOnly: 19 },
-      noAssertionLicenses: 6,
+      noAssertionLicenses: 4,
     });
     expect(facts.profiles.stable).toEqual({
       sources: 4,

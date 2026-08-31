@@ -81,8 +81,17 @@ export async function initHandoff(projectRoot: string): Promise<string> {
     "loadout handoff done <message-id>",
     "```",
     "",
-    "Agents read this directory on wake. Loadout manages the message log;",
-    "each agent's own CLAUDE.md / AGENTS.md can reference .handoff/ for pickup.",
+    "## Making agents read this",
+    "",
+    "A message log only helps if the other agent checks it. Run:",
+    "",
+    "```",
+    "loadout handoff pickup --yes",
+    "```",
+    "",
+    "That adds a managed block to CLAUDE.md and AGENTS.md telling each agent to",
+    "run `loadout handoff inbox <agent>` at session start and act on what it finds.",
+    "Only the block between the loadout:handoff markers is managed.",
     "",
   ].join("\n");
 
@@ -195,6 +204,151 @@ export async function getHandoffState(
     pending,
     done,
   };
+}
+
+// ---------------------------------------------------------------------------
+// Consumption — the half that makes a handoff more than an outbox
+// ---------------------------------------------------------------------------
+
+/** Pending tasks addressed to one agent, oldest first. */
+export async function readInbox(
+  projectRoot: string,
+  agent: string,
+): Promise<HandoffMessage[]> {
+  const state = await getHandoffState(projectRoot);
+  return state.pending.filter((m) => m.to === agent);
+}
+
+/**
+ * Render an agent's inbox as instructions the agent itself can act on. This is
+ * what `loadout handoff inbox` prints, and what the generated pickup block
+ * tells each agent to run, so the message log is consumed rather than merely
+ * written.
+ */
+export function formatInbox(agent: string, messages: HandoffMessage[]): string {
+  if (!messages.length) return `No pending handoff tasks for ${agent}.`;
+  const lines = [
+    `${messages.length} pending handoff task(s) for ${agent}:`,
+    "",
+  ];
+  for (const m of messages) {
+    lines.push(
+      `[${m.id}] from ${m.from} (${m.timestamp.slice(0, 16).replace("T", " ")})`,
+    );
+    lines.push(`  ${m.description}`);
+    if (m.context) lines.push(`  context: ${m.context}`);
+    lines.push(`  when finished: loadout handoff done ${m.id}`);
+    lines.push("");
+  }
+  lines.push(
+    "Work these in order. Mark each done as you complete it so the sender sees progress.",
+  );
+  return lines.join("\n");
+}
+
+const PICKUP_START = "<!-- loadout:handoff:start -->";
+const PICKUP_END = "<!-- loadout:handoff:end -->";
+
+/** The managed instruction block written into an agent's context file. */
+export function pickupBlock(agent: string): string {
+  return [
+    PICKUP_START,
+    "",
+    "## Handoff inbox",
+    "",
+    `At the start of a session, and whenever you finish a task, run:`,
+    "",
+    "```bash",
+    `loadout handoff inbox ${agent}`,
+    "```",
+    "",
+    "If it lists pending tasks, work them in order and run the `loadout handoff done`",
+    "command it prints for each one. If it reports none, continue as normal.",
+    "",
+    PICKUP_END,
+  ].join("\n");
+}
+
+export interface PickupPlan {
+  path: string;
+  agent: string;
+  exists: boolean;
+  /** True when a managed block is already present and would be replaced. */
+  replacing: boolean;
+  content: string;
+}
+
+/** Agent context files, relative to the project root. */
+const AGENT_CONTEXT_FILES: Record<string, string> = {
+  "claude-code": "CLAUDE.md",
+  codex: "AGENTS.md",
+};
+
+export function agentContextFile(agent: string): string {
+  const file = AGENT_CONTEXT_FILES[agent];
+  if (!file)
+    throw new Error(
+      `No known context file for agent '${agent}'. Supported: ${Object.keys(AGENT_CONTEXT_FILES).join(", ")}`,
+    );
+  return file;
+}
+
+/**
+ * Compute the new content for an agent's context file with the pickup block
+ * added or refreshed. Existing content is preserved; only the managed block
+ * between the markers is replaced.
+ */
+export async function planPickup(
+  projectRoot: string,
+  agent: string,
+): Promise<PickupPlan> {
+  const file = agentContextFile(agent);
+  const path = join(projectRoot, file);
+  const block = pickupBlock(agent);
+
+  let existing = "";
+  let exists = false;
+  try {
+    existing = await readFile(path, "utf8");
+    exists = true;
+  } catch {
+    // A missing context file is created with just the managed block.
+  }
+
+  const start = existing.indexOf(PICKUP_START);
+  const end = existing.indexOf(PICKUP_END);
+  const replacing = start !== -1 && end !== -1 && end > start;
+
+  const content = replacing
+    ? existing.slice(0, start) + block + existing.slice(end + PICKUP_END.length)
+    : exists
+      ? `${existing.replace(/\s*$/, "")}\n\n${block}\n`
+      : `${block}\n`;
+
+  return { path, agent, exists, replacing, content };
+}
+
+export async function applyPickup(plan: PickupPlan): Promise<void> {
+  await writeFileAtomically(plan.path, plan.content);
+}
+
+export function formatPickupPlan(plans: PickupPlan[]): string {
+  const lines = ["Handoff pickup instructions:", ""];
+  for (const plan of plans) {
+    const action = plan.replacing
+      ? "refresh managed block in"
+      : plan.exists
+        ? "append managed block to"
+        : "create";
+    lines.push(`  ${action} ${plan.path}`);
+  }
+  lines.push(
+    "",
+    "This teaches each agent to check its handoff inbox at session start.",
+    "Only the block between the loadout:handoff markers is managed; the rest of",
+    "each file is preserved.",
+  );
+  return lines.join("\n");
 }
 
 export function formatHandoffStatus(state: HandoffState): string {

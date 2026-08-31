@@ -23,11 +23,16 @@ import {
   type TaskPhase,
 } from "../core/route.js";
 import {
+  applyPickup,
   formatHandoffStatus,
+  formatInbox,
+  formatPickupPlan,
   getHandoffState,
   initHandoff,
   isHandoffInitialized,
   markDone,
+  planPickup,
+  readInbox,
   sendHandoff,
 } from "../core/handoff.js";
 
@@ -1080,6 +1085,52 @@ export function registerCatalog(program: Command): void {
         options.json
           ? JSON.stringify(message, null, 2)
           : `Marked ${id} as done`,
+      );
+    });
+
+  handoff
+    .command("inbox")
+    .description(
+      "Show pending tasks addressed to one agent, as instructions it can act on",
+    )
+    .argument("<agent>", "agent reading its inbox (e.g. claude-code, codex)")
+    .option("--json", "emit machine-readable JSON")
+    .action(async (agent: string, options: { json?: boolean }) => {
+      const messages = await readInbox(process.cwd(), agent);
+      console.log(
+        options.json
+          ? JSON.stringify(messages, null, 2)
+          : formatInbox(agent, messages),
+      );
+    });
+
+  handoff
+    .command("pickup")
+    .description(
+      "Teach agents to check their handoff inbox by adding a managed block to CLAUDE.md / AGENTS.md",
+    )
+    .option(
+      "--agents <ids>",
+      "comma-separated agents to instruct",
+      "claude-code,codex",
+    )
+    .option("--yes", "write the files after previewing")
+    .action(async (options: { agents: string; yes?: boolean }) => {
+      const agents = options.agents
+        .split(",")
+        .map((value) => value.trim())
+        .filter(Boolean);
+      const plans = [];
+      for (const agent of agents)
+        plans.push(await planPickup(process.cwd(), agent));
+      console.log(formatPickupPlan(plans));
+      if (!options.yes) {
+        console.log("\nPreview only. Re-run with --yes to write these files.");
+        return;
+      }
+      for (const plan of plans) await applyPickup(plan);
+      console.log(
+        `\nWrote pickup instructions for ${plans.length} agent(s). They will check their inbox on the next session.`,
       );
     });
 

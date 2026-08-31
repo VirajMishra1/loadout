@@ -1,13 +1,18 @@
 import { describe, expect, it, beforeEach } from "vitest";
-import { mkdtemp } from "node:fs/promises";
+import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import {
+  agentContextFile,
+  applyPickup,
   formatHandoffStatus,
+  formatInbox,
   getHandoffState,
   initHandoff,
   isHandoffInitialized,
   markDone,
+  planPickup,
+  readInbox,
   readMessages,
   sendHandoff,
 } from "../src/core/handoff.js";
@@ -75,5 +80,100 @@ describe("handoff", () => {
     expect(status).toContain("Pending (2)");
     expect(status).toContain("codex");
     expect(status).toContain("claude-code");
+  });
+
+  describe("inbox", () => {
+    it("returns only tasks addressed to the given agent", async () => {
+      await initHandoff(projectRoot);
+      await sendHandoff(projectRoot, "codex", "codex task");
+      await sendHandoff(projectRoot, "claude-code", "claude task");
+
+      const codexInbox = await readInbox(projectRoot, "codex");
+      expect(codexInbox).toHaveLength(1);
+      expect(codexInbox[0].description).toBe("codex task");
+    });
+
+    it("drops a task from the inbox once it is marked done", async () => {
+      await initHandoff(projectRoot);
+      const msg = await sendHandoff(projectRoot, "codex", "finish me");
+      expect(await readInbox(projectRoot, "codex")).toHaveLength(1);
+      await markDone(projectRoot, msg.id);
+      expect(await readInbox(projectRoot, "codex")).toHaveLength(0);
+    });
+
+    it("renders the done command for each pending task", async () => {
+      await initHandoff(projectRoot);
+      const msg = await sendHandoff(projectRoot, "codex", "write tests", {
+        context: "see auth.ts",
+      });
+      const output = formatInbox(
+        "codex",
+        await readInbox(projectRoot, "codex"),
+      );
+      expect(output).toContain("write tests");
+      expect(output).toContain("context: see auth.ts");
+      expect(output).toContain(`loadout handoff done ${msg.id}`);
+    });
+
+    it("reports an empty inbox plainly", () => {
+      expect(formatInbox("codex", [])).toContain("No pending handoff tasks");
+    });
+  });
+
+  describe("pickup", () => {
+    it("maps agents to their context files", () => {
+      expect(agentContextFile("claude-code")).toBe("CLAUDE.md");
+      expect(agentContextFile("codex")).toBe("AGENTS.md");
+      expect(() => agentContextFile("cursor")).toThrow(/No known context file/);
+    });
+
+    it("creates a context file that does not exist yet", async () => {
+      const plan = await planPickup(projectRoot, "codex");
+      expect(plan.exists).toBe(false);
+      expect(plan.replacing).toBe(false);
+      await applyPickup(plan);
+      const written = await readFile(join(projectRoot, "AGENTS.md"), "utf8");
+      expect(written).toContain("loadout handoff inbox codex");
+    });
+
+    it("appends to an existing context file without losing content", async () => {
+      await writeFile(
+        join(projectRoot, "CLAUDE.md"),
+        "# My Project\n\nExisting instructions.\n",
+        "utf8",
+      );
+      const plan = await planPickup(projectRoot, "claude-code");
+      expect(plan.exists).toBe(true);
+      expect(plan.replacing).toBe(false);
+      await applyPickup(plan);
+      const written = await readFile(join(projectRoot, "CLAUDE.md"), "utf8");
+      expect(written).toContain("Existing instructions.");
+      expect(written).toContain("loadout handoff inbox claude-code");
+    });
+
+    it("replaces the managed block instead of duplicating it", async () => {
+      await writeFile(join(projectRoot, "CLAUDE.md"), "# Keep me\n", "utf8");
+      await applyPickup(await planPickup(projectRoot, "claude-code"));
+      const second = await planPickup(projectRoot, "claude-code");
+      expect(second.replacing).toBe(true);
+      await applyPickup(second);
+
+      const written = await readFile(join(projectRoot, "CLAUDE.md"), "utf8");
+      expect(written.match(/loadout:handoff:start/g)).toHaveLength(1);
+      expect(written).toContain("# Keep me");
+    });
+
+    it("preserves user content written after the managed block", async () => {
+      await writeFile(join(projectRoot, "CLAUDE.md"), "# Top\n", "utf8");
+      await applyPickup(await planPickup(projectRoot, "claude-code"));
+      const withTrailer = `${await readFile(join(projectRoot, "CLAUDE.md"), "utf8")}\n## Notes after\n`;
+      await writeFile(join(projectRoot, "CLAUDE.md"), withTrailer, "utf8");
+
+      await applyPickup(await planPickup(projectRoot, "claude-code"));
+      const written = await readFile(join(projectRoot, "CLAUDE.md"), "utf8");
+      expect(written).toContain("# Top");
+      expect(written).toContain("## Notes after");
+      expect(written.match(/loadout:handoff:start/g)).toHaveLength(1);
+    });
   });
 });

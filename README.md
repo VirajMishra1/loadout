@@ -71,6 +71,20 @@ Loadout installed 4 repositories for 3 agent(s). Snapshot: <snapshot-id>
 
 $ loadout rollback
 Restored snapshot <snapshot-id>
+
+$ loadout route design the authentication system
+Phase:    plan
+Tier:     Frontier (deep reasoning)
+Models:   Claude Opus 5 ($5/$25)
+          GPT-5.6 Sol ($5/$30)
+Agents:   claude-code
+Why:      Architecture and decomposition need deep reasoning to avoid costly rework
+
+$ loadout doctor
+loadout doctor — HEALTHY
+Platform:   darwin
+State:      ~/.loadout ✓ writable
+Agents:     3 detected, 9 available
 ```
 
 The final preview sentence above is captured CLI wording. A later `--yes` invocation recomputes the plan from pinned sources and current agent and filesystem state; it does not persist or prove identity with the earlier preview.
@@ -400,12 +414,16 @@ Start at the top and stop whenever Loadout does everything you need.
 |       12 | Shows candidates waiting for deeper review                      | `loadout review-queue`                                       |
 |       13 | Lists MCP recipes and credential needs                          | `loadout mcp-recipe`; `loadout mcp-recipe --credential-free` |
 |       14 | Previews an MCP configuration                                   | `loadout mcp-recipe playwright --agent claude-code`          |
-|       15 | Lists and installs isolated runtime tools such as Graphify      | `loadout tool`; `loadout tool graphify`                      |
-|       16 | Lists snapshots or restores the latest managed change           | `loadout rollback --list`; `loadout rollback`                |
-|       17 | Previews removal of one managed package                         | `loadout remove <package-id>`                                |
-|       18 | Previews complete removal of Loadout-managed state              | `loadout uninstall`                                          |
-|       19 | Enables read-only daily discovery and update checks             | `loadout autopilot --yes`                                    |
-|       20 | Shows the complete CLI                                          | `loadout --help`; `loadout advanced`                         |
+|       15 | Recommends the right model and agent for a task                 | `loadout route design the auth system`                       |
+|       16 | Shows the full model catalog with pricing                       | `loadout route --models`; `loadout route --cost`             |
+|       17 | Sends a task to another agent via file-based handoff            | `loadout handoff send codex "write tests for auth"`          |
+|       18 | Checks agent health, permissions, and setup                     | `loadout doctor`; `loadout doctor --verbose`                 |
+|       19 | Lists and installs isolated runtime tools such as Graphify      | `loadout tool`; `loadout tool graphify`                      |
+|       20 | Lists snapshots or restores the latest managed change           | `loadout rollback --list`; `loadout rollback`                |
+|       21 | Previews removal of one managed package                         | `loadout remove <package-id>`                                |
+|       22 | Previews complete removal of Loadout-managed state              | `loadout uninstall`                                          |
+|       23 | Enables read-only daily discovery and update checks             | `loadout autopilot --yes`                                    |
+|       24 | Shows the complete CLI                                          | `loadout --help`; `loadout advanced`                         |
 
 Most mutating commands are dry runs first. After reading the preview, add `--yes` to
 apply. Commands with executable or connection risk require the additional approval
@@ -415,9 +433,8 @@ shown in their output.
 
 Loadout was designed and built by [Viraj Mishra](https://github.com/VirajMishra1) with Claude Code.
 
-Loadout itself does **not** call any LLM API and does not require an OpenAI or
-Anthropic API key to manage skills. Claude helped build the tool; it is not a hidden
-runtime dependency.
+Loadout itself does **not** call any LLM API and does not require an LLM API key
+to manage skills. Claude helped build the tool; it is not a hidden runtime dependency.
 
 ## Development
 

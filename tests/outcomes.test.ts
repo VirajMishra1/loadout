@@ -6,7 +6,7 @@ import {
   outcomeAdjustment,
   readLocalOutcomes,
   recordLocalOutcome,
-} from "../src/core/outcomes.js";
+} from "../src/core/workspace/outcomes.js";
 
 describe("privacy-safe local outcomes", () => {
   let root = "";

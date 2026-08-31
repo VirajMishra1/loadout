@@ -6,7 +6,7 @@ import {
   buildAdapterCapabilityGaps,
   compatibilityRule,
   formatCapabilityMatrix,
-} from "../src/core/adapters.js";
+} from "../src/core/agents/adapters.js";
 import type { AgentId, ComponentType } from "../src/shared/types.js";
 
 describe("adapter conformance declarations", () => {

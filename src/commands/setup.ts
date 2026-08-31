@@ -1,19 +1,19 @@
 import { Command } from "commander";
 
-import { parseAgentSelection } from "../core/paths.js";
+import { parseAgentSelection } from "../core/agents/paths.js";
 
-import { formatHealthReport } from "../core/health.js";
+import { formatHealthReport } from "../core/reporting/health.js";
 
 import {
   applyUpgrade,
   formatUpgradePlan,
   planUpgrade,
   summarizeUpgradePlan,
-} from "../core/upgrade.js";
+} from "../core/reporting/upgrade.js";
 
-import { parseModelApiAccess } from "../core/access.js";
+import { parseModelApiAccess } from "../core/routing/access.js";
 
-import { ADVANCED_GUIDE } from "../core/cli-guide.js";
+import { ADVANCED_GUIDE } from "../core/reporting/cli-guide.js";
 import {
   collectOption,
   setupSelection,

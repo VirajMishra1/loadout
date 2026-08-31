@@ -1,17 +1,17 @@
 import { Command } from "commander";
 
-import { userHome } from "../core/paths.js";
+import { userHome } from "../core/agents/paths.js";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
-import { fetchRepositorySnapshot } from "../core/source.js";
+import { fetchRepositorySnapshot } from "../core/install/source.js";
 import {
   discoverMcpManifests,
   summarizeMcpManifest,
   planMcpConfig,
   summarizeMcpConfigPlan,
   applyMcpConfigPlan,
-} from "../core/mcp.js";
+} from "../core/runtime/mcp.js";
 import {
   REVIEWED_MCP_RECIPES,
   buildMcpRecipeServer,
@@ -20,33 +20,42 @@ import {
   planMcpRecipe,
   verifyMcpRecipe,
   verifyMcpRecipeConnection,
-} from "../core/mcp-recipes.js";
+} from "../core/runtime/mcp-recipes.js";
 import type { McpServer } from "../shared/types.js";
 
-import { inspectPackage, formatPackageInspection } from "../core/package.js";
+import {
+  inspectPackage,
+  formatPackageInspection,
+} from "../core/install/package.js";
 
 import {
   installStatePath,
   recordInstallTransaction,
   recordMcpInstall,
-} from "../core/state.js";
+} from "../core/workspace/state.js";
 
 import {
   applyCodexMcpConfigPlan,
   codexMcpServerFingerprint,
   defaultCodexMcpConfigPath,
   planCodexMcpConfig,
-} from "../core/codex-mcp.js";
+} from "../core/agents/codex-mcp.js";
 
-import { evaluatePackage, formatPackageEvaluation } from "../core/evaluate.js";
-import { checkForUpdates, startUpdateWatcher } from "../core/update-watch.js";
+import {
+  evaluatePackage,
+  formatPackageEvaluation,
+} from "../core/discovery/evaluate.js";
+import {
+  checkForUpdates,
+  startUpdateWatcher,
+} from "../core/install/update-watch.js";
 
 import {
   applyNativeScheduler,
   formatNativeScheduler,
   planNativeScheduler,
   type SchedulerAction,
-} from "../core/scheduler.js";
+} from "../core/runtime/scheduler.js";
 
 import {
   collectOption,

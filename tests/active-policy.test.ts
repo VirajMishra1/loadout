@@ -7,12 +7,12 @@ import {
   applyProjectActivation,
   formatProjectActivation,
   planProjectActivation,
-} from "../src/core/active-policy.js";
+} from "../src/core/workspace/active-policy.js";
 import {
   activationLibraryPath,
   readInstallState,
   writeInstallState,
-} from "../src/core/state.js";
+} from "../src/core/workspace/state.js";
 import type { ManagedActivationRecord } from "../src/shared/types.js";
 
 describe("project-aware active-set policy", () => {

@@ -21,7 +21,7 @@
       "status": "proven",
       "evidence": [
         "catalog/packages.json",
-        "src/core/catalog-coverage.ts",
+        "src/core/catalog/catalog-coverage.ts",
         "tests/catalog-coverage.test.ts"
       ]
     },
@@ -31,7 +31,7 @@
       "summary": "Stable selection is defined by the checked-in policy and allowlist.",
       "evidenceClass": "policy-selected",
       "status": "proven",
-      "evidence": ["src/core/profiles.ts", "tests/profiles.test.ts"]
+      "evidence": ["src/core/catalog/profiles.ts", "tests/profiles.test.ts"]
     },
     {
       "id": "selection.power",
@@ -39,7 +39,7 @@
       "summary": "Power selection is defined by the checked-in policy and allowlist.",
       "evidenceClass": "policy-selected",
       "status": "proven",
-      "evidence": ["src/core/profiles.ts", "tests/profiles.test.ts"]
+      "evidence": ["src/core/catalog/profiles.ts", "tests/profiles.test.ts"]
     },
     {
       "id": "selection.maximum",
@@ -47,7 +47,10 @@
       "summary": "Maximum selection keeps optional components in Loadout's managed library rather than activating every component.",
       "evidenceClass": "integration-verified",
       "status": "bounded",
-      "evidence": ["src/core/active-set.ts", "tests/active-set.test.ts"]
+      "evidence": [
+        "src/core/workspace/active-set.ts",
+        "tests/active-set.test.ts"
+      ]
     },
     {
       "id": "agents.support",
@@ -56,7 +59,7 @@
       "evidenceClass": "integration-verified",
       "status": "bounded",
       "evidence": [
-        "src/core/adapters.ts",
+        "src/core/agents/adapters.ts",
         "tests/adapters.test.ts",
         "tests/adapter-conformance.test.ts"
       ]
@@ -79,7 +82,7 @@
       "evidenceClass": "integration-verified",
       "status": "proven",
       "evidence": [
-        "src/core/install.ts",
+        "src/core/install/install.ts",
         "tests/transaction.test.ts",
         "tests/install.test.ts"
       ]
@@ -90,7 +93,7 @@
       "summary": "Update workflows present a bounded local plan before an explicit apply step.",
       "evidenceClass": "integration-verified",
       "status": "proven",
-      "evidence": ["src/core/update.ts", "tests/update.test.ts"]
+      "evidence": ["src/core/install/update.ts", "tests/update.test.ts"]
     },
     {
       "id": "updates.saved-profile",
@@ -99,8 +102,8 @@
       "evidenceClass": "integration-verified",
       "status": "proven",
       "evidence": [
-        "src/core/profile-state.ts",
-        "src/core/update.ts",
+        "src/core/workspace/profile-state.ts",
+        "src/core/install/update.ts",
         "tests/profile-state.test.ts",
         "tests/update.test.ts"
       ]
@@ -111,7 +114,7 @@
       "summary": "Managed installation treats recursively empty leftover skill directories as unoccupied while retaining collision protection for files and symlinks.",
       "evidenceClass": "integration-verified",
       "status": "proven",
-      "evidence": ["src/core/install.ts", "tests/install.test.ts"]
+      "evidence": ["src/core/install/install.ts", "tests/install.test.ts"]
     },
     {
       "id": "rollback.snapshot",
@@ -120,7 +123,7 @@
       "evidenceClass": "integration-verified",
       "status": "proven",
       "evidence": [
-        "src/core/snapshot.ts",
+        "src/core/install/snapshot.ts",
         "tests/snapshot.test.ts",
         "tests/transaction.test.ts"
       ]
@@ -131,7 +134,7 @@
       "summary": "Recommendations expose bounded repository and local evidence rather than universal quality claims.",
       "evidenceClass": "unit-verified",
       "status": "bounded",
-      "evidence": ["src/core/recommend.ts", "tests/recommend.test.ts"]
+      "evidence": ["src/core/workspace/recommend.ts", "tests/recommend.test.ts"]
     },
     {
       "id": "trust.stages",
@@ -140,7 +143,7 @@
       "evidenceClass": "structural",
       "status": "proven",
       "evidence": [
-        "src/core/profiles.ts",
+        "src/core/catalog/profiles.ts",
         "tests/profiles.test.ts",
         "docs/CATALOG_POLICY.md"
       ]
@@ -152,7 +155,7 @@
       "evidenceClass": "integration-verified",
       "status": "proven",
       "evidence": [
-        "src/core/github-discovery.ts",
+        "src/core/discovery/github-discovery.ts",
         "tests/daily-discovery.test.ts",
         "tests/review-queue.test.ts"
       ]
@@ -177,7 +180,7 @@
       "status": "proven",
       "evidence": [
         "src/cli.ts",
-        "src/core/mcp-recipes.ts",
+        "src/core/runtime/mcp-recipes.ts",
         "tests/cli-help.test.ts",
         "tests/mcp-recipes.test.ts"
       ]
@@ -188,7 +191,7 @@
       "summary": "MCP configuration uses explicit plans and keeps credentials outside persisted shared manifests.",
       "evidenceClass": "integration-verified",
       "status": "proven",
-      "evidence": ["src/core/mcp.ts", "tests/mcp-config.test.ts"]
+      "evidence": ["src/core/runtime/mcp.ts", "tests/mcp-config.test.ts"]
     },
     {
       "id": "manifests.portability",
@@ -197,7 +200,7 @@
       "evidenceClass": "structural",
       "status": "proven",
       "evidence": [
-        "src/core/manifest.ts",
+        "src/core/workspace/manifest.ts",
         "src/shared/schemas.ts",
         "tests/manifest.test.ts"
       ]
@@ -209,8 +212,8 @@
       "evidenceClass": "integration-verified",
       "status": "bounded",
       "evidence": [
-        "src/core/uninstall.ts",
-        "src/core/remove.ts",
+        "src/core/install/uninstall.ts",
+        "src/core/install/remove.ts",
         "tests/uninstall.test.ts"
       ]
     },

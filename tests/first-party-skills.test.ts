@@ -12,7 +12,7 @@ import {
   formatFirstPartySkillPlan,
   planFirstPartySkill,
   removeFirstPartySkill,
-} from "../src/core/first-party-skills.js";
+} from "../src/core/routing/first-party-skills.js";
 
 function agent(
   id: DetectedAgent["id"],

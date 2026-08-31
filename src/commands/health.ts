@@ -1,10 +1,13 @@
 import { Command } from "commander";
 
-import { parseAgentSelection } from "../core/paths.js";
+import { parseAgentSelection } from "../core/agents/paths.js";
 
-import { buildUpdatePlan } from "../core/update.js";
+import { buildUpdatePlan } from "../core/install/update.js";
 
-import { buildHealthReport, formatHealthReport } from "../core/health.js";
+import {
+  buildHealthReport,
+  formatHealthReport,
+} from "../core/reporting/health.js";
 
 import {
   buildFreshnessAlerts,
@@ -13,10 +16,10 @@ import {
   pinReplacement,
   readReplacementPins,
   unpinReplacement,
-} from "../core/freshness-alerts.js";
+} from "../core/reporting/freshness-alerts.js";
 
-import { formatAgentHealthScore } from "../core/agent-health-score.js";
-import { buildLocalAgentHealthScores } from "../core/health-score-evidence.js";
+import { formatAgentHealthScore } from "../core/agents/agent-health-score.js";
+import { buildLocalAgentHealthScores } from "../core/agents/health-score-evidence.js";
 
 export function registerHealth(program: Command): void {
   program

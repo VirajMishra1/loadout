@@ -21,8 +21,8 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const FRESHNESS_WINDOW_DAYS = Number(process.env.LOADOUT_FRESHNESS_DAYS ?? 180);
 
 const [{ loadCatalog }, { fetchGitHubMetadata }] = await Promise.all([
-  import("../dist/src/core/catalog.js"),
-  import("../dist/src/core/github.js"),
+  import("../dist/src/core/catalog/catalog.js"),
+  import("../dist/src/core/runtime/github.js"),
 ]);
 
 function networkUnavailable(error) {

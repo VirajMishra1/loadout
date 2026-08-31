@@ -11,7 +11,7 @@ import {
   readManifest,
   removeManifestPackage,
   writeLockfile,
-} from "../src/core/manifest.js";
+} from "../src/core/workspace/manifest.js";
 
 describe("manifest and lockfile", () => {
   const roots: string[] = [];

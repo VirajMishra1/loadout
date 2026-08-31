@@ -2,10 +2,10 @@ import { afterEach, describe, expect, it } from "vitest";
 import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { planAdapterSkillInstall } from "../src/core/adapters.js";
-import { applySkillInstall } from "../src/core/install.js";
-import { applyRemove, planRemove } from "../src/core/remove.js";
-import { agentSkillsDirectory } from "../src/core/paths.js";
+import { planAdapterSkillInstall } from "../src/core/agents/adapters.js";
+import { applySkillInstall } from "../src/core/install/install.js";
+import { applyRemove, planRemove } from "../src/core/install/remove.js";
+import { agentSkillsDirectory } from "../src/core/agents/paths.js";
 import type { AgentId, DetectedAgent } from "../src/shared/types.js";
 
 const ADAPTERS: Array<{ id: AgentId; displayName: string }> = [

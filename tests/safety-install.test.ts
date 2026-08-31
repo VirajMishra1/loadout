@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { analyzeInstallPlanSafety } from "../src/core/safety.js";
+import { analyzeInstallPlanSafety } from "../src/core/catalog/safety.js";
 
 describe("first-install safety", () => {
   let root = "";

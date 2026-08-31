@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { loadCatalog } from "../src/core/catalog.js";
+import { loadCatalog } from "../src/core/catalog/catalog.js";
 import {
   buildCatalogCoverage,
   formatCatalogCoverage,
-} from "../src/core/catalog-coverage.js";
+} from "../src/core/catalog/catalog-coverage.js";
 
 describe("catalog capability coverage", () => {
   it("reports the bundled evidence, capability, and overlap truth", async () => {

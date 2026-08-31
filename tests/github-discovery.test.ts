@@ -3,7 +3,7 @@ import {
   defaultGitHubDiscoveryQuery,
   defaultGitHubDiscoveryQueries,
   discoverGitHubRepositories,
-} from "../src/core/github-discovery.js";
+} from "../src/core/discovery/github-discovery.js";
 
 describe("GitHub public repository discovery", () => {
   it("uses a rolling six-month default window", () => {

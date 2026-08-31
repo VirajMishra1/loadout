@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { compileConversion } from "../src/core/conversion.js";
+import { compileConversion } from "../src/core/agents/conversion.js";
 
 describe("loss-reported static conversion", () => {
   it("converts a subagent prompt into a reviewable Codex skill", () => {

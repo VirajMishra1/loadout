@@ -5,7 +5,7 @@ import {
   buildAgentHealthScore,
   formatAgentHealthScore,
   type AgentHealthDimensionId,
-} from "../src/core/agent-health-score.js";
+} from "../src/core/agents/agent-health-score.js";
 import {
   agentHealthAdversarialFixtures,
   driftedHealthEvidence,

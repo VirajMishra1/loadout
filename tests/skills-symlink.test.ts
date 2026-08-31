@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { discoverSkillDirectories } from "../src/core/skills.js";
+import { discoverSkillDirectories } from "../src/core/catalog/skills.js";
 
 async function skillPackage(name: string): Promise<string> {
   const parent = await mkdtemp(join(tmpdir(), "loadout-skills-symlink-"));

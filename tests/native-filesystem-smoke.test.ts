@@ -9,15 +9,18 @@ import {
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { ADAPTER_CAPABILITIES } from "../src/core/adapters.js";
+import { ADAPTER_CAPABILITIES } from "../src/core/agents/adapters.js";
 import {
   applyActivationChange,
   planActivationChange,
-} from "../src/core/active-set.js";
-import { applySkillInstall, buildSkillPlan } from "../src/core/install.js";
-import { agentSkillsDirectory } from "../src/core/paths.js";
-import { applyRemove, planRemove } from "../src/core/remove.js";
-import { readInstallState } from "../src/core/state.js";
+} from "../src/core/workspace/active-set.js";
+import {
+  applySkillInstall,
+  buildSkillPlan,
+} from "../src/core/install/install.js";
+import { agentSkillsDirectory } from "../src/core/agents/paths.js";
+import { applyRemove, planRemove } from "../src/core/install/remove.js";
+import { readInstallState } from "../src/core/workspace/state.js";
 import type { DetectedAgent } from "../src/shared/types.js";
 
 const originalLoadoutHome = process.env.LOADOUT_HOME;

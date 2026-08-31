@@ -7,7 +7,7 @@ import type { DetectedAgent } from "../src/shared/types.js";
 import {
   formatInstalledSkillInventory,
   scanInstalledSkills,
-} from "../src/core/skill-inventory.js";
+} from "../src/core/catalog/skill-inventory.js";
 
 describe("existing skill inventory", () => {
   const originalLoadoutHome = process.env.LOADOUT_HOME;

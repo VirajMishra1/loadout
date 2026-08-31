@@ -1,0 +1,303 @@
+import { readFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
+import type { CatalogPackage } from "../../shared/types.js";
+import { writeFileAtomically } from "../install/atomic-file.js";
+import type { CommunityRepositoryCandidate } from "./community.js";
+import type { GitHubRepositoryLead } from "./github-discovery.js";
+import type { McpRegistryDiscoveryRecord } from "./mcp-registry-discovery.js";
+import { ensureDirectory, loadoutHome } from "../agents/paths.js";
+import type { SkillsShDiscoveryRecord } from "./skills-sh-discovery.js";
+
+export type ReviewDecision = "pending" | "shortlisted" | "ignored" | "promoted";
+export type ReviewQueueSource =
+  "github-search" | "hacker-news" | "skills-sh" | "official-mcp-registry";
+
+export type ReviewQueueLead =
+  | GitHubRepositoryLead
+  | CommunityRepositoryCandidate
+  | SkillsShDiscoveryRecord
+  | McpRegistryDiscoveryRecord;
+
+export interface ReviewQueueItem {
+  repository: string;
+  url: string;
+  title: string;
+  description: string;
+  sources: ReviewQueueSource[];
+  firstSeenAt: string;
+  lastSeenAt: string;
+  decision: ReviewDecision;
+  alreadyCataloged: boolean;
+  stars?: number;
+  /** Observed star change per day; absent until observations are at least a day apart. */
+  starVelocity?: number;
+  /** Actual interval used for starVelocity, retained so the rate is auditable. */
+  starVelocityWindowDays?: number;
+  starVelocityMeasuredAt?: string;
+  /** Persisted measurement baseline; sub-day refreshes do not move it forward. */
+  starVelocityBaselineStars?: number;
+  starVelocityBaselineAt?: string;
+  forks?: number;
+  repositoryCreatedAt?: string;
+  repositoryUpdatedAt?: string;
+  communityScore?: number;
+  discussionUrl?: string;
+  installs?: number;
+  registryVersion?: string;
+  lifecycleStatus?: string;
+}
+
+export interface ReviewQueue {
+  schemaVersion: 1;
+  updatedAt: string;
+  items: ReviewQueueItem[];
+}
+
+const queuePath = (): string => join(loadoutHome(), "review-queue.json");
+
+function isQueue(value: unknown): value is ReviewQueue {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const record = value as Record<string, unknown>;
+  return (
+    record.schemaVersion === 1 &&
+    typeof record.updatedAt === "string" &&
+    Array.isArray(record.items) &&
+    record.items.every(
+      (item) =>
+        item &&
+        typeof item === "object" &&
+        typeof (item as ReviewQueueItem).repository === "string" &&
+        ["pending", "shortlisted", "ignored", "promoted"].includes(
+          (item as ReviewQueueItem).decision,
+        ),
+    )
+  );
+}
+
+export async function readReviewQueue(): Promise<ReviewQueue> {
+  try {
+    const value: unknown = JSON.parse(await readFile(queuePath(), "utf8"));
+    if (!isQueue(value)) throw new Error("review queue schema is invalid");
+    return value;
+  } catch (error) {
+    if (
+      error &&
+      typeof error === "object" &&
+      "code" in error &&
+      (error as { code?: string }).code === "ENOENT"
+    )
+      return {
+        schemaVersion: 1,
+        updatedAt: new Date(0).toISOString(),
+        items: [],
+      };
+    throw new Error(
+      `Loadout review queue is invalid at ${queuePath()}: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+}
+
+function fromLead(
+  lead: ReviewQueueLead,
+  now: string,
+  cataloged: Set<string>,
+): ReviewQueueItem | undefined {
+  if (lead.source === "github-search")
+    return {
+      repository: lead.repository,
+      url: lead.url,
+      title: lead.title,
+      description: lead.description,
+      sources: [lead.source],
+      firstSeenAt: now,
+      lastSeenAt: now,
+      decision: "pending",
+      alreadyCataloged: cataloged.has(lead.repository.toLowerCase()),
+      stars: lead.stars,
+      starVelocityBaselineStars: lead.stars,
+      starVelocityBaselineAt: now,
+      forks: lead.forks,
+      repositoryCreatedAt: lead.createdAt,
+      repositoryUpdatedAt: lead.updatedAt,
+    };
+  if (lead.source === "hacker-news")
+    return {
+      repository: lead.repository,
+      url: lead.storyUrl,
+      title: lead.title,
+      description: "",
+      sources: [lead.source],
+      firstSeenAt: now,
+      lastSeenAt: now,
+      decision: "pending",
+      alreadyCataloged: cataloged.has(lead.repository.toLowerCase()),
+      communityScore: lead.score,
+      discussionUrl: lead.discussionUrl,
+    };
+  if (lead.source === "skills-sh" && lead.repository)
+    return {
+      repository: lead.repository.repository,
+      url: lead.repository.url,
+      title: lead.name,
+      description: lead.ranking.meaning,
+      sources: [lead.source],
+      firstSeenAt: now,
+      lastSeenAt: now,
+      decision: "pending",
+      alreadyCataloged: cataloged.has(lead.repository.repository.toLowerCase()),
+      installs: lead.installs,
+    };
+  if (lead.source === "official-mcp-registry" && lead.repository?.repository)
+    return {
+      repository: lead.repository.repository,
+      url: lead.repository.url,
+      title: lead.title ?? lead.name,
+      description: lead.description,
+      sources: [lead.source],
+      firstSeenAt: now,
+      lastSeenAt: now,
+      decision: "pending",
+      alreadyCataloged: cataloged.has(lead.repository.repository.toLowerCase()),
+      registryVersion: lead.version,
+      lifecycleStatus: lead.verification.lifecycleStatus,
+    };
+  return undefined;
+}
+
+function decisionPriority(decision: ReviewDecision): number {
+  if (decision === "shortlisted") return 0;
+  if (decision === "pending") return 1;
+  if (decision === "ignored") return 2;
+  return 3;
+}
+
+function compareQueueItems(
+  left: ReviewQueueItem,
+  right: ReviewQueueItem,
+): number {
+  return (
+    Number(left.alreadyCataloged) - Number(right.alreadyCataloged) ||
+    decisionPriority(left.decision) - decisionPriority(right.decision) ||
+    (right.starVelocity ?? Number.NEGATIVE_INFINITY) -
+      (left.starVelocity ?? Number.NEGATIVE_INFINITY) ||
+    (right.stars ?? right.communityScore ?? 0) -
+      (left.stars ?? left.communityScore ?? 0) ||
+    left.repository.localeCompare(right.repository)
+  );
+}
+
+/** Merge read-only discovery leads; this never promotes or installs a candidate. */
+export async function mergeReviewQueue(
+  leads: ReviewQueueLead[],
+  catalog: CatalogPackage[],
+  now = new Date(),
+): Promise<ReviewQueue> {
+  const current = await readReviewQueue();
+  const timestamp = now.toISOString();
+  const cataloged = new Set(
+    catalog.map((item) => item.repository.toLowerCase()),
+  );
+  const items = new Map(
+    current.items.map((item) => [item.repository.toLowerCase(), item]),
+  );
+  for (const lead of leads) {
+    const incoming = fromLead(lead, timestamp, cataloged);
+    if (!incoming) continue;
+    const key = incoming.repository.toLowerCase();
+    const existing = items.get(key);
+    let velocityEvidence: Partial<ReviewQueueItem> = {};
+    if (
+      existing &&
+      incoming.stars !== undefined &&
+      existing.stars !== undefined
+    ) {
+      const baselineStars =
+        existing.starVelocityBaselineStars ?? existing.stars;
+      const baselineAt = existing.starVelocityBaselineAt ?? existing.lastSeenAt;
+      const elapsedDays = (now.getTime() - Date.parse(baselineAt)) / 86_400_000;
+      if (Number.isFinite(elapsedDays) && elapsedDays >= 1) {
+        velocityEvidence = {
+          starVelocity: (incoming.stars - baselineStars) / elapsedDays,
+          starVelocityWindowDays: elapsedDays,
+          starVelocityMeasuredAt: timestamp,
+          starVelocityBaselineStars: incoming.stars,
+          starVelocityBaselineAt: timestamp,
+        };
+      } else if (Number.isFinite(elapsedDays) && elapsedDays > 0) {
+        velocityEvidence = {
+          starVelocity: existing.starVelocity,
+          starVelocityWindowDays: existing.starVelocityWindowDays,
+          starVelocityMeasuredAt: existing.starVelocityMeasuredAt,
+          starVelocityBaselineStars: baselineStars,
+          starVelocityBaselineAt: baselineAt,
+        };
+      } else {
+        velocityEvidence = {
+          starVelocity: existing.starVelocity,
+          starVelocityWindowDays: existing.starVelocityWindowDays,
+          starVelocityMeasuredAt: existing.starVelocityMeasuredAt,
+          starVelocityBaselineStars: incoming.stars,
+          starVelocityBaselineAt: timestamp,
+        };
+      }
+    }
+    items.set(
+      key,
+      existing
+        ? {
+            ...existing,
+            ...incoming,
+            sources: [...new Set([...existing.sources, ...incoming.sources])],
+            firstSeenAt: existing.firstSeenAt,
+            decision: existing.decision,
+            ...velocityEvidence,
+          }
+        : incoming,
+    );
+  }
+  const queue: ReviewQueue = {
+    schemaVersion: 1,
+    updatedAt: timestamp,
+    items: [...items.values()].sort(compareQueueItems),
+  };
+  await ensureDirectory(dirname(queuePath()));
+  await writeFileAtomically(queuePath(), `${JSON.stringify(queue, null, 2)}\n`);
+  return queue;
+}
+
+export async function setReviewDecision(
+  repository: string,
+  decision: ReviewDecision,
+): Promise<ReviewQueueItem> {
+  const queue = await readReviewQueue();
+  const item = queue.items.find(
+    (candidate) =>
+      candidate.repository.toLowerCase() === repository.toLowerCase(),
+  );
+  if (!item)
+    throw new Error(
+      `Repository is not in the review queue: ${repository}. Run loadout discover --queue first.`,
+    );
+  item.decision = decision;
+  queue.items.sort(compareQueueItems);
+  queue.updatedAt = new Date().toISOString();
+  await writeFileAtomically(queuePath(), `${JSON.stringify(queue, null, 2)}\n`);
+  return item;
+}
+
+export async function markPromoted(
+  repository: string,
+): Promise<ReviewQueueItem> {
+  return setReviewDecision(repository, "promoted");
+}
+
+export function formatReviewQueue(queue: ReviewQueue): string {
+  const visible = queue.items.filter((item) => !item.alreadyCataloged);
+  return [
+    `Review queue: ${visible.length} uncataloged candidate(s), ${queue.items.length - visible.length} already cataloged`,
+    ...visible.map(
+      (item) =>
+        `${item.decision === "shortlisted" ? "★" : item.decision === "ignored" ? "×" : "○"} ${item.repository} — ${item.stars !== undefined ? `${item.stars} stars${item.starVelocity !== undefined ? ` (${item.starVelocity >= 0 ? "+" : ""}${item.starVelocity.toFixed(1)}/day over ${item.starVelocityWindowDays?.toFixed(2) ?? "unknown"} days)` : ""}` : item.installs !== undefined ? `${item.installs} skills.sh installs` : item.registryVersion ? `MCP ${item.registryVersion} (${item.lifecycleStatus ?? "unknown"})` : `community score ${item.communityScore ?? 0}`} — ${item.sources.join("+")}`,
+    ),
+  ].join("\n");
+}

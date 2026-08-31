@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
-import type { AgentHealthScore } from "../src/core/agent-health-score.js";
+import type { AgentHealthScore } from "../src/core/agents/agent-health-score.js";
 import {
   buildLoadoutCard,
   compareLoadoutReports,
   formatLoadoutCard,
-} from "../src/core/loadout-card.js";
-import type { PrivacySafeLoadoutReport } from "../src/core/share-report.js";
+} from "../src/core/reporting/loadout-card.js";
+import type { PrivacySafeLoadoutReport } from "../src/core/reporting/share-report.js";
 
 const report = (activeSkills: number): PrivacySafeLoadoutReport => ({
   schemaVersion: 1,

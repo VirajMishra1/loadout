@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Network guard against silent mode-allowlist rot.
 //
-// The Stable/Power allowlists in src/core/profiles.ts name specific skills by
+// The Stable/Power allowlists in src/core/catalog/profiles.ts name specific skills by
 // their SKILL.md `name` (or directory name). If an upstream repository renames
 // or removes one of those skills at a newer commit, the mode quietly installs
 // fewer skills with no error. This check fetches each allowlist package at its
@@ -25,10 +25,10 @@ const [
   { discoverSkillDirectories },
   profiles,
 ] = await Promise.all([
-  import("../dist/src/core/catalog.js"),
-  import("../dist/src/core/source.js"),
-  import("../dist/src/core/skills.js"),
-  import("../dist/src/core/profiles.js"),
+  import("../dist/src/core/catalog/catalog.js"),
+  import("../dist/src/core/install/source.js"),
+  import("../dist/src/core/catalog/skills.js"),
+  import("../dist/src/core/catalog/profiles.js"),
 ]);
 
 const { STABLE_SKILL_ALLOWLIST, POWER_SKILL_ALLOWLIST } = profiles;

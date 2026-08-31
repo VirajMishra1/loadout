@@ -12,21 +12,21 @@ import { join } from "node:path";
 import {
   ADAPTER_CAPABILITIES,
   planAdapterSkillInstall,
-} from "../src/core/adapters.js";
+} from "../src/core/agents/adapters.js";
 import {
   buildAdapterConformanceMatrix,
   markFilesystemConformanceVerified,
   platformEvidenceFromCiWorkflow,
-} from "../src/core/conformance.js";
+} from "../src/core/catalog/conformance.js";
 import {
   applyActivationChange,
   planActivationChange,
-} from "../src/core/active-set.js";
-import { inspectAgent } from "../src/core/agent-inspection.js";
-import { applySkillInstall } from "../src/core/install.js";
-import { agentSkillsDirectory } from "../src/core/paths.js";
-import { readSnapshot, restoreSnapshot } from "../src/core/snapshot.js";
-import { readInstallState } from "../src/core/state.js";
+} from "../src/core/workspace/active-set.js";
+import { inspectAgent } from "../src/core/agents/agent-inspection.js";
+import { applySkillInstall } from "../src/core/install/install.js";
+import { agentSkillsDirectory } from "../src/core/agents/paths.js";
+import { readSnapshot, restoreSnapshot } from "../src/core/install/snapshot.js";
+import { readInstallState } from "../src/core/workspace/state.js";
 import type { ComponentType, DetectedAgent } from "../src/shared/types.js";
 
 const originalLoadoutHome = process.env.LOADOUT_HOME;

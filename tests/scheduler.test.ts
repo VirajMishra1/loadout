@@ -6,7 +6,7 @@ import {
   applyNativeScheduler,
   applyNativeSchedulerBundle,
   planNativeScheduler,
-} from "../src/core/scheduler.js";
+} from "../src/core/runtime/scheduler.js";
 
 describe("native read-only scheduler", () => {
   let root = "";

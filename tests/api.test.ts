@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { startApiServer, type ApiHandle } from "../src/core/api.js";
+import { startApiServer, type ApiHandle } from "../src/core/runtime/api.js";
 
 let handle: ApiHandle | undefined;
 afterEach(async () => {

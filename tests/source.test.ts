@@ -11,7 +11,7 @@ import {
   parseRepositoryHead,
   repositoryCachePath,
   validateGitHubTreeBounds,
-} from "../src/core/source.js";
+} from "../src/core/install/source.js";
 
 const exec = promisify(execFile);
 

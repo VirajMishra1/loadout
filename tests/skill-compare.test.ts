@@ -3,11 +3,11 @@ import type { CatalogPackage } from "../src/shared/types.js";
 import type {
   CatalogSkillEvidence,
   ProvenanceInventoryReport,
-} from "../src/core/provenance.js";
+} from "../src/core/catalog/provenance.js";
 import {
   compareSkill,
   formatSkillComparison,
-} from "../src/core/skill-compare.js";
+} from "../src/core/catalog/skill-compare.js";
 
 const evidence = (
   packageId: string,

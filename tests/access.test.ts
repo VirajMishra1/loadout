@@ -3,7 +3,7 @@ import {
   formatModelApiAccess,
   interactiveModelApiAccess,
   parseModelApiAccess,
-} from "../src/core/access.js";
+} from "../src/core/routing/access.js";
 
 describe("credential-free setup access declarations", () => {
   it("defaults to no separately billed model API access", () => {

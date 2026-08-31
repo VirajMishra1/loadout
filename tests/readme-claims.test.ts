@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseReadmeClaimManifest } from "../src/core/readme-claims.js";
+import { parseReadmeClaimManifest } from "../src/core/reporting/readme-claims.js";
 
 describe("README claim manifest", () => {
   it("rejects proven claims without authoritative evidence", () => {

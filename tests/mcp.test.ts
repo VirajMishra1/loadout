@@ -6,7 +6,7 @@ import {
   discoverMcpManifests,
   parseMcpManifest,
   summarizeMcpManifest,
-} from "../src/core/mcp.js";
+} from "../src/core/runtime/mcp.js";
 
 describe("MCP manifest discovery", () => {
   it("normalizes mcpServers and never exposes env values in summaries", () => {

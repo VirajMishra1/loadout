@@ -12,7 +12,7 @@ import {
   parseAgentSelection,
   runtimeBoundary,
   userHome,
-} from "../src/core/paths.js";
+} from "../src/core/agents/paths.js";
 
 describe("platform paths", () => {
   const originalHome = process.env.LOADOUT_USER_HOME;

@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { mkdtemp, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { discoverOfficialMcpRegistry } from "../src/core/mcp-registry-discovery.js";
+import { discoverOfficialMcpRegistry } from "../src/core/discovery/mcp-registry-discovery.js";
 
 const observedAt = new Date("2026-07-16T12:00:00.000Z");
 

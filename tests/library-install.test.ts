@@ -13,8 +13,11 @@ import {
   applySkillInstallBatch,
   applySkillLibraryBatch,
   type InstallBatchEntry,
-} from "../src/core/install.js";
-import { activationLibraryPath, readInstallState } from "../src/core/state.js";
+} from "../src/core/install/install.js";
+import {
+  activationLibraryPath,
+  readInstallState,
+} from "../src/core/workspace/state.js";
 
 describe("Maximum Library over an existing Stable install", () => {
   let root = "";

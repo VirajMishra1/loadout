@@ -7,8 +7,8 @@ import {
   personalizeRecommendations,
   recommendPackages,
   scanProject,
-} from "../src/core/recommend.js";
-import type { LocalOutcomeStore } from "../src/core/outcomes.js";
+} from "../src/core/workspace/recommend.js";
+import type { LocalOutcomeStore } from "../src/core/workspace/outcomes.js";
 import type { CatalogPackage } from "../src/shared/types.js";
 
 describe("project recommendations", () => {

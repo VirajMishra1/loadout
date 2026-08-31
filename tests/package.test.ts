@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import {
   inspectPackage,
   formatPackageInspection,
-} from "../src/core/package.js";
+} from "../src/core/install/package.js";
 
 describe("package inspection", () => {
   it("returns normalized skills and MCP servers without secret values", async () => {

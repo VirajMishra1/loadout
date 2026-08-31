@@ -13,7 +13,7 @@ import {
   hashDirectory,
   recordInstall,
   readInstallState,
-} from "../src/core/state.js";
+} from "../src/core/workspace/state.js";
 import type { InstallPlan } from "../src/shared/types.js";
 
 describe("install state", () => {

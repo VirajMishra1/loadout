@@ -2,53 +2,53 @@ import { Command } from "commander";
 import {
   loadEffectiveCatalog,
   type InstallSelectionMode,
-} from "../core/catalog.js";
-import { detectAgents, parseAgentSelection } from "../core/paths.js";
+} from "../core/catalog/catalog.js";
+import { detectAgents, parseAgentSelection } from "../core/agents/paths.js";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import {
   buildSkillPlan,
   applySkillInstall,
   installedAgents,
-} from "../core/install.js";
+} from "../core/install/install.js";
 import {
   listSnapshotIds,
   readSnapshot,
   restoreSnapshot,
   summarizeSnapshot,
-} from "../core/snapshot.js";
-import { fetchRepositorySnapshot } from "../core/source.js";
+} from "../core/install/snapshot.js";
+import { fetchRepositorySnapshot } from "../core/install/source.js";
 
 import {
   applyPackageUpdate,
   buildUpdatePlan,
   formatUpdatePlan,
   selectSafeAutomaticUpdates,
-} from "../core/update.js";
+} from "../core/install/update.js";
 
-import { readInstallState } from "../core/state.js";
+import { readInstallState } from "../core/workspace/state.js";
 
 import {
   evaluateInstalledProfile,
   formatInstalledProfileStatus,
-} from "../core/profile-state.js";
+} from "../core/workspace/profile-state.js";
 
-import { resolveCatalogProfile } from "../core/profiles.js";
+import { resolveCatalogProfile } from "../core/catalog/profiles.js";
 
 import {
   compileConversion,
   type ConversionKind,
   type ConversionTarget,
-} from "../core/conversion.js";
-import { writeFileAtomically } from "../core/atomic-file.js";
+} from "../core/agents/conversion.js";
+import { writeFileAtomically } from "../core/install/atomic-file.js";
 import {
   applyPreparedCatalogInstall,
   formatCatalogApplyGuidance,
   formatPreparedCatalogInstall,
   prepareCatalogInstall,
-} from "../core/catalog-install.js";
+} from "../core/install/catalog-install.js";
 
-import { withMutationLock } from "../core/transaction.js";
+import { withMutationLock } from "../core/install/transaction.js";
 
 import { setupSelection, printSetupProgress } from "./support.js";
 

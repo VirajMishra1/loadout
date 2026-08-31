@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   buildLoadoutBadge,
   parseLoadoutBadgeMetric,
-} from "../src/core/loadout-badge.js";
-import type { LoadoutCard } from "../src/core/loadout-card.js";
+} from "../src/core/reporting/loadout-badge.js";
+import type { LoadoutCard } from "../src/core/reporting/loadout-card.js";
 
 const card: LoadoutCard = {
   schemaVersion: 1,

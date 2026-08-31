@@ -1,6 +1,6 @@
 import { Command } from "commander";
-import { loadEffectiveCatalog } from "../core/catalog.js";
-import { parseAgentSelection } from "../core/paths.js";
+import { loadEffectiveCatalog } from "../core/catalog/catalog.js";
+import { parseAgentSelection } from "../core/agents/paths.js";
 import { resolve } from "node:path";
 
 import {
@@ -9,33 +9,39 @@ import {
   readManifest,
   removeManifestPackage,
   writeLockfile,
-} from "../core/manifest.js";
-import { readInstallState } from "../core/state.js";
+} from "../core/workspace/manifest.js";
+import { readInstallState } from "../core/workspace/state.js";
 
-import { createPackage, searchLocalRegistry } from "../core/registry.js";
-import { auditLoadout, formatAuditReport } from "../core/audit.js";
+import {
+  createPackage,
+  searchLocalRegistry,
+} from "../core/catalog/registry.js";
+import { auditLoadout, formatAuditReport } from "../core/catalog/audit.js";
 
 import {
   applyPortableImport,
   exportPortableLoadout,
   planPortableImport,
-} from "../core/portable.js";
+} from "../core/workspace/portable.js";
 
-import { writeFileAtomically } from "../core/atomic-file.js";
+import { writeFileAtomically } from "../core/install/atomic-file.js";
 
 import {
   buildLibraryStateReport,
   formatLibrarySummary,
   formatLibraryStateReport,
-} from "../core/active-set.js";
+} from "../core/workspace/active-set.js";
 
 import {
   buildPrivacySafeReport,
   formatPrivacySafeReport,
   writePrivacySafeReport,
-} from "../core/share-report.js";
+} from "../core/reporting/share-report.js";
 
-import { buildLoadoutCard, formatLoadoutCard } from "../core/loadout-card.js";
+import {
+  buildLoadoutCard,
+  formatLoadoutCard,
+} from "../core/reporting/loadout-card.js";
 
 export function registerSharing(program: Command): void {
   program

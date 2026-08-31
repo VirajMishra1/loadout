@@ -11,8 +11,11 @@ import {
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { applyPackageUpdate } from "../src/core/update.js";
-import { readInstallState, writeInstallState } from "../src/core/state.js";
+import { applyPackageUpdate } from "../src/core/install/update.js";
+import {
+  readInstallState,
+  writeInstallState,
+} from "../src/core/workspace/state.js";
 import type { DetectedAgent } from "../src/shared/types.js";
 
 const fixtureRoot = join(process.cwd(), "tests", "fixtures", "update-safety");

@@ -7,11 +7,17 @@ import {
   formatCatalogApplyGuidance,
   formatPreparedCatalogInstall,
   prepareCatalogInstall,
-} from "../src/core/catalog-install.js";
+} from "../src/core/install/catalog-install.js";
 import type { CatalogPackage, DetectedAgent } from "../src/shared/types.js";
-import { activationLibraryPath, readInstallState } from "../src/core/state.js";
-import { applySkillInstallBatch, buildSkillPlan } from "../src/core/install.js";
-import { readSnapshot, restoreSnapshot } from "../src/core/snapshot.js";
+import {
+  activationLibraryPath,
+  readInstallState,
+} from "../src/core/workspace/state.js";
+import {
+  applySkillInstallBatch,
+  buildSkillPlan,
+} from "../src/core/install/install.js";
+import { readSnapshot, restoreSnapshot } from "../src/core/install/snapshot.js";
 
 const commit = "a".repeat(40);
 

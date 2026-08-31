@@ -5,8 +5,8 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   buildPrivacySafeReport,
   writePrivacySafeReport,
-} from "../src/core/share-report.js";
-import { writeInstallState } from "../src/core/state.js";
+} from "../src/core/reporting/share-report.js";
+import { writeInstallState } from "../src/core/workspace/state.js";
 
 describe("privacy-safe share report", () => {
   let root = "";

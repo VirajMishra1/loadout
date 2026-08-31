@@ -2,8 +2,11 @@ import { afterEach, describe, expect, it } from "vitest";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createPackage, publishLocalPackage } from "../src/core/registry.js";
-import { applySyncPlan, buildSyncPlan } from "../src/core/sync.js";
+import {
+  createPackage,
+  publishLocalPackage,
+} from "../src/core/catalog/registry.js";
+import { applySyncPlan, buildSyncPlan } from "../src/core/install/sync.js";
 
 describe("registry package dependencies", () => {
   let root = "";

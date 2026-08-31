@@ -6,7 +6,7 @@ import {
   buildHealthReport,
   formatHealthReport,
   gradeHealth,
-} from "../src/core/health.js";
+} from "../src/core/reporting/health.js";
 import type { DetectedAgent, HealthReport } from "../src/shared/types.js";
 
 const ORIGINAL_LOADOUT_HOME = process.env.LOADOUT_HOME;

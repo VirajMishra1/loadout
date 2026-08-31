@@ -11,7 +11,7 @@ import {
   publishLocalPackage,
   resolveRegistryPackage,
   searchLocalRegistry,
-} from "../src/core/registry.js";
+} from "../src/core/catalog/registry.js";
 
 describe("local package registry", () => {
   let root = "";

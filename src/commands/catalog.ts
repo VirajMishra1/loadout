@@ -7,8 +7,8 @@ import {
   rankCatalog,
   refreshCatalog,
   validateCatalog,
-} from "../core/catalog.js";
-import { detectAgents, parseAgentSelection } from "../core/paths.js";
+} from "../core/catalog/catalog.js";
+import { detectAgents, parseAgentSelection } from "../core/agents/paths.js";
 import { resolve } from "node:path";
 import { readFile } from "node:fs/promises";
 import type { CatalogPackage } from "../shared/types.js";
@@ -21,7 +21,7 @@ import {
   routePhase,
   routeTask,
   type TaskPhase,
-} from "../core/route.js";
+} from "../core/routing/route.js";
 import {
   applyFirstPartySkill,
   FIRST_PARTY_SKILLS,
@@ -30,7 +30,7 @@ import {
   installedFirstPartySkills,
   planFirstPartySkill,
   removeFirstPartySkill,
-} from "../core/first-party-skills.js";
+} from "../core/routing/first-party-skills.js";
 import {
   applyPickup,
   formatHandoffStatus,
@@ -43,24 +43,24 @@ import {
   planPickup,
   readInbox,
   sendHandoff,
-} from "../core/handoff.js";
+} from "../core/routing/handoff.js";
 
 import {
   catalogTrustStage,
   formatCatalogTrustStage,
-} from "../core/profiles.js";
-import { discoverHackerNewsRepositories } from "../core/community.js";
-import { discoverPrivateRepositories } from "../core/private-discovery.js";
+} from "../core/catalog/profiles.js";
+import { discoverHackerNewsRepositories } from "../core/discovery/community.js";
+import { discoverPrivateRepositories } from "../core/discovery/private-discovery.js";
 import {
   defaultGitHubDiscoveryQueries,
   discoverGitHubRepositories,
-} from "../core/github-discovery.js";
+} from "../core/discovery/github-discovery.js";
 import {
   formatStarHistory,
   readCatalogObservations,
-} from "../core/observations.js";
+} from "../core/discovery/observations.js";
 
-import { writeFileAtomically } from "../core/atomic-file.js";
+import { writeFileAtomically } from "../core/install/atomic-file.js";
 
 import {
   formatReviewQueue,
@@ -68,7 +68,7 @@ import {
   mergeReviewQueue,
   readReviewQueue,
   type ReviewQueueLead,
-} from "../core/review-queue.js";
+} from "../core/discovery/review-queue.js";
 import {
   applyProviderModelSelection,
   defaultModelConfigurationPath,
@@ -76,20 +76,20 @@ import {
   planProviderModelSelection,
   readProviderModelConfiguration,
   requestOpenRouter,
-} from "../core/model-config.js";
+} from "../core/routing/model-config.js";
 
 import {
   parseCompletionShell,
   renderShellCompletion,
-} from "../core/completion.js";
+} from "../core/reporting/completion.js";
 import {
   buildCatalogCoverage,
   formatCatalogCoverage,
-} from "../core/catalog-coverage.js";
+} from "../core/catalog/catalog-coverage.js";
 import {
   createCredentialResolver,
   createOsCredentialStore,
-} from "../core/credentials.js";
+} from "../core/routing/credentials.js";
 import {
   buildCandidateDossier,
   buildCatalogProposal,
@@ -99,11 +99,11 @@ import {
   readCandidateDossier,
   verifyCandidateDossierSource,
   writeCandidateDossier,
-} from "../core/candidate-intelligence.js";
+} from "../core/discovery/candidate-intelligence.js";
 import type { OperatingSystem, PackageTier } from "../shared/types.js";
 
-import { discoverSkillsSh } from "../core/skills-sh-discovery.js";
-import { discoverOfficialMcpRegistry } from "../core/mcp-registry-discovery.js";
+import { discoverSkillsSh } from "../core/discovery/skills-sh-discovery.js";
+import { discoverOfficialMcpRegistry } from "../core/discovery/mcp-registry-discovery.js";
 
 import { readCredentialFromStdin } from "./support.js";
 
@@ -1258,7 +1258,7 @@ export function registerCatalog(program: Command): void {
           console.log(
             options.json
               ? JSON.stringify(
-                  (await import("../core/route.js")).MODEL_CATALOG,
+                  (await import("../core/routing/route.js")).MODEL_CATALOG,
                   null,
                   2,
                 )
@@ -1273,7 +1273,9 @@ export function registerCatalog(program: Command): void {
           console.log(
             options.json
               ? JSON.stringify(
-                  (await import("../core/route.js")).estimateCostSavings(),
+                  (
+                    await import("../core/routing/route.js")
+                  ).estimateCostSavings(),
                   null,
                   2,
                 )

@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import {
   assertSkillSecurity,
   scanSkillSecurity,
-} from "../src/core/skill-security.js";
+} from "../src/core/catalog/skill-security.js";
 
 async function skill(name = "safe-skill"): Promise<string> {
   const parent = await mkdtemp(join(tmpdir(), "loadout-skill-security-"));

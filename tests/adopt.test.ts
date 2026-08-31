@@ -11,10 +11,13 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { applySkillAdoption, planSkillAdoption } from "../src/core/adopt.js";
-import { readInstallState } from "../src/core/state.js";
+import {
+  applySkillAdoption,
+  planSkillAdoption,
+} from "../src/core/install/adopt.js";
+import { readInstallState } from "../src/core/workspace/state.js";
 import type { DetectedAgent } from "../src/shared/types.js";
-import type { CatalogSkillIndex } from "../src/core/provenance.js";
+import type { CatalogSkillIndex } from "../src/core/catalog/provenance.js";
 
 function exactIndex(fingerprint: string): CatalogSkillIndex {
   return {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { discoverHackerNewsRepositories } from "../src/core/community.js";
+import { discoverHackerNewsRepositories } from "../src/core/discovery/community.js";
 
 describe("Hacker News community discovery", () => {
   it("returns only scored GitHub repository leads with source evidence", async () => {

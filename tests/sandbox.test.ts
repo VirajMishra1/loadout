@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { runDisposableSandbox } from "../src/core/sandbox.js";
+import { runDisposableSandbox } from "../src/core/runtime/sandbox.js";
 
 describe("disposable sandbox boundary", () => {
   it("refuses execution without explicit approval", async () => {

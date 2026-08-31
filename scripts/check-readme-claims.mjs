@@ -652,7 +652,7 @@ export async function auditReadmeClaims({
 
   try {
     const { parseReadmeClaimManifest } =
-      await import("../src/core/readme-claims.ts");
+      await import("../src/core/reporting/readme-claims.ts");
     parseReadmeClaimManifest(manifest);
   } catch (error) {
     if (!failures.some((item) => /duplicate/i.test(item.observed)))
@@ -804,7 +804,7 @@ export async function auditReadmeClaims({
       failure(
         "installation.transaction",
         "README presents catalog fetch, inspection, and duplicate resolution as steps before any managed write, although those steps belong to catalog/profile installation rather than every mutation path.",
-        "src/core/catalog-install.ts, src/core/install.ts, src/core/transaction.ts, and mutation-specific planners",
+        "src/core/install/catalog-install.ts, src/core/install/install.ts, src/core/install/transaction.ts, and mutation-specific planners",
         "Describe catalog/profile preparation separately, then state only the preview, approval, snapshot, transaction, and ownership guarantees shared by their actual supported mutation paths.",
       ),
     );
@@ -818,7 +818,7 @@ export async function auditReadmeClaims({
       failure(
         "recommendations.evidence",
         "README claims the popularity/ranking policy protects against compromised repositories, but pinning and static inspection cannot guarantee that an upstream commit is uncompromised.",
-        "src/core/ranking.ts, src/core/safety.ts, and README.md",
+        "src/core/discovery/ranking.ts, src/core/catalog/safety.ts, and README.md",
         "State that popularity alone is not a quality signal and explicitly bound pinning/static checks as risk-reduction evidence, not proof that a source is uncompromised.",
       ),
     );
@@ -842,7 +842,7 @@ export async function auditReadmeClaims({
         failure(
           "agents.support",
           `README adapter count is stale; expected '${expected}'.`,
-          "src/core/adapters.ts via deriveReadmeFacts",
+          "src/core/agents/adapters.ts via deriveReadmeFacts",
           "Run `npm run readme:update` and review the generated block.",
         ),
       );
@@ -881,12 +881,12 @@ async function loadRepositoryInputs(root = projectRoot) {
       JSON.parse,
     ),
     readFile(resolve(root, "README.md"), "utf8"),
-    import("../src/core/catalog.ts").then(({ loadCatalog }) =>
+    import("../src/core/catalog/catalog.ts").then(({ loadCatalog }) =>
       loadCatalog(resolve(root, "catalog/packages.json")),
     ),
-    import("../src/core/adapters.ts"),
-    import("../src/core/readme-facts.ts"),
-    import("../src/core/profiles.ts"),
+    import("../src/core/agents/adapters.ts"),
+    import("../src/core/reporting/readme-facts.ts"),
+    import("../src/core/catalog/profiles.ts"),
   ]);
   return {
     root,

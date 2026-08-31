@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { Command, CommanderError } from "commander";
-import { HIDDEN_FROM_FIRST_SCREEN } from "./core/cli-guide.js";
-import { recoverPendingTransactions } from "./core/transaction.js";
+import { HIDDEN_FROM_FIRST_SCREEN } from "./core/reporting/cli-guide.js";
+import { recoverPendingTransactions } from "./core/install/transaction.js";
 import {
   LOADOUT_VERSION,
   printBeginnerGuide,

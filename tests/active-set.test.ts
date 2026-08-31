@@ -7,11 +7,17 @@ import {
   buildLibraryStateReport,
   formatLibrarySummary,
   planActivationChange,
-} from "../src/core/active-set.js";
-import { applySkillInstall, buildSkillPlan } from "../src/core/install.js";
-import { buildHealthReport } from "../src/core/health.js";
-import { readSnapshot, restoreSnapshot } from "../src/core/snapshot.js";
-import { readInstallState, writeInstallState } from "../src/core/state.js";
+} from "../src/core/workspace/active-set.js";
+import {
+  applySkillInstall,
+  buildSkillPlan,
+} from "../src/core/install/install.js";
+import { buildHealthReport } from "../src/core/reporting/health.js";
+import { readSnapshot, restoreSnapshot } from "../src/core/install/snapshot.js";
+import {
+  readInstallState,
+  writeInstallState,
+} from "../src/core/workspace/state.js";
 import type { DetectedAgent } from "../src/shared/types.js";
 
 describe("reviewed library and active-set transactions", () => {

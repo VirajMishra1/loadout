@@ -9,18 +9,18 @@ import {
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { applySyncPlan, buildSyncPlan } from "../src/core/sync.js";
-import { readInstallState } from "../src/core/state.js";
+import { applySyncPlan, buildSyncPlan } from "../src/core/install/sync.js";
+import { readInstallState } from "../src/core/workspace/state.js";
 import {
   createSnapshot,
   readSnapshot,
   restoreSnapshot,
-} from "../src/core/snapshot.js";
+} from "../src/core/install/snapshot.js";
 import {
   beginTransaction,
   markTransactionCommitting,
   transactionRoot,
-} from "../src/core/transaction.js";
+} from "../src/core/install/transaction.js";
 
 describe("manifest synchronization", () => {
   let root = "";

@@ -7,10 +7,10 @@ import {
   mergeReviewQueue,
   readReviewQueue,
   setReviewDecision,
-} from "../src/core/review-queue.js";
+} from "../src/core/discovery/review-queue.js";
 import type { CatalogPackage } from "../src/shared/types.js";
-import type { SkillsShDiscoveryRecord } from "../src/core/skills-sh-discovery.js";
-import type { McpRegistryDiscoveryRecord } from "../src/core/mcp-registry-discovery.js";
+import type { SkillsShDiscoveryRecord } from "../src/core/discovery/skills-sh-discovery.js";
+import type { McpRegistryDiscoveryRecord } from "../src/core/discovery/mcp-registry-discovery.js";
 
 describe("candidate review queue", () => {
   let root = "";

@@ -19,7 +19,7 @@ import {
   formatUpgradePlan,
   planUpgrade,
   summarizeUpgradePlan,
-} from "../src/core/upgrade.js";
+} from "../src/core/reporting/upgrade.js";
 
 const commit = "a".repeat(40);
 

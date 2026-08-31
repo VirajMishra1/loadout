@@ -7,7 +7,7 @@ import {
   planMcpConfig,
   restoreMcpConfig,
   summarizeMcpConfigPlan,
-} from "../src/core/mcp.js";
+} from "../src/core/runtime/mcp.js";
 import type { McpServer } from "../src/shared/types.js";
 
 let root: string;

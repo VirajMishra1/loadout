@@ -3,7 +3,7 @@ import {
   fetchBoundedJson,
   filterDiscoveryRecordsAgainstKeys,
   type NormalizedDiscoveryIdentity,
-} from "../src/core/discovery-connector.js";
+} from "../src/core/discovery/discovery-connector.js";
 
 describe("shared discovery connector boundaries", () => {
   it("streams bounded JSON and rejects a cross-origin redirect before following it", async () => {

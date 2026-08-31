@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { EventEmitter } from "node:events";
 import { PassThrough, Writable } from "node:stream";
-import { applyMcpConfigPlan } from "../src/core/mcp.js";
+import { applyMcpConfigPlan } from "../src/core/runtime/mcp.js";
 import {
   REVIEWED_MCP_RECIPES,
   planMcpRecipe,
@@ -12,7 +12,7 @@ import {
   verifyMcpRecipeConnection,
   type McpSubprocessFactory,
   type McpVerificationProcess,
-} from "../src/core/mcp-recipes.js";
+} from "../src/core/runtime/mcp-recipes.js";
 
 class FakeMcpProcess extends EventEmitter {
   readonly stdout = new PassThrough();

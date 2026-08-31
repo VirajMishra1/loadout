@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { fetchGitHubMetadata } from "../src/core/github.js";
+import { fetchGitHubMetadata } from "../src/core/runtime/github.js";
 
 describe("GitHub metadata", () => {
   let home: string;

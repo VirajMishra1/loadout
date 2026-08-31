@@ -3,7 +3,7 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { auditLoadout } from "../src/core/audit.js";
+import { auditLoadout } from "../src/core/catalog/audit.js";
 
 describe("team reproducibility audit", () => {
   let root = "";

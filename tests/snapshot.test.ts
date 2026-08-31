@@ -19,7 +19,7 @@ import {
   restoreSnapshot,
   summarizeSnapshot,
   validateSnapshot,
-} from "../src/core/snapshot.js";
+} from "../src/core/install/snapshot.js";
 
 describe("rollback snapshots", () => {
   let root = "";

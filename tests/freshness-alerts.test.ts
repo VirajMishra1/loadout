@@ -8,7 +8,7 @@ import {
   pinReplacement,
   readReplacementPins,
   unpinReplacement,
-} from "../src/core/freshness-alerts.js";
+} from "../src/core/reporting/freshness-alerts.js";
 import type { CatalogPackage, InstallState } from "../src/shared/types.js";
 
 describe("freshness and replacement alerts", () => {

@@ -124,10 +124,10 @@ try {
   ]);
 
   const [{ detectAgents }, install, provenance, state] = await Promise.all([
-    import("../dist/src/core/paths.js"),
-    import("../dist/src/core/install.js"),
-    import("../dist/src/core/provenance.js"),
-    import("../dist/src/core/state.js"),
+    import("../dist/src/core/agents/paths.js"),
+    import("../dist/src/core/install/install.js"),
+    import("../dist/src/core/catalog/provenance.js"),
+    import("../dist/src/core/workspace/state.js"),
   ]);
   const codex = (await detectAgents()).find(
     (agent) => agent.id === "codex" && agent.installed,

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { runCanary } from "../src/core/canary.js";
-import type { PackageEvaluation } from "../src/core/evaluate.js";
+import { runCanary } from "../src/core/runtime/canary.js";
+import type { PackageEvaluation } from "../src/core/discovery/evaluate.js";
 
 const ready: PackageEvaluation = {
   evaluatorVersion: 1,

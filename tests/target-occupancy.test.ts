@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { inspectTargetOccupancy } from "../src/core/target-occupancy.js";
+import { inspectTargetOccupancy } from "../src/core/workspace/target-occupancy.js";
 
 describe("target occupancy", () => {
   let root = "";

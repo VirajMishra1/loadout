@@ -5,7 +5,7 @@ import {
   formatStarHistory,
   readCatalogObservations,
   recordCatalogObservations,
-} from "../src/core/observations.js";
+} from "../src/core/discovery/observations.js";
 
 describe("catalog observations", () => {
   let home: string;

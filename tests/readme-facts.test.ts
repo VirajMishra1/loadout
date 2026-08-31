@@ -1,12 +1,12 @@
 import { readFile } from "node:fs/promises";
 import { describe, expect, it } from "vitest";
-import { ADAPTER_CAPABILITIES } from "../src/core/adapters.js";
-import { loadCatalog } from "../src/core/catalog.js";
-import { deriveReadmeFacts } from "../src/core/readme-facts.js";
+import { ADAPTER_CAPABILITIES } from "../src/core/agents/adapters.js";
+import { loadCatalog } from "../src/core/catalog/catalog.js";
+import { deriveReadmeFacts } from "../src/core/reporting/readme-facts.js";
 import {
   POWER_SKILL_ALLOWLIST,
   STABLE_SKILL_ALLOWLIST,
-} from "../src/core/profiles.js";
+} from "../src/core/catalog/profiles.js";
 
 const packageJson = JSON.parse(
   await readFile(new URL("../package.json", import.meta.url), "utf8"),

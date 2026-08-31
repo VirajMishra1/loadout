@@ -2,9 +2,9 @@ import { afterEach, describe, expect, it } from "vitest";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { parseLockfile } from "../src/core/audit.js";
-import { parseManifest } from "../src/core/manifest.js";
-import { readInstallState } from "../src/core/state.js";
+import { parseLockfile } from "../src/core/catalog/audit.js";
+import { parseManifest } from "../src/core/workspace/manifest.js";
+import { readInstallState } from "../src/core/workspace/state.js";
 import { formatSchemaError, installPlanSchema } from "../src/shared/schemas.js";
 
 describe("runtime data schemas", () => {

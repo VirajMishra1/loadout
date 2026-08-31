@@ -41,12 +41,12 @@ async function sourceFacts() {
     { deriveReadmeFacts },
     { buildAdapterConformanceMatrix, platformEvidenceFromCiWorkflow },
   ] = await Promise.all([
-    import("../src/core/adapters.ts"),
-    import("../src/core/catalog.ts"),
-    import("../src/core/catalog-coverage.ts"),
-    import("../src/core/profiles.ts"),
-    import("../src/core/readme-facts.ts"),
-    import("../src/core/conformance.ts"),
+    import("../src/core/agents/adapters.ts"),
+    import("../src/core/catalog/catalog.ts"),
+    import("../src/core/catalog/catalog-coverage.ts"),
+    import("../src/core/catalog/profiles.ts"),
+    import("../src/core/reporting/readme-facts.ts"),
+    import("../src/core/catalog/conformance.ts"),
   ]);
   const packageJson = JSON.parse(
     await readFile(resolve(projectRoot, "package.json"), "utf8"),

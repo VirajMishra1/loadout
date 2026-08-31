@@ -3,7 +3,7 @@ import {
   formatTerminalTable,
   safeTerminalText,
   terminalWidth,
-} from "../src/core/terminal.js";
+} from "../src/core/reporting/terminal.js";
 
 describe("terminal output policy", () => {
   it("clamps supported terminal widths from 80 through 200", () => {

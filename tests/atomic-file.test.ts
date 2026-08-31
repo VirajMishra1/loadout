@@ -2,8 +2,8 @@ import { afterEach, describe, expect, it } from "vitest";
 import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { writeFileAtomically } from "../src/core/atomic-file.js";
-import { writeLockfile } from "../src/core/manifest.js";
+import { writeFileAtomically } from "../src/core/install/atomic-file.js";
+import { writeLockfile } from "../src/core/workspace/manifest.js";
 
 describe("atomic persisted metadata", () => {
   let root = "";

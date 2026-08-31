@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   parseCompletionShell,
   renderShellCompletion,
-} from "../src/core/completion.js";
+} from "../src/core/reporting/completion.js";
 
 describe("CLI completion", () => {
   it("renders installable scripts for supported shells", () => {

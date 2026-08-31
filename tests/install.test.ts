@@ -7,14 +7,14 @@ import {
   applySkillInstallBatch,
   buildSkillPlan,
   snapshotPath,
-} from "../src/core/install.js";
+} from "../src/core/install/install.js";
 import {
   detectInstallConflicts,
   planSkillInstall,
   validateSkillDirectory,
-} from "../src/core/skills.js";
-import { restoreSnapshot } from "../src/core/snapshot.js";
-import { readInstallState } from "../src/core/state.js";
+} from "../src/core/catalog/skills.js";
+import { restoreSnapshot } from "../src/core/install/snapshot.js";
+import { readInstallState } from "../src/core/workspace/state.js";
 import type { DetectedAgent } from "../src/shared/types.js";
 
 const agent = (skillsDirectory: string): DetectedAgent => ({

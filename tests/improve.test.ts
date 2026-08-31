@@ -5,7 +5,7 @@ import {
   proposeImprovements,
   recordImprovementOutcome,
   writeImprovementCycle,
-} from "../src/core/improve.js";
+} from "../src/core/workspace/improve.js";
 import type { HealthReport } from "../src/shared/types.js";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";

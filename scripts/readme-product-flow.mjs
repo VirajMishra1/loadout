@@ -122,15 +122,33 @@ try {
 
   const [paths, install, catalogInstall, state, activeSet, manifest, audit] =
     await Promise.all([
-      import(pathToFileURL(join(buildRoot, "src", "core", "paths.js"))),
-      import(pathToFileURL(join(buildRoot, "src", "core", "install.js"))),
       import(
-        pathToFileURL(join(buildRoot, "src", "core", "catalog-install.js"))
+        pathToFileURL(join(buildRoot, "src", "core", "agents", "paths.js"))
       ),
-      import(pathToFileURL(join(buildRoot, "src", "core", "state.js"))),
-      import(pathToFileURL(join(buildRoot, "src", "core", "active-set.js"))),
-      import(pathToFileURL(join(buildRoot, "src", "core", "manifest.js"))),
-      import(pathToFileURL(join(buildRoot, "src", "core", "audit.js"))),
+      import(
+        pathToFileURL(join(buildRoot, "src", "core", "install", "install.js"))
+      ),
+      import(
+        pathToFileURL(
+          join(buildRoot, "src", "core", "install", "catalog-install.js"),
+        )
+      ),
+      import(
+        pathToFileURL(join(buildRoot, "src", "core", "workspace", "state.js"))
+      ),
+      import(
+        pathToFileURL(
+          join(buildRoot, "src", "core", "workspace", "active-set.js"),
+        )
+      ),
+      import(
+        pathToFileURL(
+          join(buildRoot, "src", "core", "workspace", "manifest.js"),
+        )
+      ),
+      import(
+        pathToFileURL(join(buildRoot, "src", "core", "catalog", "audit.js"))
+      ),
     ]);
   const codex = (await paths.detectAgents()).find(
     (agent) => agent.id === "codex" && agent.installed,

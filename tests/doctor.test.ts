@@ -1,5 +1,5 @@
 import { describe, expect, it, afterEach } from "vitest";
-import { formatDoctorReport, runDoctor } from "../src/core/doctor.js";
+import { formatDoctorReport, runDoctor } from "../src/core/reporting/doctor.js";
 
 describe("doctor", () => {
   const originalHome = process.env.LOADOUT_USER_HOME;

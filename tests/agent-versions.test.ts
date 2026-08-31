@@ -3,7 +3,7 @@ import {
   inspectAgentVersions,
   parseAgentVersion,
   type AgentVersionRunner,
-} from "../src/core/agent-versions.js";
+} from "../src/core/agents/agent-versions.js";
 import type { DetectedAgent } from "../src/shared/types.js";
 
 describe("agent version intelligence", () => {

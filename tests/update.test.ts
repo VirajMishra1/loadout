@@ -8,10 +8,10 @@ import {
   formatUpdatePlan,
   quarantineUpdate,
   selectSafeAutomaticUpdates,
-} from "../src/core/update.js";
-import { applySkillInstall } from "../src/core/install.js";
-import { repositoryCachePath } from "../src/core/source.js";
-import { readInstallState } from "../src/core/state.js";
+} from "../src/core/install/update.js";
+import { applySkillInstall } from "../src/core/install/install.js";
+import { repositoryCachePath } from "../src/core/install/source.js";
+import { readInstallState } from "../src/core/workspace/state.js";
 
 describe("update planning", () => {
   const roots: string[] = [];

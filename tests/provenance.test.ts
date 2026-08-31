@@ -8,8 +8,8 @@ import {
   enrichInventoryWithProvenance,
   readCatalogSkillIndex,
   resolveCatalogSkillIndex,
-} from "../src/core/provenance.js";
-import { scanInstalledSkills } from "../src/core/skill-inventory.js";
+} from "../src/core/catalog/provenance.js";
+import { scanInstalledSkills } from "../src/core/catalog/skill-inventory.js";
 
 const commitA = "a".repeat(40);
 const commitB = "b".repeat(40);

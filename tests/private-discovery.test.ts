@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { discoverPrivateRepositories } from "../src/core/private-discovery.js";
+import { discoverPrivateRepositories } from "../src/core/discovery/private-discovery.js";
 
 describe("opt-in private repository discovery", () => {
   it("requires an explicit credential and never returns it", async () => {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { CatalogPackage, InstallState } from "../src/shared/types.js";
-import { evaluateInstalledProfileState } from "../src/core/profile-state.js";
+import { evaluateInstalledProfileState } from "../src/core/workspace/profile-state.js";
 
 const pkg = (id: string, commit: string): CatalogPackage => ({
   id,

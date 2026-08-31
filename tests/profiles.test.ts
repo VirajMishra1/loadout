@@ -9,7 +9,7 @@ import {
   isStableSkillSelected,
   resolveCatalogProfile,
   type CatalogConflictFamily,
-} from "../src/core/profiles.js";
+} from "../src/core/catalog/profiles.js";
 import type { CatalogPackage } from "../src/shared/types.js";
 
 const item = (
@@ -203,7 +203,7 @@ describe("mode allowlist integrity (anti-rot guard)", () => {
   // guard fails loudly instead. (Skill-name-level rot at a pinned commit needs
   // a network fetch and is checked separately in scripts, not here.)
   const loadBundledCatalog = async (): Promise<CatalogPackage[]> => {
-    const { loadCatalog } = await import("../src/core/catalog.js");
+    const { loadCatalog } = await import("../src/core/catalog/catalog.js");
     return loadCatalog(
       new URL("../catalog/packages.json", import.meta.url).pathname,
     );

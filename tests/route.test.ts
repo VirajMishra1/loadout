@@ -15,7 +15,7 @@ import {
   resolveAvailableAgents,
   routePhase,
   routeTask,
-} from "../src/core/route.js";
+} from "../src/core/routing/route.js";
 
 describe("route", () => {
   it("classifies planning tasks as plan phase", () => {

@@ -15,8 +15,8 @@ import {
   applyRuntimeToolPlan,
   planRuntimeTool,
   type RuntimeToolRunner,
-} from "../src/core/runtime-tools.js";
-import { readSnapshot } from "../src/core/snapshot.js";
+} from "../src/core/agents/runtime-tools.js";
+import { readSnapshot } from "../src/core/install/snapshot.js";
 import type { DetectedAgent } from "../src/shared/types.js";
 
 describe("reviewed runtime tool recipes", () => {

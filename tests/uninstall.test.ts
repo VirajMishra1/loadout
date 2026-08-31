@@ -13,8 +13,8 @@ import {
   buildUninstallPlan,
   applyUninstall,
   formatUninstallPlan,
-} from "../src/core/uninstall.js";
-import { recordInstall } from "../src/core/state.js";
+} from "../src/core/install/uninstall.js";
+import { recordInstall } from "../src/core/workspace/state.js";
 
 describe("complete Loadout uninstall", () => {
   let root = "";

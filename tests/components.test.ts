@@ -6,7 +6,7 @@ import {
   addRootFileExports,
   buildUniversalPackagePlan,
   discoverResources,
-} from "../src/core/components.js";
+} from "../src/core/catalog/components.js";
 import type { DetectedAgent } from "../src/shared/types.js";
 
 describe("universal package components", () => {

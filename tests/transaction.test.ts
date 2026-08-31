@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createSnapshot, readSnapshot } from "../src/core/snapshot.js";
+import { createSnapshot, readSnapshot } from "../src/core/install/snapshot.js";
 import {
   beginTransaction,
   completeTransaction,
@@ -10,7 +10,7 @@ import {
   recoverPendingTransactions,
   runMutationTransaction,
   transactionRoot,
-} from "../src/core/transaction.js";
+} from "../src/core/install/transaction.js";
 
 describe("durable transaction recovery", () => {
   let root = "";

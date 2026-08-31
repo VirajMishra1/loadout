@@ -1,5 +1,5 @@
-import type { AgentHealthEvidence } from "../../src/core/agent-health-score.js";
-import type { LocalOutcomeEvent } from "../../src/core/outcomes.js";
+import type { AgentHealthEvidence } from "../../src/core/agents/agent-health-score.js";
+import type { LocalOutcomeEvent } from "../../src/core/workspace/outcomes.js";
 
 const asOf = "2026-07-16T00:00:00.000Z";
 

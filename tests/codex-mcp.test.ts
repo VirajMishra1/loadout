@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import {
   applyCodexMcpConfigPlan,
   planCodexMcpConfig,
-} from "../src/core/codex-mcp.js";
+} from "../src/core/agents/codex-mcp.js";
 import type { McpServer } from "../src/shared/types.js";
 
 let root: string;

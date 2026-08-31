@@ -10,7 +10,7 @@ import {
   verifyCandidateDossierSource,
   writeCandidateDossier,
   type DiscoveryArtifact,
-} from "../src/core/candidate-intelligence.js";
+} from "../src/core/discovery/candidate-intelligence.js";
 import type { CatalogPackage } from "../src/shared/types.js";
 
 function repository(

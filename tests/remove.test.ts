@@ -3,8 +3,11 @@ import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createHash } from "node:crypto";
-import { applyRemove, planRemove } from "../src/core/remove.js";
-import { recordInstall, readInstallState } from "../src/core/state.js";
+import { applyRemove, planRemove } from "../src/core/install/remove.js";
+import {
+  recordInstall,
+  readInstallState,
+} from "../src/core/workspace/state.js";
 
 describe("safe package removal", () => {
   const roots: string[] = [];

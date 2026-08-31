@@ -7,8 +7,8 @@ import {
   exportPortableLoadout,
   parsePortableLoadout,
   planPortableImport,
-} from "../src/core/portable.js";
-import { readSnapshot, restoreSnapshot } from "../src/core/snapshot.js";
+} from "../src/core/workspace/portable.js";
+import { readSnapshot, restoreSnapshot } from "../src/core/install/snapshot.js";
 
 describe("portable Loadout import and export", () => {
   let root = "";

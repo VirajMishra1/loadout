@@ -2,9 +2,9 @@ import { afterEach, describe, expect, it } from "vitest";
 import { mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { agentComponentDirectory } from "../src/core/adapters.js";
-import { inspectAgents } from "../src/core/agent-inspection.js";
-import { agentSkillsDirectory } from "../src/core/paths.js";
+import { agentComponentDirectory } from "../src/core/agents/adapters.js";
+import { inspectAgents } from "../src/core/agents/agent-inspection.js";
+import { agentSkillsDirectory } from "../src/core/agents/paths.js";
 import type { AgentId, DetectedAgent } from "../src/shared/types.js";
 
 const definitions: Array<{ id: AgentId; displayName: string }> = [

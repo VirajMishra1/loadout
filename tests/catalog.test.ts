@@ -9,7 +9,7 @@ import {
   refreshCatalog,
   selectCatalogPackages,
   validateCatalog,
-} from "../src/core/catalog.js";
+} from "../src/core/catalog/catalog.js";
 import type { CatalogPackage } from "../src/shared/types.js";
 
 const packageRecord = (

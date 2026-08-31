@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { explainCatalogScore } from "../src/core/catalog.js";
+import { explainCatalogScore } from "../src/core/catalog/catalog.js";
 import type { CatalogPackage } from "../src/shared/types.js";
 
 const base: CatalogPackage = {

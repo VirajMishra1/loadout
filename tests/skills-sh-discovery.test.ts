@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { discoverSkillsSh } from "../src/core/skills-sh-discovery.js";
+import { discoverSkillsSh } from "../src/core/discovery/skills-sh-discovery.js";
 
 const observedAt = new Date("2026-07-16T12:00:00.000Z");
 

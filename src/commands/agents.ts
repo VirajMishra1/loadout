@@ -1,7 +1,7 @@
 import { Command } from "commander";
 
-import { detectAgents, parseAgentSelection } from "../core/paths.js";
-import { DEFAULT_ACTIVE_SKILL_LIMIT } from "../core/active-limit.js";
+import { detectAgents, parseAgentSelection } from "../core/agents/paths.js";
+import { DEFAULT_ACTIVE_SKILL_LIMIT } from "../core/workspace/active-limit.js";
 
 import type { AgentId } from "../shared/types.js";
 
@@ -10,25 +10,25 @@ import {
   formatActivationPlan,
   planActivationChange,
   type ActivationAction,
-} from "../core/active-set.js";
+} from "../core/workspace/active-set.js";
 import {
   applyProjectActivation,
   formatProjectActivation,
   planProjectActivation,
-} from "../core/active-policy.js";
+} from "../core/workspace/active-policy.js";
 
 import {
   applyNativeSchedulerBundle,
   formatNativeScheduler,
   planNativeScheduler,
   type SchedulerAction,
-} from "../core/scheduler.js";
+} from "../core/runtime/scheduler.js";
 import {
   REVIEWED_RUNTIME_TOOLS,
   applyRuntimeToolPlan,
   formatRuntimeToolPlan,
   planRuntimeTool,
-} from "../core/runtime-tools.js";
+} from "../core/agents/runtime-tools.js";
 
 import { collectOption, durableSchedulerLauncher } from "./support.js";
 

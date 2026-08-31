@@ -1,11 +1,14 @@
 import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { GRAPHIFY_RECIPE, planRuntimeTool } from "../src/core/runtime-tools.js";
+import {
+  GRAPHIFY_RECIPE,
+  planRuntimeTool,
+} from "../src/core/agents/runtime-tools.js";
 import {
   parseRuntimeToolRecipe,
   resolveRuntimeRecipePath,
   runtimeArtifactRequirement,
-} from "../src/core/runtime-tool-recipe.js";
+} from "../src/core/agents/runtime-tool-recipe.js";
 import type { DetectedAgent } from "../src/shared/types.js";
 
 describe("reviewed runtime recipe schema", () => {

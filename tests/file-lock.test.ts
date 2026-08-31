@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { mkdtemp, readFile, rm, utimes, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { acquireFileLock } from "../src/core/file-lock.js";
+import { acquireFileLock } from "../src/core/install/file-lock.js";
 
 describe("cross-process file locks", () => {
   let root = "";

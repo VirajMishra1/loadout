@@ -6,7 +6,7 @@ import {
   type CredentialCommand,
   type CredentialCommandRunner,
   type CredentialCommandResult,
-} from "../src/core/credentials.js";
+} from "../src/core/routing/credentials.js";
 
 function recordingRunner(
   response: CredentialCommandResult = {

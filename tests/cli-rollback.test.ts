@@ -7,7 +7,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   createSnapshot,
   recordSnapshotPostMutationState,
-} from "../src/core/snapshot.js";
+} from "../src/core/install/snapshot.js";
 
 const run = promisify(execFile);
 const cli = join(process.cwd(), "node_modules", "tsx", "dist", "cli.mjs");

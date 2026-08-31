@@ -6,9 +6,9 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   buildLocalAgentHealthScores,
   collectLocalAgentHealthEvidence,
-} from "../src/core/health-score-evidence.js";
-import { createSnapshot } from "../src/core/snapshot.js";
-import { writeInstallState } from "../src/core/state.js";
+} from "../src/core/agents/health-score-evidence.js";
+import { createSnapshot } from "../src/core/install/snapshot.js";
+import { writeInstallState } from "../src/core/workspace/state.js";
 import type { CatalogPackage, DetectedAgent } from "../src/shared/types.js";
 
 describe("local Agent Health Score evidence", () => {

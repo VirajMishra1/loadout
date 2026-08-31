@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { diffRepositorySnapshots } from "../src/core/diff.js";
+import { diffRepositorySnapshots } from "../src/core/install/diff.js";
 
 describe("repository diff", () => {
   it("reports safe changes to skills, MCP manifests, and config files", async () => {

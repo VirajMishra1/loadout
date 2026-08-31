@@ -3,15 +3,15 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { DetectedAgent } from "../src/shared/types.js";
-import type { CatalogSkillIndex } from "../src/core/provenance.js";
+import type { CatalogSkillIndex } from "../src/core/catalog/provenance.js";
 import {
   applyReconcilePlan,
   buildReconcilePlan,
   formatReconcilePlan,
-} from "../src/core/reconcile.js";
-import { repositoryCachePath } from "../src/core/source.js";
-import { readInstallState } from "../src/core/state.js";
-import { scanInstalledSkills } from "../src/core/skill-inventory.js";
+} from "../src/core/install/reconcile.js";
+import { repositoryCachePath } from "../src/core/install/source.js";
+import { readInstallState } from "../src/core/workspace/state.js";
+import { scanInstalledSkills } from "../src/core/catalog/skill-inventory.js";
 
 const commit = "a".repeat(40);
 

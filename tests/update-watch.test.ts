@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   checkForUpdates,
   startUpdateWatcher,
-} from "../src/core/update-watch.js";
+} from "../src/core/install/update-watch.js";
 
 describe("read-only update watcher", () => {
   it("summarizes pending updates without applying them", async () => {

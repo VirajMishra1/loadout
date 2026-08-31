@@ -1,24 +1,24 @@
 import { Command } from "commander";
-import { loadEffectiveCatalog } from "../core/catalog.js";
-import { detectAgents, parseAgentSelection } from "../core/paths.js";
+import { loadEffectiveCatalog } from "../core/catalog/catalog.js";
+import { detectAgents, parseAgentSelection } from "../core/agents/paths.js";
 import { resolve } from "node:path";
 
-import { runDoctor, formatDoctorReport } from "../core/doctor.js";
+import { runDoctor, formatDoctorReport } from "../core/reporting/doctor.js";
 
-import { applyProfileToManifest } from "../core/manifest.js";
+import { applyProfileToManifest } from "../core/workspace/manifest.js";
 import {
   buildHealthReport,
   formatStatusScreen,
   gradeHealth,
-} from "../core/health.js";
+} from "../core/reporting/health.js";
 
-import { applyRemove, planRemove } from "../core/remove.js";
+import { applyRemove, planRemove } from "../core/install/remove.js";
 import {
   applyUninstall,
   buildUninstallPlan,
   formatUninstallPlan,
   uninstallGlobalCli,
-} from "../core/uninstall.js";
+} from "../core/install/uninstall.js";
 
 import {
   formatRecommendations,
@@ -28,43 +28,43 @@ import {
   RECOMMENDATION_BOUNDARY,
   scanProject,
   TESTED_PROFILES,
-} from "../core/recommend.js";
-import { applySyncPlan, buildSyncPlan } from "../core/sync.js";
+} from "../core/workspace/recommend.js";
+import { applySyncPlan, buildSyncPlan } from "../core/install/sync.js";
 
 import {
   formatAgentInventory,
   inspectAgents,
-} from "../core/agent-inspection.js";
+} from "../core/agents/agent-inspection.js";
 
 import {
   formatInstalledSkillInventory,
   scanInstalledSkills,
-} from "../core/skill-inventory.js";
+} from "../core/catalog/skill-inventory.js";
 import {
   enrichInventoryWithProvenance,
   formatProvenanceSummary,
   resolveCatalogSkillIndex,
-} from "../core/provenance.js";
+} from "../core/catalog/provenance.js";
 
 import {
   applySkillAdoption,
   formatAdoptionPlan,
   planSkillAdoption,
-} from "../core/adopt.js";
+} from "../core/install/adopt.js";
 import {
   applyReconcilePlan,
   buildReconcilePlan,
   formatReconcilePlan,
-} from "../core/reconcile.js";
+} from "../core/install/reconcile.js";
 
-import { readLocalOutcomes } from "../core/outcomes.js";
+import { readLocalOutcomes } from "../core/workspace/outcomes.js";
 
 import {
   formatAgentVersions,
   inspectAgentVersions,
-} from "../core/agent-versions.js";
+} from "../core/agents/agent-versions.js";
 
-import { scanSkillSecurity } from "../core/skill-security.js";
+import { scanSkillSecurity } from "../core/catalog/skill-security.js";
 
 import { printProvenanceProgress } from "./support.js";
 

@@ -8,7 +8,10 @@ import {
 } from "../agents/paths.js";
 import type { DetectedAgent } from "../../shared/types.js";
 import type { AgentInventory } from "../../shared/types.js";
-import { inspectAgents } from "../agents/agent-inspection.js";
+import {
+  countComponentUnits,
+  inspectAgents,
+} from "../agents/agent-inspection.js";
 
 export interface DoctorAgent {
   agent: DetectedAgent;
@@ -125,9 +128,10 @@ export function formatDoctorReport(
   if (installed.length) {
     lines.push("DETECTED AGENTS");
     for (const entry of installed) {
-      const skillCount = entry.inventory.components
-        .filter((c) => c.scanned && c.directoryExists)
-        .reduce((sum, c) => sum + c.entries.length, 0);
+      const skillCount = entry.inventory.components.reduce(
+        (sum, component) => sum + countComponentUnits(component),
+        0,
+      );
       const supported = entry.inventory.components
         .filter(
           (c) => c.compatibility === "native" || c.compatibility === "adapted",
@@ -136,7 +140,7 @@ export function formatDoctorReport(
       lines.push(
         `  ✓ ${entry.agent.displayName}`,
         `    ${entry.agent.skillsDirectory}`,
-        `    ${skillCount} items | supports: ${supported.join(", ")}`,
+        `    ${skillCount} skills | supports: ${supported.join(", ")}`,
       );
       if (entry.issues.length) {
         for (const issue of entry.issues) lines.push(`    ⚠ ${issue}`);

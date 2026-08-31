@@ -1,0 +1,2 @@
+{"id":"a29c936e","type":"task","from":"user","to":"codex","description":"write vitest coverage for src/lib/webhook.ts","context":"stripe v16, zod schemas exist","timestamp":"2026-08-31T15:18:18.013Z"}
+{"id":"07189858","type":"error","from":"codex","to":"user","description":"Unable to execute handoff a29c936e: src/lib/webhook.ts and Stripe are not present in this repository","context":"Current project is loadout-ai; package.json only has commander and zod runtime dependencies. No webhook implementation or Stripe package exists.","timestamp":"2026-08-31T16:36:11.014Z"}

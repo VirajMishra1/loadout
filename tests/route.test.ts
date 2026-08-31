@@ -102,20 +102,46 @@ describe("route", () => {
     expect(providers).toEqual(new Set(["anthropic", "openai"]));
   });
 
-  it("model catalog includes current-gen models from both providers", () => {
-    const currentModels = MODEL_CATALOG.filter((m) => m.current);
-    expect(currentModels.length).toBeGreaterThan(10);
-    const names = currentModels.map((m) => m.name);
-    expect(names).toContain("Claude Opus 5");
-    expect(names).toContain("Claude Sonnet 5");
-    expect(names).toContain("Claude Haiku 4.5");
-    expect(names).toContain("GPT-5.6 Sol");
-    expect(names).toContain("GPT-5.6 Terra");
-    expect(names).toContain("GPT-5.6 Luna");
-    expect(names).toContain("GPT-5.5");
-    expect(names).toContain("GPT-5.4");
-    expect(names).toContain("GPT-5.4 Mini");
-    expect(names).toContain("o4-mini");
+  it("model catalog is the opinionated current set only", () => {
+    const names = MODEL_CATALOG.map((m) => m.name);
+    expect(names).toEqual([
+      "Claude Opus 5",
+      "Claude Sonnet 5",
+      "GPT-5.6 Sol",
+      "GPT-5.6 Terra",
+      "GPT-5.6 Luna",
+    ]);
+    // Weaker and legacy lines are deliberately excluded.
+    expect(names.join()).not.toMatch(/Haiku|Fable|o3|o4|4\.6|4\.8|5\.4|5\.5/);
+    expect(MODEL_CATALOG.every((m) => m.current)).toBe(true);
+  });
+
+  it("gives Claude Code no fast tier and Codex all three", () => {
+    const claude = MODEL_CATALOG.filter((m) =>
+      m.nativeAgents.includes("claude-code"),
+    ).map((m) => m.tier);
+    expect(claude.sort()).toEqual(["frontier", "standard"]);
+    const codex = MODEL_CATALOG.filter((m) =>
+      m.nativeAgents.includes("codex"),
+    ).map((m) => m.tier);
+    expect(codex.sort()).toEqual(["fast", "frontier", "standard"]);
+  });
+
+  it("steps a Claude-only user up when the tier has nothing they can run", () => {
+    const output = formatRouteRecommendation(routePhase("test"), {
+      installedAgents: ["claude-code"],
+    });
+    expect(output).toContain("Claude Sonnet 5");
+    expect(output).not.toContain("Luna");
+    expect(output).toContain("no fast-tier model");
+  });
+
+  it("does not step up when the tier is reachable", () => {
+    const output = formatRouteRecommendation(routePhase("test"), {
+      installedAgents: ["codex"],
+    });
+    expect(output).toContain("GPT-5.6 Luna");
+    expect(output).not.toContain("no fast-tier model");
   });
 
   it("modelsForTier returns only the requested tier", () => {

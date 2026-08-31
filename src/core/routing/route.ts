@@ -26,17 +26,8 @@ export interface ModelEntry {
 // Prices as of August 2026.
 export const MODEL_CATALOG: ModelEntry[] = [
   // --- Anthropic (Claude Code) ---
-  {
-    id: "claude-fable-5",
-    provider: "anthropic",
-    name: "Claude Fable 5",
-    tier: "frontier",
-    inputCostPer1M: 10,
-    outputCostPer1M: 50,
-    nativeAgents: ["claude-code"],
-    current: true,
-    generation: "5",
-  },
+  // Haiku and the 4.x line are deliberately absent: for real coding work the
+  // choice is Opus or Sonnet, and offering a weaker tier invites picking it.
   {
     id: "claude-opus-5",
     provider: "anthropic",
@@ -59,52 +50,8 @@ export const MODEL_CATALOG: ModelEntry[] = [
     current: true,
     generation: "5",
   },
-  {
-    id: "claude-opus-4-8",
-    provider: "anthropic",
-    name: "Claude Opus 4.8",
-    tier: "frontier",
-    inputCostPer1M: 5,
-    outputCostPer1M: 25,
-    nativeAgents: ["claude-code"],
-    current: false,
-    generation: "4",
-  },
-  {
-    id: "claude-opus-4-6",
-    provider: "anthropic",
-    name: "Claude Opus 4.6",
-    tier: "frontier",
-    inputCostPer1M: 5,
-    outputCostPer1M: 25,
-    nativeAgents: ["claude-code"],
-    current: false,
-    generation: "4",
-  },
-  {
-    id: "claude-sonnet-4-6",
-    provider: "anthropic",
-    name: "Claude Sonnet 4.6",
-    tier: "standard",
-    inputCostPer1M: 3,
-    outputCostPer1M: 15,
-    nativeAgents: ["claude-code"],
-    current: false,
-    generation: "4",
-  },
-  {
-    id: "claude-haiku-4-5",
-    provider: "anthropic",
-    name: "Claude Haiku 4.5",
-    tier: "fast",
-    inputCostPer1M: 1,
-    outputCostPer1M: 5,
-    nativeAgents: ["claude-code"],
-    current: true,
-    generation: "4",
-  },
 
-  // --- OpenAI (Codex) — GPT-5.6 family ---
+  // --- OpenAI (Codex) — the current GPT-5.6 tiers only ---
   {
     id: "gpt-5.6-sol",
     provider: "openai",
@@ -137,102 +84,6 @@ export const MODEL_CATALOG: ModelEntry[] = [
     nativeAgents: ["codex"],
     current: true,
     generation: "5.6",
-  },
-
-  // --- OpenAI — GPT-5.5 ---
-  {
-    id: "gpt-5.5",
-    provider: "openai",
-    name: "GPT-5.5",
-    tier: "frontier",
-    inputCostPer1M: 5,
-    outputCostPer1M: 30,
-    nativeAgents: ["codex"],
-    current: true,
-    generation: "5.5",
-  },
-
-  // --- OpenAI — GPT-5.4 family ---
-  {
-    id: "gpt-5.4",
-    provider: "openai",
-    name: "GPT-5.4",
-    tier: "standard",
-    inputCostPer1M: 2.5,
-    outputCostPer1M: 15,
-    nativeAgents: ["codex"],
-    current: true,
-    generation: "5.4",
-  },
-  {
-    id: "gpt-5.4-mini",
-    provider: "openai",
-    name: "GPT-5.4 Mini",
-    tier: "fast",
-    inputCostPer1M: 0.75,
-    outputCostPer1M: 4.5,
-    nativeAgents: ["codex"],
-    current: true,
-    generation: "5.4",
-  },
-
-  // --- OpenAI — Codex-specific ---
-  {
-    id: "gpt-5.1-codex",
-    provider: "openai",
-    name: "GPT-5.1 Codex",
-    tier: "standard",
-    inputCostPer1M: 1.25,
-    outputCostPer1M: 10,
-    nativeAgents: ["codex"],
-    current: true,
-    generation: "5.1",
-  },
-
-  // --- OpenAI — o-series reasoning ---
-  {
-    id: "o3-pro",
-    provider: "openai",
-    name: "o3-pro",
-    tier: "frontier",
-    inputCostPer1M: 20,
-    outputCostPer1M: 80,
-    nativeAgents: ["codex"],
-    current: true,
-    generation: "o3",
-  },
-  {
-    id: "o3",
-    provider: "openai",
-    name: "o3",
-    tier: "frontier",
-    inputCostPer1M: 2,
-    outputCostPer1M: 8,
-    nativeAgents: ["codex"],
-    current: true,
-    generation: "o3",
-  },
-  {
-    id: "o4-mini",
-    provider: "openai",
-    name: "o4-mini",
-    tier: "standard",
-    inputCostPer1M: 1.1,
-    outputCostPer1M: 4.4,
-    nativeAgents: ["codex"],
-    current: true,
-    generation: "o4",
-  },
-  {
-    id: "o3-mini",
-    provider: "openai",
-    name: "o3-mini",
-    tier: "standard",
-    inputCostPer1M: 1.1,
-    outputCostPer1M: 4.4,
-    nativeAgents: ["codex"],
-    current: true,
-    generation: "o3",
   },
 ];
 
@@ -589,11 +440,27 @@ export function formatRouteRecommendation(
     ? resolveAvailableAgents(rec.suggestedAgents, context.installedAgents!)
     : { available: rec.suggestedAgents, missing: [] as AgentId[] };
 
-  // Only recommend models an available agent can actually run.
+  // Only recommend models an available agent can actually run. Not every
+  // provider offers every tier — Claude Code has no fast tier — so when the
+  // recommended tier holds nothing the user can reach, step up to the nearest
+  // tier that does rather than naming a model they cannot run.
   const runnable = checked
     ? modelsRunnableBy(rec.models, available)
     : rec.models;
-  const shown = (runnable.length ? runnable : rec.models).slice(0, 4);
+  const stepUp: Record<string, "standard" | "frontier"> = {
+    fast: "standard",
+    standard: "frontier",
+  };
+  let effective = runnable;
+  let tier: string = rec.tier;
+  let substituted: { from: string; to: string } | undefined;
+  while (checked && available.length && !effective.length && stepUp[tier]) {
+    const next = stepUp[tier];
+    effective = modelsRunnableBy(modelsForTier(next), available);
+    if (effective.length) substituted = { from: rec.tier, to: next };
+    tier = next;
+  }
+  const shown = (effective.length ? effective : rec.models).slice(0, 4);
   const modelNames = shown.map(
     (m) => `${m.name} ($${m.inputCostPer1M}/$${m.outputCostPer1M})`,
   );
@@ -607,6 +474,12 @@ export function formatRouteRecommendation(
     }`,
     `Why:      ${rec.reason}`,
   ];
+
+  if (substituted)
+    lines.push(
+      `Note:     your agents have no ${substituted.from}-tier model, so this shows`,
+      `          the ${substituted.to} tier instead.`,
+    );
 
   if (rec.conserveAlternative) {
     const alt = rec.conserveAlternative;

@@ -159,6 +159,29 @@ export async function inspectAgents(
 }
 
 /**
+ * Count installable units rather than raw filesystem entries. A skill is one
+ * directory containing SKILL.md, so counting every nested file reports a number
+ * many times larger than the number of skills the user actually has.
+ */
+export function countComponentUnits(
+  component: AgentComponentInventory,
+): number {
+  if (!component.scanned || !component.directoryExists) return 0;
+  const skillRoots = new Set<string>();
+  let looseFiles = 0;
+  for (const entry of component.entries) {
+    if (entry.kind !== "file") continue;
+    const segments = entry.path.split("/");
+    const name = segments[segments.length - 1];
+    if (name === "SKILL.md") {
+      // Depth 1 means SKILL.md sits at the component root, which is one unit.
+      skillRoots.add(segments.slice(0, -1).join("/") || ".");
+    } else if (segments.length === 1) looseFiles += 1;
+  }
+  return skillRoots.size || looseFiles;
+}
+
+/**
  * One agent's inventory. The default is a two-line summary: what is installed
  * and which component kinds the adapter supports. Adapter internals — the
  * per-kind compatibility notes and the paths that do not exist yet — are only
@@ -180,9 +203,10 @@ export function formatAgentInventory(
       lines.push(`  ${component.type}: ${component.compatibility}; ${state}`);
     }
   } else {
-    const items = inventory.components
-      .filter((component) => component.scanned && component.directoryExists)
-      .reduce((total, component) => total + component.entries.length, 0);
+    const items = inventory.components.reduce(
+      (total, component) => total + countComponentUnits(component),
+      0,
+    );
     const supported = inventory.components
       .filter((component) => component.compatibility !== "unsupported")
       .map((component) => component.type);
@@ -190,7 +214,7 @@ export function formatAgentInventory(
       (component) => component.type === "skill",
     );
     if (skills?.directory) lines.push(`  ${skills.directory}`);
-    lines.push(`  ${items} items | supports: ${supported.join(", ")}`);
+    lines.push(`  ${items} skills | supports: ${supported.join(", ")}`);
   }
 
   for (const warning of inventory.warnings) lines.push(`  ! ${warning}`);

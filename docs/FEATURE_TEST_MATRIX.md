@@ -513,7 +513,7 @@ npx vitest run tests/benchmark-campaign.test.ts tests/benchmark-cli.test.ts \
 Expected: campaign hashes and paired order are deterministic, every retry is included
 in the worst-case budget, over-budget plans are blocked, resumable metadata contains
 no prompt/output/credential bytes, and aggregate comparison never invents a quality
-delta. See `docs/EVALUATION_PROTOCOL_V1.md` for the campaign JSON contract. These
+delta. See `docs/EVALUATION_PROTOCOL.md` for the evaluation contract. These
 tests do not call a model provider and consume no provider credit.
 
 ```bash

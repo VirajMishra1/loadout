@@ -19,7 +19,6 @@ For current behavior and evidence, use:
   catalog/support facts;
 - the [changelog](../CHANGELOG.md) for released behavior;
 - the [feature test matrix](./FEATURE_TEST_MATRIX.md) for adapter evidence;
-- the [repository stabilization record](./REPOSITORY_STABILIZATION.md) and
   [sanitized July 19 live checks](./evidence/live-checks-2026-07-19.json) only when
   investigating that historical release line.
 

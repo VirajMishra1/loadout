@@ -158,16 +158,41 @@ export async function inspectAgents(
   return Promise.all(agents.map(inspectAgent));
 }
 
-export function formatAgentInventory(inventory: AgentInventory): string {
+/**
+ * One agent's inventory. The default is a two-line summary: what is installed
+ * and which component kinds the adapter supports. Adapter internals — the
+ * per-kind compatibility notes and the paths that do not exist yet — are only
+ * useful when diagnosing, so they stay behind `details`.
+ */
+export function formatAgentInventory(
+  inventory: AgentInventory,
+  options: { details?: boolean } = {},
+): string {
   const lines = [
     `${inventory.agent.installed ? "✓" : "○"} ${inventory.agent.displayName}`,
   ];
-  for (const component of inventory.components) {
-    const state = component.scanned
-      ? `${component.directoryExists ? `${component.entries.length} filesystem item(s)` : "not created"} — ${component.directory}`
-      : (component.note ?? "not inspected");
-    lines.push(`  ${component.type}: ${component.compatibility}; ${state}`);
+
+  if (options.details) {
+    for (const component of inventory.components) {
+      const state = component.scanned
+        ? `${component.directoryExists ? `${component.entries.length} filesystem item(s)` : "not created"} — ${component.directory}`
+        : (component.note ?? "not inspected");
+      lines.push(`  ${component.type}: ${component.compatibility}; ${state}`);
+    }
+  } else {
+    const items = inventory.components
+      .filter((component) => component.scanned && component.directoryExists)
+      .reduce((total, component) => total + component.entries.length, 0);
+    const supported = inventory.components
+      .filter((component) => component.compatibility !== "unsupported")
+      .map((component) => component.type);
+    const skills = inventory.components.find(
+      (component) => component.type === "skill",
+    );
+    if (skills?.directory) lines.push(`  ${skills.directory}`);
+    lines.push(`  ${items} items | supports: ${supported.join(", ")}`);
   }
+
   for (const warning of inventory.warnings) lines.push(`  ! ${warning}`);
   return lines.join("\n");
 }

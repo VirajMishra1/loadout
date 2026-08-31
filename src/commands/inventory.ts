@@ -622,8 +622,12 @@ export function registerInventory(program: Command): void {
     .description(
       "Home screen: a health grade, detected agents, and the next thing to do",
     )
+    .option(
+      "--details",
+      "show per-component adapter compatibility for each agent",
+    )
     .option("--json", "emit machine-readable status")
-    .action(async (options: { json?: boolean }) => {
+    .action(async (options: { details?: boolean; json?: boolean }) => {
       const agents = await detectAgents();
       const [inventory, report] = await Promise.all([
         inspectAgents(agents),
@@ -640,7 +644,9 @@ export function registerInventory(program: Command): void {
       console.log(
         formatStatusScreen(
           report,
-          inventory.map((item) => formatAgentInventory(item)),
+          inventory.map((item) =>
+            formatAgentInventory(item, { details: options.details }),
+          ),
         ),
       );
     });
@@ -740,7 +746,8 @@ export function registerInventory(program: Command): void {
         console.log(
           `${formatCapabilityMatrix()}\n\nLocal managed-component inventory:`,
         );
-        for (const item of inventory) console.log(formatAgentInventory(item));
+        for (const item of inventory)
+          console.log(formatAgentInventory(item, { details: true }));
       },
     );
 

@@ -23,6 +23,15 @@ import {
   type TaskPhase,
 } from "../core/route.js";
 import {
+  applyFirstPartySkill,
+  FIRST_PARTY_SKILLS,
+  formatFirstPartySkillList,
+  formatFirstPartySkillPlan,
+  installedFirstPartySkills,
+  planFirstPartySkill,
+  removeFirstPartySkill,
+} from "../core/first-party-skills.js";
+import {
   applyPickup,
   formatHandoffStatus,
   formatInbox,
@@ -1006,6 +1015,91 @@ export function registerCatalog(program: Command): void {
       console.log(
         `Verified model selection '${id}'. No credential value was stored or printed.`,
       );
+    });
+
+  const skills = program
+    .command("skills")
+    .description(
+      "Install the skills Loadout ships so your agents can use Loadout from inside a conversation",
+    );
+
+  skills
+    .command("list", { isDefault: true })
+    .description("Show the skills Loadout ships and whether they are installed")
+    .option("--json", "emit machine-readable JSON")
+    .action(async (options: { json?: boolean }) => {
+      const installed = await installedFirstPartySkills();
+      console.log(
+        options.json
+          ? JSON.stringify(
+              FIRST_PARTY_SKILLS.map((skill) => ({
+                ...skill,
+                installed: installed.has(skill.id),
+              })),
+              null,
+              2,
+            )
+          : formatFirstPartySkillList(installed),
+      );
+    });
+
+  skills
+    .command("install")
+    .description("Preview or install one Loadout skill into detected agents")
+    .argument("<id>", "skill id, for example loadout-router")
+    .option(
+      "--agents <ids>",
+      "comma-separated agent ids; defaults to all detected",
+    )
+    .option("--yes", "apply after previewing")
+    .action(async (id: string, options: { agents?: string; yes?: boolean }) => {
+      const plan = await planFirstPartySkill(id, {
+        ...(options.agents
+          ? { agents: parseAgentSelection(options.agents)! }
+          : {}),
+      });
+      console.log(formatFirstPartySkillPlan(plan));
+      if (!plan.targets.length) return;
+      if (!options.yes) {
+        console.log("\nPreview only. Re-run with --yes to install.");
+        return;
+      }
+      await applyFirstPartySkill(plan);
+      console.log(
+        `\nInstalled '${plan.skill.id}' for ${plan.targets.length} agent(s). Start a new agent session to pick it up.`,
+      );
+    });
+
+  skills
+    .command("remove")
+    .description("Preview or remove one Loadout skill from detected agents")
+    .argument("<id>", "skill id")
+    .option(
+      "--agents <ids>",
+      "comma-separated agent ids; defaults to all detected",
+    )
+    .option("--yes", "apply after previewing")
+    .action(async (id: string, options: { agents?: string; yes?: boolean }) => {
+      const plan = await planFirstPartySkill(id, {
+        ...(options.agents
+          ? { agents: parseAgentSelection(options.agents)! }
+          : {}),
+      });
+      const present = plan.targets.filter((target) => target.replacing);
+      if (!present.length) {
+        console.log(`'${id}' is not installed for any detected agent.`);
+        return;
+      }
+      for (const target of present)
+        console.log(
+          `  remove → ${target.destination}  [${target.displayName}]`,
+        );
+      if (!options.yes) {
+        console.log("\nPreview only. Re-run with --yes to remove.");
+        return;
+      }
+      await removeFirstPartySkill(plan);
+      console.log(`\nRemoved '${id}' from ${present.length} agent(s).`);
     });
 
   const handoff = program

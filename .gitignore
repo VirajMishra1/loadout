@@ -12,3 +12,6 @@ graphify-out/
 
 # readme-product-flow test scratch build dirs
 .readme-build-*/
+
+# npm link artifact
+bin/

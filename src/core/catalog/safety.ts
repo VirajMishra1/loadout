@@ -11,7 +11,8 @@ export type SafetyCategory =
   | "environment"
   | "secret"
   | "instruction"
-  | "mcp";
+  | "mcp"
+  | "uninspectable";
 
 export interface SafetyFinding {
   severity: SafetySeverity;
@@ -72,24 +73,49 @@ export function detectSecretKinds(content: string): string[] {
   );
 }
 
-async function files(root: string): Promise<Map<string, Buffer>> {
+const MAX_INSPECTABLE_BYTES = 2_000_000;
+const MAX_DEPTH = 10;
+
+/**
+ * Files this scan could not read. A scanner that silently drops what it cannot
+ * inspect reports "no findings" for the one file most worth reviewing, so these
+ * are surfaced and made blocking rather than discarded.
+ */
+export interface ScanGap {
+  path: string;
+  reason: "too-large" | "too-deep" | "unreadable";
+}
+
+async function files(
+  root: string,
+  gaps: ScanGap[] = [],
+): Promise<Map<string, Buffer>> {
   const result = new Map<string, Buffer>();
   const base = resolve(root);
   try {
     const rootInfo = await stat(base);
-    if (rootInfo.isFile() && rootInfo.size <= 2_000_000) {
+    if (rootInfo.isFile()) {
+      if (rootInfo.size > MAX_INSPECTABLE_BYTES) {
+        gaps.push({ path: basename(base), reason: "too-large" });
+        return result;
+      }
       result.set(basename(base), await readFile(base));
       return result;
     }
   } catch {
+    gaps.push({ path: basename(base), reason: "unreadable" });
     return result;
   }
   async function visit(directory: string, depth: number): Promise<void> {
-    if (depth > 10) return;
+    if (depth > MAX_DEPTH) {
+      gaps.push({ path: relative(base, directory), reason: "too-deep" });
+      return;
+    }
     let entries;
     try {
       entries = await readdir(directory, { withFileTypes: true });
     } catch {
+      gaps.push({ path: relative(base, directory), reason: "unreadable" });
       return;
     }
     for (const entry of entries) {
@@ -101,15 +127,18 @@ async function files(root: string): Promise<Map<string, Buffer>> {
         continue;
       }
       if (!entry.isFile()) continue;
+      const shown = relative(base, absolute).split("\\").join("/");
       try {
         const info = await stat(absolute);
-        if (info.size > 2_000_000) continue;
-        result.set(
-          relative(base, absolute).split("\\").join("/"),
-          await readFile(absolute),
-        );
+        if (info.size > MAX_INSPECTABLE_BYTES) {
+          gaps.push({ path: shown, reason: "too-large" });
+          continue;
+        }
+        result.set(shown, await readFile(absolute));
       } catch {
-        /* repository may change while being inspected */
+        // The repository may change while being inspected; either way this
+        // file was not reviewed, so record it rather than passing it silently.
+        gaps.push({ path: shown, reason: "unreadable" });
       }
     }
   }
@@ -174,8 +203,9 @@ export async function analyzeUpdateSafety(
   oldPath: string | undefined,
   newPath: string,
 ): Promise<UpdateSafetyAnalysis> {
+  const gaps: ScanGap[] = [];
   const oldFiles = oldPath ? await files(oldPath) : new Map<string, Buffer>();
-  const newFiles = await files(newPath);
+  const newFiles = await files(newPath, gaps);
   const changed = changedPaths(oldFiles, newFiles);
   const findings: SafetyFinding[] = [];
   const domains = new Set<string>();
@@ -286,6 +316,21 @@ export async function analyzeUpdateSafety(
       paths: [...new Set(instructionPaths)].sort(),
       names: [...instructionKinds].sort(),
     });
+
+  // Fail closed. Anything the scan could not open is exactly what a reviewer
+  // needs told about, so an uninspectable file requires approval rather than
+  // producing a clean report.
+  if (gaps.length) {
+    const reasons = [...new Set(gaps.map((gap) => gap.reason))].sort();
+    findings.push({
+      severity: "blocking",
+      category: "uninspectable",
+      message: `Safety scan could not inspect ${gaps.length} path(s) (${reasons.join(", ")}); they were not reviewed.`,
+      paths: [...new Set(gaps.map((gap) => gap.path))].sort(),
+      names: reasons,
+    });
+  }
+
   return {
     approvalRequired: findings.some(
       (finding) => finding.severity === "blocking",

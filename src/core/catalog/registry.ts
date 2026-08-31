@@ -1,10 +1,11 @@
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import {
   cp,
   lstat,
   mkdir,
   readFile,
   readdir,
+  rename,
   rm,
   writeFile,
 } from "node:fs/promises";
@@ -14,6 +15,8 @@ import { loadoutHome } from "../agents/paths.js";
 import { analyzeUpdateSafety, type UpdateSafetyAnalysis } from "./safety.js";
 
 const NAME = /^[a-z0-9][a-z0-9._-]*$/;
+/** A SHA-256 digest, and nothing that could traverse a path. */
+const DIGEST = /^[a-f0-9]{64}$/;
 const VERSION =
   /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?$/;
 
@@ -399,18 +402,26 @@ export async function fetchRemoteRegistryPackage(
   if (!response.ok)
     throw new Error(`Remote registry returned ${response.status}`);
   const bundle = (await response.json()) as RegistryBundle;
+
+  // `digest` arrives from a remote server and is used to build a path that is
+  // later deleted recursively. Validate its shape before it can become one:
+  // a value such as "../../.." would otherwise escape the cache root.
+  if (typeof bundle?.digest !== "string" || !DIGEST.test(bundle.digest))
+    throw new Error(
+      "Remote registry returned a bundle whose digest is not a SHA-256 hex string",
+    );
+
   const key = createHash("sha256")
     .update(base.origin + base.pathname)
     .digest("hex");
-  const target = join(
-    loadoutHome(),
-    "cache",
-    "registry",
-    key,
-    name,
-    version,
-    bundle.digest,
-  );
+  const root = join(loadoutHome(), "cache", "registry", key, name, version);
+  const target = resolve(root, bundle.digest);
+
+  // Belt and braces: even with a validated digest, never operate on a path
+  // that resolved outside the directory it was meant to live in.
+  if (target !== root && !target.startsWith(root + sep))
+    throw new Error("Remote registry bundle resolved outside the cache root");
+
   try {
     const packed = await packPackage(target);
     if (packed.digest === bundle.digest)
@@ -418,9 +429,19 @@ export async function fetchRemoteRegistryPackage(
   } catch {
     /* import below */
   }
-  await mkdir(resolve(target, ".."), { recursive: true });
-  await rm(target, { recursive: true, force: true });
-  await importRegistryBundle(bundle, target);
+
+  // Import into a scratch directory and swap it in, so a failed or malicious
+  // import cannot leave the cache holding a half-written package.
+  await mkdir(root, { recursive: true });
+  const staging = `${target}.incoming-${randomUUID().slice(0, 8)}`;
+  try {
+    await importRegistryBundle(bundle, staging);
+    await rm(target, { recursive: true, force: true });
+    await rename(staging, target);
+  } catch (error) {
+    await rm(staging, { recursive: true, force: true });
+    throw error;
+  }
   return { path: target, digest: bundle.digest };
 }
 

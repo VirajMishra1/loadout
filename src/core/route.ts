@@ -179,6 +179,32 @@ export function cheapestInTier(tier: "frontier" | "standard" | "fast"): ModelEnt
   return models.sort((a, b) => a.inputCostPer1M - b.inputCostPer1M)[0];
 }
 
+/**
+ * Narrow a recommendation to the agents actually present on this machine. A
+ * recommendation that names an agent the user has not installed is noise, so
+ * the resolved list drives both the printed advice and the handoff command.
+ */
+export function resolveAvailableAgents(
+  suggested: AgentId[],
+  installed: AgentId[],
+): { available: AgentId[]; missing: AgentId[] } {
+  const present = new Set(installed);
+  return {
+    available: suggested.filter((id) => present.has(id)),
+    missing: suggested.filter((id) => !present.has(id)),
+  };
+}
+
+/** Models in the recommended tier that the given agents can actually run. */
+export function modelsRunnableBy(
+  models: ModelEntry[],
+  agents: AgentId[],
+): ModelEntry[] {
+  if (!agents.length) return models;
+  const wanted = new Set(agents);
+  return models.filter((m) => m.nativeAgents.some((id) => wanted.has(id)));
+}
+
 // ---------------------------------------------------------------------------
 // Routing
 // ---------------------------------------------------------------------------
@@ -258,15 +284,49 @@ export function estimateCostSavings(): { estimates: CostEstimate[]; normalTotal:
 // Formatters
 // ---------------------------------------------------------------------------
 
-export function formatRouteRecommendation(rec: RouteRecommendation): string {
-  const modelNames = rec.models.slice(0, 4).map((m) => `${m.name} ($${m.inputCostPer1M}/$${m.outputCostPer1M})`);
+export interface RouteContext {
+  /** Agents detected on this machine; empty means "not checked". */
+  installedAgents?: AgentId[];
+  /** The original task text, used to build a copy-pasteable handoff command. */
+  description?: string;
+  /** True when the current project has a .handoff/ directory. */
+  handoffReady?: boolean;
+}
+
+/** Shell-quote a task description for the suggested handoff command. */
+function shellQuote(value: string): string {
+  return `'${value.replace(/'/g, `'\\''`)}'`;
+}
+
+export function formatRouteRecommendation(
+  rec: RouteRecommendation,
+  context: RouteContext = {},
+): string {
+  // `undefined` means detection never ran, so every suggested agent stands. An
+  // empty array means detection ran and found nothing, which must not be
+  // silently upgraded back to the full suggestion list.
+  const checked = context.installedAgents !== undefined;
+  const { available, missing } = checked
+    ? resolveAvailableAgents(rec.suggestedAgents, context.installedAgents!)
+    : { available: rec.suggestedAgents, missing: [] as AgentId[] };
+
+  // Only recommend models an available agent can actually run.
+  const runnable = checked ? modelsRunnableBy(rec.models, available) : rec.models;
+  const shown = (runnable.length ? runnable : rec.models).slice(0, 4);
+  const modelNames = shown.map(
+    (m) => `${m.name} ($${m.inputCostPer1M}/$${m.outputCostPer1M})`,
+  );
+
   const lines = [
     `Phase:    ${rec.phase}`,
     `Tier:     ${rec.tierLabel}`,
     `Models:   ${modelNames.join("\n          ")}`,
-    `Agents:   ${rec.suggestedAgents.join(", ")}`,
+    `Agents:   ${available.length ? available.join(", ") : "none detected"}${
+      missing.length ? `  (not installed: ${missing.join(", ")})` : ""
+    }`,
     `Why:      ${rec.reason}`,
   ];
+
   if (rec.conserveAlternative) {
     const alt = rec.conserveAlternative;
     const altCheapest = cheapestInTier(alt.tier);
@@ -276,6 +336,19 @@ export function formatRouteRecommendation(rec: RouteRecommendation): string {
       `          ${alt.tradeoff}`,
     );
   }
+
+  // Actionable next step: hand this task to a detected agent.
+  if (context.description && available.length) {
+    const target = available[0];
+    lines.push(
+      ``,
+      `Hand off:`,
+      `  loadout handoff send ${target} ${shellQuote(context.description)}`,
+    );
+    if (context.handoffReady === false)
+      lines.push(`  (run \`loadout handoff init\` once to enable)`);
+  }
+
   return lines.join("\n");
 }
 

@@ -11,6 +11,8 @@ import {
   MODEL_CATALOG,
   modelsByProvider,
   modelsForTier,
+  modelsRunnableBy,
+  resolveAvailableAgents,
   routePhase,
   routeTask,
 } from "../src/core/route.js";
@@ -148,6 +150,79 @@ describe("route", () => {
   it("formats a cost table without throwing", () => {
     expect(formatCostTable()).toContain("Normal total");
     expect(formatCostTable()).toContain("Conserve total");
+  });
+
+  it("resolves available agents against installed set", () => {
+    const { available, missing } = resolveAvailableAgents(
+      ["claude-code", "codex"],
+      ["claude-code"],
+    );
+    expect(available).toEqual(["claude-code"]);
+    expect(missing).toEqual(["codex"]);
+  });
+
+  it("filters models to those the given agents can run", () => {
+    const frontier = modelsForTier("frontier");
+    const claudeOnly = modelsRunnableBy(frontier, ["claude-code"]);
+    expect(claudeOnly.every((m) => m.provider === "anthropic")).toBe(true);
+    const codexOnly = modelsRunnableBy(frontier, ["codex"]);
+    expect(codexOnly.every((m) => m.provider === "openai")).toBe(true);
+  });
+
+  it("returns all models when no agents are supplied", () => {
+    const frontier = modelsForTier("frontier");
+    expect(modelsRunnableBy(frontier, [])).toHaveLength(frontier.length);
+  });
+
+  it("names uninstalled agents rather than silently recommending them", () => {
+    const rec = routePhase("implement");
+    const output = formatRouteRecommendation(rec, {
+      installedAgents: ["claude-code"],
+    });
+    expect(output).toContain("not installed: codex");
+  });
+
+  it("emits a runnable handoff command for the detected agent", () => {
+    const rec = routeTask("implement the login form");
+    const output = formatRouteRecommendation(rec, {
+      installedAgents: ["codex"],
+      description: "implement the login form",
+      handoffReady: true,
+    });
+    expect(output).toContain(
+      "loadout handoff send codex 'implement the login form'",
+    );
+    expect(output).not.toContain("handoff init");
+  });
+
+  it("prompts for handoff init when the project has no .handoff directory", () => {
+    const rec = routeTask("write tests");
+    const output = formatRouteRecommendation(rec, {
+      installedAgents: ["claude-code"],
+      description: "write tests",
+      handoffReady: false,
+    });
+    expect(output).toContain("loadout handoff init");
+  });
+
+  it("escapes single quotes in the handoff command", () => {
+    const rec = routeTask("fix the user's session bug");
+    const output = formatRouteRecommendation(rec, {
+      installedAgents: ["codex"],
+      description: "fix the user's session bug",
+      handoffReady: true,
+    });
+    expect(output).toContain(`'fix the user'\\''s session bug'`);
+  });
+
+  it("omits the handoff line when no suggested agent is installed", () => {
+    const rec = routePhase("plan");
+    const output = formatRouteRecommendation(rec, {
+      installedAgents: [],
+      description: "design the schema",
+    });
+    expect(output).not.toContain("Hand off:");
+    expect(output).toContain("none detected");
   });
 
   it("formats a recommendation with conserve alternative", () => {

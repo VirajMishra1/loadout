@@ -8,7 +8,7 @@ import {
   refreshCatalog,
   validateCatalog,
 } from "../core/catalog.js";
-import { parseAgentSelection } from "../core/paths.js";
+import { detectAgents, parseAgentSelection } from "../core/paths.js";
 import { resolve } from "node:path";
 import { readFile } from "node:fs/promises";
 import type { CatalogPackage } from "../shared/types.js";
@@ -1164,10 +1164,20 @@ export function registerCatalog(program: Command): void {
         const rec = options.phase
           ? routePhase(options.phase as TaskPhase, options.conserve)
           : routeTask(description, options.conserve);
+        // Recommendations are only useful when they name agents this machine
+        // actually has, so detection drives both the advice and the handoff line.
+        const detected = await detectAgents();
+        const installedAgents = detected
+          .filter((agent) => agent.installed)
+          .map((agent) => agent.id);
         console.log(
           options.json
-            ? JSON.stringify(rec, null, 2)
-            : formatRouteRecommendation(rec),
+            ? JSON.stringify({ ...rec, installedAgents }, null, 2)
+            : formatRouteRecommendation(rec, {
+                installedAgents,
+                ...(description ? { description } : {}),
+                handoffReady: await isHandoffInitialized(process.cwd()),
+              }),
         );
       },
     );

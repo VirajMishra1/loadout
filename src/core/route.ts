@@ -26,41 +26,222 @@ export interface ModelEntry {
 // Prices as of August 2026.
 export const MODEL_CATALOG: ModelEntry[] = [
   // --- Anthropic (Claude Code) ---
-  { id: "claude-fable-5", provider: "anthropic", name: "Claude Fable 5", tier: "frontier", inputCostPer1M: 10, outputCostPer1M: 50, nativeAgents: ["claude-code"], current: true, generation: "5" },
-  { id: "claude-opus-5", provider: "anthropic", name: "Claude Opus 5", tier: "frontier", inputCostPer1M: 5, outputCostPer1M: 25, nativeAgents: ["claude-code"], current: true, generation: "5" },
-  { id: "claude-sonnet-5", provider: "anthropic", name: "Claude Sonnet 5", tier: "standard", inputCostPer1M: 3, outputCostPer1M: 15, nativeAgents: ["claude-code"], current: true, generation: "5" },
-  { id: "claude-opus-4-8", provider: "anthropic", name: "Claude Opus 4.8", tier: "frontier", inputCostPer1M: 5, outputCostPer1M: 25, nativeAgents: ["claude-code"], current: false, generation: "4" },
-  { id: "claude-opus-4-6", provider: "anthropic", name: "Claude Opus 4.6", tier: "frontier", inputCostPer1M: 5, outputCostPer1M: 25, nativeAgents: ["claude-code"], current: false, generation: "4" },
-  { id: "claude-sonnet-4-6", provider: "anthropic", name: "Claude Sonnet 4.6", tier: "standard", inputCostPer1M: 3, outputCostPer1M: 15, nativeAgents: ["claude-code"], current: false, generation: "4" },
-  { id: "claude-haiku-4-5", provider: "anthropic", name: "Claude Haiku 4.5", tier: "fast", inputCostPer1M: 1, outputCostPer1M: 5, nativeAgents: ["claude-code"], current: true, generation: "4" },
+  {
+    id: "claude-fable-5",
+    provider: "anthropic",
+    name: "Claude Fable 5",
+    tier: "frontier",
+    inputCostPer1M: 10,
+    outputCostPer1M: 50,
+    nativeAgents: ["claude-code"],
+    current: true,
+    generation: "5",
+  },
+  {
+    id: "claude-opus-5",
+    provider: "anthropic",
+    name: "Claude Opus 5",
+    tier: "frontier",
+    inputCostPer1M: 5,
+    outputCostPer1M: 25,
+    nativeAgents: ["claude-code"],
+    current: true,
+    generation: "5",
+  },
+  {
+    id: "claude-sonnet-5",
+    provider: "anthropic",
+    name: "Claude Sonnet 5",
+    tier: "standard",
+    inputCostPer1M: 3,
+    outputCostPer1M: 15,
+    nativeAgents: ["claude-code"],
+    current: true,
+    generation: "5",
+  },
+  {
+    id: "claude-opus-4-8",
+    provider: "anthropic",
+    name: "Claude Opus 4.8",
+    tier: "frontier",
+    inputCostPer1M: 5,
+    outputCostPer1M: 25,
+    nativeAgents: ["claude-code"],
+    current: false,
+    generation: "4",
+  },
+  {
+    id: "claude-opus-4-6",
+    provider: "anthropic",
+    name: "Claude Opus 4.6",
+    tier: "frontier",
+    inputCostPer1M: 5,
+    outputCostPer1M: 25,
+    nativeAgents: ["claude-code"],
+    current: false,
+    generation: "4",
+  },
+  {
+    id: "claude-sonnet-4-6",
+    provider: "anthropic",
+    name: "Claude Sonnet 4.6",
+    tier: "standard",
+    inputCostPer1M: 3,
+    outputCostPer1M: 15,
+    nativeAgents: ["claude-code"],
+    current: false,
+    generation: "4",
+  },
+  {
+    id: "claude-haiku-4-5",
+    provider: "anthropic",
+    name: "Claude Haiku 4.5",
+    tier: "fast",
+    inputCostPer1M: 1,
+    outputCostPer1M: 5,
+    nativeAgents: ["claude-code"],
+    current: true,
+    generation: "4",
+  },
 
   // --- OpenAI (Codex) — GPT-5.6 family ---
-  { id: "gpt-5.6-sol", provider: "openai", name: "GPT-5.6 Sol", tier: "frontier", inputCostPer1M: 5, outputCostPer1M: 30, nativeAgents: ["codex"], current: true, generation: "5.6" },
-  { id: "gpt-5.6-terra", provider: "openai", name: "GPT-5.6 Terra", tier: "standard", inputCostPer1M: 2, outputCostPer1M: 12, nativeAgents: ["codex"], current: true, generation: "5.6" },
-  { id: "gpt-5.6-luna", provider: "openai", name: "GPT-5.6 Luna", tier: "fast", inputCostPer1M: 0.20, outputCostPer1M: 1.20, nativeAgents: ["codex"], current: true, generation: "5.6" },
+  {
+    id: "gpt-5.6-sol",
+    provider: "openai",
+    name: "GPT-5.6 Sol",
+    tier: "frontier",
+    inputCostPer1M: 5,
+    outputCostPer1M: 30,
+    nativeAgents: ["codex"],
+    current: true,
+    generation: "5.6",
+  },
+  {
+    id: "gpt-5.6-terra",
+    provider: "openai",
+    name: "GPT-5.6 Terra",
+    tier: "standard",
+    inputCostPer1M: 2,
+    outputCostPer1M: 12,
+    nativeAgents: ["codex"],
+    current: true,
+    generation: "5.6",
+  },
+  {
+    id: "gpt-5.6-luna",
+    provider: "openai",
+    name: "GPT-5.6 Luna",
+    tier: "fast",
+    inputCostPer1M: 0.2,
+    outputCostPer1M: 1.2,
+    nativeAgents: ["codex"],
+    current: true,
+    generation: "5.6",
+  },
 
   // --- OpenAI — GPT-5.5 ---
-  { id: "gpt-5.5", provider: "openai", name: "GPT-5.5", tier: "frontier", inputCostPer1M: 5, outputCostPer1M: 30, nativeAgents: ["codex"], current: true, generation: "5.5" },
+  {
+    id: "gpt-5.5",
+    provider: "openai",
+    name: "GPT-5.5",
+    tier: "frontier",
+    inputCostPer1M: 5,
+    outputCostPer1M: 30,
+    nativeAgents: ["codex"],
+    current: true,
+    generation: "5.5",
+  },
 
   // --- OpenAI — GPT-5.4 family ---
-  { id: "gpt-5.4", provider: "openai", name: "GPT-5.4", tier: "standard", inputCostPer1M: 2.50, outputCostPer1M: 15, nativeAgents: ["codex"], current: true, generation: "5.4" },
-  { id: "gpt-5.4-mini", provider: "openai", name: "GPT-5.4 Mini", tier: "fast", inputCostPer1M: 0.75, outputCostPer1M: 4.50, nativeAgents: ["codex"], current: true, generation: "5.4" },
+  {
+    id: "gpt-5.4",
+    provider: "openai",
+    name: "GPT-5.4",
+    tier: "standard",
+    inputCostPer1M: 2.5,
+    outputCostPer1M: 15,
+    nativeAgents: ["codex"],
+    current: true,
+    generation: "5.4",
+  },
+  {
+    id: "gpt-5.4-mini",
+    provider: "openai",
+    name: "GPT-5.4 Mini",
+    tier: "fast",
+    inputCostPer1M: 0.75,
+    outputCostPer1M: 4.5,
+    nativeAgents: ["codex"],
+    current: true,
+    generation: "5.4",
+  },
 
   // --- OpenAI — Codex-specific ---
-  { id: "gpt-5.1-codex", provider: "openai", name: "GPT-5.1 Codex", tier: "standard", inputCostPer1M: 1.25, outputCostPer1M: 10, nativeAgents: ["codex"], current: true, generation: "5.1" },
+  {
+    id: "gpt-5.1-codex",
+    provider: "openai",
+    name: "GPT-5.1 Codex",
+    tier: "standard",
+    inputCostPer1M: 1.25,
+    outputCostPer1M: 10,
+    nativeAgents: ["codex"],
+    current: true,
+    generation: "5.1",
+  },
 
   // --- OpenAI — o-series reasoning ---
-  { id: "o3-pro", provider: "openai", name: "o3-pro", tier: "frontier", inputCostPer1M: 20, outputCostPer1M: 80, nativeAgents: ["codex"], current: true, generation: "o3" },
-  { id: "o3", provider: "openai", name: "o3", tier: "frontier", inputCostPer1M: 2, outputCostPer1M: 8, nativeAgents: ["codex"], current: true, generation: "o3" },
-  { id: "o4-mini", provider: "openai", name: "o4-mini", tier: "standard", inputCostPer1M: 1.10, outputCostPer1M: 4.40, nativeAgents: ["codex"], current: true, generation: "o4" },
-  { id: "o3-mini", provider: "openai", name: "o3-mini", tier: "standard", inputCostPer1M: 1.10, outputCostPer1M: 4.40, nativeAgents: ["codex"], current: true, generation: "o3" },
+  {
+    id: "o3-pro",
+    provider: "openai",
+    name: "o3-pro",
+    tier: "frontier",
+    inputCostPer1M: 20,
+    outputCostPer1M: 80,
+    nativeAgents: ["codex"],
+    current: true,
+    generation: "o3",
+  },
+  {
+    id: "o3",
+    provider: "openai",
+    name: "o3",
+    tier: "frontier",
+    inputCostPer1M: 2,
+    outputCostPer1M: 8,
+    nativeAgents: ["codex"],
+    current: true,
+    generation: "o3",
+  },
+  {
+    id: "o4-mini",
+    provider: "openai",
+    name: "o4-mini",
+    tier: "standard",
+    inputCostPer1M: 1.1,
+    outputCostPer1M: 4.4,
+    nativeAgents: ["codex"],
+    current: true,
+    generation: "o4",
+  },
+  {
+    id: "o3-mini",
+    provider: "openai",
+    name: "o3-mini",
+    tier: "standard",
+    inputCostPer1M: 1.1,
+    outputCostPer1M: 4.4,
+    nativeAgents: ["codex"],
+    current: true,
+    generation: "o3",
+  },
 ];
 
 // ---------------------------------------------------------------------------
 // Task phases and routing
 // ---------------------------------------------------------------------------
 
-export type TaskPhase = "plan" | "implement" | "review" | "test" | "debug" | "document";
+export type TaskPhase =
+  "plan" | "implement" | "review" | "test" | "debug" | "document";
 
 export interface RouteRecommendation {
   phase: TaskPhase;
@@ -94,51 +275,118 @@ interface PhaseConfig {
 const PHASE_CONFIG: Record<TaskPhase, PhaseConfig> = {
   plan: {
     tier: "frontier",
-    reason: "Architecture and decomposition need deep reasoning to avoid costly rework",
+    reason:
+      "Architecture and decomposition need deep reasoning to avoid costly rework",
     agents: ["claude-code"],
     conserveTier: "standard",
-    conserveTradeoff: "Slightly shallower architectural reasoning; review the plan more carefully",
+    conserveTradeoff:
+      "Slightly shallower architectural reasoning; review the plan more carefully",
   },
   implement: {
     tier: "standard",
-    reason: "Implementation is high-volume; standard models score within 5% of frontier on SWE-bench",
+    reason:
+      "Implementation is high-volume; standard models score within 5% of frontier on SWE-bench",
     agents: ["claude-code", "codex"],
     conserveTier: "fast",
-    conserveTradeoff: "May need more iterations on complex logic; fine for CRUD and boilerplate",
+    conserveTradeoff:
+      "May need more iterations on complex logic; fine for CRUD and boilerplate",
   },
   review: {
     tier: "frontier",
-    reason: "Code review catches subtle bugs that cheaper models miss; worth the cost per-review",
+    reason:
+      "Code review catches subtle bugs that cheaper models miss; worth the cost per-review",
     agents: ["claude-code", "codex"],
     conserveTier: "standard",
     conserveTradeoff: "May miss edge-case bugs; pair with a linter",
   },
   test: {
     tier: "fast",
-    reason: "Test generation is pattern-heavy; fast models produce equivalent coverage",
+    reason:
+      "Test generation is pattern-heavy; fast models produce equivalent coverage",
     agents: ["claude-code", "codex"],
   },
   debug: {
     tier: "standard",
-    reason: "Targeted debugging needs good reasoning but not frontier-level; standard balances cost and quality",
+    reason:
+      "Targeted debugging needs good reasoning but not frontier-level; standard balances cost and quality",
     agents: ["claude-code", "codex"],
     conserveTier: "fast",
-    conserveTradeoff: "Works for simple bugs; complex root-cause analysis may suffer",
+    conserveTradeoff:
+      "Works for simple bugs; complex root-cause analysis may suffer",
   },
   document: {
     tier: "fast",
-    reason: "Documentation and comments are well-suited to fast models; any decent model writes docs",
+    reason:
+      "Documentation and comments are well-suited to fast models; any decent model writes docs",
     agents: ["claude-code", "codex"],
   },
 };
 
 const PHASE_KEYWORDS: Record<TaskPhase, readonly string[]> = {
-  plan: ["plan", "design", "architect", "architecture", "rfc", "spec", "decompose", "strategy", "system design"],
-  implement: ["implement", "build", "code", "create", "add", "feature", "write", "develop", "make"],
-  review: ["review", "audit", "check", "inspect", "critique", "pr", "pull request", "diff"],
-  test: ["test", "spec", "coverage", "unit", "integration", "e2e", "assert", "vitest", "jest"],
-  debug: ["debug", "fix", "bug", "error", "crash", "broken", "investigate", "troubleshoot", "failing"],
-  document: ["document", "docs", "readme", "comment", "jsdoc", "changelog", "explain", "docstring"],
+  plan: [
+    "plan",
+    "design",
+    "architect",
+    "architecture",
+    "rfc",
+    "spec",
+    "decompose",
+    "strategy",
+    "system design",
+  ],
+  implement: [
+    "implement",
+    "build",
+    "code",
+    "create",
+    "add",
+    "feature",
+    "write",
+    "develop",
+    "make",
+  ],
+  review: [
+    "review",
+    "audit",
+    "check",
+    "inspect",
+    "critique",
+    "pr",
+    "pull request",
+    "diff",
+  ],
+  test: [
+    "test",
+    "spec",
+    "coverage",
+    "unit",
+    "integration",
+    "e2e",
+    "assert",
+    "vitest",
+    "jest",
+  ],
+  debug: [
+    "debug",
+    "fix",
+    "bug",
+    "error",
+    "crash",
+    "broken",
+    "investigate",
+    "troubleshoot",
+    "failing",
+  ],
+  document: [
+    "document",
+    "docs",
+    "readme",
+    "comment",
+    "jsdoc",
+    "changelog",
+    "explain",
+    "docstring",
+  ],
 };
 
 // ---------------------------------------------------------------------------
@@ -149,7 +397,10 @@ export function classifyTask(description: string): TaskPhase {
   const lower = description.toLowerCase();
   let best: TaskPhase = "implement";
   let bestScore = 0;
-  for (const [phase, keywords] of Object.entries(PHASE_KEYWORDS) as [TaskPhase, readonly string[]][]) {
+  for (const [phase, keywords] of Object.entries(PHASE_KEYWORDS) as [
+    TaskPhase,
+    readonly string[],
+  ][]) {
     let score = 0;
     for (const kw of keywords) {
       if (lower.includes(kw)) score++;
@@ -166,15 +417,24 @@ export function classifyTask(description: string): TaskPhase {
 // Model queries
 // ---------------------------------------------------------------------------
 
-export function modelsForTier(tier: "frontier" | "standard" | "fast", currentOnly = true): ModelEntry[] {
-  return MODEL_CATALOG.filter((m) => m.tier === tier && (!currentOnly || m.current));
+export function modelsForTier(
+  tier: "frontier" | "standard" | "fast",
+  currentOnly = true,
+): ModelEntry[] {
+  return MODEL_CATALOG.filter(
+    (m) => m.tier === tier && (!currentOnly || m.current),
+  );
 }
 
-export function modelsByProvider(provider: ModelEntry["provider"]): ModelEntry[] {
+export function modelsByProvider(
+  provider: ModelEntry["provider"],
+): ModelEntry[] {
   return MODEL_CATALOG.filter((m) => m.provider === provider && m.current);
 }
 
-export function cheapestInTier(tier: "frontier" | "standard" | "fast"): ModelEntry | undefined {
+export function cheapestInTier(
+  tier: "frontier" | "standard" | "fast",
+): ModelEntry | undefined {
   const models = modelsForTier(tier);
   return models.sort((a, b) => a.inputCostPer1M - b.inputCostPer1M)[0];
 }
@@ -209,15 +469,25 @@ export function modelsRunnableBy(
 // Routing
 // ---------------------------------------------------------------------------
 
-export function routeTask(description: string, conserve = false): RouteRecommendation {
+export function routeTask(
+  description: string,
+  conserve = false,
+): RouteRecommendation {
   return routePhase(classifyTask(description), conserve);
 }
 
-export function routePhase(phase: TaskPhase | string, conserve = false): RouteRecommendation {
+export function routePhase(
+  phase: TaskPhase | string,
+  conserve = false,
+): RouteRecommendation {
   const config = PHASE_CONFIG[phase as TaskPhase];
-  if (!config) throw new Error(`Unknown phase '${phase}'. Valid: ${Object.keys(PHASE_CONFIG).join(", ")}`);
+  if (!config)
+    throw new Error(
+      `Unknown phase '${phase}'. Valid: ${Object.keys(PHASE_CONFIG).join(", ")}`,
+    );
 
-  const effectiveTier = conserve && config.conserveTier ? config.conserveTier : config.tier;
+  const effectiveTier =
+    conserve && config.conserveTier ? config.conserveTier : config.tier;
   const models = modelsForTier(effectiveTier);
 
   const rec: RouteRecommendation = {
@@ -225,9 +495,10 @@ export function routePhase(phase: TaskPhase | string, conserve = false): RouteRe
     tier: effectiveTier,
     tierLabel: TIER_LABELS[effectiveTier],
     models,
-    reason: conserve && config.conserveTier
-      ? `Conserve mode: ${config.conserveTradeoff}`
-      : config.reason,
+    reason:
+      conserve && config.conserveTier
+        ? `Conserve mode: ${config.conserveTradeoff}`
+        : config.reason,
     suggestedAgents: config.agents,
   };
 
@@ -243,7 +514,9 @@ export function routePhase(phase: TaskPhase | string, conserve = false): RouteRe
 }
 
 export function allPhaseRoutes(conserve = false): RouteRecommendation[] {
-  return (Object.keys(PHASE_CONFIG) as TaskPhase[]).map((p) => routePhase(p, conserve));
+  return (Object.keys(PHASE_CONFIG) as TaskPhase[]).map((p) =>
+    routePhase(p, conserve),
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -258,7 +531,11 @@ export interface CostEstimate {
   outputCost: number;
 }
 
-export function estimateCostSavings(): { estimates: CostEstimate[]; normalTotal: number; conserveTotal: number } {
+export function estimateCostSavings(): {
+  estimates: CostEstimate[];
+  normalTotal: number;
+  conserveTotal: number;
+} {
   const normal = allPhaseRoutes(false);
   const conserved = allPhaseRoutes(true);
 
@@ -274,7 +551,9 @@ export function estimateCostSavings(): { estimates: CostEstimate[]; normalTotal:
   });
 
   const normalTotal = estimates.reduce((s, e) => s + e.inputCost, 0);
-  const conserveEstimates = conserved.map((r) => cheapestInTier(r.tier)?.inputCostPer1M ?? 0);
+  const conserveEstimates = conserved.map(
+    (r) => cheapestInTier(r.tier)?.inputCostPer1M ?? 0,
+  );
   const conserveTotal = conserveEstimates.reduce((s, c) => s + c, 0);
 
   return { estimates, normalTotal, conserveTotal };
@@ -311,7 +590,9 @@ export function formatRouteRecommendation(
     : { available: rec.suggestedAgents, missing: [] as AgentId[] };
 
   // Only recommend models an available agent can actually run.
-  const runnable = checked ? modelsRunnableBy(rec.models, available) : rec.models;
+  const runnable = checked
+    ? modelsRunnableBy(rec.models, available)
+    : rec.models;
   const shown = (runnable.length ? runnable : rec.models).slice(0, 4);
   const modelNames = shown.map(
     (m) => `${m.name} ($${m.inputCostPer1M}/$${m.outputCostPer1M})`,
@@ -367,14 +648,20 @@ export function formatRoutingTable(conserve = false): string {
     return `${phase} ${tier} ${model} ${inCost} ${outCost} ${agents}`;
   });
   return [
-    conserve ? "ROUTING TABLE (conserve mode — usage-saving tier for each phase)" : "ROUTING TABLE",
-    "", header, divider, ...rows,
+    conserve
+      ? "ROUTING TABLE (conserve mode — usage-saving tier for each phase)"
+      : "ROUTING TABLE",
+    "",
+    header,
+    divider,
+    ...rows,
   ].join("\n");
 }
 
 export function formatCostTable(): string {
   const { estimates, normalTotal, conserveTotal } = estimateCostSavings();
-  const header = "Phase        Tier        Cheapest model              $/M input";
+  const header =
+    "Phase        Tier        Cheapest model              $/M input";
   const divider = "─".repeat(header.length);
   const rows = estimates.map((e) => {
     const phase = e.phase.padEnd(12);
@@ -384,7 +671,10 @@ export function formatCostTable(): string {
   });
   const savings = Math.round((1 - conserveTotal / normalTotal) * 100);
   return [
-    header, divider, ...rows, divider,
+    header,
+    divider,
+    ...rows,
+    divider,
     `Normal total: $${normalTotal.toFixed(2)}/M input across 6 phases`,
     `Conserve total: $${conserveTotal.toFixed(2)}/M input (${savings}% cheaper)`,
     "",
@@ -393,13 +683,20 @@ export function formatCostTable(): string {
   ].join("\n");
 }
 
-export function formatModelCatalog(filter?: { provider?: string; tier?: string; current?: boolean }): string {
+export function formatModelCatalog(filter?: {
+  provider?: string;
+  tier?: string;
+  current?: boolean;
+}): string {
   let models = MODEL_CATALOG;
-  if (filter?.provider) models = models.filter((m) => m.provider === filter.provider);
+  if (filter?.provider)
+    models = models.filter((m) => m.provider === filter.provider);
   if (filter?.tier) models = models.filter((m) => m.tier === filter.tier);
-  if (filter?.current !== undefined) models = models.filter((m) => m.current === filter.current);
+  if (filter?.current !== undefined)
+    models = models.filter((m) => m.current === filter.current);
 
-  const header = "Model                        Provider    Tier        $/M in   $/M out  Gen    Agents";
+  const header =
+    "Model                        Provider    Tier        $/M in   $/M out  Gen    Agents";
   const divider = "─".repeat(header.length);
   const rows = models.map((m) => {
     const name = m.name.padEnd(28);
@@ -411,5 +708,11 @@ export function formatModelCatalog(filter?: { provider?: string; tier?: string; 
     const agents = m.nativeAgents.slice(0, 3).join(", ");
     return `${name} ${provider} ${tier} ${inCost} ${outCost} ${gen} ${agents}`;
   });
-  return [`${models.length} models${filter?.current === false ? " (including legacy)" : ""}`, "", header, divider, ...rows].join("\n");
+  return [
+    `${models.length} models${filter?.current === false ? " (including legacy)" : ""}`,
+    "",
+    header,
+    divider,
+    ...rows,
+  ].join("\n");
 }

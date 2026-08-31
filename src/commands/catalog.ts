@@ -1011,7 +1011,9 @@ export function registerCatalog(program: Command): void {
 
   handoff
     .command("init")
-    .description("Create the .handoff/ protocol directory in the current project")
+    .description(
+      "Create the .handoff/ protocol directory in the current project",
+    )
     .action(async () => {
       const projectRoot = process.cwd();
       if (await isHandoffInitialized(projectRoot)) {
@@ -1103,13 +1105,16 @@ export function registerCatalog(program: Command): void {
   route
     .argument("[description...]", "natural-language task description")
     .option("--phase <phase>", "explicit phase instead of auto-classify")
-    .option("--conserve", "recommend cheaper tiers to stretch remaining session quota")
-    .option("--cost", "show cost comparison table across all phases")
     .option(
-      "--models",
-      "list the full model catalog Loadout knows about",
+      "--conserve",
+      "recommend cheaper tiers to stretch remaining session quota",
     )
-    .option("--provider <name>", "filter models by provider (anthropic, openai, google, deepseek, meta)")
+    .option("--cost", "show cost comparison table across all phases")
+    .option("--models", "list the full model catalog Loadout knows about")
+    .option(
+      "--provider <name>",
+      "filter models by provider (anthropic, openai, google, deepseek, meta)",
+    )
     .option("--tier <tier>", "filter models by tier (frontier, standard, fast)")
     .option("--json", "emit machine-readable JSON")
     .action(

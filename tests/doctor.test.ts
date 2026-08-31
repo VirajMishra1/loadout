@@ -26,6 +26,8 @@ describe("doctor", () => {
     ).toMatchObject({ scanned: false });
     expect(formatDoctorReport(report)).toContain("loadout doctor");
     // Verbose mode shows unsupported components
-    expect(formatDoctorReport(report, { verbose: true })).toContain("loadout doctor");
+    expect(formatDoctorReport(report, { verbose: true })).toContain(
+      "loadout doctor",
+    );
   });
 });

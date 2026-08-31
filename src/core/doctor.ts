@@ -104,10 +104,7 @@ export function formatDoctorReport(
 ): string {
   const installed = report.agents.filter((a) => a.agent.installed);
   const notInstalled = report.agents.filter((a) => !a.agent.installed);
-  const allIssues = [
-    ...report.issues,
-    ...installed.flatMap((a) => a.issues),
-  ];
+  const allIssues = [...report.issues, ...installed.flatMap((a) => a.issues)];
   const grade =
     allIssues.length === 0 && installed.length > 0
       ? "HEALTHY"
@@ -132,7 +129,9 @@ export function formatDoctorReport(
         .filter((c) => c.scanned && c.directoryExists)
         .reduce((sum, c) => sum + c.entries.length, 0);
       const supported = entry.inventory.components
-        .filter((c) => c.compatibility === "native" || c.compatibility === "adapted")
+        .filter(
+          (c) => c.compatibility === "native" || c.compatibility === "adapted",
+        )
         .map((c) => c.type);
       lines.push(
         `  ✓ ${entry.agent.displayName}`,

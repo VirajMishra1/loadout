@@ -1,16 +1,10 @@
 import { readFile, writeFile, mkdir } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import { writeFileAtomically } from "./atomic-file.js";
 
 export type HandoffMessageType =
-  | "task"
-  | "handoff"
-  | "question"
-  | "done"
-  | "status"
-  | "error"
-  | "cancel";
+  "task" | "handoff" | "question" | "done" | "status" | "error" | "cancel";
 
 export interface HandoffMessage {
   id: string;
@@ -147,11 +141,16 @@ export async function markDone(
   if (original.type === "done")
     throw new Error(`Message '${messageId}' is already done`);
 
-  return sendHandoff(projectRoot, original.from, `Completed: ${original.description}`, {
-    from: original.to,
-    type: "done",
-    context: `Resolves ${messageId}`,
-  });
+  return sendHandoff(
+    projectRoot,
+    original.from,
+    `Completed: ${original.description}`,
+    {
+      from: original.to,
+      type: "done",
+      context: `Resolves ${messageId}`,
+    },
+  );
 }
 
 export async function readMessages(
@@ -187,9 +186,7 @@ export async function getHandoffState(
   const pending = messages.filter(
     (m) => m.type === "task" && !doneIds.has(m.id),
   );
-  const done = messages.filter(
-    (m) => m.type === "task" && doneIds.has(m.id),
-  );
+  const done = messages.filter((m) => m.type === "task" && doneIds.has(m.id));
 
   return {
     initialized,
@@ -201,8 +198,10 @@ export async function getHandoffState(
 }
 
 export function formatHandoffStatus(state: HandoffState): string {
-  if (!state.initialized) return "Handoff not initialized. Run `loadout handoff init`.";
-  if (state.messages.length === 0) return "No handoff messages yet. Send one with `loadout handoff send <agent> <task>`.";
+  if (!state.initialized)
+    return "Handoff not initialized. Run `loadout handoff init`.";
+  if (state.messages.length === 0)
+    return "No handoff messages yet. Send one with `loadout handoff send <agent> <task>`.";
 
   const lines: string[] = [];
 

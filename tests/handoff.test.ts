@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeEach } from "vitest";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import {
@@ -56,9 +56,9 @@ describe("handoff", () => {
   });
 
   it("throws when sending without init", async () => {
-    await expect(
-      sendHandoff(projectRoot, "codex", "test"),
-    ).rejects.toThrow(/not initialized/i);
+    await expect(sendHandoff(projectRoot, "codex", "test")).rejects.toThrow(
+      /not initialized/i,
+    );
   });
 
   it("formats empty status", async () => {

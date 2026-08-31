@@ -207,23 +207,6 @@ try {
   assert.equal(scannedReview.provenance.kind, "catalog-exact");
   assert.equal(scan.provenance.exact, 1);
 
-  const comparison = parseJson(
-    (
-      await runCli(
-        "compare",
-        "review",
-        "--agent",
-        "codex",
-        "--offline",
-        "--json",
-      )
-    ).stdout,
-    "compare",
-  );
-  assert.equal(comparison.subject.source, "installed");
-  assert.equal(comparison.subject.provenance.kind, "catalog-exact");
-  assert.match(comparison.recommendation, /Keep the installed skill/i);
-
   const optimizeArguments = [
     "optimize",
     "--project",

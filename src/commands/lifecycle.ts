@@ -25,7 +25,6 @@ import {
   formatUpdatePlan,
   selectSafeAutomaticUpdates,
 } from "../core/update.js";
-import { startApiServer } from "../core/api.js";
 
 import { readInstallState } from "../core/state.js";
 
@@ -42,7 +41,6 @@ import {
   type ConversionTarget,
 } from "../core/conversion.js";
 import { writeFileAtomically } from "../core/atomic-file.js";
-import { formatCanaryResult, runCanary } from "../core/canary.js";
 import {
   applyPreparedCatalogInstall,
   formatCatalogApplyGuidance,
@@ -623,66 +621,4 @@ export function registerLifecycle(program: Command): void {
         );
       },
     );
-
-  program
-    .command("canary")
-    .description(
-      "Run a static canary policy gate for a candidate without installing it",
-    )
-    .requiredOption("--source <directory>", "candidate package directory")
-    .requiredOption("--package <id>", "candidate package id")
-    .option("--repository <owner/repo>", "candidate repository")
-    .option("--commit <sha>", "candidate immutable commit")
-    .option(
-      "--approve",
-      "approve promotion if a promotion callback is supplied",
-    )
-    .option("--allow-unready", "allow review findings in the static gate")
-    .option("--json", "emit machine-readable JSON")
-    .action(
-      async (options: {
-        source: string;
-        package: string;
-        repository?: string;
-        commit?: string;
-        approve?: boolean;
-        allowUnready?: boolean;
-        json?: boolean;
-      }) => {
-        const result = await runCanary(
-          {
-            packageId: options.package,
-            root: options.source,
-            ...(options.repository ? { repository: options.repository } : {}),
-            ...(options.commit ? { commit: options.commit } : {}),
-          },
-          { enabled: true, requireStaticReady: !options.allowUnready },
-          { approve: options.approve },
-        );
-        console.log(
-          options.json
-            ? JSON.stringify(result, null, 2)
-            : formatCanaryResult(result),
-        );
-        if (result.status === "blocked") process.exitCode = 1;
-      },
-    );
-
-  program
-    .command("serve")
-    .description(
-      "Start a loopback-only read-only API for status, health, catalog, and updates",
-    )
-    .option("--port <port>", "TCP port (0 selects an available port)", "0")
-    .action(async (options: { port: string }) => {
-      const handle = await startApiServer({ port: Number(options.port) });
-      console.log(
-        `Loadout API listening at http://${handle.host}:${handle.port}`,
-      );
-      await new Promise<void>((resolve) => {
-        process.once("SIGINT", resolve);
-        process.once("SIGTERM", resolve);
-      });
-      await handle.close();
-    });
 }

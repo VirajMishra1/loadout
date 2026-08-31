@@ -3,8 +3,6 @@ import { loadEffectiveCatalog } from "../core/catalog.js";
 import { detectAgents, parseAgentSelection } from "../core/paths.js";
 import { resolve } from "node:path";
 
-import type { AgentId } from "../shared/types.js";
-
 import { runDoctor, formatDoctorReport } from "../core/doctor.js";
 
 import { applyProfileToManifest } from "../core/manifest.js";
@@ -31,20 +29,8 @@ import {
   scanProject,
   TESTED_PROFILES,
 } from "../core/recommend.js";
-import {
-  buildImprovementCycle,
-  formatImprovementCycle,
-  recordImprovementOutcome,
-  writeImprovementCycle,
-} from "../core/improve.js";
 import { applySyncPlan, buildSyncPlan } from "../core/sync.js";
 
-import {
-  ADAPTER_CAPABILITIES,
-  buildAdapterCapabilityGaps,
-  formatAdapterCapabilityGaps,
-  formatCapabilityMatrix,
-} from "../core/adapters.js";
 import {
   formatAgentInventory,
   inspectAgents,
@@ -59,7 +45,6 @@ import {
   formatProvenanceSummary,
   resolveCatalogSkillIndex,
 } from "../core/provenance.js";
-import { compareSkill, formatSkillComparison } from "../core/skill-compare.js";
 
 import {
   applySkillAdoption,
@@ -246,66 +231,6 @@ export function registerInventory(program: Command): void {
               )
             : `${name}: ${TESTED_PROFILES[name].description}\n${packages.map((pkg) => `  ${pkg.id} — ${pkg.repository}`).join("\n")}`,
         );
-      },
-    );
-
-  program
-    .command("improve")
-    .description(
-      "Propose the next evidence-backed improvement without changing anything",
-    )
-    .option("--json", "emit machine-readable JSON")
-    .option("--write", "persist the cycle record and reusable prompt locally")
-    .option(
-      "--output <directory>",
-      "output directory; defaults to private Loadout state",
-    )
-    .action(
-      async (options: { json?: boolean; write?: boolean; output?: string }) => {
-        const cycle = await buildImprovementCycle();
-        console.log(
-          options.json
-            ? JSON.stringify(cycle, null, 2)
-            : formatImprovementCycle(cycle),
-        );
-        if (options.write) {
-          const paths = await writeImprovementCycle(cycle, options.output);
-          console.log(
-            `Cycle record: ${paths.json}\nLoop prompt: ${paths.prompt}`,
-          );
-        }
-      },
-    );
-
-  program
-    .command("improve-feedback")
-    .description(
-      "Record a human-reviewed outcome for a persisted improvement cycle",
-    )
-    .requiredOption("--id <id>", "cycle id")
-    .requiredOption("--outcome <outcome>", "success, failure, or partial")
-    .option("--note <text>", "short non-secret lesson")
-    .option("--directory <path>", "improvement history directory")
-    .action(
-      async (options: {
-        id: string;
-        outcome: string;
-        note?: string;
-        directory?: string;
-      }) => {
-        if (
-          !(["success", "failure", "partial"] as string[]).includes(
-            options.outcome,
-          )
-        )
-          throw new Error("--outcome must be success, failure, or partial");
-        await recordImprovementOutcome(
-          options.id,
-          options.outcome as "success" | "failure" | "partial",
-          options.note,
-          options.directory,
-        );
-        console.log(`Recorded ${options.outcome} outcome for ${options.id}.`);
       },
     );
 
@@ -540,84 +465,6 @@ export function registerInventory(program: Command): void {
     );
 
   program
-    .command("compare")
-    .description(
-      "Compare an installed or reviewed skill with evidence-related catalog alternatives without changing anything",
-    )
-    .argument(
-      "<skill>",
-      "installed skill name, directory name, or catalog package id",
-    )
-    .option(
-      "--agent <id>",
-      "select one installed agent when names are ambiguous",
-    )
-    .option("--refresh", "rebuild the inspected catalog skill index")
-    .option("--offline", "never fetch; use the existing local index only")
-    .option("--limit <count>", "maximum alternatives to show", "10")
-    .option("--json", "emit the complete machine-readable comparison")
-    .action(
-      async (
-        skill: string,
-        options: {
-          agent?: string;
-          refresh?: boolean;
-          offline?: boolean;
-          limit: string;
-          json?: boolean;
-        },
-      ) => {
-        if (options.refresh && options.offline)
-          throw new Error("--refresh and --offline cannot be used together");
-        const limit = Number(options.limit);
-        if (!Number.isInteger(limit) || limit < 1 || limit > 50)
-          throw new Error("--limit must be an integer from 1 to 50");
-        const detected = await detectAgents();
-        const agent = options.agent as AgentId | undefined;
-        if (agent && !detected.some((item) => item.id === agent))
-          throw new Error(`Unknown agent id: ${options.agent}`);
-        const selected = detected.filter((item) => item.installed);
-        if (!selected.length)
-          throw new Error("No detected agent profile is available to compare");
-        const catalog = await loadEffectiveCatalog();
-        const resolved = await resolveCatalogSkillIndex({
-          refresh: options.refresh,
-          offline: options.offline,
-          build: {
-            catalog,
-            onProgress: options.offline ? undefined : printProvenanceProgress,
-          },
-        });
-        if (!resolved.index)
-          throw new Error(
-            "No local catalog skill index exists. Re-run without --offline or use --refresh.",
-          );
-        const inventory = enrichInventoryWithProvenance(
-          await scanInstalledSkills(selected),
-          resolved.index,
-          resolved.source,
-        );
-        const comparison = compareSkill(
-          skill,
-          inventory,
-          resolved.index.records,
-          catalog,
-          {
-            ...(agent ? { agent } : {}),
-            limit,
-            indexGeneratedAt: resolved.index.generatedAt,
-            failures: resolved.index.failures,
-          },
-        );
-        console.log(
-          options.json
-            ? JSON.stringify(comparison, null, 2)
-            : formatSkillComparison(comparison),
-        );
-      },
-    );
-
-  program
     .command("status")
     .description(
       "Home screen: a health grade, detected agents, and the next thing to do",
@@ -697,59 +544,6 @@ export function registerInventory(program: Command): void {
       );
       if (report.verdict === "blocked") process.exitCode = 2;
     });
-
-  program
-    .command("capabilities")
-    .description(
-      "Show honest native, adapted, and unsupported adapter capabilities",
-    )
-    .option("--json", "emit machine-readable JSON")
-    .option(
-      "--inspect",
-      "also inspect managed component directories on this machine",
-    )
-    .option(
-      "--gaps",
-      "show the evidence-gated backlog for unsupported adapter combinations",
-    )
-    .action(
-      async (options: {
-        json?: boolean;
-        inspect?: boolean;
-        gaps?: boolean;
-      }) => {
-        if (options.gaps) {
-          if (options.inspect)
-            throw new Error("Choose either --inspect or --gaps");
-          const gaps = buildAdapterCapabilityGaps();
-          return console.log(
-            options.json
-              ? JSON.stringify(gaps, null, 2)
-              : formatAdapterCapabilityGaps(),
-          );
-        }
-        if (!options.inspect)
-          return console.log(
-            options.json
-              ? JSON.stringify(ADAPTER_CAPABILITIES, null, 2)
-              : formatCapabilityMatrix(),
-          );
-        const inventory = await inspectAgents(await detectAgents());
-        if (options.json)
-          return console.log(
-            JSON.stringify(
-              { capabilities: ADAPTER_CAPABILITIES, inventory },
-              null,
-              2,
-            ),
-          );
-        console.log(
-          `${formatCapabilityMatrix()}\n\nLocal managed-component inventory:`,
-        );
-        for (const item of inventory)
-          console.log(formatAgentInventory(item, { details: true }));
-      },
-    );
 
   program
     .command("doctor")

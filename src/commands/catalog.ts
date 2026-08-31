@@ -67,8 +67,6 @@ import {
   markPromoted,
   mergeReviewQueue,
   readReviewQueue,
-  setReviewDecision,
-  type ReviewDecision,
   type ReviewQueueLead,
 } from "../core/review-queue.js";
 import {
@@ -769,25 +767,6 @@ export function registerCatalog(program: Command): void {
         options.json
           ? JSON.stringify(filtered, null, 2)
           : formatReviewQueue(filtered),
-      );
-    });
-
-  program
-    .command("review")
-    .description(
-      "Record a human queue decision; shortlisting still does not promote or install",
-    )
-    .argument("<repository>", "owner/repository")
-    .requiredOption("--decision <value>", "pending, shortlisted, or ignored")
-    .action(async (repository: string, options: { decision: string }) => {
-      if (!["pending", "shortlisted", "ignored"].includes(options.decision))
-        throw new Error("--decision must be pending, shortlisted, or ignored");
-      const item = await setReviewDecision(
-        repository,
-        options.decision as ReviewDecision,
-      );
-      console.log(
-        `${item.repository}: ${item.decision}. No catalog or agent files changed.`,
       );
     });
 

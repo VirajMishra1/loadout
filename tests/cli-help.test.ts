@@ -75,9 +75,34 @@ describe("CLI contract", () => {
     expect(guide.stdout).toContain("loadout mcp-recipe");
     expect(guide.stdout).toContain("Nothing above changes your agents");
 
-    const advanced = await runCli("serve", "--help");
+    // Retained advanced commands stay runnable even though the first screen
+    // omits them.
+    const advanced = await runCli("mcp-recipe", "--help");
     expect(advanced.code).toBe(0);
-    expect(advanced.stdout).toContain("loopback");
+  });
+
+  it("no longer registers the retired commands", async () => {
+    // `--help` is handled before the unknown-command check, so invoke the bare
+    // name and assert on the rejection message instead of the exit code.
+    for (const name of [
+      "improve",
+      "outcomes",
+      "compare",
+      "canary",
+      "serve",
+      "pack",
+      "publish",
+      "badge",
+      "capabilities",
+      "sandbox-run",
+      "codex-mcp-config",
+    ]) {
+      const result = await runCli(name);
+      expect(
+        `${result.stdout}${result.stderr}`,
+        `${name} should be gone`,
+      ).toContain(`Unknown command '${name}'`);
+    }
   });
 
   it("lists reviewed runtime tools without changing the profile", async () => {

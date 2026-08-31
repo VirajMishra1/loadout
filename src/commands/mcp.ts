@@ -40,7 +40,6 @@ import {
 
 import { evaluatePackage, formatPackageEvaluation } from "../core/evaluate.js";
 import { checkForUpdates, startUpdateWatcher } from "../core/update-watch.js";
-import { runDisposableSandbox } from "../core/sandbox.js";
 
 import {
   applyNativeScheduler,
@@ -529,47 +528,6 @@ export function registerMcp(program: Command): void {
   }
 
   program
-    .command("sandbox-run")
-    .description(
-      "Run an explicitly approved command in a disposable networkless Docker sandbox",
-    )
-    .requiredOption("--source <directory>", "read-only source directory")
-    .requiredOption("--image <image>", "reviewed/pinned Docker image reference")
-    .requiredOption(
-      "--command <argument>",
-      "command argument (repeatable; first is executable)",
-      (value: string, previous: string[] = []) => [...previous, value],
-      [],
-    )
-    .requiredOption("--approve-risk", "explicitly approve sandbox execution")
-    .option("--timeout <milliseconds>", "execution timeout", "120000")
-    .option("--json", "emit result JSON")
-    .action(
-      async (options: {
-        source: string;
-        image: string;
-        command: string[];
-        approveRisk: boolean;
-        timeout: string;
-        json?: boolean;
-      }) => {
-        const result = await runDisposableSandbox({
-          sourceDirectory: options.source,
-          image: options.image,
-          command: options.command,
-          approveRisk: options.approveRisk,
-          timeoutMs: Number(options.timeout),
-        });
-        console.log(
-          options.json
-            ? JSON.stringify(result, null, 2)
-            : `Sandbox exited ${result.exitCode}\n${result.stdout}${result.stderr ? `\n${result.stderr}` : ""}`,
-        );
-        if (result.exitCode !== 0) process.exitCode = result.exitCode;
-      },
-    );
-
-  program
     .command("mcp-config")
     .description(
       "Plan or apply a safe MCP server configuration change (dry-run by default)",
@@ -629,74 +587,6 @@ export function registerMcp(program: Command): void {
           return;
         }
         const snapshot = await applyMcpConfigPlan(plan);
-        console.log(
-          `Applied successfully. Snapshot: ${snapshot.rollbackSnapshotId}`,
-        );
-      },
-    );
-
-  program
-    .command("codex-mcp-config")
-    .description("Plan or add a Codex TOML MCP server (dry-run by default)")
-    .option(
-      "--config <path>",
-      "Codex config.toml path",
-      defaultCodexMcpConfigPath(),
-    )
-    .requiredOption("--name <name>", "server name")
-    .option("--command <command>", "local server command")
-    .option("--url <url>", "remote MCP server URL")
-    .option(
-      "--arg <value>",
-      "server argument (repeatable)",
-      (value: string, previous: string[] = []) => [...previous, value],
-      [],
-    )
-    .option(
-      "--env <NAME=VALUE>",
-      "environment variable (repeatable; values are never printed)",
-      (value: string, previous: string[] = []) => [...previous, value],
-      [],
-    )
-    .option("--yes", "apply the change; without this flag only a plan is shown")
-    .action(
-      async (options: {
-        config: string;
-        name: string;
-        command?: string;
-        url?: string;
-        arg: string[];
-        env: string[];
-        yes?: boolean;
-      }) => {
-        if ((options.command ? 1 : 0) + (options.url ? 1 : 0) !== 1)
-          throw new Error("Provide exactly one of --command or --url");
-        const env: Record<string, string> = {};
-        for (const item of options.env) {
-          const separator = item.indexOf("=");
-          if (separator <= 0)
-            throw new Error(`Invalid --env '${item}'; expected NAME=VALUE`);
-          const key = item.slice(0, separator);
-          if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(key))
-            throw new Error(`Invalid environment variable name '${key}'`);
-          env[key] = item.slice(separator + 1);
-        }
-        const server: McpServer = {
-          name: options.name,
-          command: options.command,
-          url: options.url,
-          args: options.arg,
-          env,
-          sourcePath: options.config,
-          warnings: [],
-        };
-        const plan = await planCodexMcpConfig(options.config, server);
-        console.log(`Codex config: ${plan.path}\n  - ${plan.summary}`);
-        if (!options.yes)
-          return console.log(
-            "Dry run only. Re-run with --yes to add this Codex MCP server.",
-          );
-        const snapshot = await applyCodexMcpConfigPlan(plan);
         console.log(
           `Applied successfully. Snapshot: ${snapshot.rollbackSnapshotId}`,
         );

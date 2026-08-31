@@ -2,11 +2,8 @@ import { Command } from "commander";
 
 import { detectAgents, parseAgentSelection } from "../core/paths.js";
 import { DEFAULT_ACTIVE_SKILL_LIMIT } from "../core/active-limit.js";
-import { resolve } from "node:path";
 
 import type { AgentId } from "../shared/types.js";
-
-import { writeFileAtomically } from "../core/atomic-file.js";
 
 import {
   applyActivationChange,
@@ -32,13 +29,6 @@ import {
   formatRuntimeToolPlan,
   planRuntimeTool,
 } from "../core/runtime-tools.js";
-
-import { buildLoadoutCard } from "../core/loadout-card.js";
-import {
-  buildLoadoutBadge,
-  formatLoadoutBadgeUsage,
-  parseLoadoutBadgeMetric,
-} from "../core/loadout-badge.js";
 
 import { collectOption, durableSchedulerLauncher } from "./support.js";
 
@@ -195,28 +185,6 @@ export function registerAgents(program: Command): void {
         );
       },
     );
-
-  program
-    .command("badge")
-    .description(
-      "Generate telemetry-free Shields endpoint JSON from the local privacy-safe card",
-    )
-    .option(
-      "--metric <metric>",
-      "evidence, active-skills, managed-packages, or mcp",
-      "evidence",
-    )
-    .option("--output <path>", "write endpoint JSON to this path")
-    .action(async (options: { metric: string; output?: string }) => {
-      const badge = buildLoadoutBadge(
-        await buildLoadoutCard(),
-        parseLoadoutBadgeMetric(options.metric),
-      );
-      if (!options.output) return console.log(JSON.stringify(badge, null, 2));
-      const output = resolve(options.output);
-      await writeFileAtomically(output, `${JSON.stringify(badge, null, 2)}\n`);
-      console.log(formatLoadoutBadgeUsage(output));
-    });
 
   program
     .command("tool")

@@ -1,10 +1,7 @@
 import { Command } from "commander";
 import { loadEffectiveCatalog } from "../core/catalog.js";
-import { detectAgents, parseAgentSelection } from "../core/paths.js";
-import { readFile } from "node:fs/promises";
+import { parseAgentSelection } from "../core/paths.js";
 import { resolve } from "node:path";
-
-import type { AgentId } from "../shared/types.js";
 
 import {
   addManifestPackage,
@@ -15,13 +12,7 @@ import {
 } from "../core/manifest.js";
 import { readInstallState } from "../core/state.js";
 
-import {
-  createPackage,
-  packPackage,
-  publishLocalPackage,
-  publishRemotePackage,
-  searchLocalRegistry,
-} from "../core/registry.js";
+import { createPackage, searchLocalRegistry } from "../core/registry.js";
 import { auditLoadout, formatAuditReport } from "../core/audit.js";
 
 import {
@@ -41,24 +32,10 @@ import {
 import {
   buildPrivacySafeReport,
   formatPrivacySafeReport,
-  parsePrivacySafeLoadoutReport,
   writePrivacySafeReport,
 } from "../core/share-report.js";
-import {
-  readLocalOutcomes,
-  recordLocalOutcome,
-  type OutcomeResult,
-  type OutcomeTaskFamily,
-} from "../core/outcomes.js";
 
-import { createCredentialResolver } from "../core/credentials.js";
-
-import {
-  buildLoadoutCard,
-  compareLoadoutReports,
-  formatLoadoutCard,
-  formatLoadoutComparison,
-} from "../core/loadout-card.js";
+import { buildLoadoutCard, formatLoadoutCard } from "../core/loadout-card.js";
 
 export function registerSharing(program: Command): void {
   program
@@ -198,96 +175,6 @@ export function registerSharing(program: Command): void {
         const descriptor = await createPackage(directory, options);
         console.log(
           `Created ${descriptor.name}@${descriptor.version} in ${directory}.`,
-        );
-      },
-    );
-
-  program
-    .command("pack")
-    .description(
-      "Validate a package and print its deterministic inventory digest",
-    )
-    .argument("[directory]", "package directory", ".")
-    .option("--json", "emit machine-readable JSON")
-    .action(async (directory: string, options: { json?: boolean }) => {
-      const packed = await packPackage(directory);
-      console.log(
-        options.json
-          ? JSON.stringify(packed, null, 2)
-          : `${packed.descriptor.name}@${packed.descriptor.version} — ${packed.files.length} file(s) — sha256:${packed.digest}`,
-      );
-    });
-
-  program
-    .command("publish")
-    .description(
-      "Publish an immutable package version to a local or remote Loadout registry",
-    )
-    .argument("[directory]", "package directory", ".")
-    .option("--local", "publish to the local registry")
-    .option("--registry-url <url>", "remote registry base URL")
-    .option(
-      "--credential-keychain <service>",
-      "resolve the remote registry token from the OS credential store",
-    )
-    .option("--credential-account <account>", "OS credential account")
-    .option(
-      "--approve-risk",
-      "explicitly approve publishing scripts, hooks, or binaries",
-    )
-    .action(
-      async (
-        directory: string,
-        options: {
-          local?: boolean;
-          registryUrl?: string;
-          credentialKeychain?: string;
-          credentialAccount?: string;
-          approveRisk?: boolean;
-        },
-      ) => {
-        if (
-          Number(Boolean(options.local)) +
-            Number(Boolean(options.registryUrl)) !==
-          1
-        )
-          throw new Error(
-            "Choose exactly one destination: --local or --registry-url",
-          );
-        if (options.local) {
-          if (options.credentialKeychain)
-            throw new Error("Local publishing does not require a credential");
-          const packed = await publishLocalPackage(directory, {
-            approveRisk: options.approveRisk,
-          });
-          console.log(
-            `Published ${packed.descriptor.name}@${packed.descriptor.version} with digest ${packed.digest}.`,
-          );
-          return;
-        }
-        const token = await createCredentialResolver()(
-          options.credentialKeychain
-            ? {
-                kind: "os-keychain",
-                service: options.credentialKeychain,
-                ...(options.credentialAccount
-                  ? { account: options.credentialAccount }
-                  : {}),
-              }
-            : { kind: "environment", name: "LOADOUT_REGISTRY_TOKEN" },
-        );
-        if (!token)
-          throw new Error(
-            "Remote publishing credential did not resolve; set LOADOUT_REGISTRY_TOKEN or use --credential-keychain",
-          );
-        const published = await publishRemotePackage(
-          directory,
-          options.registryUrl!,
-          token,
-          { approveRisk: options.approveRisk },
-        );
-        console.log(
-          `Published ${published.name}@${published.version} with digest ${published.digest}.`,
         );
       },
     );
@@ -491,63 +378,6 @@ export function registerSharing(program: Command): void {
     });
 
   program
-    .command("outcomes")
-    .description(
-      "Show privacy-safe local outcome signals; never uploads project or prompt data",
-    )
-    .option("--json", "emit machine-readable JSON")
-    .action(async (options: { json?: boolean }) => {
-      const store = await readLocalOutcomes();
-      console.log(
-        options.json
-          ? JSON.stringify(store, null, 2)
-          : [
-              `Local outcomes: ${store.events.length}`,
-              ...store.events.map(
-                (event) =>
-                  `${event.recordedAt} — ${event.selector} — ${event.agent}/${event.taskFamily} — ${event.result}`,
-              ),
-              "Privacy: local only; no project names, paths, prompts, code, filenames, or secrets.",
-            ].join("\n"),
-      );
-    });
-
-  program
-    .command("outcome")
-    .description("Record an explicit local, agent/task-scoped skill outcome")
-    .argument("<selector>", "exact package/skill selector")
-    .requiredOption("--agent <id>", "agent id")
-    .requiredOption(
-      "--task <family>",
-      "general, frontend, testing, javascript, python, backend, security, or documentation",
-    )
-    .requiredOption(
-      "--result <value>",
-      "accept, reject, success, failure, activation, disable, or rollback",
-    )
-    .action(
-      async (
-        selector: string,
-        options: { agent: string; task: string; result: string },
-      ) => {
-        const knownAgents = new Set(
-          (await detectAgents()).map((agent) => agent.id),
-        );
-        if (!knownAgents.has(options.agent as AgentId))
-          throw new Error(`Unknown agent id: ${options.agent}`);
-        const event = await recordLocalOutcome({
-          selector,
-          agent: options.agent as AgentId,
-          taskFamily: options.task as OutcomeTaskFamily,
-          result: options.result as OutcomeResult,
-        });
-        console.log(
-          `Recorded local outcome ${event.id}. No project, prompt, or source data was stored.`,
-        );
-      },
-    );
-
-  program
     .command("share")
     .description("Write the privacy-safe Loadout report to a JSON artifact")
     .argument("<output>", "new or replacement report path")
@@ -580,30 +410,4 @@ export function registerSharing(program: Command): void {
       }
       console.log(options.json ? JSON.stringify(card, null, 2) : markdown);
     });
-
-  program
-    .command("compare-loadouts")
-    .description(
-      "Compare aggregate counts from two explicit privacy-safe Loadout reports",
-    )
-    .argument("<left>", "earlier privacy-safe report JSON")
-    .argument("<right>", "later privacy-safe report JSON")
-    .option("--json", "emit machine-readable count deltas")
-    .action(
-      async (left: string, right: string, options: { json?: boolean }) => {
-        const [before, after] = await Promise.all(
-          [left, right].map(async (path) =>
-            parsePrivacySafeLoadoutReport(
-              JSON.parse(await readFile(resolve(path), "utf8")) as unknown,
-            ),
-          ),
-        );
-        const comparison = compareLoadoutReports(before, after);
-        console.log(
-          options.json
-            ? JSON.stringify(comparison, null, 2)
-            : formatLoadoutComparison(comparison),
-        );
-      },
-    );
 }

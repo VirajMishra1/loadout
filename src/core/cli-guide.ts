@@ -46,7 +46,7 @@ export const ADVANCED_GUIDE = [
   "",
   "Discovery:    candidate, discover, review-queue, evaluate, skill-audit",
   "Sharing:      init, lock, export, import, share, card, badge",
-  "Integrations: mcp-recipe, mcp-config, credentials, models, convert",
+  "Integrations: mcp-recipe, mcp-config, credentials, models, handoff, convert",
   "Lifecycle:    plan, adopt, uninstall, profiles, autopilot, tool, watch",
   "",
   "`loadout <command> --help` for options. Mutations preview first or require --yes.",
@@ -95,6 +95,7 @@ export const HIDDEN_FROM_FIRST_SCREEN = new Set([
   // integrations / credentials / runtime
   "credentials",
   "models",
+  "handoff",
   "completion",
   "mcp-recipe",
   "mcp-config",

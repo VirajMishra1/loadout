@@ -12,6 +12,24 @@ import { parseAgentSelection } from "../core/paths.js";
 import { resolve } from "node:path";
 import { readFile } from "node:fs/promises";
 import type { CatalogPackage } from "../shared/types.js";
+import {
+  allPhaseRoutes,
+  formatCostTable,
+  formatModelCatalog,
+  formatRouteRecommendation,
+  formatRoutingTable,
+  routePhase,
+  routeTask,
+  type TaskPhase,
+} from "../core/route.js";
+import {
+  formatHandoffStatus,
+  getHandoffState,
+  initHandoff,
+  isHandoffInitialized,
+  markDone,
+  sendHandoff,
+} from "../core/handoff.js";
 
 import {
   catalogTrustStage,
@@ -984,6 +1002,175 @@ export function registerCatalog(program: Command): void {
         `Verified model selection '${id}'. No credential value was stored or printed.`,
       );
     });
+
+  const handoff = program
+    .command("handoff")
+    .description(
+      "Cross-agent file-based task handoff — send work between Claude Code, Codex, and other agents",
+    );
+
+  handoff
+    .command("init")
+    .description("Create the .handoff/ protocol directory in the current project")
+    .action(async () => {
+      const projectRoot = process.cwd();
+      if (await isHandoffInitialized(projectRoot)) {
+        console.log("Handoff already initialized at .handoff/");
+        return;
+      }
+      const dir = await initHandoff(projectRoot);
+      console.log(`Initialized handoff protocol at ${dir}`);
+      console.log(
+        "Add .handoff/ to version control so both agents share the message log.",
+      );
+    });
+
+  handoff
+    .command("send")
+    .description("Send a task or message to another agent")
+    .argument("<agent>", "target agent (e.g. codex, claude-code)")
+    .argument("<description...>", "task description")
+    .option("--from <agent>", "sending agent", "user")
+    .option(
+      "--type <type>",
+      "message type: task, handoff, question, status, error, cancel",
+      "task",
+    )
+    .option("--context <text>", "additional context for the receiving agent")
+    .option("--json", "emit machine-readable JSON")
+    .action(
+      async (
+        agent: string,
+        descriptionWords: string[],
+        options: {
+          from: string;
+          type: string;
+          context?: string;
+          json?: boolean;
+        },
+      ) => {
+        const message = await sendHandoff(
+          process.cwd(),
+          agent,
+          descriptionWords.join(" "),
+          {
+            from: options.from,
+            type: options.type as "task",
+            context: options.context,
+          },
+        );
+        console.log(
+          options.json
+            ? JSON.stringify(message, null, 2)
+            : `Sent ${message.type} ${message.id} → ${message.to}: ${message.description}`,
+        );
+      },
+    );
+
+  handoff
+    .command("done")
+    .description("Mark a handoff task as completed")
+    .argument("<id>", "message id to mark done")
+    .option("--json", "emit machine-readable JSON")
+    .action(async (id: string, options: { json?: boolean }) => {
+      const message = await markDone(process.cwd(), id);
+      console.log(
+        options.json
+          ? JSON.stringify(message, null, 2)
+          : `Marked ${id} as done`,
+      );
+    });
+
+  handoff
+    .command("status")
+    .description("Show pending and completed handoff tasks")
+    .option("--json", "emit machine-readable JSON")
+    .action(async (options: { json?: boolean }) => {
+      const state = await getHandoffState(process.cwd());
+      console.log(
+        options.json
+          ? JSON.stringify(state, null, 2)
+          : formatHandoffStatus(state),
+      );
+    });
+
+  const route = program
+    .command("route")
+    .description(
+      "Recommend the right model tier and agent for a task — plan, implement, review, test, debug, or document",
+    );
+
+  route
+    .argument("[description...]", "natural-language task description")
+    .option("--phase <phase>", "explicit phase instead of auto-classify")
+    .option("--conserve", "recommend cheaper tiers to stretch remaining session quota")
+    .option("--cost", "show cost comparison table across all phases")
+    .option(
+      "--models",
+      "list the full model catalog Loadout knows about",
+    )
+    .option("--provider <name>", "filter models by provider (anthropic, openai, google, deepseek, meta)")
+    .option("--tier <tier>", "filter models by tier (frontier, standard, fast)")
+    .option("--json", "emit machine-readable JSON")
+    .action(
+      async (
+        descriptionWords: string[],
+        options: {
+          phase?: string;
+          conserve?: boolean;
+          cost?: boolean;
+          models?: boolean;
+          provider?: string;
+          tier?: string;
+          json?: boolean;
+        },
+      ) => {
+        if (options.models) {
+          console.log(
+            options.json
+              ? JSON.stringify(
+                  (await import("../core/route.js")).MODEL_CATALOG,
+                  null,
+                  2,
+                )
+              : formatModelCatalog({
+                  provider: options.provider,
+                  tier: options.tier,
+                }),
+          );
+          return;
+        }
+        if (options.cost) {
+          console.log(
+            options.json
+              ? JSON.stringify(
+                  (await import("../core/route.js")).estimateCostSavings(),
+                  null,
+                  2,
+                )
+              : formatCostTable(),
+          );
+          return;
+        }
+        const description = descriptionWords.join(" ").trim();
+        if (!description && !options.phase) {
+          console.log(
+            options.json
+              ? JSON.stringify(allPhaseRoutes(options.conserve), null, 2)
+              : formatRoutingTable(options.conserve),
+          );
+          return;
+        }
+        const rec = options.phase
+          ? routePhase(options.phase as TaskPhase, options.conserve)
+          : routeTask(description, options.conserve);
+        console.log(
+          options.json
+            ? JSON.stringify(rec, null, 2)
+            : formatRouteRecommendation(rec),
+        );
+      },
+    );
 
   program
     .command("completion")

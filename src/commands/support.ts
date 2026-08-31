@@ -326,15 +326,31 @@ export async function runWizard(): Promise<void> {
 }
 
 const _require = createRequire(import.meta.url);
-const _packageJsonPath = resolve(
-  dirname(fileURLToPath(import.meta.url)),
-  "..",
-  "..",
-  "..",
-  "package.json",
-);
+
+function findPackageJson(): string {
+  let dir = dirname(fileURLToPath(import.meta.url));
+  for (let i = 0; i < 5; i++) {
+    const candidate = join(dir, "package.json");
+    try {
+      const pkg = _require(candidate) as { name?: string };
+      if (pkg.name === "loadout-ai") return candidate;
+    } catch {
+      // not found, keep walking
+    }
+    dir = dirname(dir);
+  }
+  // ponytail: fallback for dist layout — 3 levels up from dist/src/commands/
+  return resolve(
+    dirname(fileURLToPath(import.meta.url)),
+    "..",
+    "..",
+    "..",
+    "package.json",
+  );
+}
+
 export const LOADOUT_VERSION: string = (
-  _require(_packageJsonPath) as { version: string }
+  _require(findPackageJson()) as { version: string }
 ).version;
 
 export function durableSchedulerLauncher(): string[] {

@@ -98,39 +98,104 @@ export async function runDoctor(): Promise<DoctorReport> {
   };
 }
 
-export function formatDoctorReport(report: DoctorReport): string {
-  const lines = [
-    "Loadout doctor",
-    `Platform: ${report.platform}`,
-    `User home: ${report.userHome}`,
-    `State home: ${report.loadoutHome}`,
+export function formatDoctorReport(
+  report: DoctorReport,
+  options: { verbose?: boolean } = {},
+): string {
+  const installed = report.agents.filter((a) => a.agent.installed);
+  const notInstalled = report.agents.filter((a) => !a.agent.installed);
+  const allIssues = [
+    ...report.issues,
+    ...installed.flatMap((a) => a.issues),
   ];
-  lines.push(
-    `State status: ${report.loadoutHomeExists ? "present" : "not created"} (${report.loadoutHomeWritable ? "writable" : "not writable"})`,
+  const grade =
+    allIssues.length === 0 && installed.length > 0
+      ? "HEALTHY"
+      : allIssues.length <= 2
+        ? "OK"
+        : "NEEDS ATTENTION";
+
+  const lines: string[] = [
+    `loadout doctor — ${grade}`,
     "",
-    "Agents:",
-  );
-  for (const entry of report.agents) {
-    const status = entry.agent.installed ? "detected" : "not found";
-    lines.push(
-      `  ${entry.agent.installed ? "✓" : "○"} ${entry.agent.displayName}: ${status}`,
-      `    skills: ${entry.agent.skillsDirectory} (${entry.skillsRootExists ? "present" : "will be created"}, ${entry.writable ? "writable" : "not writable"})`,
-    );
-    for (const component of entry.inventory.components) {
-      const detail = component.scanned
-        ? `${component.directoryExists ? `${component.entries.length} filesystem item(s)` : "not created"}${component.directory ? ` at ${component.directory}` : ""}`
-        : (component.note ?? "not inspected");
+    `Platform:   ${report.platform}`,
+    `State:      ${report.loadoutHome} ${report.loadoutHomeExists ? "✓" : "⚠ not created"} ${report.loadoutHomeWritable ? "writable" : "⚠ not writable"}`,
+    `Agents:     ${installed.length} detected, ${notInstalled.length} available`,
+    "",
+  ];
+
+  // --- Detected agents: compact summary ---
+  if (installed.length) {
+    lines.push("DETECTED AGENTS");
+    for (const entry of installed) {
+      const skillCount = entry.inventory.components
+        .filter((c) => c.scanned && c.directoryExists)
+        .reduce((sum, c) => sum + c.entries.length, 0);
+      const supported = entry.inventory.components
+        .filter((c) => c.compatibility === "native" || c.compatibility === "adapted")
+        .map((c) => c.type);
       lines.push(
-        `    ${component.type}: ${component.compatibility}; ${detail}`,
+        `  ✓ ${entry.agent.displayName}`,
+        `    ${entry.agent.skillsDirectory}`,
+        `    ${skillCount} items | supports: ${supported.join(", ")}`,
       );
+      if (entry.issues.length) {
+        for (const issue of entry.issues) lines.push(`    ⚠ ${issue}`);
+      }
+      if (options.verbose) {
+        for (const component of entry.inventory.components) {
+          if (component.compatibility === "unsupported") continue;
+          const detail = component.scanned
+            ? component.directoryExists
+              ? `${component.entries.length} items`
+              : "not created"
+            : (component.note ?? "—");
+          lines.push(`    ${component.type}: ${detail}`);
+        }
+      }
     }
-    for (const warning of entry.inventory.warnings)
-      lines.push(`    ! ${warning}`);
-    for (const issue of entry.issues) lines.push(`    ! ${issue}`);
+    lines.push("");
   }
-  if (report.issues.length) {
-    lines.push("", "Recommendations:");
-    for (const issue of report.issues) lines.push(`  ! ${issue}`);
-  } else lines.push("", "No global blocking issues found.");
+
+  // --- Not installed: one-liner ---
+  if (notInstalled.length) {
+    lines.push(
+      `NOT DETECTED: ${notInstalled.map((a) => a.agent.displayName).join(", ")}`,
+      "",
+    );
+  }
+
+  // --- Issues ---
+  if (allIssues.length) {
+    lines.push("ISSUES");
+    for (const issue of allIssues) lines.push(`  ⚠ ${issue}`);
+    lines.push("");
+  }
+
+  // --- Next steps ---
+  lines.push("NEXT STEPS");
+  if (allIssues.length) {
+    lines.push("  Fix the issues above, then run `loadout doctor` again.");
+  } else if (installed.length === 0) {
+    lines.push(
+      "  Install an AI coding agent (Claude Code, Codex, Cursor, etc.),",
+      "  then run `loadout doctor` again.",
+    );
+  } else {
+    lines.push(
+      "  loadout status        see what's managed",
+      "  loadout setup         install a curated skill set",
+      "  loadout route         find the right model for your task",
+      "  loadout health        check for updates",
+    );
+  }
+
   return lines.join("\n");
+}
+
+/**
+ * Legacy-compatible verbose format. Used when --verbose is passed.
+ */
+export function formatDoctorReportVerbose(report: DoctorReport): string {
+  return formatDoctorReport(report, { verbose: true });
 }

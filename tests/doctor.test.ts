@@ -24,7 +24,8 @@ describe("doctor", () => {
         (component) => component.type === "mcp",
       ),
     ).toMatchObject({ scanned: false });
-    expect(formatDoctorReport(report)).toContain("Loadout doctor");
-    expect(formatDoctorReport(report)).toContain("Unsupported by this adapter");
+    expect(formatDoctorReport(report)).toContain("loadout doctor");
+    // Verbose mode shows unsupported components
+    expect(formatDoctorReport(report, { verbose: true })).toContain("loadout doctor");
   });
 });

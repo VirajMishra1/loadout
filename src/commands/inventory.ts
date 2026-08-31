@@ -749,13 +749,14 @@ export function registerInventory(program: Command): void {
     .description(
       "Check agents, skill directories, permissions, and Loadout setup",
     )
+    .option("--verbose", "show per-component detail for each agent")
     .option("--json", "print a machine-readable report")
-    .action(async (options: { json?: boolean }) => {
+    .action(async (options: { verbose?: boolean; json?: boolean }) => {
       const report = await runDoctor();
       console.log(
         options.json
           ? JSON.stringify(report, null, 2)
-          : formatDoctorReport(report),
+          : formatDoctorReport(report, { verbose: options.verbose }),
       );
     });
 }

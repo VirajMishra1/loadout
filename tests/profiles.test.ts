@@ -39,7 +39,7 @@ describe("catalog profile conflict resolution", () => {
     },
   ];
 
-  it("selects one explainable default for Stable Boost", () => {
+  it("selects one explainable default for Stable", () => {
     const result = resolveCatalogProfile(
       [first, second],
       { mode: "stable" },

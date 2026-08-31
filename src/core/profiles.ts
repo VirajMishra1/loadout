@@ -326,7 +326,7 @@ export function resolveCatalogProfile(
       );
     } else {
       warnings.push(
-        `${selection.mode === "power" ? "Power Boost" : "Maximum Library"} retains the soft overlap in ${family.label}. Loadout policy orders ${primary.displayName} first; review each package before installation.`,
+        `${selection.mode === "power" ? "Power" : "Maximum"} retains the soft overlap in ${family.label}. Loadout policy orders ${primary.displayName} first; review each package before installation.`,
       );
     }
   }

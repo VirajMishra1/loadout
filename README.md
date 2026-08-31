@@ -133,7 +133,7 @@ This is an explicitly abridged transcript from a disposable Stable run. A litera
 ```console
 $ loadout setup --mode stable
 …
-Loadout: Stable Boost
+Loadout: Stable
 Detected agents: Claude Code, Cursor, Codex
 Catalog selection: 4 repositories
 Ready to install: 4 skill repositories (30 agent skill directories)
@@ -222,7 +222,7 @@ you can run yourself.
 
 ## Stable workflow
 
-### Stable Boost: install the essentials and start building
+### Stable: install the essentials and start building
 
 Stable is the recommended daily driver: **30 selected skill directories from four
 pinned public sources**, installed into each agent you choose. It covers planning,
@@ -279,9 +279,31 @@ checked by `loadout update` without moving them to a different agent path.
 
 ## Profiles
 
-Loadout is opinionated when you want it to be and precise when you do not.
+Loadout is opinionated when you want it to be and precise when you do not. The
+modes differ in one thing: how much of the reviewed catalog they install.
 
-### Power Boost: a larger cross-project toolkit
+| Mode      | Sources               | Skills | Active by default                |
+| --------- | --------------------- | ------ | -------------------------------- |
+| `stable`  | 4                     | 30     | yes — recommended starting point |
+| `power`   | 8                     | 56     | yes                              |
+| `maximum` | all reviewed          | all    | **no — downloaded but disabled** |
+| `custom`  | your `--package` list | varies | yes                              |
+
+**Maximum is the one worth understanding.** It downloads the entire reviewed
+library and leaves every skill _disabled_. Nothing reaches an agent prompt until
+a project activates what it needs:
+
+```bash
+loadout setup --mode maximum --yes
+cd ~/code/my-app
+loadout optimize --project .   # scans the repo, proposes an active set
+loadout activate               # enable just those here
+```
+
+That trade is deliberate: disk is cheap and context is not. A large disabled
+library plus a small active set beats installing everything into every prompt.
+
+### Power: a larger cross-project toolkit
 
 Power draws a skill-level allowlist from eight major collections. The prepared set
 is deduplicated and invalid units are quarantined, so the final count can be lower

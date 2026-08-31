@@ -404,11 +404,11 @@ export function formatPreparedCatalogInstall(
   const retired = prepared.reconciliation?.obsoleteUnits ?? [];
   const modeLabel =
     prepared.selection.mode === "maximum"
-      ? "Maximum Library"
+      ? "Maximum"
       : prepared.selection.mode === "power"
-        ? "Power Boost"
+        ? "Power"
         : prepared.selection.mode === "stable"
-          ? "Stable Boost"
+          ? "Stable"
           : "Custom";
   const lines = [
     `Loadout: ${modeLabel}`,

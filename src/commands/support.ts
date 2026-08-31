@@ -171,7 +171,16 @@ export async function runSetup(options: SetupOptions): Promise<void> {
     if (!mode) {
       if (!interactive) {
         console.log(
-          "Pick a loadout to preview: `loadout setup --mode stable` (recommended), `--mode power` (broader), or `--mode maximum` (full library, activate per project). Nothing installs until you add --yes.",
+          [
+            "Pick a loadout to preview:",
+            "  --mode stable   4 reviewed sources, 30 skills, all active (recommended)",
+            "  --mode power    8 sources, 56 skills, all active",
+            "  --mode maximum  every reviewed source, downloaded but DISABLED; a project",
+            "                  activates what it needs with `loadout optimize --project .`",
+            "  --mode custom   --package <id>, one or more",
+            "",
+            "Nothing installs until you add --yes.",
+          ].join("\n"),
         );
         return;
       }
@@ -183,9 +192,11 @@ export async function runSetup(options: SetupOptions): Promise<void> {
         await reader.question(
           [
             "Choose a loadout:",
-            "  [1] Stable   — a small, reviewed set of everyday skills (recommended)",
-            "  [2] Power    — a broader daily-driver set",
-            "  [3] Maximum  — download the full reviewed library, activate per project later",
+            "  [1] Stable   — 4 reviewed sources, 30 skills, all active (recommended)",
+            "  [2] Power    — 8 sources, 56 skills, all active",
+            "  [3] Maximum  — download every reviewed source, but leave it DISABLED.",
+            "               Nothing reaches your prompts until a project activates",
+            "               it with `loadout optimize --project .`. Costs disk, not context.",
             "  [4] Custom   — pick exact package ids",
             "> ",
           ].join("\n"),

@@ -99,7 +99,7 @@ describe("README product flow", () => {
         ) ?? [];
     expect(heroImages).toHaveLength(1);
     expect(heroImages[0]).toContain(
-      'alt="Loadout discovers skills, tools, and MCP servers, keeps them in a screened library, matches an active set to each project, and manages them across AI coding agents."',
+      'alt="Loadout discovers skills, tools, and MCP servers from five sources, screens each into a commit-pinned library through human review, keeps most of that library disabled, and activates only what a given project needs across 12 AI coding agents."',
     );
     expect(readme).not.toMatch(/founder|revolutionary|game-changing/i);
     expect(readme).toContain("Agent extensions, under control.");

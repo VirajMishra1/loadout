@@ -1,0 +1,113 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 660" width="1200" height="660" font-family="ui-sans-serif,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#64748b"/>
+    </marker>
+    <style>
+      .t{fill:#0f172a}.m{fill:#475569}.f{fill:#64748b}
+      .hdr{font-size:15px;font-weight:700;letter-spacing:.06em}
+      .ttl{font-size:19px;font-weight:700}
+      .bdy{font-size:13.5px}.sm{font-size:12px}.xs{font-size:11px}
+      .mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+      .card{fill:#fff;stroke:#e2e8f0;stroke-width:1.5}
+      @media (prefers-color-scheme:dark){
+        .bg{fill:#0b1120}.t{fill:#f1f5f9}.m{fill:#cbd5e1}.f{fill:#94a3b8}
+        .card{fill:#111a2e;stroke:#243049}
+        .pane{fill:#0f1729;stroke:#243049}
+      }
+    </style>
+  </defs>
+
+  <rect class="bg" width="1200" height="660" fill="#f8fafc"/>
+
+  <text x="600" y="46" class="t ttl" text-anchor="middle" font-size="24">One screened library. The right tools per project.</text>
+  <text x="600" y="72" class="f bdy" text-anchor="middle">Nothing installs, changes, or activates without a preview you approve.</text>
+
+  <!-- 1 DISCOVER -->
+  <rect class="pane" x="40" y="100" width="270" height="250" rx="14" fill="#faf7ff" stroke="#ddd6fe" stroke-width="1.5"/>
+  <text x="62" y="130" class="hdr" fill="#7c3aed">1 · DISCOVER</text>
+  <text x="62" y="150" class="f sm">5 sources, daily at 02:17 UTC</text>
+  <g class="mono xs">
+    <rect class="card" x="62" y="164" width="226" height="26" rx="6"/><text x="74" y="181" class="m">GitHub topic search</text>
+    <rect class="card" x="62" y="196" width="226" height="26" rx="6"/><text x="74" y="213" class="m">MCP registry</text>
+    <rect class="card" x="62" y="228" width="226" height="26" rx="6"/><text x="74" y="245" class="m">skills.sh index</text>
+    <rect class="card" x="62" y="260" width="226" height="26" rx="6"/><text x="74" y="277" class="m">Hacker News</text>
+    <rect class="card" x="62" y="292" width="226" height="26" rx="6"/><text x="74" y="309" class="m">your own orgs (opt-in)</text>
+  </g>
+  <text x="62" y="336" class="f xs">→ leads, not catalog entries</text>
+
+  <!-- 2 SCREEN -->
+  <rect class="pane" x="350" y="100" width="270" height="250" rx="14" fill="#f0f9ff" stroke="#bae6fd" stroke-width="1.5"/>
+  <text x="372" y="130" class="hdr" fill="#0284c7">2 · SCREEN</text>
+  <text x="372" y="150" class="f sm">human review — nothing auto-promotes</text>
+  <g class="mono xs">
+    <text x="372" y="176" class="m">review-queue</text>
+    <text x="372" y="200" class="m">candidate inspect</text>
+    <text x="372" y="224" class="m">candidate propose</text>
+    <text x="372" y="248" class="m">candidate promote</text>
+  </g>
+  <line x1="372" y1="264" x2="598" y2="264" stroke="#bae6fd" stroke-width="1.5"/>
+  <text x="372" y="286" class="m sm">Each record pins an immutable</text>
+  <text x="372" y="304" class="m sm">commit SHA + the paths used to</text>
+  <text x="372" y="322" class="m sm">classify it, plus safety findings.</text>
+
+  <!-- 3 LIBRARY -->
+  <rect class="pane" x="660" y="100" width="230" height="250" rx="14" fill="#f0fdf4" stroke="#bbf7d0" stroke-width="1.5"/>
+  <text x="682" y="130" class="hdr" fill="#16a34a">3 · LIBRARY</text>
+  <text x="682" y="150" class="f sm">downloaded, mostly disabled</text>
+  <text x="682" y="196" class="t" font-size="40" font-weight="700">53</text>
+  <text x="682" y="216" class="f sm">screened sources</text>
+  <rect class="card" x="682" y="234" width="186" height="94" rx="8"/>
+  <text x="696" y="256" class="m sm">Stable · 4 → 30 skills</text>
+  <text x="696" y="278" class="m sm">Power · 8 → 56 skills</text>
+  <text x="696" y="300" class="m sm">Maximum · all, disabled</text>
+  <text x="696" y="320" class="f xs">disk is cheap, context is not</text>
+
+  <!-- 4 ACTIVATE -->
+  <rect class="pane" x="930" y="100" width="230" height="250" rx="14" fill="#fff7ed" stroke="#fed7aa" stroke-width="1.5"/>
+  <text x="952" y="130" class="hdr" fill="#ea580c">4 · ACTIVATE</text>
+  <text x="952" y="150" class="f sm">per project, not globally</text>
+  <rect class="card" x="952" y="166" width="186" height="70" rx="8"/>
+  <text x="966" y="188" class="m sm">reads your repo:</text>
+  <text x="966" y="208" class="mono xs" fill="#ea580c">TypeScript · Next.js</text>
+  <text x="966" y="226" class="mono xs" fill="#ea580c">Zod · Vitest</text>
+  <text x="952" y="258" class="f xs">↓ proposes an active set</text>
+  <rect class="card" x="952" y="268" width="186" height="60" rx="8"/>
+  <text x="966" y="290" class="m sm">✓ only what this</text>
+  <text x="966" y="310" class="m sm">   codebase needs</text>
+
+  <!-- flow arrows -->
+  <line x1="312" y1="225" x2="346" y2="225" stroke="#64748b" stroke-width="2" marker-end="url(#a)"/>
+  <line x1="622" y1="225" x2="656" y2="225" stroke="#64748b" stroke-width="2" marker-end="url(#a)"/>
+  <line x1="892" y1="225" x2="926" y2="225" stroke="#64748b" stroke-width="2" marker-end="url(#a)"/>
+
+  <!-- agents -->
+  <text x="600" y="394" class="f sm" text-anchor="middle">installed into whichever agents you actually have — 12 supported</text>
+  <g class="sm">
+    <rect class="card" x="118" y="410" width="128" height="34" rx="8"/><text x="182" y="432" class="t" text-anchor="middle">Claude Code</text>
+    <rect class="card" x="258" y="410" width="128" height="34" rx="8"/><text x="322" y="432" class="t" text-anchor="middle">Codex</text>
+    <rect class="card" x="398" y="410" width="128" height="34" rx="8"/><text x="462" y="432" class="t" text-anchor="middle">Cursor</text>
+    <rect class="card" x="538" y="410" width="128" height="34" rx="8"/><text x="602" y="432" class="t" text-anchor="middle">Gemini CLI</text>
+    <rect class="card" x="678" y="410" width="128" height="34" rx="8"/><text x="742" y="432" class="t" text-anchor="middle">Copilot</text>
+    <rect class="card" x="818" y="410" width="128" height="34" rx="8"/><text x="882" y="432" class="t" text-anchor="middle">Windsurf</text>
+    <rect class="card" x="958" y="410" width="124" height="34" rx="8"/><text x="1020" y="432" class="f" text-anchor="middle">+ 6 more</text>
+  </g>
+
+  <!-- while you work -->
+  <rect class="pane" x="40" y="474" width="1120" height="106" rx="14" fill="#fdf4ff" stroke="#f0abfc" stroke-width="1.5"/>
+  <text x="62" y="502" class="hdr" fill="#c026d3">THEN, WHILE YOU WORK</text>
+
+  <text x="62" y="530" class="t bdy" font-weight="600">Route</text>
+  <text x="62" y="550" class="m sm">Describe a task → the model tier that fits,</text>
+  <text x="62" y="568" class="m sm">its real price, and a cheaper option.</text>
+
+  <text x="440" y="530" class="t bdy" font-weight="600">Handoff</text>
+  <text x="440" y="550" class="m sm">A shared task log so Claude Code and</text>
+  <text x="440" y="568" class="m sm">Codex can pass work between them.</text>
+
+  <text x="818" y="530" class="t bdy" font-weight="600">Skills</text>
+  <text x="818" y="550" class="m sm">Loadout ships its own, so you ask your</text>
+  <text x="818" y="568" class="m sm">agent instead of returning to the terminal.</text>
+
+  <text x="600" y="620" class="f sm" text-anchor="middle">Every write previews first and snapshots before it changes anything · loadout rollback undoes it</text>
+</svg>

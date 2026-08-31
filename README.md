@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./docs/assets/loadout-workflow.png" alt="Loadout discovers skills, tools, and MCP servers from five sources, screens each into a commit-pinned library through human review, keeps most of that library disabled, and activates only what a given project needs across 12 AI coding agents." width="960">
+  <img src="./docs/assets/loadout-workflow.png" alt="Loadout discovers skills, tools, and MCP servers, keeps them in a screened library, matches an active set to each project, and manages them across AI coding agents." width="960">
 </p>
 
 <h1 align="center">Loadout</h1>

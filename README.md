@@ -8,7 +8,8 @@
 
 <p align="center">
   <strong>The package manager for your AI coding setup.</strong><br>
-  Discover broadly. Activate the right tools for each project. Stay current without starting over.
+  Install skills across 12 agents. Route each task to the right model.<br>
+  Hand work between Claude Code and Codex. Undo any of it.
 </p>
 
 <p align="center">
@@ -21,13 +22,46 @@
 </p>
 
 <p align="center">
+  <a href="#what-it-looks-like">See it</a> ·
   <a href="#install">Install</a> ·
-  <a href="#why-loadout">Why Loadout</a> ·
-  <a href="#profiles">Profiles</a> ·
-  <a href="#catalog-and-discovery">Discover</a> ·
+  <a href="#use-it-from-inside-your-agent">Use it in your agent</a> ·
+  <a href="#working-across-two-agents">Two agents</a> ·
+  <a href="#why-loadout">Why</a> ·
   <a href="#trust-and-limits">Trust</a> ·
   <a href="#command-reference">Commands</a>
 </p>
+
+## What it looks like
+
+```console
+$ loadout status
+Loadout — grade A: Healthy and up to date
+
+✓ Claude Code
+  ~/.claude/skills
+  582 items | supports: skill, command, agent, mcp, plugin, root
+✓ Codex
+  ~/.agents/skills
+  83 items | supports: skill, command, agent, mcp, plugin, root
+
+$ loadout route implement the payment webhook handler
+Phase:    implement
+Tier:     Standard (balanced)
+Models:   Claude Sonnet 5 ($3/$15)
+          GPT-5.6 Terra ($2/$12)
+Agents:   claude-code, codex
+Why:      Implementation is high-volume; standard models score within 5% of frontier
+
+Conserve: drop to fast tier (GPT-5.6 Luna at $0.2/$1.2)
+          May need more iterations on complex logic; fine for CRUD and boilerplate
+
+Hand off:
+  loadout handoff send codex 'implement the payment webhook handler'
+```
+
+Three things most agent tools do not do: it knows which agents you actually have,
+it prices the tradeoff before you spend the tokens, and every mutating command
+previews first and snapshots before it writes.
 
 ## Install
 
@@ -43,6 +77,44 @@ Nothing changes until you approve it. If anything goes wrong, start with the
 [user test guide](./docs/USER_TEST_GUIDE.md).
 
 For a reproducible install, pin the release: `npm install --global loadout-ai@0.6.0`.
+
+## Use it from inside your agent
+
+A CLI you have to leave your agent to run is a context switch. Loadout ships its
+own skill so you do not have to:
+
+```bash
+loadout skills install loadout-router --yes
+```
+
+Start a new agent session and just ask, in the conversation you are already in:
+
+> _"Which model should I use to refactor this auth module?"_
+> _"I'm running low on usage — what should I switch to?"_
+> _"Hand the test writing to Codex."_
+
+The skill teaches your agent to call `loadout route` and `loadout handoff` and act
+on the results. It wraps the CLI rather than embedding a copy of the model table,
+so pricing and model coverage update when Loadout updates instead of going stale
+in a markdown file.
+
+`loadout skills list` shows what ships with Loadout and what is already installed.
+
+## Working across two agents
+
+If you pay for both Claude and a ChatGPT plan, the two agents cannot see each
+other. Loadout gives them a shared, append-only task log:
+
+```bash
+loadout handoff init
+loadout handoff send codex "write unit tests for auth" --context "see src/auth.ts"
+loadout handoff pickup --yes
+```
+
+`pickup` writes a small managed block into `CLAUDE.md` and `AGENTS.md` telling each
+agent to check `loadout handoff inbox <agent>` at the start of a session. Only the
+text between the `loadout:handoff` markers is managed; the rest of your file is left
+alone, and re-running replaces that block instead of duplicating it.
 
 ## How it works
 
@@ -107,6 +179,12 @@ coding agents without making you rebuild the setup for every agent and every pro
 
 Most extension tools begin with a repo you already know. Loadout begins one step
 earlier: **what is actually worth knowing?** It stays with you after installation.
+
+Everything on this page is enforced. `docs/evidence/readme-claims.json` records
+each material claim with the code or command that proves it, and CI fails the
+build when the README and the implementation disagree — including the pinned
+version in the install line above. A README that cannot drift is a strange thing
+to build, and it is the reason the rest of this page is worth believing.
 
 Loadout watches a much wider catalog than it activates. You can keep thousands of
 technically screened skill copies in the disabled Maximum library, discover new projects as
@@ -416,16 +494,17 @@ Start at the top and stop whenever Loadout does everything you need.
 |       12 | Shows candidates waiting for deeper review                      | `loadout review-queue`                                       |
 |       13 | Lists MCP recipes and credential needs                          | `loadout mcp-recipe`; `loadout mcp-recipe --credential-free` |
 |       14 | Previews an MCP configuration                                   | `loadout mcp-recipe playwright --agent claude-code`          |
-|       15 | Recommends the right model and agent for a task                 | `loadout route design the auth system`                       |
-|       16 | Shows the full model catalog with pricing                       | `loadout route --models`; `loadout route --cost`             |
-|       17 | Sends a task to another agent via file-based handoff            | `loadout handoff send codex "write tests for auth"`          |
-|       18 | Checks agent health, permissions, and setup                     | `loadout doctor`; `loadout doctor --verbose`                 |
-|       19 | Lists and installs isolated runtime tools such as Graphify      | `loadout tool`; `loadout tool graphify`                      |
-|       20 | Lists snapshots or restores the latest managed change           | `loadout rollback --list`; `loadout rollback`                |
-|       21 | Previews removal of one managed package                         | `loadout remove <package-id>`                                |
-|       22 | Previews complete removal of Loadout-managed state              | `loadout uninstall`                                          |
-|       23 | Enables read-only daily discovery and update checks             | `loadout autopilot --yes`                                    |
-|       24 | Shows the complete CLI                                          | `loadout --help`; `loadout advanced`                         |
+|       15 | Installs Loadout's own skill into your agents                   | `loadout skills install loadout-router --yes`                |
+|       16 | Recommends the right model and agent for a task                 | `loadout route design the auth system`                       |
+|       17 | Shows the full model catalog with pricing                       | `loadout route --models`; `loadout route --cost`             |
+|       18 | Sends a task to another agent via file-based handoff            | `loadout handoff send codex "write tests for auth"`          |
+|       19 | Checks agent health, permissions, and setup                     | `loadout doctor`; `loadout doctor --verbose`                 |
+|       20 | Lists and installs isolated runtime tools such as Graphify      | `loadout tool`; `loadout tool graphify`                      |
+|       21 | Lists snapshots or restores the latest managed change           | `loadout rollback --list`; `loadout rollback`                |
+|       22 | Previews removal of one managed package                         | `loadout remove <package-id>`                                |
+|       23 | Previews complete removal of Loadout-managed state              | `loadout uninstall`                                          |
+|       24 | Enables read-only daily discovery and update checks             | `loadout autopilot --yes`                                    |
+|       25 | Shows the complete CLI                                          | `loadout --help`; `loadout advanced`                         |
 
 Most mutating commands are dry runs first. After reading the preview, add `--yes` to
 apply. Commands with executable or connection risk require the additional approval

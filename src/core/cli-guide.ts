@@ -1,42 +1,41 @@
 /** Plain-language entry points for people using the CLI, not maintaining it. */
 export const BEGINNER_GUIDE = `
-START HERE
+Loadout — manage the skills, tools, and MCP servers your AI agents use.
 
-1. See what Loadout currently manages
-   loadout library
-   loadout scan
-   loadout reconcile
+FIRST TIME
 
-2. Preview the recommended everyday setup
-   loadout setup --mode stable
-   loadout profiles
+  loadout doctor                    which agents you have, and whether they are healthy
+  loadout setup --mode stable       preview 30 reviewed skills (nothing changes)
+  loadout setup --mode stable --yes install them
 
-3. Find additions that fit the project in this folder
-   loadout recommend --project .
-   loadout optimize --project .
+IN A PROJECT
 
-4. Check for safer updates and new discoveries
-   loadout health
-   loadout alerts
-   loadout candidate list --limit 10
+  loadout recommend --project .     what this codebase actually needs
+  loadout optimize --project .      propose an active set for it
+  loadout status                    health grade and what is managed
 
-5. See reviewed MCP integrations and their credential needs
-   loadout mcp-recipe
-   loadout mcp-recipe --credential-free
-   loadout mcp-recipe playwright --agent claude-code
+WHILE YOU WORK
 
-If you decide to install something, Loadout shows a preview first and creates a
-snapshot before changing managed files. Recover with: loadout rollback
+  loadout route <describe a task>   which model tier fits, and what it costs
+  loadout route --conserve <task>   cheaper tiers when you are low on quota
+  loadout handoff send codex "..."  give a task to your other agent
 
-Reconcile is also read-only unless you add --yes. Exact matches can be managed
-without rewriting them; outdated replacements remain a separate explicit choice.
+USE IT INSIDE YOUR AGENT
 
-Setup reconciles the complete selected profile. To add one catalog package without
-retiring the current managed profile, use:
-   loadout install --mode custom --package <id>
+  loadout skills install loadout-router --yes
 
-Nothing above changes your agents. For the full maintainer/tooling surface, run:
-loadout advanced
+  Then just ask your agent "which model should I use for this?" instead of
+  coming back here.
+
+KEEPING CURRENT
+
+  loadout health                    safer updates and local drift
+  loadout alerts                    archived, stale, or changed sources
+
+Every command that writes previews first and snapshots before it changes
+anything. Undo with: loadout rollback
+
+More commands: loadout advanced
 `.trim();
 
 export const ADVANCED_GUIDE = [

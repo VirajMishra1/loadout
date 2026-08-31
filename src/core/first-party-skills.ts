@@ -22,6 +22,12 @@ export const FIRST_PARTY_SKILLS: FirstPartySkill[] = [
     summary:
       "Lets an agent pick the right model tier for a task and hand work to another agent",
   },
+  {
+    id: "loadout-curator",
+    displayName: "Loadout Curator",
+    summary:
+      "Lets an agent decide which skills and MCP servers should be active for the current repository",
+  },
 ];
 
 /**

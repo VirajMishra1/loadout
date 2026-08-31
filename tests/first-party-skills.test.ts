@@ -30,9 +30,22 @@ describe("first-party skills", () => {
     root = await mkdtemp(join(tmpdir(), "loadout-fps-test-"));
   });
 
-  it("ships at least the router skill", () => {
-    expect(FIRST_PARTY_SKILLS.length).toBeGreaterThan(0);
-    expect(FIRST_PARTY_SKILLS.map((s) => s.id)).toContain("loadout-router");
+  it("ships the router and curator skills", () => {
+    const ids = FIRST_PARTY_SKILLS.map((s) => s.id);
+    expect(ids).toContain("loadout-router");
+    expect(ids).toContain("loadout-curator");
+  });
+
+  it("bundles a SKILL.md for every registered first-party skill", async () => {
+    const skillsRoot = await bundledSkillsRoot();
+    for (const skill of FIRST_PARTY_SKILLS) {
+      const body = await readFile(
+        join(skillsRoot, skill.id, "SKILL.md"),
+        "utf8",
+      );
+      expect(body, skill.id).toContain(`name: ${skill.id}`);
+      expect(body, skill.id).toContain("loadout");
+    }
   });
 
   it("resolves the bundled skills directory from this build", async () => {

@@ -70,10 +70,13 @@ describe("CLI contract", () => {
   it("gives beginners one read-only guide while retaining advanced commands", async () => {
     const guide = await runCli("guide");
     expect(guide.code).toBe(0);
-    expect(guide.stdout).toContain("START HERE");
+    expect(guide.stdout).toContain("FIRST TIME");
     expect(guide.stdout).toContain("loadout setup --mode stable");
-    expect(guide.stdout).toContain("loadout mcp-recipe");
-    expect(guide.stdout).toContain("Nothing above changes your agents");
+    // The guide covers the current product surface, not only installation.
+    expect(guide.stdout).toContain("loadout route");
+    expect(guide.stdout).toContain("loadout handoff");
+    expect(guide.stdout).toContain("loadout skills install");
+    expect(guide.stdout).toContain("previews first and snapshots");
 
     // Retained advanced commands stay runnable even though the first screen
     // omits them.
@@ -129,9 +132,9 @@ describe("CLI contract", () => {
   it("makes the CLI setup flow the non-interactive default without mutating", async () => {
     const result = await runCli();
     expect(result.code).toBe(0);
-    expect(result.stdout).toContain("START HERE");
+    expect(result.stdout).toContain("FIRST TIME");
     expect(result.stdout).toContain("setup --mode stable");
-    expect(result.stdout).toContain("Nothing above changes your agents");
+    expect(result.stdout).toContain("previews first and snapshots");
   });
 
   it("rejects an unknown top-level command instead of running onboarding", async () => {
@@ -139,7 +142,7 @@ describe("CLI contract", () => {
     expect(result.code).not.toBe(0);
     expect(result.stderr).toContain("definitely-not-a-command");
     expect(result.stderr).toContain("--help");
-    expect(result.stdout).not.toContain("START HERE");
+    expect(result.stdout).not.toContain("FIRST TIME");
   });
 
   it("emits valid JSON when catalog JSON output is requested", async () => {

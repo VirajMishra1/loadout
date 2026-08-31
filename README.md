@@ -76,7 +76,7 @@ The second command detects your agents and previews the 30-skill Stable loadout.
 Nothing changes until you approve it. If anything goes wrong, start with the
 [user test guide](./docs/USER_TEST_GUIDE.md).
 
-For a reproducible install, pin the release: `npm install --global loadout-ai@0.6.0`.
+For a reproducible install, pin the release: `npm install --global loadout-ai@0.7.0`.
 
 ## Use it from inside your agent
 

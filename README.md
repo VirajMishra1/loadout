@@ -39,29 +39,27 @@ Loadout — grade A: Healthy and up to date
 
 ✓ Claude Code
   ~/.claude/skills
-  582 items | supports: skill, command, agent, mcp, plugin, root
+  43 skills | supports: skill, command, agent, mcp, plugin, root
 ✓ Codex
   ~/.agents/skills
-  83 items | supports: skill, command, agent, mcp, plugin, root
+  30 skills | supports: skill, command, agent, mcp, plugin, root
 
-$ loadout route implement the payment webhook handler
-Phase:    implement
-Tier:     Standard (balanced)
-Models:   Claude Sonnet 5 ($3/$15)
-          GPT-5.6 Terra ($2/$12)
-Agents:   claude-code, codex
-Why:      Implementation is high-volume; standard models score within 5% of frontier
+$ loadout route
+Default routing policy (not saved yet)
 
-Conserve: drop to fast tier (GPT-5.6 Luna at $0.2/$1.2)
-          May need more iterations on complex logic; fine for CRUD and boilerplate
+  hard    Claude Opus 5    $5/$25 per M
+          architecture, security, migrations, tricky debugging, risky review
+  normal  Claude Sonnet 5  $3/$15 per M
+          most implementation, ordinary debugging, refactors
+  cheap   GPT-5.6 Luna     $0.2/$1.2 per M
+          tests, docs, boilerplate, renames, mechanical edits
 
-Hand off:
-  loadout handoff send codex 'implement the payment webhook handler'
+Change it:  loadout route --set normal=gpt-5.6-terra
 ```
 
-Three things most agent tools do not do: it knows which agents you actually have,
-it prices the tradeoff before you spend the tokens, and every mutating command
-previews first and snapshots before it writes.
+The routing policy is a file you own, not a table I decided for you. Loadout
+knows which agents you actually have, prices the tradeoff before you spend the
+tokens, and previews and snapshots every write.
 
 ## Install
 
@@ -106,15 +104,19 @@ If you pay for both Claude and a ChatGPT plan, the two agents cannot see each
 other. Loadout gives them a shared, append-only task log:
 
 ```bash
-loadout handoff init
-loadout handoff send codex "write unit tests for auth" --context "see src/auth.ts"
-loadout handoff pickup --yes
+loadout handoff codex "write unit tests for auth" --context "see src/auth.ts"
 ```
 
-`pickup` writes a small managed block into `CLAUDE.md` and `AGENTS.md` telling each
-agent to check `loadout handoff inbox <agent>` at the start of a session. Only the
-text between the `loadout:handoff` markers is managed; the rest of your file is left
-alone, and re-running replaces that block instead of duplicating it.
+That is the whole thing. The first send creates the log and adds a short managed
+block to `CLAUDE.md` and `AGENTS.md` telling each agent to check its inbox at the
+start of a session. Only the text between the `loadout:handoff` markers is
+managed; the rest of your file is left alone.
+
+```bash
+loadout handoff codex      # what is waiting for codex
+loadout handoff            # everything pending, both directions
+loadout handoff --done 4f2a1c
+```
 
 ## How it works
 
@@ -147,12 +149,10 @@ $ loadout rollback
 Restored snapshot <snapshot-id>
 
 $ loadout route design the authentication system
-Phase:    plan
-Tier:     Frontier (deep reasoning)
-Models:   Claude Opus 5 ($5/$25)
-          GPT-5.6 Sol ($5/$30)
-Agents:   claude-code
-Why:      Architecture and decomposition need deep reasoning to avoid costly rework
+Task:   design the authentication system
+
+Bucket: hard — architecture, security, migrations, tricky debugging, risky review
+Use:    Claude Opus 5  ($5/$25 per M)
 
 $ loadout doctor
 loadout doctor — HEALTHY

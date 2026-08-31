@@ -12,16 +12,20 @@ import { detectAgents, parseAgentSelection } from "../core/agents/paths.js";
 import { resolve } from "node:path";
 import { readFile } from "node:fs/promises";
 import type { CatalogPackage } from "../shared/types.js";
+import { formatModelCatalog, MODEL_CATALOG } from "../core/routing/route.js";
 import {
-  allPhaseRoutes,
-  formatCostTable,
-  formatModelCatalog,
-  formatRouteRecommendation,
-  formatRoutingTable,
-  routePhase,
-  routeTask,
-  type TaskPhase,
-} from "../core/routing/route.js";
+  BUCKETS,
+  formatAnswer,
+  formatPolicy,
+  guessBucket,
+  policyPath,
+  readPolicy,
+  resolveRoute,
+  setRule,
+  writePolicy,
+  type Bucket,
+} from "../core/routing/policy.js";
+import { rm } from "node:fs/promises";
 import {
   applyFirstPartySkill,
   FIRST_PARTY_SKILLS,
@@ -35,10 +39,10 @@ import {
   applyPickup,
   formatHandoffStatus,
   formatInbox,
-  formatPickupPlan,
   getHandoffState,
   initHandoff,
   isHandoffInitialized,
+  isPickupTarget,
   markDone,
   planPickup,
   readInbox,
@@ -1084,231 +1088,194 @@ export function registerCatalog(program: Command): void {
   const handoff = program
     .command("handoff")
     .description(
-      "Cross-agent file-based task handoff — send work between Claude Code, Codex, and other agents",
+      "Hand a task to your other agent, or see what has been handed to you",
     );
 
   handoff
-    .command("init")
-    .description(
-      "Create the .handoff/ protocol directory in the current project",
-    )
-    .action(async () => {
-      const projectRoot = process.cwd();
-      if (await isHandoffInitialized(projectRoot)) {
-        console.log("Handoff already initialized at .handoff/");
-        return;
-      }
-      const dir = await initHandoff(projectRoot);
-      console.log(`Initialized handoff protocol at ${dir}`);
-      console.log(
-        "Add .handoff/ to version control so both agents share the message log.",
-      );
-    });
-
-  handoff
-    .command("send")
-    .description("Send a task or message to another agent")
-    .argument("<agent>", "target agent (e.g. codex, claude-code)")
-    .argument("<description...>", "task description")
-    .option("--from <agent>", "sending agent", "user")
-    .option(
-      "--type <type>",
-      "message type: task, handoff, question, status, error, cancel",
-      "task",
-    )
-    .option("--context <text>", "additional context for the receiving agent")
+    .argument("[agent]", "who should do it, for example codex")
+    .argument("[task...]", "what they should do")
+    .option("--context <text>", "anything they need that is not in the task")
+    .option("--from <agent>", "who is sending", "user")
+    .option("--done <id>", "mark a task finished")
     .option("--json", "emit machine-readable JSON")
     .action(
       async (
-        agent: string,
-        descriptionWords: string[],
+        agent: string | undefined,
+        taskWords: string[],
         options: {
-          from: string;
-          type: string;
           context?: string;
+          from: string;
+          done?: string;
           json?: boolean;
         },
       ) => {
-        const message = await sendHandoff(
-          process.cwd(),
-          agent,
-          descriptionWords.join(" "),
-          {
-            from: options.from,
-            type: options.type as "task",
-            context: options.context,
-          },
-        );
+        const cwd = process.cwd();
+
+        if (options.done) {
+          const message = await markDone(cwd, options.done);
+          console.log(
+            options.json
+              ? JSON.stringify(message, null, 2)
+              : `Marked ${options.done} done.`,
+          );
+          return;
+        }
+
+        // No agent named: show what is waiting, for everyone.
+        if (!agent) {
+          const state = await getHandoffState(cwd);
+          console.log(
+            options.json
+              ? JSON.stringify(state, null, 2)
+              : formatHandoffStatus(state),
+          );
+          return;
+        }
+
+        // An agent with no task means "show me my inbox".
+        const task = taskWords.join(" ").trim();
+        if (!task) {
+          const messages = await readInbox(cwd, agent);
+          console.log(
+            options.json
+              ? JSON.stringify(messages, null, 2)
+              : formatInbox(agent, messages),
+          );
+          return;
+        }
+
+        // Sending is the common case, so it sets itself up rather than failing
+        // with instructions to run two other commands first.
+        const setup: string[] = [];
+        if (!(await isHandoffInitialized(cwd))) {
+          await initHandoff(cwd);
+          setup.push("created .handoff/");
+        }
+        for (const target of [options.from, agent]) {
+          if (!isPickupTarget(target)) continue;
+          const plan = await planPickup(cwd, target);
+          if (!plan.replacing) {
+            await applyPickup(plan);
+            setup.push(`told ${target} to check its inbox`);
+          }
+        }
+
+        const message = await sendHandoff(cwd, agent, task, {
+          from: options.from,
+          ...(options.context ? { context: options.context } : {}),
+        });
+
+        if (options.json) {
+          console.log(JSON.stringify({ message, setup }, null, 2));
+          return;
+        }
+        for (const line of setup) console.log(`  ${line}`);
+        console.log(`Sent to ${agent}: ${task}`);
         console.log(
-          options.json
-            ? JSON.stringify(message, null, 2)
-            : `Sent ${message.type} ${message.id} → ${message.to}: ${message.description}`,
+          `It will pick this up next session, or now with: loadout handoff ${agent}`,
         );
       },
     );
 
-  handoff
-    .command("done")
-    .description("Mark a handoff task as completed")
-    .argument("<id>", "message id to mark done")
-    .option("--json", "emit machine-readable JSON")
-    .action(async (id: string, options: { json?: boolean }) => {
-      const message = await markDone(process.cwd(), id);
-      console.log(
-        options.json
-          ? JSON.stringify(message, null, 2)
-          : `Marked ${id} as done`,
-      );
-    });
-
-  handoff
-    .command("inbox")
-    .description(
-      "Show pending tasks addressed to one agent, as instructions it can act on",
-    )
-    .argument("<agent>", "agent reading its inbox (e.g. claude-code, codex)")
-    .option("--json", "emit machine-readable JSON")
-    .action(async (agent: string, options: { json?: boolean }) => {
-      const messages = await readInbox(process.cwd(), agent);
-      console.log(
-        options.json
-          ? JSON.stringify(messages, null, 2)
-          : formatInbox(agent, messages),
-      );
-    });
-
-  handoff
-    .command("pickup")
-    .description(
-      "Teach agents to check their handoff inbox by adding a managed block to CLAUDE.md / AGENTS.md",
-    )
-    .option(
-      "--agents <ids>",
-      "comma-separated agents to instruct",
-      "claude-code,codex",
-    )
-    .option("--yes", "write the files after previewing")
-    .action(async (options: { agents: string; yes?: boolean }) => {
-      const agents = options.agents
-        .split(",")
-        .map((value) => value.trim())
-        .filter(Boolean);
-      const plans = [];
-      for (const agent of agents)
-        plans.push(await planPickup(process.cwd(), agent));
-      console.log(formatPickupPlan(plans));
-      if (!options.yes) {
-        console.log("\nPreview only. Re-run with --yes to write these files.");
-        return;
-      }
-      for (const plan of plans) await applyPickup(plan);
-      console.log(
-        `\nWrote pickup instructions for ${plans.length} agent(s). They will check their inbox on the next session.`,
-      );
-    });
-
-  handoff
-    .command("status")
-    .description("Show pending and completed handoff tasks")
-    .option("--json", "emit machine-readable JSON")
-    .action(async (options: { json?: boolean }) => {
-      const state = await getHandoffState(process.cwd());
-      console.log(
-        options.json
-          ? JSON.stringify(state, null, 2)
-          : formatHandoffStatus(state),
-      );
-    });
-
   const route = program
     .command("route")
     .description(
-      "Recommend the right model tier and agent for a task — plan, implement, review, test, debug, or document",
+      "Which model to use for a task, according to a routing policy you own",
     );
 
   route
-    .argument("[description...]", "natural-language task description")
-    .option("--phase <phase>", "explicit phase instead of auto-classify")
+    .argument("[description...]", "what you are about to do")
     .option(
-      "--conserve",
-      "recommend cheaper tiers to stretch remaining session quota",
+      "--bucket <bucket>",
+      "state the bucket yourself: hard, normal, or cheap",
     )
-    .option("--cost", "show cost comparison table across all phases")
-    .option("--models", "list the full model catalog Loadout knows about")
-    .option(
-      "--provider <name>",
-      "filter models by provider (anthropic, openai, google, deepseek, meta)",
-    )
-    .option("--tier <tier>", "filter models by tier (frontier, standard, fast)")
+    .option("--set <bucket=model>", "change the model for one bucket and save")
+    .option("--save", "write the current defaults to disk so you can edit them")
+    .option("--reset", "delete your policy and go back to the defaults")
+    .option("--models", "list the model ids you can name in a policy")
     .option("--json", "emit machine-readable JSON")
     .action(
       async (
         descriptionWords: string[],
         options: {
-          phase?: string;
-          conserve?: boolean;
-          cost?: boolean;
+          bucket?: string;
+          set?: string;
+          save?: boolean;
+          reset?: boolean;
           models?: boolean;
-          provider?: string;
-          tier?: string;
           json?: boolean;
         },
       ) => {
         if (options.models) {
           console.log(
             options.json
-              ? JSON.stringify(
-                  (await import("../core/routing/route.js")).MODEL_CATALOG,
-                  null,
-                  2,
-                )
-              : formatModelCatalog({
-                  provider: options.provider,
-                  tier: options.tier,
-                }),
+              ? JSON.stringify(MODEL_CATALOG, null, 2)
+              : formatModelCatalog(),
           );
           return;
         }
-        if (options.cost) {
-          console.log(
-            options.json
-              ? JSON.stringify(
-                  (
-                    await import("../core/routing/route.js")
-                  ).estimateCostSavings(),
-                  null,
-                  2,
-                )
-              : formatCostTable(),
-          );
-          return;
-        }
-        const description = descriptionWords.join(" ").trim();
-        if (!description && !options.phase) {
-          console.log(
-            options.json
-              ? JSON.stringify(allPhaseRoutes(options.conserve), null, 2)
-              : formatRoutingTable(options.conserve),
-          );
-          return;
-        }
-        const rec = options.phase
-          ? routePhase(options.phase as TaskPhase, options.conserve)
-          : routeTask(description, options.conserve);
-        // Recommendations are only useful when they name agents this machine
-        // actually has, so detection drives both the advice and the handoff line.
+
         const detected = await detectAgents();
-        const installedAgents = detected
+        const installed = detected
           .filter((agent) => agent.installed)
           .map((agent) => agent.id);
+
+        if (options.reset) {
+          await rm(policyPath(), { force: true });
+          console.log("Removed your routing policy; defaults apply again.");
+          return;
+        }
+
+        if (options.set) {
+          const separator = options.set.indexOf("=");
+          if (separator <= 0)
+            throw new Error(
+              "--set expects <bucket>=<model>, for example normal=gpt-5.6-terra",
+            );
+          const bucket = options.set.slice(0, separator).trim() as Bucket;
+          if (!BUCKETS.includes(bucket))
+            throw new Error(
+              `Unknown bucket '${bucket}'. Valid: ${BUCKETS.join(", ")}`,
+            );
+          const updated = await setRule(
+            bucket,
+            options.set.slice(separator + 1).trim(),
+            installed,
+          );
+          console.log(formatPolicy(updated, "file"));
+          return;
+        }
+
+        const { policy, source } = await readPolicy(installed);
+
+        if (options.save) {
+          const path = await writePolicy(policy);
+          console.log(`Saved your routing policy to ${path}\n`);
+          console.log(formatPolicy(policy, "file"));
+          return;
+        }
+
+        const description = descriptionWords.join(" ").trim();
+        if (!description && !options.bucket) {
+          console.log(
+            options.json
+              ? JSON.stringify({ policy, source }, null, 2)
+              : formatPolicy(policy, source),
+          );
+          return;
+        }
+
+        const stated = options.bucket as Bucket | undefined;
+        if (stated && !BUCKETS.includes(stated))
+          throw new Error(
+            `Unknown bucket '${stated}'. Valid: ${BUCKETS.join(", ")}`,
+          );
+        const bucket = stated ?? guessBucket(description);
+        const answer = resolveRoute(policy, bucket, installed, !stated);
         console.log(
           options.json
-            ? JSON.stringify({ ...rec, installedAgents }, null, 2)
-            : formatRouteRecommendation(rec, {
-                installedAgents,
-                ...(description ? { description } : {}),
-                handoffReady: await isHandoffInitialized(process.cwd()),
-              }),
+            ? JSON.stringify(answer, null, 2)
+            : formatAnswer(answer, description || undefined),
         );
       },
     );

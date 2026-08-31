@@ -16,9 +16,9 @@ IN A PROJECT
 
 WHILE YOU WORK
 
-  loadout route <describe a task>   which model tier fits, and what it costs
-  loadout route --conserve <task>   cheaper tiers when you are low on quota
-  loadout handoff send codex "..."  give a task to your other agent
+  loadout route                     your model policy: hard / normal / cheap
+  loadout route <describe a task>   which of those it looks like, and what to use
+  loadout handoff codex "..."       give a task to your other agent
 
 USE IT INSIDE YOUR AGENT
 

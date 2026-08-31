@@ -1,120 +1,85 @@
 ---
 name: loadout-router
-description: Choose the right model tier and agent for a coding task, and hand work off between Claude Code and Codex. Use when the user asks which model to use, mentions running low on usage or quota, wants to save tokens or cost, asks whether to switch to Opus/Sonnet/Haiku or a GPT tier, or wants to delegate a task to another agent.
+description: Decide which model to use for a coding task and hand work to another agent. Use when the user asks which model to use, mentions running low on usage or cost, asks whether to switch to Opus or Sonnet or a GPT tier, or wants to delegate a task to Codex or Claude Code.
 ---
 
 # Loadout Router
 
-Route each coding task to the cheapest model that still does it well, and hand
-work between agents when a different one is better suited.
+Pick the model that fits the work, using the user's own routing policy rather
+than your guess or mine.
 
-This skill wraps the `loadout` CLI, so the model catalog and pricing stay
-current with the installed version rather than going stale in this file.
-
-## Prerequisite
-
-Check once per session:
+## The policy is the user's, not yours
 
 ```bash
-loadout --version
+loadout route
 ```
 
-If that fails, tell the user to install it (`npm install --global loadout-ai`)
-and answer from general knowledge instead of guessing at specifics.
+That prints three buckets and the model the user has chosen for each:
 
-## Choosing a model
+- **hard** — architecture, security, migrations, tricky debugging, risky review
+- **normal** — most implementation, ordinary debugging, refactors
+- **cheap** — tests, docs, boilerplate, renames, mechanical edits
 
-Run the router with the task described in plain words:
+Read the policy before advising. If the user disagrees with a recommendation,
+the fix is to change the policy, not to argue:
 
 ```bash
-loadout route <task description>
+loadout route --set cheap=claude-sonnet-5
 ```
 
-It classifies the task into one of six phases — plan, implement, review, test,
-debug, document — and prints the recommended tier, the models in that tier with
-current prices, which of the user's installed agents can run them, and a cheaper
-fallback with its tradeoff.
+## Your job is the bucket, not the model
 
-Report the recommendation and the reason. Name the actual model, not just the
-tier. If the output lists a `Conserve:` alternative, mention it only when the
-user cares about cost or quota, otherwise it is noise.
-
-When the user is explicit about the phase, skip classification:
+The CLI can guess a bucket from wording, and it says so when it does. **You
+should do better**, because you have the conversation, the code, and the stakes.
+Decide the bucket yourself and state it:
 
 ```bash
-loadout route --phase review
+loadout route --bucket hard
 ```
 
-## When the user is low on usage
+Judge by consequence, not vocabulary:
 
-If the user mentions running out, being rate limited, conserving quota, or
-stretching a plan, add `--conserve`:
+- Anything touching auth, payments, migrations, or data deletion is **hard**,
+  however small the diff.
+- Unfamiliar code is harder than familiar code doing the same thing.
+- A one-line change in a hot path is not cheap.
+- Genuinely mechanical work — a rename, a docstring, a test for code you just
+  wrote — is **cheap**, and paying frontier prices for it is waste.
 
-```bash
-loadout route --conserve <task description>
-```
+Report the model and why that bucket. One or two sentences.
 
-This drops each phase one tier and prints the tradeoff you are accepting. Say
-what is being given up — "shallower architectural reasoning, so review the plan
-more carefully" — rather than presenting it as a free win.
+## When cost matters
+
+If the user mentions running low, being rate limited, or wanting to spend less,
+say what a cheaper bucket would cost them in quality rather than presenting it
+as free. `loadout route` shows real per-million prices for the comparison.
 
 Neither Claude Code nor Codex exposes remaining quota programmatically, so never
-claim to know how much the user has left. `--conserve` is a user-driven choice,
-not a measurement.
+claim to know how much the user has left.
 
-## Comparing models and cost
+## Handing work to the other agent
 
-```bash
-loadout route --models
-loadout route --models --provider anthropic
-loadout route --models --tier fast
-loadout route --cost
-```
-
-Use these when the user asks what is available or what something costs. Prices
-are per-million-token list rates; actual spend depends on prompt size, so give
-ratios ("roughly 4x cheaper") rather than predicting a dollar total.
-
-## Handing work to another agent
-
-When a different agent suits the task better — or the user asks to delegate —
-use the handoff log. Check it is set up:
+One command sends a task; it sets up the shared log on first use:
 
 ```bash
-loadout handoff status
+loadout handoff codex "write vitest coverage for src/auth.ts" --context "zod schemas already exist"
 ```
 
-If uninitialized, run `loadout handoff init` first. Then send the task:
+Put everything the receiver needs into `--context` — file paths, decisions you
+already made, what you deliberately left out. It has none of this conversation.
 
-```bash
-loadout handoff send codex "write unit tests for the auth module" --context "see src/auth.ts"
-```
-
-Put anything the receiving agent needs into `--context`: file paths, the
-decision you already made, what you deliberately left out. The other agent has
-none of this conversation.
-
-Sending a task is a real side effect on a shared file. Confirm with the user
-before sending unless they asked for the handoff themselves.
+Sending writes to a shared file in the user's repository, so confirm first
+unless they asked for the handoff themselves.
 
 ## Reading your own inbox
 
-At the start of a session, and after finishing a task, check whether another
-agent left you work:
+At session start, and after finishing a task:
 
 ```bash
-loadout handoff inbox claude-code
+loadout handoff claude-code
 ```
 
-If it lists tasks, work them in order and run the `loadout handoff done <id>`
-command it prints for each one. If it reports none, continue as normal and do
-not mention it.
+Work anything listed in order, then run the `loadout handoff --done <id>`
+command it prints. If nothing is pending, say nothing and carry on.
 
-## Judgment this skill does not replace
-
-- A "simple" task in an unfamiliar or high-risk area still deserves a stronger
-  model. The classifier reads keywords, not stakes.
-- Security-sensitive, migration, and data-loss paths are worth frontier tier
-  regardless of what phase they classify as.
-- If the user has already chosen a model, do not argue unless the choice is
-  clearly wrong for the work.
+`loadout handoff` with no arguments shows every pending task, both directions.

@@ -62,7 +62,7 @@ describe("handoff", () => {
 
   it("throws when sending without init", async () => {
     await expect(sendHandoff(projectRoot, "codex", "test")).rejects.toThrow(
-      /not initialized/i,
+      /not set up here/i,
     );
   });
 
@@ -112,7 +112,7 @@ describe("handoff", () => {
       );
       expect(output).toContain("write tests");
       expect(output).toContain("context: see auth.ts");
-      expect(output).toContain(`loadout handoff done ${msg.id}`);
+      expect(output).toContain(`loadout handoff --done ${msg.id}`);
     });
 
     it("reports an empty inbox plainly", () => {
@@ -133,7 +133,7 @@ describe("handoff", () => {
       expect(plan.replacing).toBe(false);
       await applyPickup(plan);
       const written = await readFile(join(projectRoot, "AGENTS.md"), "utf8");
-      expect(written).toContain("loadout handoff inbox codex");
+      expect(written).toContain("loadout handoff codex");
     });
 
     it("appends to an existing context file without losing content", async () => {
@@ -148,7 +148,7 @@ describe("handoff", () => {
       await applyPickup(plan);
       const written = await readFile(join(projectRoot, "CLAUDE.md"), "utf8");
       expect(written).toContain("Existing instructions.");
-      expect(written).toContain("loadout handoff inbox claude-code");
+      expect(written).toContain("loadout handoff claude-code");
     });
 
     it("replaces the managed block instead of duplicating it", async () => {

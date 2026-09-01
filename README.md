@@ -451,7 +451,7 @@ Loadout does not claim there is one universally “best” configuration. Recomm
 
 <!-- loadout:daily-discovery:start -->
 
-**Discovery snapshot (generated 2026-08-31):** [238 repositories observed](./docs/DISCOVERED.md), including 219 uncataloged review candidates and 19 repositories already in the inspected catalog.
+**Discovery snapshot (generated 2026-09-01):** [238 repositories observed](./docs/DISCOVERED.md), including 219 uncataloged review candidates and 19 repositories already in the inspected catalog.
 <!-- loadout:daily-discovery:end -->
 
 The checked-in discovery report proves only its dated snapshot, not the success of every scheduled run. Use `loadout discover --source all --queue`, `loadout review-queue`, and `loadout candidate inspect owner/repository` to inspect candidates before catalog promotion.

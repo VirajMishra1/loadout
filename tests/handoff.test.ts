@@ -68,7 +68,7 @@ describe("handoff", () => {
 
   it("formats empty status", async () => {
     const state = await getHandoffState(projectRoot);
-    expect(formatHandoffStatus(state)).toContain("not initialized");
+    expect(formatHandoffStatus(state)).toMatch(/no handoff log here yet/i);
   });
 
   it("formats status with pending tasks", async () => {
@@ -175,5 +175,65 @@ describe("handoff", () => {
       expect(written).toContain("## Notes after");
       expect(written.match(/loadout:handoff:start/g)).toHaveLength(1);
     });
+  });
+});
+
+describe("handoff resilience", () => {
+  let projectRoot: string;
+
+  beforeEach(async () => {
+    projectRoot = await mkdtemp(join(tmpdir(), "loadout-handoff-resilience-"));
+    await initHandoff(projectRoot);
+  });
+
+  it("keeps good messages when one line is corrupt", async () => {
+    await sendHandoff(projectRoot, "codex", "first task");
+    await sendHandoff(projectRoot, "codex", "second task");
+    const log = join(projectRoot, ".handoff", "messages.jsonl");
+    const lines = (await readFile(log, "utf8")).split("\n").filter(Boolean);
+    // Truncate the middle line the way a partial write would.
+    await writeFile(
+      log,
+      [lines[0], '{"id":"broken","type":', lines[1]].join("\n") + "\n",
+      "utf8",
+    );
+
+    const state = await getHandoffState(projectRoot);
+    expect(state.pending).toHaveLength(2);
+    expect(state.corrupt).toHaveLength(1);
+    expect(state.corrupt[0].line).toBe(2);
+    expect(formatHandoffStatus(state)).toMatch(/unreadable line/i);
+  });
+
+  it("treats an error reply as terminal", async () => {
+    const msg = await sendHandoff(projectRoot, "codex", "impossible task");
+    await sendHandoff(projectRoot, "user", "cannot do it", {
+      from: "codex",
+      type: "error",
+      resolves: msg.id,
+    });
+    const state = await getHandoffState(projectRoot);
+    expect(state.pending).toHaveLength(0);
+  });
+
+  it("treats a cancellation as terminal", async () => {
+    const msg = await sendHandoff(projectRoot, "codex", "never mind");
+    await sendHandoff(projectRoot, "codex", "withdrawn", {
+      type: "cancel",
+      resolves: msg.id,
+    });
+    expect(await readInbox(projectRoot, "codex")).toHaveLength(0);
+  });
+
+  it("still honours logs that encode the resolution in context", async () => {
+    const msg = await sendHandoff(projectRoot, "codex", "legacy task");
+    await sendHandoff(projectRoot, "user", "done", {
+      from: "codex",
+      type: "done",
+      context: `Resolves ${msg.id}`,
+    });
+    const state = await getHandoffState(projectRoot);
+    expect(state.pending).toHaveLength(0);
+    expect(state.done).toHaveLength(1);
   });
 });

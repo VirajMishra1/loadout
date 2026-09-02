@@ -385,6 +385,39 @@ function registryEndpoint(base: URL, path: string): URL {
   return endpoint;
 }
 
+/** Registry responses are untrusted input: bound the wait and the body. */
+const REGISTRY_TIMEOUT_MS = 30_000;
+const REGISTRY_MAX_BYTES = 32 * 1024 * 1024;
+
+async function registryJson(
+  input: string | URL,
+  init: RequestInit = {},
+): Promise<{ ok: boolean; status: number; value: unknown }> {
+  const response = await fetch(input, {
+    ...init,
+    signal: AbortSignal.timeout(REGISTRY_TIMEOUT_MS),
+  });
+
+  // Trust the declared length when present, but still cap what is read: a
+  // server may understate or omit it.
+  const declared = Number(response.headers.get("content-length"));
+  if (Number.isFinite(declared) && declared > REGISTRY_MAX_BYTES)
+    throw new Error("Remote registry response exceeds the size limit");
+
+  const body = await response.arrayBuffer();
+  if (body.byteLength > REGISTRY_MAX_BYTES)
+    throw new Error("Remote registry response exceeds the size limit");
+
+  const text = new TextDecoder().decode(body);
+  let value: unknown;
+  try {
+    value = JSON.parse(text);
+  } catch {
+    throw new Error("Remote registry returned a malformed JSON response");
+  }
+  return { ok: response.ok, status: response.status, value };
+}
+
 export async function fetchRemoteRegistryPackage(
   registry: string,
   name: string,
@@ -393,7 +426,7 @@ export async function fetchRemoteRegistryPackage(
   if (!NAME.test(name) || !VERSION.test(version))
     throw new Error("Invalid remote registry package name or version");
   const base = registryUrl(registry);
-  const response = await fetch(
+  const response = await registryJson(
     registryEndpoint(
       base,
       `/v1/packages/${encodeURIComponent(name)}/${encodeURIComponent(version)}`,
@@ -401,7 +434,7 @@ export async function fetchRemoteRegistryPackage(
   );
   if (!response.ok)
     throw new Error(`Remote registry returned ${response.status}`);
-  const bundle = (await response.json()) as RegistryBundle;
+  const bundle = response.value as RegistryBundle;
 
   // `digest` arrives from a remote server and is used to build a path that is
   // later deleted recursively. Validate its shape before it can become one:
@@ -454,7 +487,7 @@ export async function publishRemotePackage(
   if (!token) throw new Error("Remote registry token is required");
   const bundle = await createRegistryBundle(root);
   const base = registryUrl(registry);
-  const response = await fetch(registryEndpoint(base, "/v1/packages"), {
+  const response = await registryJson(registryEndpoint(base, "/v1/packages"), {
     method: "POST",
     headers: {
       authorization: `Bearer ${token}`,
@@ -463,7 +496,7 @@ export async function publishRemotePackage(
     },
     body: JSON.stringify(bundle),
   });
-  const result = (await response.json()) as {
+  const result = response.value as {
     error?: string;
     name?: string;
     version?: string;

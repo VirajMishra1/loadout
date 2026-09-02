@@ -519,7 +519,7 @@ Start at the top and stop whenever Loadout does everything you need.
 |       15 | Installs Loadout's own skill into your agents                   | `loadout skills install loadout-router --yes`                |
 |       16 | Recommends the right model and agent for a task                 | `loadout route design the auth system`                       |
 |       17 | Shows the full model catalog with pricing                       | `loadout route --models`; `loadout route --cost`             |
-|       18 | Sends a task to another agent via file-based handoff            | `loadout handoff send codex "write tests for auth"`          |
+|       18 | Sends a task to another agent via file-based handoff            | `loadout handoff codex "write tests for auth"`               |
 |       19 | Checks agent health, permissions, and setup                     | `loadout doctor`; `loadout doctor --verbose`                 |
 |       20 | Lists and installs isolated runtime tools such as Graphify      | `loadout tool`; `loadout tool graphify`                      |
 |       21 | Lists snapshots or restores the latest managed change           | `loadout rollback --list`; `loadout rollback`                |

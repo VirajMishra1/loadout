@@ -29,11 +29,37 @@ export interface RepositoryFetchOptions {
   fetcher?: typeof fetch;
 }
 
+/**
+ * Bounds apply to every fetch, not only to callers who remember to ask. An
+ * unbounded clone of an untrusted repository can hang a Git process forever or
+ * fill the disk, so callers may raise a limit but none may omit one.
+ */
+export const REPOSITORY_FETCH_DEFAULTS = {
+  /** A reviewed skill repository clones well inside this. */
+  timeoutMs: 120_000,
+  maxBytes: 256 * 1024 * 1024,
+  maxFiles: 20_000,
+} as const;
+
+function withFetchDefaults(
+  options: RepositoryFetchOptions,
+): RepositoryFetchOptions & {
+  timeoutMs: number;
+  maxBytes: number;
+  maxFiles: number;
+} {
+  return {
+    ...options,
+    timeoutMs: options.timeoutMs ?? REPOSITORY_FETCH_DEFAULTS.timeoutMs,
+    maxBytes: options.maxBytes ?? REPOSITORY_FETCH_DEFAULTS.maxBytes,
+    maxFiles: options.maxFiles ?? REPOSITORY_FETCH_DEFAULTS.maxFiles,
+  };
+}
+
 async function enforceRepositoryBounds(
   root: string,
   options: RepositoryFetchOptions,
 ): Promise<void> {
-  if (options.maxBytes === undefined && options.maxFiles === undefined) return;
   let bytes = 0;
   let files = 0;
   const pending = [root];
@@ -71,7 +97,6 @@ export function validateGitHubTreeBounds(
   value: unknown,
   options: RepositoryFetchOptions,
 ): void {
-  if (options.maxBytes === undefined && options.maxFiles === undefined) return;
   if (!value || typeof value !== "object" || Array.isArray(value))
     throw new Error("GitHub tree preflight returned an invalid response");
   const response = value as GitHubTreeResponse;
@@ -108,7 +133,6 @@ async function enforceGitHubTreeBounds(
   commit: string,
   options: RepositoryFetchOptions,
 ): Promise<void> {
-  if (options.maxBytes === undefined && options.maxFiles === undefined) return;
   const signal = AbortSignal.timeout(options.timeoutMs ?? 120_000);
   const token = process.env.GITHUB_TOKEN?.trim();
   const response = await (options.fetcher ?? fetch)(
@@ -261,8 +285,9 @@ function normalizeRef(ref: string): string {
 
 export async function fetchRepositorySnapshot(
   input: string,
-  options: RepositoryFetchOptions = {},
+  requested: RepositoryFetchOptions = {},
 ): Promise<RepositorySnapshot> {
+  const options = withFetchDefaults(requested);
   const repository = normalizeRepository(input);
   const gitEnvironment = await isolatedGitEnvironment(loadoutHome());
   const ref = options.ref ? normalizeRef(options.ref) : undefined;

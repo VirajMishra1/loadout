@@ -419,8 +419,6 @@ export interface RouteContext {
   installedAgents?: AgentId[];
   /** The original task text, used to build a copy-pasteable handoff command. */
   description?: string;
-  /** True when the current project has a .handoff/ directory. */
-  handoffReady?: boolean;
 }
 
 /** Shell-quote a task description for the suggested handoff command. */
@@ -497,10 +495,8 @@ export function formatRouteRecommendation(
     lines.push(
       ``,
       `Hand off:`,
-      `  loadout handoff send ${target} ${shellQuote(context.description)}`,
+      `  loadout handoff ${target} ${shellQuote(context.description)}`,
     );
-    if (context.handoffReady === false)
-      lines.push(`  (run \`loadout handoff init\` once to enable)`);
   }
 
   return lines.join("\n");

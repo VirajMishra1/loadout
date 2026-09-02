@@ -26,17 +26,19 @@ describe("security regressions", () => {
 
   describe("remote registry digest cannot escape the cache", () => {
     function respondWithDigest(digest: string) {
+      const body = JSON.stringify({
+        schemaVersion: 1,
+        descriptor: { name: "demo", version: "1.0.0" },
+        digest,
+        files: [],
+      });
       vi.stubGlobal(
         "fetch",
         vi.fn(async () => ({
           ok: true,
           status: 200,
-          json: async () => ({
-            schemaVersion: 1,
-            descriptor: { name: "demo", version: "1.0.0" },
-            digest,
-            files: [],
-          }),
+          headers: new Headers(),
+          arrayBuffer: async () => new TextEncoder().encode(body).buffer,
         })),
       );
     }
@@ -107,5 +109,56 @@ describe("security regressions", () => {
         "uninspectable",
       );
     });
+  });
+});
+
+describe("bounded network and repository defaults", () => {
+  it("applies a timeout, byte cap, and file cap without being asked", async () => {
+    const { REPOSITORY_FETCH_DEFAULTS } =
+      await import("../src/core/install/source.js");
+    expect(REPOSITORY_FETCH_DEFAULTS.timeoutMs).toBeGreaterThan(0);
+    expect(REPOSITORY_FETCH_DEFAULTS.maxBytes).toBeGreaterThan(0);
+    expect(REPOSITORY_FETCH_DEFAULTS.maxFiles).toBeGreaterThan(0);
+  });
+
+  it("rejects a registry response larger than the cap", async () => {
+    const home = await mkdtemp(join(tmpdir(), "loadout-reg-"));
+    const previous = process.env.LOADOUT_HOME;
+    process.env.LOADOUT_HOME = home;
+    const huge = "x".repeat(33 * 1024 * 1024);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: true,
+        status: 200,
+        headers: new Headers(),
+        arrayBuffer: async () => new TextEncoder().encode(`"${huge}"`).buffer,
+      })),
+    );
+    const { fetchRemoteRegistryPackage: fetchPackage } =
+      await import("../src/core/catalog/registry.js");
+    await expect(
+      fetchPackage("https://registry.example", "demo", "1.0.0"),
+    ).rejects.toThrow(/size limit/i);
+    if (previous === undefined) delete process.env.LOADOUT_HOME;
+    else process.env.LOADOUT_HOME = previous;
+    await rm(home, { recursive: true, force: true });
+  });
+
+  it("rejects a malformed registry response instead of throwing raw", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: true,
+        status: 200,
+        headers: new Headers(),
+        arrayBuffer: async () => new TextEncoder().encode("{not json").buffer,
+      })),
+    );
+    const { fetchRemoteRegistryPackage: fetchPackage } =
+      await import("../src/core/catalog/registry.js");
+    await expect(
+      fetchPackage("https://registry.example", "demo", "1.0.0"),
+    ).rejects.toThrow(/malformed JSON/i);
   });
 });

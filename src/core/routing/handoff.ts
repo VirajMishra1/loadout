@@ -14,6 +14,14 @@ export interface HandoffMessage {
   description: string;
   context?: string;
   timestamp: string;
+  /** The task this message closes. Older logs encode it in `context`. */
+  resolves?: string;
+}
+
+/** A line the log holds that could not be parsed. */
+export interface CorruptLine {
+  line: number;
+  reason: string;
 }
 
 export interface HandoffState {
@@ -22,7 +30,11 @@ export interface HandoffState {
   messages: HandoffMessage[];
   pending: HandoffMessage[];
   done: HandoffMessage[];
+  corrupt: CorruptLine[];
 }
+
+/** Message types that settle a task, so it stops appearing in an inbox. */
+const TERMINAL_TYPES = new Set<HandoffMessageType>(["done", "error", "cancel"]);
 
 const HANDOFF_DIR = ".handoff";
 const MESSAGES_FILE = "messages.jsonl";
@@ -99,6 +111,7 @@ export async function sendHandoff(
     from?: string;
     type?: HandoffMessageType;
     context?: string;
+    resolves?: string;
   } = {},
 ): Promise<HandoffMessage> {
   if (!(await isHandoffInitialized(projectRoot))) {
@@ -114,6 +127,7 @@ export async function sendHandoff(
     to,
     description,
     ...(options.context ? { context: options.context } : {}),
+    ...(options.resolves ? { resolves: options.resolves } : {}),
     timestamp: new Date().toISOString(),
   };
 
@@ -141,45 +155,81 @@ export async function markDone(
     {
       from: original.to,
       type: "done",
-      context: `Resolves ${messageId}`,
+      resolves: messageId,
     },
   );
+}
+
+/**
+ * Parse the log one line at a time. A single truncated write previously made
+ * the whole inbox look empty, which is the worst possible failure for a queue:
+ * silent and total. Bad lines are collected and reported instead.
+ */
+export async function readMessagesDetailed(
+  projectRoot: string,
+): Promise<{ messages: HandoffMessage[]; corrupt: CorruptLine[] }> {
+  if (!(await isHandoffInitialized(projectRoot)))
+    return { messages: [], corrupt: [] };
+
+  let content: string;
+  try {
+    content = await readFile(messagesPath(projectRoot), "utf8");
+  } catch {
+    return { messages: [], corrupt: [] };
+  }
+
+  const messages: HandoffMessage[] = [];
+  const corrupt: CorruptLine[] = [];
+  content.split("\n").forEach((raw, index) => {
+    if (!raw.trim()) return;
+    try {
+      const parsed = JSON.parse(raw) as HandoffMessage;
+      if (!parsed || typeof parsed.id !== "string" || !parsed.type)
+        throw new Error("missing id or type");
+      messages.push(parsed);
+    } catch (error) {
+      corrupt.push({
+        line: index + 1,
+        reason: error instanceof Error ? error.message : "unparseable",
+      });
+    }
+  });
+  return { messages, corrupt };
 }
 
 export async function readMessages(
   projectRoot: string,
 ): Promise<HandoffMessage[]> {
-  if (!(await isHandoffInitialized(projectRoot))) return [];
-  try {
-    const content = await readFile(messagesPath(projectRoot), "utf8");
-    return content
-      .split("\n")
-      .filter(Boolean)
-      .map((line) => JSON.parse(line) as HandoffMessage);
-  } catch {
-    return [];
-  }
+  return (await readMessagesDetailed(projectRoot)).messages;
 }
 
 export async function getHandoffState(
   projectRoot: string,
 ): Promise<HandoffState> {
   const initialized = await isHandoffInitialized(projectRoot);
-  const messages = initialized ? await readMessages(projectRoot) : [];
+  const { messages, corrupt } = initialized
+    ? await readMessagesDetailed(projectRoot)
+    : { messages: [], corrupt: [] };
 
-  const doneIds = new Set(
+  // A task is settled by completion, failure, or withdrawal. Treating only
+  // `done` as terminal left failed tasks pending forever.
+  const resolvedIds = new Set(
     messages
-      .filter((m) => m.type === "done")
+      .filter((m) => TERMINAL_TYPES.has(m.type))
       .flatMap((m) => {
+        if (m.resolves) return [m.resolves];
+        // Logs written before `resolves` existed encode it in the context.
         const match = m.context?.match(/Resolves (\w+)/);
         return match ? [match[1]] : [];
       }),
   );
 
   const pending = messages.filter(
-    (m) => m.type === "task" && !doneIds.has(m.id),
+    (m) => m.type === "task" && !resolvedIds.has(m.id),
   );
-  const done = messages.filter((m) => m.type === "task" && doneIds.has(m.id));
+  const done = messages.filter(
+    (m) => m.type === "task" && resolvedIds.has(m.id),
+  );
 
   return {
     initialized,
@@ -187,6 +237,7 @@ export async function getHandoffState(
     messages,
     pending,
     done,
+    corrupt,
   };
 }
 
@@ -205,7 +256,7 @@ export async function readInbox(
 
 /**
  * Render an agent's inbox as instructions the agent itself can act on. This is
- * what `loadout handoff inbox` prints, and what the generated pickup block
+ * what `loadout handoff <agent>` prints, and what the generated pickup block
  * tells each agent to run, so the message log is consumed rather than merely
  * written.
  */
@@ -246,7 +297,7 @@ export function pickupBlock(agent: string): string {
     `loadout handoff ${agent}`,
     "```",
     "",
-    "If it lists pending tasks, work them in order and run the `loadout handoff done`",
+    "If it lists pending tasks, work them in order and run the `loadout handoff --done`",
     "command it prints for each one. If it reports none, continue as normal.",
     "",
     PICKUP_END,
@@ -259,6 +310,8 @@ export interface PickupPlan {
   exists: boolean;
   /** True when a managed block is already present and would be replaced. */
   replacing: boolean;
+  /** True when the present block still names retired commands. */
+  stale: boolean;
   content: string;
 }
 
@@ -308,13 +361,21 @@ export async function planPickup(
   const end = existing.indexOf(PICKUP_END);
   const replacing = start !== -1 && end !== -1 && end > start;
 
+  // A block written by an older release still tells the agent to run commands
+  // that no longer exist, so a rewrite is a migration, not a no-op.
+  const stale =
+    replacing &&
+    /loadout handoff (?:inbox|send|init|status|done)\b/.test(
+      existing.slice(start, end),
+    );
+
   const content = replacing
     ? existing.slice(0, start) + block + existing.slice(end + PICKUP_END.length)
     : exists
       ? `${existing.replace(/\s*$/, "")}\n\n${block}\n`
       : `${block}\n`;
 
-  return { path, agent, exists, replacing, content };
+  return { path, agent, exists, replacing, stale, content };
 }
 
 export async function applyPickup(plan: PickupPlan): Promise<void> {
@@ -324,11 +385,13 @@ export async function applyPickup(plan: PickupPlan): Promise<void> {
 export function formatPickupPlan(plans: PickupPlan[]): string {
   const lines = ["Handoff pickup instructions:", ""];
   for (const plan of plans) {
-    const action = plan.replacing
-      ? "refresh managed block in"
-      : plan.exists
-        ? "append managed block to"
-        : "create";
+    const action = plan.stale
+      ? "migrate outdated block in"
+      : plan.replacing
+        ? "refresh managed block in"
+        : plan.exists
+          ? "append managed block to"
+          : "create";
     lines.push(`  ${action} ${plan.path}`);
   }
   lines.push(
@@ -342,9 +405,9 @@ export function formatPickupPlan(plans: PickupPlan[]): string {
 
 export function formatHandoffStatus(state: HandoffState): string {
   if (!state.initialized)
-    return "Handoff not initialized. Run `loadout handoff init`.";
+    return "No handoff log here yet. Send a task and it creates itself: loadout handoff <agent> '<task>'";
   if (state.messages.length === 0)
-    return "No handoff messages yet. Send one with `loadout handoff send <agent> <task>`.";
+    return "No handoff messages yet. Send one with `loadout handoff <agent> '<task>'`.";
 
   const lines: string[] = [];
 
@@ -361,6 +424,16 @@ export function formatHandoffStatus(state: HandoffState): string {
     for (const m of state.done) {
       lines.push(`  ${m.id}  ${m.from} → ${m.to}  ${m.description}`);
     }
+  }
+
+  if (state.corrupt.length) {
+    if (lines.length) lines.push("");
+    lines.push(
+      `Warning: ${state.corrupt.length} unreadable line(s) in the log — ${state.corrupt
+        .map((entry) => `line ${entry.line}`)
+        .join(", ")}.`,
+      "The other messages are shown; repair or delete those lines to clear this.",
+    );
   }
 
   const other = state.messages.filter(

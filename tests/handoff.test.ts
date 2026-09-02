@@ -15,7 +15,7 @@ import {
   readInbox,
   readMessages,
   sendHandoff,
-} from "../src/core/routing/handoff.js";
+} from "../src/core/delegation/handoff.js";
 
 describe("handoff", () => {
   let projectRoot: string;

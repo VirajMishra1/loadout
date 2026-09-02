@@ -8,24 +8,10 @@ import {
   refreshCatalog,
   validateCatalog,
 } from "../core/catalog/catalog.js";
-import { detectAgents, parseAgentSelection } from "../core/agents/paths.js";
+import { parseAgentSelection } from "../core/agents/paths.js";
 import { resolve } from "node:path";
 import { readFile } from "node:fs/promises";
 import type { CatalogPackage } from "../shared/types.js";
-import { formatModelCatalog, MODEL_CATALOG } from "../core/routing/route.js";
-import {
-  BUCKETS,
-  formatAnswer,
-  formatPolicy,
-  guessBucket,
-  policyPath,
-  readPolicy,
-  resolveRoute,
-  setRule,
-  writePolicy,
-  type Bucket,
-} from "../core/routing/policy.js";
-import { rm } from "node:fs/promises";
 import {
   applyFirstPartySkill,
   FIRST_PARTY_SKILLS,
@@ -34,7 +20,7 @@ import {
   installedFirstPartySkills,
   planFirstPartySkill,
   removeFirstPartySkill,
-} from "../core/routing/first-party-skills.js";
+} from "../core/delegation/first-party-skills.js";
 import {
   applyPickup,
   formatHandoffStatus,
@@ -47,7 +33,7 @@ import {
   planPickup,
   readInbox,
   sendHandoff,
-} from "../core/routing/handoff.js";
+} from "../core/delegation/handoff.js";
 
 import {
   catalogTrustStage,
@@ -80,7 +66,7 @@ import {
   planProviderModelSelection,
   readProviderModelConfiguration,
   requestOpenRouter,
-} from "../core/routing/model-config.js";
+} from "../core/agents/model-config.js";
 
 import {
   parseCompletionShell,
@@ -93,7 +79,7 @@ import {
 import {
   createCredentialResolver,
   createOsCredentialStore,
-} from "../core/routing/credentials.js";
+} from "../core/agents/credentials.js";
 import {
   buildCandidateDossier,
   buildCatalogProposal,
@@ -1173,109 +1159,6 @@ export function registerCatalog(program: Command): void {
         console.log(`Sent to ${agent}: ${task}`);
         console.log(
           `It will pick this up next session, or now with: loadout handoff ${agent}`,
-        );
-      },
-    );
-
-  const route = program
-    .command("route")
-    .description(
-      "Which model to use for a task, according to a routing policy you own",
-    );
-
-  route
-    .argument("[description...]", "what you are about to do")
-    .option(
-      "--bucket <bucket>",
-      "state the bucket yourself: hard, normal, or cheap",
-    )
-    .option("--set <bucket=model>", "change the model for one bucket and save")
-    .option("--save", "write the current defaults to disk so you can edit them")
-    .option("--reset", "delete your policy and go back to the defaults")
-    .option("--models", "list the model ids you can name in a policy")
-    .option("--json", "emit machine-readable JSON")
-    .action(
-      async (
-        descriptionWords: string[],
-        options: {
-          bucket?: string;
-          set?: string;
-          save?: boolean;
-          reset?: boolean;
-          models?: boolean;
-          json?: boolean;
-        },
-      ) => {
-        if (options.models) {
-          console.log(
-            options.json
-              ? JSON.stringify(MODEL_CATALOG, null, 2)
-              : formatModelCatalog(),
-          );
-          return;
-        }
-
-        const detected = await detectAgents();
-        const installed = detected
-          .filter((agent) => agent.installed)
-          .map((agent) => agent.id);
-
-        if (options.reset) {
-          await rm(policyPath(), { force: true });
-          console.log("Removed your routing policy; defaults apply again.");
-          return;
-        }
-
-        if (options.set) {
-          const separator = options.set.indexOf("=");
-          if (separator <= 0)
-            throw new Error(
-              "--set expects <bucket>=<model>, for example normal=gpt-5.6-terra",
-            );
-          const bucket = options.set.slice(0, separator).trim() as Bucket;
-          if (!BUCKETS.includes(bucket))
-            throw new Error(
-              `Unknown bucket '${bucket}'. Valid: ${BUCKETS.join(", ")}`,
-            );
-          const updated = await setRule(
-            bucket,
-            options.set.slice(separator + 1).trim(),
-            installed,
-          );
-          console.log(formatPolicy(updated, "file"));
-          return;
-        }
-
-        const { policy, source } = await readPolicy(installed);
-
-        if (options.save) {
-          const path = await writePolicy(policy);
-          console.log(`Saved your routing policy to ${path}\n`);
-          console.log(formatPolicy(policy, "file"));
-          return;
-        }
-
-        const description = descriptionWords.join(" ").trim();
-        if (!description && !options.bucket) {
-          console.log(
-            options.json
-              ? JSON.stringify({ policy, source }, null, 2)
-              : formatPolicy(policy, source),
-          );
-          return;
-        }
-
-        const stated = options.bucket as Bucket | undefined;
-        if (stated && !BUCKETS.includes(stated))
-          throw new Error(
-            `Unknown bucket '${stated}'. Valid: ${BUCKETS.join(", ")}`,
-          );
-        const bucket = stated ?? guessBucket(description);
-        const answer = resolveRoute(policy, bucket, installed, !stated);
-        console.log(
-          options.json
-            ? JSON.stringify(answer, null, 2)
-            : formatAnswer(answer, description || undefined),
         );
       },
     );

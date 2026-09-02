@@ -12,7 +12,7 @@ import {
   formatFirstPartySkillPlan,
   planFirstPartySkill,
   removeFirstPartySkill,
-} from "../src/core/routing/first-party-skills.js";
+} from "../src/core/delegation/first-party-skills.js";
 
 function agent(
   id: DetectedAgent["id"],
@@ -30,9 +30,9 @@ describe("first-party skills", () => {
     root = await mkdtemp(join(tmpdir(), "loadout-fps-test-"));
   });
 
-  it("ships the router and curator skills", () => {
+  it("ships the handoff and curator skills", () => {
     const ids = FIRST_PARTY_SKILLS.map((s) => s.id);
-    expect(ids).toContain("loadout-router");
+    expect(ids).toContain("loadout-handoff");
     expect(ids).toContain("loadout-curator");
   });
 
@@ -51,15 +51,15 @@ describe("first-party skills", () => {
   it("resolves the bundled skills directory from this build", async () => {
     const skillsRoot = await bundledSkillsRoot();
     const skill = await readFile(
-      join(skillsRoot, "loadout-router", "SKILL.md"),
+      join(skillsRoot, "loadout-handoff", "SKILL.md"),
       "utf8",
     );
-    expect(skill).toContain("name: loadout-router");
-    expect(skill).toContain("loadout route");
+    expect(skill).toContain("name: loadout-handoff");
+    expect(skill).toContain("loadout handoff");
   });
 
   it("rejects an unknown skill id with the available ids", () => {
-    expect(() => findFirstPartySkill("nope")).toThrow(/loadout-router/);
+    expect(() => findFirstPartySkill("nope")).toThrow(/loadout-handoff/);
   });
 
   it("plans one destination per installed agent", async () => {
@@ -68,7 +68,7 @@ describe("first-party skills", () => {
       agent("codex", "Codex", join(root, "codex")),
       agent("cursor", "Cursor", join(root, "cursor"), false),
     ];
-    const plan = await planFirstPartySkill("loadout-router", { detected });
+    const plan = await planFirstPartySkill("loadout-handoff", { detected });
     expect(plan.targets).toHaveLength(2);
     expect(plan.targets.map((t) => t.agent)).toEqual(["claude-code", "codex"]);
     expect(plan.targets.every((t) => t.replacing === false)).toBe(true);
@@ -79,7 +79,7 @@ describe("first-party skills", () => {
       agent("claude-code", "Claude Code", join(root, "claude")),
       agent("codex", "Codex", join(root, "codex")),
     ];
-    const plan = await planFirstPartySkill("loadout-router", {
+    const plan = await planFirstPartySkill("loadout-handoff", {
       detected,
       agents: ["codex"],
     });
@@ -91,25 +91,25 @@ describe("first-party skills", () => {
     const detected = [
       agent("claude-code", "Claude Code", join(root, "claude")),
     ];
-    const plan = await planFirstPartySkill("loadout-router", { detected });
+    const plan = await planFirstPartySkill("loadout-handoff", { detected });
     await applyFirstPartySkill(plan);
 
     const written = await readFile(
-      join(root, "claude", "loadout-router", "SKILL.md"),
+      join(root, "claude", "loadout-handoff", "SKILL.md"),
       "utf8",
     );
-    expect(written).toContain("name: loadout-router");
+    expect(written).toContain("name: loadout-handoff");
   });
 
   it("marks an existing install as replacing and removes stale files", async () => {
     const detected = [
       agent("claude-code", "Claude Code", join(root, "claude")),
     ];
-    const destination = join(root, "claude", "loadout-router");
+    const destination = join(root, "claude", "loadout-handoff");
     await mkdir(destination, { recursive: true });
     await writeFile(join(destination, "OLD.md"), "stale", "utf8");
 
-    const plan = await planFirstPartySkill("loadout-router", { detected });
+    const plan = await planFirstPartySkill("loadout-handoff", { detected });
     expect(plan.targets[0].replacing).toBe(true);
 
     await applyFirstPartySkill(plan);
@@ -117,7 +117,7 @@ describe("first-party skills", () => {
       readFile(join(destination, "OLD.md"), "utf8"),
     ).rejects.toThrow();
     expect(await readFile(join(destination, "SKILL.md"), "utf8")).toContain(
-      "loadout-router",
+      "loadout-handoff",
     );
   });
 
@@ -126,27 +126,27 @@ describe("first-party skills", () => {
       agent("claude-code", "Claude Code", join(root, "claude")),
     ];
     await applyFirstPartySkill(
-      await planFirstPartySkill("loadout-router", { detected }),
+      await planFirstPartySkill("loadout-handoff", { detected }),
     );
-    const removalPlan = await planFirstPartySkill("loadout-router", {
+    const removalPlan = await planFirstPartySkill("loadout-handoff", {
       detected,
     });
     await removeFirstPartySkill(removalPlan);
     await expect(
-      readFile(join(root, "claude", "loadout-router", "SKILL.md"), "utf8"),
+      readFile(join(root, "claude", "loadout-handoff", "SKILL.md"), "utf8"),
     ).rejects.toThrow();
   });
 
   it("explains when no agent is available to receive the skill", async () => {
-    const plan = await planFirstPartySkill("loadout-router", { detected: [] });
+    const plan = await planFirstPartySkill("loadout-handoff", { detected: [] });
     expect(plan.targets).toHaveLength(0);
     expect(formatFirstPartySkillPlan(plan)).toMatch(/no installed agents/i);
   });
 
   it("marks installed skills in the list output", () => {
-    expect(formatFirstPartySkillList(new Set())).toContain("○ loadout-router");
-    expect(formatFirstPartySkillList(new Set(["loadout-router"]))).toContain(
-      "✓ loadout-router",
+    expect(formatFirstPartySkillList(new Set())).toContain("○ loadout-handoff");
+    expect(formatFirstPartySkillList(new Set(["loadout-handoff"]))).toContain(
+      "✓ loadout-handoff",
     );
   });
 });

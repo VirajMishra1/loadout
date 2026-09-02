@@ -8,8 +8,8 @@
 
 <p align="center">
   <strong>The package manager for your AI coding setup.</strong><br>
-  Install skills across 12 agents. Route each task to the right model.<br>
-  Hand work between Claude Code and Codex. Undo any of it.
+  Find skills worth having, activate the right ones per project,<br>
+  install them across 12 agents, and undo any of it.
 </p>
 
 <p align="center">
@@ -25,7 +25,7 @@
   <a href="#what-it-looks-like">See it</a> ·
   <a href="#install">Install</a> ·
   <a href="#use-it-from-inside-your-agent">Use it in your agent</a> ·
-  <a href="#working-across-two-agents">Two agents</a> ·
+  <a href="#passing-work-between-two-agents">Two agents</a> ·
   <a href="#why-loadout">Why</a> ·
   <a href="#trust-and-limits">Trust</a> ·
   <a href="#command-reference">Commands</a>
@@ -34,32 +34,34 @@
 ## What it looks like
 
 ```console
-$ loadout status
-Loadout — grade A: Healthy and up to date
+$ loadout doctor
+loadout doctor — HEALTHY
 
-✓ Claude Code
-  ~/.claude/skills
-  43 skills | supports: skill, command, agent, mcp, plugin, root
-✓ Codex
-  ~/.agents/skills
-  30 skills | supports: skill, command, agent, mcp, plugin, root
+Platform:   darwin
+State:      ~/.loadout ✓ writable
+Agents:     3 detected, 9 available
 
-$ loadout route
-Default routing policy (not saved yet)
+DETECTED AGENTS
+  ✓ Claude Code
+    ~/.claude/skills
+    43 skills | supports: skill, command, agent, mcp, plugin, root
+  ✓ Codex
+    ~/.agents/skills
+    30 skills | supports: skill, command, agent, mcp, plugin, root
 
-  hard    Claude Opus 5    $5/$25 per M
-          architecture, security, migrations, tricky debugging, risky review
-  normal  Claude Sonnet 5  $3/$15 per M
-          most implementation, ordinary debugging, refactors
-  cheap   GPT-5.6 Luna     $0.2/$1.2 per M
-          tests, docs, boilerplate, renames, mechanical edits
+$ loadout recommend --project .
+Project: checkout-service
+Detected: TypeScript, Zod, Vitest, next.js, react
 
-Change it:  loadout route --set normal=gpt-5.6-terra
+Rule-based project suggestions:
+  superpowers [high, skill library] — Useful engineering planning, testing, and review workflows.
+  context7 [high, skill library] — Current library documentation helps agents avoid outdated APIs.
+  ui-ux-pro-max [high, skill library] — Frontend framework detected: next.js, react.
+  playwright-mcp [medium, MCP/runtime setup] — Browser verification may help test the detected frontend.
 ```
 
-The routing policy is a file you own, not a table I decided for you. Loadout
-knows which agents you actually have, prices the tradeoff before you spend the
-tokens, and previews and snapshots every write.
+It reads your repository rather than a config file, knows which agents you
+actually have, and previews and snapshots every write before it touches them.
 
 ## Install
 
@@ -82,23 +84,22 @@ A CLI you have to leave your agent to run is a context switch. Loadout ships its
 own skill so you do not have to:
 
 ```bash
-loadout skills install loadout-router --yes
+loadout skills install loadout-handoff --yes
 ```
 
 Start a new agent session and just ask, in the conversation you are already in:
 
-> _"Which model should I use to refactor this auth module?"_
-> _"I'm running low on usage — what should I switch to?"_
 > _"Hand the test writing to Codex."_
+> _"What did Codex leave for me?"_
+> _"Which skills should be active for this repo?"_
 
-The skill teaches your agent to call `loadout route` and `loadout handoff` and act
-on the results. It wraps the CLI rather than embedding a copy of the model table,
-so pricing and model coverage update when Loadout updates instead of going stale
-in a markdown file.
+The skills teach your agent to call `loadout` and act on the results, so it
+checks its own inbox at the start of a session and can pass work to your other
+agent without you relaying it by hand.
 
 `loadout skills list` shows what ships with Loadout and what is already installed.
 
-## Working across two agents
+## Passing work between two agents
 
 If you pay for both Claude and a ChatGPT plan, the two agents cannot see each
 other. Loadout gives them a shared, append-only task log:
@@ -148,11 +149,10 @@ Loadout installed 4 repositories for 3 agent(s). Snapshot: <snapshot-id>
 $ loadout rollback
 Restored snapshot <snapshot-id>
 
-$ loadout route design the authentication system
-Task:   design the authentication system
-
-Bucket: hard — architecture, security, migrations, tricky debugging, risky review
-Use:    Claude Opus 5  ($5/$25 per M)
+$ loadout handoff codex "write tests for the auth module" --context "zod schemas exist"
+  created .handoff/
+  told codex to check its inbox
+Sent to codex: write tests for the auth module
 
 $ loadout doctor
 loadout doctor — HEALTHY
@@ -516,17 +516,15 @@ Start at the top and stop whenever Loadout does everything you need.
 |       12 | Shows candidates waiting for deeper review                      | `loadout review-queue`                                       |
 |       13 | Lists MCP recipes and credential needs                          | `loadout mcp-recipe`; `loadout mcp-recipe --credential-free` |
 |       14 | Previews an MCP configuration                                   | `loadout mcp-recipe playwright --agent claude-code`          |
-|       15 | Installs Loadout's own skill into your agents                   | `loadout skills install loadout-router --yes`                |
-|       16 | Recommends the right model and agent for a task                 | `loadout route design the auth system`                       |
-|       17 | Shows the full model catalog with pricing                       | `loadout route --models`; `loadout route --cost`             |
-|       18 | Sends a task to another agent via file-based handoff            | `loadout handoff codex "write tests for auth"`               |
-|       19 | Checks agent health, permissions, and setup                     | `loadout doctor`; `loadout doctor --verbose`                 |
-|       20 | Lists and installs isolated runtime tools such as Graphify      | `loadout tool`; `loadout tool graphify`                      |
-|       21 | Lists snapshots or restores the latest managed change           | `loadout rollback --list`; `loadout rollback`                |
-|       22 | Previews removal of one managed package                         | `loadout remove <package-id>`                                |
-|       23 | Previews complete removal of Loadout-managed state              | `loadout uninstall`                                          |
-|       24 | Enables read-only daily discovery and update checks             | `loadout autopilot --yes`                                    |
-|       25 | Shows the complete CLI                                          | `loadout --help`; `loadout advanced`                         |
+|       15 | Installs Loadout's own skill into your agents                   | `loadout skills install loadout-handoff --yes`               |
+|       16 | Sends a task to another agent via file-based handoff            | `loadout handoff codex "write tests for auth"`               |
+|       17 | Checks agent health, permissions, and setup                     | `loadout doctor`; `loadout doctor --verbose`                 |
+|       18 | Lists and installs isolated runtime tools such as Graphify      | `loadout tool`; `loadout tool graphify`                      |
+|       19 | Lists snapshots or restores the latest managed change           | `loadout rollback --list`; `loadout rollback`                |
+|       20 | Previews removal of one managed package                         | `loadout remove <package-id>`                                |
+|       21 | Previews complete removal of Loadout-managed state              | `loadout uninstall`                                          |
+|       22 | Enables read-only daily discovery and update checks             | `loadout autopilot --yes`                                    |
+|       23 | Shows the complete CLI                                          | `loadout --help`; `loadout advanced`                         |
 
 Most mutating commands are dry runs first. After reading the preview, add `--yes` to
 apply. Commands with executable or connection risk require the additional approval

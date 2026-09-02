@@ -17,10 +17,10 @@ export interface FirstPartySkill {
 
 export const FIRST_PARTY_SKILLS: FirstPartySkill[] = [
   {
-    id: "loadout-router",
-    displayName: "Loadout Router",
+    id: "loadout-handoff",
+    displayName: "Loadout Handoff",
     summary:
-      "Lets an agent pick the right model tier for a task and hand work to another agent",
+      "Lets an agent pass tasks to your other agent and pick up what was left for it",
   },
   {
     id: "loadout-curator",

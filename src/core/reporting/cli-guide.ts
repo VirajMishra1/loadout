@@ -16,16 +16,15 @@ IN A PROJECT
 
 WHILE YOU WORK
 
-  loadout route                     your model policy: hard / normal / cheap
-  loadout route <describe a task>   which of those it looks like, and what to use
   loadout handoff codex "..."       give a task to your other agent
+  loadout handoff                   what is waiting, both directions
 
 USE IT INSIDE YOUR AGENT
 
-  loadout skills install loadout-router --yes
+  loadout skills install loadout-handoff --yes
 
-  Then just ask your agent "which model should I use for this?" instead of
-  coming back here.
+  Then your agents check their own inboxes and can hand work to each other
+  without you relaying it.
 
 KEEPING CURRENT
 

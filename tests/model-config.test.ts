@@ -9,7 +9,7 @@ import {
   planProviderModelSelection,
   readProviderModelConfiguration,
   requestOpenRouter,
-} from "../src/core/routing/model-config.js";
+} from "../src/core/agents/model-config.js";
 
 describe("provider-neutral model configuration", () => {
   let root = "";

@@ -188,7 +188,6 @@ export function formatDoctorReport(
     lines.push(
       "  loadout status        see what's managed",
       "  loadout setup         install a curated skill set",
-      "  loadout route         find the right model for your task",
       "  loadout health        check for updates",
     );
   }

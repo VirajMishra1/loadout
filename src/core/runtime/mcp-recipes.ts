@@ -7,7 +7,7 @@ import type {
   McpConfigPlan,
   McpServer,
 } from "../../shared/types.js";
-import { createCredentialResolver } from "../routing/credentials.js";
+import { createCredentialResolver } from "../agents/credentials.js";
 import { planMcpConfig } from "./mcp.js";
 
 export interface McpSetupRecipe {

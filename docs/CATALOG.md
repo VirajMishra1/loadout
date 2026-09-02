@@ -12,7 +12,7 @@ Thank you to every maintainer and contributor whose work appears here. Loadout d
 - **License** is the SPDX identifier recorded in `catalog/packages.json` from GitHub metadata. **Review required** corresponds to `NOASSERTION`: no SPDX identifier was reported, so users must inspect the upstream terms instead of assuming permission.
 - **Reviewed revision** links to the immutable commit inspected for catalog admission. It is not necessarily the newest upstream commit.
 
-The machine-readable catalog remains the source of truth. Run `loadout catalog --coverage --json` to inspect coverage and `loadout capabilities` to inspect what each local agent adapter can actually manage.
+The machine-readable catalog remains the source of truth. Run `loadout catalog --coverage --json` to inspect coverage and `loadout doctor --verbose` to inspect what each local agent adapter can actually manage.
 
 ## All 53 credited repositories
 

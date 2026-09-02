@@ -26,7 +26,7 @@ their `SKILL.md` files, and writes a local index below `LOADOUT_HOME/provenance`
 
 ## Relationship classification
 
-`loadout compare` uses deterministic relationships:
+`loadout scan` uses deterministic relationships:
 
 - `exact-copy`: identical instruction fingerprint;
 - `divergent-same-name`: same normalized name, different instructions;

@@ -64,7 +64,7 @@
     "check:live": "node scripts/check-live-evidence.mjs",
     "check:allowlists": "npm run build && node scripts/check-mode-allowlists.mjs",
     "check:catalog-freshness": "npm run build && node scripts/check-catalog-freshness.mjs",
-    "check:evidence": "node scripts/check-catalog-attribution.mjs && node scripts/check-discovery-artifacts.mjs && npm run check:readme-claims",
+    "check:evidence": "node scripts/check-catalog-attribution.mjs && node scripts/check-discovery-artifacts.mjs && node scripts/check-documented-commands.mjs && npm run check:readme-claims",
     "verify": "npm run format:check && npm run lint && npm run typecheck && npm run check:evidence && npm test -- --run && npm run test:e2e:cli && npm run test:e2e:readme && npm run test:package && npm run test:performance",
     "verify:full": "npm run verify"
   },

@@ -26,6 +26,6 @@ verification restores the snapshot and quarantines the candidate commit. A user 
 revoke a policy at any time; revocation prevents future mutations but never deletes
 existing snapshots.
 
-The local `loadout canary` command implements the non-mutating static gate. A
+Update safety runs as a non-mutating static gate during `loadout upgrade` previews. A
 transaction layer must provide verification and promotion callbacks before a
 candidate can be promoted; the command itself never installs a candidate.

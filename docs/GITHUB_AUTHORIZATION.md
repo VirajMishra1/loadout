@@ -19,6 +19,11 @@ paste a token into a manifest, catalog, log, or command argument.
 
 ## Local flow and failure modes
 
+> **Partly unimplemented.** `loadout connect` and `loadout disconnect` do not
+> exist in the CLI today. `loadout discover --private` is real and reads
+> credentials the user has already configured. Steps 1, 2, 3, and 5 describe the
+> intended flow, not current behaviour.
+
 1. `loadout connect github` opens a browser using PKCE and a loopback callback.
 2. The local process verifies `state`, PKCE verifier, expiration, and callback host.
 3. It stores only an OS-keychain reference to the refresh/session material.

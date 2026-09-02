@@ -494,7 +494,7 @@ Configured CI platforms describe a manually triggered workflow, not evidence tha
 
 <!-- loadout:support-summary:end -->
 
-Configured paths and disposable filesystem lifecycle tests do not prove that native applications recognize or execute installed skills. Use `loadout capabilities --inspect` for the local component matrix.
+Configured paths and disposable filesystem lifecycle tests do not prove that native applications recognize or execute installed skills. Use `loadout doctor --verbose` for the local component matrix.
 
 ## Command reference
 

@@ -93,10 +93,16 @@ powers, platform behavior, category, and catalog policy.
 
 ## Distribute a trusted catalog release
 
-Maintainers sign a technically screened full catalog array with an Ed25519 key kept outside the
+> **Not implemented.** The signing flow below is a design sketch. `loadout keygen`,
+> `loadout catalog-sign`, and `loadout catalog-update` do not exist in the CLI
+> today; the catalog ships in the package and is verified by the evidence gate
+> instead. Kept here as the intended shape, not as instructions.
+
+Maintainers would sign a technically screened full catalog array with an Ed25519 key kept outside the
 repository:
 
 ```bash
+# Design sketch — these commands do not exist yet.
 loadout keygen --private-key /secure/catalog-private.pem \
   --public-key ./catalog-public.pem
 loadout catalog-sign --catalog ./catalog/packages.json \
@@ -104,9 +110,10 @@ loadout catalog-sign --catalog ./catalog/packages.json \
   --output ./catalog.signed.json
 ```
 
-Users preview the verified release before trusting it:
+Users would preview the verified release before trusting it:
 
 ```bash
+# Design sketch — these commands do not exist yet.
 loadout catalog-update --source ./catalog.signed.json \
   --public-key ./catalog-public.pem
 loadout catalog-update --source ./catalog.signed.json \

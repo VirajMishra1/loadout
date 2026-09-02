@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { Command, CommanderError } from "commander";
 import { HIDDEN_FROM_FIRST_SCREEN } from "./core/reporting/cli-guide.js";
+import { registerCompletionCommands } from "./core/reporting/completion.js";
 import { recoverPendingTransactions } from "./core/install/transaction.js";
 import {
   LOADOUT_VERSION,
@@ -44,6 +45,13 @@ registerInventory(program);
 registerCatalog(program);
 registerMcp(program);
 registerLifecycle(program);
+
+registerCompletionCommands(
+  program.commands.map((command) => ({
+    name: command.name(),
+    subcommands: command.commands.map((sub) => sub.name()),
+  })),
+);
 
 for (const command of program.commands)
   // Commander supports `hidden` when a command is created. These commands are

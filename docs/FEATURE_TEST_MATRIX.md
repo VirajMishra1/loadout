@@ -98,7 +98,6 @@ Confirm isolation before any applied command:
 
 ```bash
 loadout status --json
-loadout capabilities
 ```
 
 Expected: paths, if shown, are below `TEST_ROOT`; Codex and Claude Code are detected;
@@ -158,8 +157,6 @@ loadout library --json
 loadout health --explain --json
 loadout report --json
 loadout card --json
-loadout outcomes --json
-loadout capabilities --inspect --json
 ```
 
 Expected:
@@ -184,7 +181,6 @@ Network variants must be run deliberately:
 loadout catalog --refresh --json
 loadout health --updates --json
 loadout scan --agents codex,claude-code --refresh-provenance --json
-loadout compare brainstorming --offline --json
 loadout discover --source mcp-registry --limit 10 --json
 loadout discover --source skills-sh --limit 10 --json
 ```
@@ -201,79 +197,7 @@ skills.sh path needs its request-scoped `VERCEL_OIDC_TOKEN`; without one it must
 previous complete cache or return an attributed `unavailable` result without making
 an unauthenticated request. Neither source installs or promotes a lead.
 
-## 3. Package, manifest, lock, portability, and registry track (S/A)
-
-Create a package _inside_ the test project so its manifest can be exported portably:
-
-```bash
-mkdir -p "$TEST_PROJECT/packages"
-loadout create "$TEST_PROJECT/packages/matrix-demo" \
-  --name matrix-demo --description "Disposable matrix package"
-loadout pack "$TEST_PROJECT/packages/matrix-demo" --json
-loadout publish "$TEST_PROJECT/packages/matrix-demo" --local
-loadout search matrix-demo --json
-
-loadout init --path "$TEST_PROJECT/loadout.json" --name matrix \
-  --agents codex,claude-code --scope project
-(
-  cd "$TEST_PROJECT"
-  loadout add local-demo --manifest loadout.json --local \
-    --path packages/matrix-demo --agents codex,claude-code
-  loadout sync --manifest loadout.json --lock loadout.lock
-  loadout sync --manifest loadout.json --lock loadout.lock --yes
-  loadout audit --manifest loadout.json --lock loadout.lock --json
-)
-```
-
-Expected: `pack` returns a deterministic digest; local publication is immutable;
-the first `sync` is a dry run; applied sync prints one snapshot; `audit` returns
-`"valid": true`; skills appear only below the disposable profile.
-
-Exercise desired-state editing and portability:
-
-```bash
-(
-  cd "$TEST_PROJECT"
-  loadout lock --manifest loadout.json --output loadout.lock
-  loadout export portable.json --manifest loadout.json --lock loadout.lock
-  loadout import portable.json --manifest imported.json --lock imported.lock
-  loadout import portable.json --manifest imported.json --lock imported.lock --yes
-  loadout unadd local-demo --manifest imported.json
-)
-```
-
-Expected: import previews before writing; applied import snapshots destinations;
-`unadd` changes desired state only and does not delete installed files.
-
-The full authenticated remote-registry protocol, including wrong-token rejection,
-immutable-version conflict rejection, exact digest download, risk approval, and the
-HTTPS/non-loopback boundary, is reproducibly covered by:
-
-```bash
-npx vitest run tests/registry-api.test.ts tests/package.test.ts
-```
-
-Manual `registry-serve`/remote `publish` is an X test. After completing the throwaway
-credential setup in track 9, start this in one terminal:
-
-```bash
-loadout registry-serve --port 7331 \
-  --credential-keychain loadout-registry-test --credential-account tester
-```
-
-Then publish from another terminal:
-
-```bash
-loadout publish "$TEST_PROJECT/packages/matrix-demo" \
-  --registry-url http://127.0.0.1:7331 \
-  --credential-keychain loadout-registry-test --credential-account tester
-```
-
-Never place the token on the command line. An identical version/content publish may
-be accepted idempotently; changed content at the same version must be rejected. Stop
-the server with Ctrl-C.
-
-## 4. Install, active-set, outcome, and rollback track (A; Maximum is N)
+## 3. Install, active-set, and rollback track (A; Maximum is N)
 
 Exercise the new-user golden path before its constituent commands:
 
@@ -321,9 +245,6 @@ loadout disable direct-demo --agents codex
 loadout disable direct-demo --agents codex --yes --json
 loadout enable direct-demo --agents codex
 loadout enable direct-demo --agents codex --yes --json
-loadout outcome direct-demo/direct-demo --agent codex --task testing \
-  --result success
-loadout outcomes --json
 loadout share "$TEST_PROJECT/share.json"
 loadout remove direct-demo
 loadout remove direct-demo --yes
@@ -355,7 +276,7 @@ and preserves matching active Stable units at the same reviewed commit; MCP-only
 packages remain explicit setup items. `--approve-risk` acknowledges displayed static
 findings but does not execute third-party repository scripts.
 
-## 5. Existing-skill provenance, adoption, comparison, and freshness (R/S/A)
+## 4. Existing-skill provenance, adoption, and freshness (R/S/A)
 
 Copy one harmless skill into the disposable unmanaged profile, then inspect it:
 
@@ -366,7 +287,6 @@ cp "$TEST_PROJECT/packages/matrix-demo/skills/matrix-demo/SKILL.md" \
 loadout scan --agents codex --json
 loadout adopt unmanaged-demo --agent codex --json
 loadout adopt unmanaged-demo --agent codex --yes --json
-loadout compare unmanaged-demo --agent codex --offline --json
 ```
 
 Expected: scan labels the copy unmanaged; adoption preview does not change its bytes;
@@ -401,25 +321,18 @@ Only run the second command when the first reports a real reviewed update. Expec
 exact diff/safety plan, a snapshot on success, and refusal when new risky findings are
 not acknowledged with `--approve-risk`.
 
-## 6. Discovery and human review queue (N/S)
+## 5. Discovery and human review queue (N/S)
 
 ```bash
 loadout discover --source hacker-news --limit 20 --min-score 20 --json
 loadout discover --source github --limit 20 --queue --json
 loadout discover --source all --limit 20 --queue --json
-loadout review-queue --decision pending --json
 ```
 
 Expected: results contain source evidence and public repository identifiers; queueing
 deduplicates leads; nothing is promoted, cloned into an agent, or installed.
 
 For a repository printed by the queue:
-
-```bash
-loadout review owner/repository --decision shortlisted
-loadout review-queue --decision shortlisted --json
-loadout review owner/repository --decision ignored
-```
 
 Private GitHub discovery is opt-in and reads `GITHUB_TOKEN` only when `--private` is
 present. Prefer a native credential reference:
@@ -431,7 +344,7 @@ loadout discover --source github --private \
 
 Use a low-scope test token. The output and state must never contain its value.
 
-## 7. Static inspection, MCP, conversion, canary, and sandbox (R/S/X)
+## 6. Static inspection, MCP, and conversion (R/S)
 
 Static package analysis never executes package content:
 
@@ -439,8 +352,6 @@ Static package analysis never executes package content:
 loadout inspect --source "$TEST_PROJECT/packages/matrix-demo" --json
 loadout evaluate --source "$TEST_PROJECT/packages/matrix-demo" --json
 loadout mcp --source "$TEST_PROJECT/packages/matrix-demo" --json
-loadout canary --source "$TEST_PROJECT/packages/matrix-demo" \
-  --package matrix-demo --json
 ```
 
 Repeat `inspect`, `evaluate`, or `mcp` with `--repository owner/repository` for the
@@ -469,10 +380,6 @@ loadout mcp-config --config "$TEST_PROJECT/mcp.json" --name local-example \
   --command node --arg server.js
 loadout mcp-config --config "$TEST_PROJECT/mcp.json" --name local-example \
   --command node --arg server.js --yes
-loadout codex-mcp-config --config "$TEST_PROJECT/config.toml" \
-  --name remote-example --url https://example.com/mcp
-loadout codex-mcp-config --config "$TEST_PROJECT/config.toml" \
-  --name remote-example --url https://example.com/mcp --yes
 loadout mcp-recipe --json
 ```
 
@@ -486,148 +393,11 @@ requirements you have reviewed.
 
 Docker sandbox execution is intentionally separate:
 
-```bash
-loadout sandbox-run --source "$TEST_PROJECT/packages/matrix-demo" \
-  --image '<reviewed-image>@sha256:<digest>' \
-  --command node --command --version --json
-loadout sandbox-run --source "$TEST_PROJECT/packages/matrix-demo" \
-  --image '<reviewed-image>@sha256:<digest>' \
-  --command node --command --version \
-  --approve-risk --timeout 30000 --json
-```
-
 Expected: the first invocation refuses/only plans without approval; the approved
 container has a read-only source mount, no inherited secrets, no Docker socket, no
 network, and a time bound. The image may need to be pulled beforehand.
 
-## 8. Signing and head-to-head evidence (S)
-
-Validate the model-free benchmark campaign and card/compare surfaces with their
-deterministic automated contracts:
-
-```bash
-npx vitest run tests/benchmark-campaign.test.ts tests/benchmark-cli.test.ts \
-  tests/loadout-card.test.ts tests/share-report.test.ts
-```
-
-Expected: campaign hashes and paired order are deterministic, every retry is included
-in the worst-case budget, over-budget plans are blocked, resumable metadata contains
-no prompt/output/credential bytes, and aggregate comparison never invents a quality
-delta. See `docs/EVALUATION_PROTOCOL.md` for the evaluation contract. These
-tests do not call a model provider and consume no provider credit.
-
-```bash
-loadout keygen --private-key "$TEST_ROOT/private.pem" \
-  --public-key "$TEST_ROOT/public.pem"
-loadout catalog-sign --catalog "$LOADOUT_ROOT/catalog/packages.json" \
-  --private-key "$TEST_ROOT/private.pem" --output "$TEST_ROOT/catalog.signed.json"
-loadout catalog-verify --snapshot "$TEST_ROOT/catalog.signed.json" \
-  --public-key "$TEST_ROOT/public.pem"
-```
-
-Expected: the private key is owner-only and outside the repository; verification
-succeeds; changing any byte in the signed payload makes verification fail.
-
-Preview and apply the same signed catalog inside the disposable profile:
-
-```bash
-loadout catalog-update --source "$TEST_ROOT/catalog.signed.json" \
-  --public-key "$TEST_ROOT/public.pem"
-loadout catalog-update --source "$TEST_ROOT/catalog.signed.json" \
-  --public-key "$TEST_ROOT/public.pem" --yes
-loadout catalog --coverage --json
-```
-
-Expected: preview prints an exact signed diff without mutation; apply creates a
-snapshot and trusted state; the effective catalog re-verifies the stored envelope.
-Repeating `--yes` refuses a replay. Test removal only in the disposable profile and
-only with the separate `--allow-removals` acknowledgement.
-
-The repository's generated feed can be triaged without network access:
-
-```bash
-loadout candidate list --limit 5 --json
-loadout candidate list --query "codex skills"
-loadout capabilities --gaps --json
-loadout recommend --project "$TEST_PROJECT" --agent codex --json
-```
-
-`candidate inspect owner/repository --output ./candidate-dossier.json` is a networked
-test: it performs a real public Git clone and writes a static immutable dossier to
-disposable Loadout state. Review that output before exercising `candidate propose`;
-proposal preview and approved proposal output never mutate the catalog.
-
-Graphify is an explicit executable recipe rather than a broad-setup component. With
-`uv` installed, exercise it only inside the disposable profile:
-
-```bash
-loadout tool
-loadout tool graphify --agents codex
-loadout tool graphify --agents codex --yes --approve-risk
-"$LOADOUT_HOME/runtime/graphify/bin/graphify" --version
-test -f "$LOADOUT_USER_HOME/.codex/skills/graphify/SKILL.md"
-loadout tool graphify --remove
-loadout tool graphify --remove --yes --approve-risk
-test ! -e "$LOADOUT_USER_HOME/.codex/skills/graphify"
-test ! -e "$LOADOUT_HOME/runtime/graphify"
-```
-
-Expected: preview identifies the exact wheel hash and all commands; apply reports
-Graphify 0.9.17, writes only the disposable target and isolated runtime, and removal
-restores the original target. The installer subprocess must not inherit API keys.
-
-Create a deterministic workflow fixture and five declared trials per candidate. This
-is harness input, not model-generated evidence, and it executes no candidate content:
-
-```bash
-node --input-type=module <<'NODE'
-import { writeFile } from "node:fs/promises";
-const root = process.env.TEST_PROJECT;
-const fixture = {
-  id: "matrix-workflow",
-  version: "1",
-  category: "workflow-adherence",
-  requiredActions: ["inspect", "edit", "verify"],
-  forbiddenActions: ["delete-unrelated"]
-};
-const trials = Array.from({ length: 5 }, () => [
-  {
-    candidateId: "baseline",
-    fixtureId: fixture.id,
-    observations: ["inspect", "edit", "verify"],
-    durationMs: 10
-  },
-  {
-    candidateId: "improved",
-    fixtureId: fixture.id,
-    observations: ["inspect", "edit", "verify", "report-uncertainty"],
-    durationMs: 10
-  }
-]).flat();
-await writeFile(`${root}/fixture.json`, JSON.stringify(fixture, null, 2));
-await writeFile(`${root}/trials.json`, JSON.stringify(trials, null, 2));
-NODE
-```
-
-Sign and inspect the resulting evidence:
-
-```bash
-loadout head-to-head --fixture "$TEST_PROJECT/fixture.json" \
-  --trials "$TEST_PROJECT/trials.json" --private-key "$TEST_ROOT/private.pem" \
-  --output "$TEST_ROOT/evidence.json" --json
-loadout alerts --evidence "$TEST_ROOT/evidence.json" \
-  --public-key "$TEST_ROOT/public.pem" --json
-```
-
-The harness scores declared observations only. It never executes candidate content.
-The authoritative schema, safety-failure, minimum-trial, tamper, and practical-delta
-tests are also directly runnable:
-
-```bash
-npx vitest run tests/head-to-head.test.ts tests/signing.test.ts
-```
-
-## 9. Credentials and model-provider verification (H/$)
+## 7. Credentials and model-provider verification (H/$)
 
 This track touches the real operating-system credential store even when
 `LOADOUT_HOME` is disposable. Use a unique throwaway service name and delete it.
@@ -668,7 +438,7 @@ unset OPENROUTER_API_KEY
 `models verify` makes one minimal request and may consume provider credit ($). Inspect
 provider billing before and after; do not run it in a loop.
 
-## 10. Watchers, native scheduling, completions, and loopback UI/API (X/H)
+## 8. Watchers, native scheduling, completions, and loopback UI/API (X/H)
 
 One-shot update watching is safe and networked:
 
@@ -707,33 +477,10 @@ and `unschedule` commands remain available for job-specific control.
 
 The optional read-only loopback API can be checked separately:
 
-```bash
-loadout serve --port 0
-```
-
 Confirm that it binds only to `127.0.0.1`, inspect the API response, and stop it with
 Ctrl-C. It must not bind a public interface.
 
-## 11. Improvement-cycle records (S)
-
-```bash
-loadout improve --json
-loadout improve --write --output "$TEST_PROJECT/improvements" --json
-```
-
-Copy the exact cycle id printed by the second command:
-
-```bash
-loadout improve-feedback --id <cycle-id> --outcome partial \
-  --note "Disposable matrix verification" \
-  --directory "$TEST_PROJECT/improvements"
-```
-
-Expected: the first command is read-only; `--write` persists a local prompt/cycle
-record only; feedback requires a human-selected outcome and stores no project source
-or prompt transcript.
-
-## 12. Cleanup and pass criteria
+## 9. Cleanup and pass criteria
 
 First verify snapshot availability and roll back any remaining disposable mutation:
 

@@ -1,91 +1,34 @@
 export type CompletionShell = "bash" | "zsh" | "fish" | "powershell";
 
-const commands = [
-  "guide",
-  "advanced",
-  "setup",
-  "upgrade",
-  "init",
-  "lock",
-  "export",
-  "import",
-  "audit",
-  "create",
-  "pack",
-  "publish",
-  "search",
-  "add",
-  "unadd",
-  "list",
-  "scan",
-  "reconcile",
-  "status",
-  "versions",
-  "skill-audit",
-  "doctor",
-  "health",
-  "compare",
-  "optimize",
-  "activate",
-  "enable",
-  "disable",
-  "adopt",
-  "library",
-  "update",
-  "rollback",
-  "discover",
-  "candidate",
-  "review-queue",
-  "review",
-  "alerts",
-  "alert-ignore",
-  "alert-pin",
-  "alert-unpin",
-  "alert-pins",
-  "mcp",
-  "mcp-recipe",
-  "mcp-config",
-  "models",
-  "credentials",
-  "schedule",
-  "unschedule",
-  "autopilot",
-  "tool",
-  "report",
-  "share",
-  "card",
-  "compare-loadouts",
-  "badge",
-  "inspect",
-  "evaluate",
-  "watch",
-  "sandbox-run",
-  "codex-mcp-config",
-  "plan",
-  "install",
-  "convert",
-  "canary",
-  "capabilities",
-  "catalog",
-  "profiles",
-  "recommend",
-  "improve",
-  "improve-feedback",
-  "sync",
-  "outcome",
-  "outcomes",
-  "remove",
-  "uninstall",
-  "serve",
-  "completion",
-];
+/**
+ * The command list is derived from the live Commander tree rather than kept by
+ * hand, because a hand-kept copy drifts: completions advertised `pack`,
+ * `publish`, and `sandbox-run` for a release after those commands were removed.
+ */
+export interface CommandTree {
+  name: string;
+  subcommands: string[];
+}
 
-const modelCommands = ["status", "set", "verify"];
-const credentialCommands = ["status", "set", "check", "delete"];
-const candidateCommands = ["list", "inspect", "propose"];
+let registry: CommandTree[] = [];
+
+/** Called once at startup with the assembled program. */
+export function registerCompletionCommands(tree: CommandTree[]): void {
+  registry = tree
+    .filter((entry) => entry.name && entry.name !== "help")
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export function completionCommands(): string[] {
+  return registry.map((entry) => entry.name);
+}
+
+export function completionSubcommands(name: string): string[] {
+  return registry.find((entry) => entry.name === name)?.subcommands ?? [];
+}
 
 export function renderShellCompletion(shell: CompletionShell): string {
-  const words = commands.join(" ");
+  const words = completionCommands().join(" ");
   switch (shell) {
     case "bash":
       return `# Loadout command completion
@@ -95,11 +38,11 @@ _loadout() {
   if [[ COMP_CWORD -eq 1 ]]; then
     COMPREPLY=( $(compgen -W "$commands" -- "$current") )
   elif [[ COMP_CWORD -eq 2 && "\${COMP_WORDS[1]}" == "models" ]]; then
-    COMPREPLY=( $(compgen -W "${modelCommands.join(" ")}" -- "$current") )
+    COMPREPLY=( $(compgen -W "${completionSubcommands("models").join(" ")}" -- "$current") )
   elif [[ COMP_CWORD -eq 2 && "\${COMP_WORDS[1]}" == "credentials" ]]; then
-    COMPREPLY=( $(compgen -W "${credentialCommands.join(" ")}" -- "$current") )
+    COMPREPLY=( $(compgen -W "${completionSubcommands("credentials").join(" ")}" -- "$current") )
   elif [[ COMP_CWORD -eq 2 && "\${COMP_WORDS[1]}" == "candidate" ]]; then
-    COMPREPLY=( $(compgen -W "${candidateCommands.join(" ")}" -- "$current") )
+    COMPREPLY=( $(compgen -W "${completionSubcommands("candidate").join(" ")}" -- "$current") )
   fi
 }
 complete -F _loadout loadout
@@ -107,10 +50,18 @@ complete -F _loadout loadout
     case "zsh":
       return `#compdef loadout
 typeset -a commands model_commands credential_commands candidate_commands
-commands=(${commands.map((command) => `'${command}'`).join(" ")})
-model_commands=(${modelCommands.map((command) => `'${command}'`).join(" ")})
-credential_commands=(${credentialCommands.map((command) => `'${command}'`).join(" ")})
-candidate_commands=(${candidateCommands.map((command) => `'${command}'`).join(" ")})
+commands=(${completionCommands()
+        .map((command) => `'${command}'`)
+        .join(" ")})
+model_commands=(${completionSubcommands("models")
+        .map((command) => `'${command}'`)
+        .join(" ")})
+credential_commands=(${completionSubcommands("credentials")
+        .map((command) => `'${command}'`)
+        .join(" ")})
+candidate_commands=(${completionSubcommands("candidate")
+        .map((command) => `'${command}'`)
+        .join(" ")})
 if (( CURRENT == 2 )); then
   _describe 'command' commands
 elif (( CURRENT == 3 )) && [[ $words[2] == models ]]; then
@@ -123,19 +74,19 @@ fi
 `;
     case "fish":
       return [
-        ...commands.map(
+        ...completionCommands().map(
           (command) =>
             `complete -c loadout -f -n '__fish_use_subcommand' -a ${command}`,
         ),
-        ...modelCommands.map(
+        ...completionSubcommands("models").map(
           (command) =>
             `complete -c loadout -f -n '__fish_seen_subcommand_from models' -a ${command}`,
         ),
-        ...credentialCommands.map(
+        ...completionSubcommands("credentials").map(
           (command) =>
             `complete -c loadout -f -n '__fish_seen_subcommand_from credentials' -a ${command}`,
         ),
-        ...candidateCommands.map(
+        ...completionSubcommands("candidate").map(
           (command) =>
             `complete -c loadout -f -n '__fish_seen_subcommand_from candidate' -a ${command}`,
         ),
@@ -146,7 +97,25 @@ fi
       return `Register-ArgumentCompleter -Native -CommandName loadout -ScriptBlock {
   param($wordToComplete, $commandAst, $cursorPosition)
   $elements = @($commandAst.CommandElements | ForEach-Object { $_.Extent.Text })
-  $candidates = if ($elements.Count -ge 2 -and $elements[1] -eq 'models') { @(${modelCommands.map((command) => `'${command}'`).join(", ")}) } elseif ($elements.Count -ge 2 -and $elements[1] -eq 'credentials') { @(${credentialCommands.map((command) => `'${command}'`).join(", ")}) } elseif ($elements.Count -ge 2 -and $elements[1] -eq 'candidate') { @(${candidateCommands.map((command) => `'${command}'`).join(", ")}) } else { @(${commands.map((command) => `'${command}'`).join(", ")}) }
+  $candidates = if ($elements.Count -ge 2 -and $elements[1] -eq 'models') { @(${completionSubcommands(
+    "models",
+  )
+    .map((command) => `'${command}'`)
+    .join(
+      ", ",
+    )}) } elseif ($elements.Count -ge 2 -and $elements[1] -eq 'credentials') { @(${completionSubcommands(
+    "credentials",
+  )
+    .map((command) => `'${command}'`)
+    .join(
+      ", ",
+    )}) } elseif ($elements.Count -ge 2 -and $elements[1] -eq 'candidate') { @(${completionSubcommands(
+    "candidate",
+  )
+    .map((command) => `'${command}'`)
+    .join(", ")}) } else { @(${completionCommands()
+    .map((command) => `'${command}'`)
+    .join(", ")}) }
   $candidates | Where-Object { $_ -like "$wordToComplete*" } | ForEach-Object { [System.Management.Automation.CompletionResult]::new($_, $_, 'ParameterValue', $_) }
 }
 `;

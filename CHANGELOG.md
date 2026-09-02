@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.8.0 - 2026-09-02
+
 ### Security
 
 - Reject a remote registry bundle whose `digest` is not a SHA-256 hex string,

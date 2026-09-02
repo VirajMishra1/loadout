@@ -1,3 +1,4 @@
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
   POWER_SKILL_ALLOWLIST,
@@ -205,7 +206,7 @@ describe("mode allowlist integrity (anti-rot guard)", () => {
   const loadBundledCatalog = async (): Promise<CatalogPackage[]> => {
     const { loadCatalog } = await import("../src/core/catalog/catalog.js");
     return loadCatalog(
-      new URL("../catalog/packages.json", import.meta.url).pathname,
+      fileURLToPath(new URL("../catalog/packages.json", import.meta.url)),
     );
   };
 

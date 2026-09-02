@@ -27,6 +27,34 @@ jobs:
       - run: npm ci
       # Keep ordinary pushes and pull requests on the same gate used by releases.
       - run: npm run verify
+      # Coverage thresholds ratchet upward; a drop fails here, not in review.
+      - run: npm run test:coverage
+
+  # The package advertises Node 20 and cross-platform support, so both are
+  # exercised automatically rather than only when someone remembers to dispatch.
+  supported-platforms:
+    name: Supported platforms (Node ${{ matrix.node }}, ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            node: 20
+          - os: windows-latest
+            node: 22
+
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npm test -- --run
 
   cross-platform:
     name: Native install (Node ${{ matrix.node }}, ${{ matrix.os }})

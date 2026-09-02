@@ -14,5 +14,34 @@ export default defineConfig({
     // (a runner artifact, not a product bug). Run files serially so `npm test`
     // is a trustworthy signal; the whole suite still finishes in ~70s.
     fileParallelism: false,
+    coverage: {
+      provider: "v8",
+      reporter: ["text-summary", "json-summary", "lcov"],
+      // Measure the product, not the harness or the generated output.
+      include: ["src/**/*.ts"],
+      exclude: ["src/cli.ts", "src/**/*.d.ts"],
+      // Floors set to measured coverage at the time of writing. They ratchet
+      // upward only: raise them as coverage improves, never lower them to make
+      // a red build pass.
+      thresholds: {
+        lines: 72,
+        functions: 77,
+        statements: 71,
+        branches: 62,
+        // Security-critical paths carry a higher bar and already meet it.
+        "src/core/catalog/safety.ts": {
+          lines: 92,
+          functions: 100,
+          statements: 91,
+          branches: 82,
+        },
+        "src/core/catalog/registry.ts": {
+          lines: 74,
+          functions: 95,
+          statements: 73,
+          branches: 67,
+        },
+      },
+    },
   },
 });

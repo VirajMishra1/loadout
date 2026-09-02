@@ -2,6 +2,76 @@
 
 ## Unreleased
 
+### Security
+
+- Reject a remote registry bundle whose `digest` is not a SHA-256 hex string,
+  and verify the resolved cache path stays under the cache root, before any
+  recursive delete. A crafted digest could previously escape the cache and
+  delete an arbitrary user-accessible directory.
+- Fail closed in the safety scanner. Files that are oversized, unreadable, or
+  too deeply nested are reported as a blocking `uninspectable` finding instead
+  of being skipped silently, so an unreviewable file can no longer produce a
+  clean report.
+- Apply a timeout, byte cap, and file cap to every repository fetch by default
+  rather than only when a caller opts in, and bound registry responses by time
+  and decoded size.
+
+### Fixed
+
+- Parse the handoff log line by line. A single truncated write previously made
+  the whole inbox appear empty; good lines now survive and the corrupt line is
+  reported.
+- Settle handoff tasks on `error` and `cancel` as well as `done`, via an
+  explicit `resolves` field, so a failed task no longer stays pending forever.
+- Migrate handoff instruction blocks already written into `CLAUDE.md` and
+  `AGENTS.md` that still name retired commands.
+- Report installed skills as a count of skills rather than a sum of every
+  nested file, which overstated 44 skills as 584 items.
+
+### Changed
+
+- Generate shell completions from the Commander command tree so they cannot
+  advertise commands the CLI does not register.
+- Rebuild `loadout route` around a routing policy the user owns
+  (`~/.loadout/routing.json`, three buckets) instead of a fixed phase-to-tier
+  table, and narrow the model catalog to the current Claude and GPT-5.6 tiers.
+- Collapse handoff to a single command that sets itself up on first use.
+
+### Added
+
+- `scripts/check-documented-commands.mjs` in the evidence gate: documentation
+  may no longer reference a command the CLI does not have.
+
+## 0.7.0 - 2026-08-31
+
+### Added
+
+- First-party skills (`loadout skills list|install|remove`) shipping
+  `loadout-router` and `loadout-curator`, so Loadout is usable from inside an
+  agent conversation rather than only from a terminal.
+
+### Changed
+
+- Retire 15 redundant or dead-end commands, taking the surface from 66 to 26.
+- Group the 86 flat modules in `src/core` into eight domains.
+- Drop "Boost" from the mode names and explain that Maximum stays disabled.
+
+## 0.6.0 - 2026-08-31
+
+### Added
+
+- `loadout route`, recommending a model tier for a task with real pricing.
+- `loadout handoff`, a shared task log between Claude Code and Codex.
+
+### Changed
+
+- Rewrite `loadout doctor` output around a health grade and actionable next
+  steps rather than a per-component dump.
+
+### Fixed
+
+- Resolve `LOADOUT_VERSION` from both source and built layouts.
+
 ## 0.5.9 - 2026-07-21
 
 ### Fixed

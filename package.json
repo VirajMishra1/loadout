@@ -56,6 +56,7 @@
     "test:e2e:readme": "node scripts/readme-product-flow.mjs",
     "test:package": "node scripts/package-smoke.mjs",
     "pretest:performance": "npm run build",
+    "test:coverage": "vitest run --coverage",
     "test:performance": "node scripts/scan-benchmark.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "readme:update": "node scripts/update-readme-facts.mjs",
@@ -64,8 +65,9 @@
     "check:live": "node scripts/check-live-evidence.mjs",
     "check:allowlists": "npm run build && node scripts/check-mode-allowlists.mjs",
     "check:catalog-freshness": "npm run build && node scripts/check-catalog-freshness.mjs",
+    "check:audit": "npm audit --audit-level=high",
     "check:evidence": "node scripts/check-catalog-attribution.mjs && node scripts/check-discovery-artifacts.mjs && node scripts/check-documented-commands.mjs && npm run check:readme-claims",
-    "verify": "npm run format:check && npm run lint && npm run typecheck && npm run check:evidence && npm test -- --run && npm run test:e2e:cli && npm run test:e2e:readme && npm run test:package && npm run test:performance",
+    "verify": "npm run format:check && npm run lint && npm run typecheck && npm run check:audit && npm run check:evidence && npm test -- --run && npm run test:e2e:cli && npm run test:e2e:readme && npm run test:package && npm run test:performance",
     "verify:full": "npm run verify"
   },
   "dependencies": {
@@ -75,6 +77,7 @@
   "devDependencies": {
     "@eslint/js": "^9.39.5",
     "@types/node": "^22.10.0",
+    "@vitest/coverage-v8": "^4.1.10",
     "eslint": "^9.39.5",
     "eslint-config-prettier": "^10.1.8",
     "prettier": "^3.9.5",

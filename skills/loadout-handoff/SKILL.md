@@ -1,6 +1,6 @@
 ---
 name: loadout-handoff
-description: Pass a coding task to another AI agent, and pick up tasks another agent left for you. Use when the user wants to delegate work to Codex or Claude Code, asks what the other agent is working on, or at the start of a session to check for pending handoffs.
+description: Pass a coding task to another AI agent, and pick up tasks another agent left for you. Use when the user wants to delegate work to Codex or Claude Code, asks what the other agent is working on, or at the start of a session to check for pending handoffs. Also handles live coordination — automatically publish contracts, claim file ownership, and report progress when collaborating with another agent.
 ---
 
 # Loadout Handoff
@@ -84,38 +84,93 @@ If the log reports unreadable lines, tell the user which line numbers — the lo
 is append-only and a partial write can leave one corrupt entry. The remaining
 messages are still shown.
 
-## Live coordination (experimental)
+## Live coordination (automatic)
 
-When both agents are active at the same time, use `loadout coordinate` for
-richer collaboration than simple task passing:
+When the user says both agents are working simultaneously (e.g. "Claude does
+backend, Codex does frontend"), **you handle coordination automatically**. The
+user should never have to type `loadout coord` commands — that is your job.
 
-```bash
-# Publish a contract so the other agent builds against it
-loadout coord contract auth-api --body "interface AuthAPI { login(token: string): Promise<Session> }" --format typescript
-
-# Claim file ownership to prevent conflicts
-loadout coord own claude-code src/api/ src/db/
-
-# Report progress
-loadout coord update claude-code --note "Auth endpoints done" --files src/api/auth.ts --next "Adding rate limiting"
-
-# See everything the other agent needs to know
-loadout coord snapshot codex
-
-# Acknowledge events you've incorporated
-loadout coord ack codex 5
-```
-
-The coordination log lives at `.handoff/coordination.jsonl` alongside the
-existing task log. Events use monotonic sequence numbers so reconnecting agents
-never miss a message. Check for events since your last cursor at session start:
+### At session start — check for updates
 
 ```bash
-loadout coord subscribe claude-code --cursor 0
+loadout coord snapshot claude-code --json
 ```
+
+If there are unacknowledged events (contracts, decisions, ownership claims from
+the other agent), read them, incorporate them into your work, and acknowledge:
+
+```bash
+loadout coord ack claude-code <seq>
+```
+
+Tell the user briefly what the other agent has been doing: "Codex published
+auth-api rev2 — I'll build against that contract."
+
+### When you start working on files — claim ownership
+
+Before writing to files, claim them so the other agent knows not to touch them:
+
+```bash
+loadout coord own claude-code src/api/ src/db/ --json
+```
+
+If there's a conflict (other agent already owns those paths), tell the user and
+ask how to proceed. Do not silently overwrite another agent's work.
+
+### When you create or change an API/schema/interface — publish a contract
+
+Whenever you create or modify something the other agent depends on (API
+endpoints, database schemas, TypeScript interfaces, environment variables),
+publish it:
+
+```bash
+loadout coord contract auth-api --body "export interface AuthAPI {
+  login(credentials: LoginRequest): Promise<Session>;
+  logout(sessionId: string): Promise<void>;
+  refresh(token: string): Promise<Session>;
+}" --format typescript --agent claude-code
+```
+
+The revision auto-increments. The other agent sees it on their next check.
+
+### When you finish a chunk of work — report progress
+
+```bash
+loadout coord update claude-code --note "Auth endpoints done, rate limiting added" --files "src/api/auth.ts,src/api/middleware.ts" --next "Starting payment integration"
+```
+
+### When you make a design decision — record it
+
+```bash
+loadout coord decide claude-code "Use JWT for session tokens" --rationale "Stateless, works across services, Codex frontend can decode without API call"
+```
+
+### When the user asks what the other agent is doing
+
+```bash
+loadout coord snapshot claude-code
+```
+
+This shows pending tasks, active contracts, file ownership, recent decisions,
+and unacknowledged events in one bounded summary.
 
 ## What this is not
 
-The other agent is **not notified**. It sees the task when it next checks its
-inbox, which the managed block asks it to do at session start. If the user needs
-something done now, tell them to run it themselves rather than implying delivery.
+The other agent is **not notified in real time**. It sees events when it next
+checks (at session start, or when it runs `loadout coord subscribe`). If the
+user needs something done now, tell them to open the other agent and it will
+pick up the events.
+
+## Summary of when to run what
+
+| Moment                                     | What to run                                                         |
+| ------------------------------------------ | ------------------------------------------------------------------- |
+| Session start                              | `loadout handoff <agent>` + `loadout coord snapshot <agent> --json` |
+| Before writing files                       | `loadout coord own <agent> <paths...>`                              |
+| Created/changed an API or schema           | `loadout coord contract <name> --body "..." --agent <agent>`        |
+| Finished a chunk of work                   | `loadout coord update <agent> --note "..." --files "..."`           |
+| Made a design decision                     | `loadout coord decide <agent> "<title>" --rationale "..."`          |
+| After reading other agent's events         | `loadout coord ack <agent> <seq>`                                   |
+| User asks "what is the other agent doing?" | `loadout coord snapshot <agent>`                                    |
+| Delegating a task                          | `loadout handoff <other-agent> "<task>" --context "..."`            |
+| Task complete                              | `loadout handoff --done <id>`                                       |

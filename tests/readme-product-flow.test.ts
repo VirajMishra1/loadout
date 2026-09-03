@@ -95,17 +95,33 @@ describe("README product flow", () => {
       readme
         .match(/<img\b[^>]*>/gi)
         ?.filter((element) =>
-          /\ssrc="\.\/docs\/assets\/loadout-workflow\.png"/i.test(element),
+          /\ssrc="\.\/docs\/assets\/loadout-workflow-v2\.png"/i.test(element),
         ) ?? [];
     expect(heroImages).toHaveLength(1);
     expect(heroImages[0]).toContain(
-      'alt="Loadout discovers skills, tools, and MCP servers, keeps them in a screened library, matches an active set to each project, and manages them across AI coding agents."',
+      'alt="Loadout discovers, screens, and activates agent extensions, passes work between Claude Code and Codex, and previews every change with rollback."',
     );
+
+    const hero = await readFile(
+      resolve(repositoryRoot, "docs/assets/loadout-workflow-v2.png"),
+    );
+    expect(hero.subarray(0, 8)).toEqual(
+      Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
+    );
+    const width = hero.readUInt32BE(16);
+    const height = hero.readUInt32BE(20);
+    expect(width / height).toBeGreaterThan(1.7);
+    expect(width / height).toBeLessThan(1.9);
+    expect(hero.byteLength).toBeLessThan(1_500_000);
     expect(readme).not.toMatch(/founder|revolutionary|game-changing/i);
     expect(readme).toContain("Agent extensions, under control.");
     expect(readme).toContain("Choose -> Inspect -> Preview -> Apply -> Undo");
     expect(readme).toMatch(/abridged terminal transcript/i);
     expect(readme).toContain("npm install --global loadout-ai");
+    expect(readme.split(/\r?\n/).length).toBeLessThanOrEqual(400);
+    expect(readme.indexOf("### Demo")).toBeLessThan(
+      readme.indexOf("## Install"),
+    );
 
     expectOrderedReadmeStructure(
       readme,
@@ -120,7 +136,7 @@ describe("README product flow", () => {
         "## Trust and limits",
         "## Agent support",
         "## Command reference",
-        "## Built with Claude",
+        "## Built with Claude and Codex",
         "## Development",
         "## Documentation",
         "## Contributing, security, and attribution",
@@ -135,6 +151,21 @@ describe("README product flow", () => {
         "verification-summary",
       ],
     );
+    expect(readme).toContain(
+      "designed and built by [Viraj Mishra](https://github.com/VirajMishra1) with Claude Code and Codex",
+    );
+  });
+
+  it("ships a GitHub social preview with the required size and handoff message", async () => {
+    const preview = await readFile(
+      resolve(repositoryRoot, "docs/assets/loadout-social-preview.png"),
+    );
+    expect(preview.subarray(0, 8)).toEqual(
+      Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
+    );
+    expect(preview.readUInt32BE(16)).toBe(1280);
+    expect(preview.readUInt32BE(20)).toBe(640);
+    expect(preview.byteLength).toBeLessThan(1_000_000);
   });
 
   it("tells the Loadout story in the Why Loadout section", async () => {
@@ -164,6 +195,22 @@ describe("README product flow", () => {
       expect(currentIndex).toBeGreaterThan(previousIndex);
       previousIndex = currentIndex;
     }
+  });
+
+  it("installs both first-party skills before promising their agent workflows", async () => {
+    const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
+    const start = readme.indexOf("## Use it from inside your agent");
+    const end = readme.indexOf("## Passing work between two agents", start);
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(end).toBeGreaterThan(start);
+
+    const agentUsage = readme.slice(start, end);
+    expect(agentUsage).toContain(
+      "loadout skills install loadout-handoff --yes",
+    );
+    expect(agentUsage).toContain(
+      "loadout skills install loadout-curator --yes",
+    );
   });
 
   it("keeps visitor-facing repository identity aligned with canonical upstream", async () => {

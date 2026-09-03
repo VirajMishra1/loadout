@@ -528,9 +528,8 @@ export async function planProjectActivation(
 
 export async function applyProjectActivation(
   plan: ProjectActiveSetPlan,
-): Promise<string> {
-  if (!plan.activation || !plan.selected.length)
-    throw new Error("No reviewed library skills were selected for activation");
+): Promise<string | null> {
+  if (!plan.activation || !plan.selected.length) return null;
   return applyActivationChange(plan.activation, {
     preflight: async () => {
       const requested = plan.agentPlans.map((item) => item.agent);

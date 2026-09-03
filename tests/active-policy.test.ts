@@ -295,6 +295,18 @@ describe("project-aware active-set policy", () => {
     expect(active.filter((entry) => entry.agent === "codex")).toHaveLength(30);
   });
 
+  it("treats an already-full project activation as a successful no-op", async () => {
+    root = await mkdtemp(join(tmpdir(), "loadout-active-noop-"));
+    const project = await writeTwoAgentLibrary(2);
+    const plan = await planProjectActivation(project, {
+      agents: ["claude-code"],
+      limit: 12,
+    });
+
+    expect(plan.selected).toHaveLength(0);
+    await expect(applyProjectActivation(plan)).resolves.toBeNull();
+  });
+
   it("uses the recommended 30-skill bound by default while preserving explicit limits", async () => {
     root = await mkdtemp(join(tmpdir(), "loadout-active-default-limit-"));
     const project = await writeTwoAgentLibrary(40);

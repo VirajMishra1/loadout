@@ -31,6 +31,7 @@ function bundledCatalogPath(): string {
   const candidates = [
     join(moduleDirectory, "..", "..", "catalog", "packages.json"),
     join(moduleDirectory, "..", "..", "..", "catalog", "packages.json"),
+    join(moduleDirectory, "..", "..", "..", "..", "catalog", "packages.json"),
     join(process.cwd(), "catalog", "packages.json"),
   ];
   return candidates.find((candidate) => existsSync(candidate)) ?? candidates[0];

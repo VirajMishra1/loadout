@@ -114,6 +114,13 @@ try {
   const coverageResult = JSON.parse(coverage.stdout);
   if (coverageResult.records < 50 || coverageResult.immutablePins < 50)
     throw new Error("Packaged catalog evidence is incomplete");
+  const candidates = await run(
+    process.execPath,
+    [cli, "candidate", "list", "--limit", "1"],
+    { cwd: consumer, env: environment },
+  );
+  if (!candidates.stdout.trim())
+    throw new Error("Packaged candidate discovery feed is unavailable");
 
   await run(
     process.execPath,

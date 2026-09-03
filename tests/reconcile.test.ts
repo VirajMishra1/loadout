@@ -114,6 +114,36 @@ describe("existing skill reconciliation", () => {
     return { agents, index, source, installations };
   }
 
+  it("treats an empty reconciliation as a successful no-op", async () => {
+    root = await mkdtemp(join(tmpdir(), "loadout-reconcile-empty-"));
+    process.env.LOADOUT_HOME = join(root, "state");
+    process.env.LOADOUT_USER_HOME = join(root, "home");
+    const plan = await buildReconcilePlan(
+      [
+        {
+          id: "codex",
+          displayName: "Codex",
+          installed: true,
+          skillsDirectory: join(root, "home", ".agents", "skills"),
+        },
+      ],
+      {
+        schemaVersion: 1,
+        catalogDigest: "digest",
+        generatedAt: "2026-09-03T00:00:00.000Z",
+        failures: [],
+        records: [],
+      },
+    );
+
+    await expect(applyReconcilePlan(plan)).resolves.toEqual({
+      snapshotId: null,
+      adopted: 0,
+      updated: 0,
+    });
+    expect(await readInstallState()).toMatchObject({ installs: [] });
+  });
+
   it("groups exact cross-agent mirrors and adopts them without changing bytes", async () => {
     const { agents, index, installations } = await fixture();
     const before = await readFile(

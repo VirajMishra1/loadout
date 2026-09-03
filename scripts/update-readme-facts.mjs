@@ -133,10 +133,10 @@ export function renderReadmeFactBlocksFromSources({
       "Configured CI platforms describe a manually triggered workflow, not evidence that a current run passed.",
     ].join("\n"),
     "verification-summary": [
-      `\`verify\` invokes ${markdownList(commands)} in that order. \`npm run verify:full\` is an alias for the same complete CLI release gate.`,
+      `\`verify\` invokes ${markdownList(commands)} in that order. \`verify:full\` runs that gate and the coverage suite.`,
     ].join("\n"),
     "current-limits": [
-      `- **${facts.catalog.noAssertionLicenses} catalog records** currently have \`NOASSERTION\` license status and need upstream-license review before a public release decision.`,
+      `- **${facts.catalog.noAssertionLicenses} catalog records** retain \`NOASSERTION\` because one repository-wide SPDX license could not be identified. They are excluded from Stable; review upstream terms before optional installation. See the [recorded license decisions](./docs/UPSTREAM_LICENSE_DECISIONS.md).`,
     ].join("\n"),
   };
 }

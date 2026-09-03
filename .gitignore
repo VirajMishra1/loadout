@@ -15,4 +15,6 @@ graphify-out/
 
 # npm link artifact
 bin/
-coverage/
+
+# generated npm release archives
+*.tgz

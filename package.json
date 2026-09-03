@@ -1,9 +1,9 @@
 {
   "name": "loadout-ai",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "private": false,
   "license": "MIT",
-  "description": "Universal upgrade manager for AI coding agents",
+  "description": "The package manager for AI coding agent extensions",
   "type": "module",
   "bin": {
     "loadout": "dist/src/cli.js"
@@ -31,10 +31,16 @@
   },
   "keywords": [
     "ai-agents",
+    "agent-skills",
+    "ai-coding",
     "codex",
     "claude-code",
+    "cursor",
+    "gemini-cli",
     "mcp",
-    "skills"
+    "skills",
+    "developer-tools",
+    "model-context-protocol"
   ],
   "engines": {
     "node": ">=20"
@@ -68,7 +74,7 @@
     "check:audit": "npm audit --audit-level=high",
     "check:evidence": "node scripts/check-catalog-attribution.mjs && node scripts/check-discovery-artifacts.mjs && node scripts/check-documented-commands.mjs && npm run check:readme-claims",
     "verify": "npm run format:check && npm run lint && npm run typecheck && npm run check:audit && npm run check:evidence && npm test -- --run && npm run test:e2e:cli && npm run test:e2e:readme && npm run test:package && npm run test:performance",
-    "verify:full": "npm run verify"
+    "verify:full": "npm run verify && npm run test:coverage"
   },
   "dependencies": {
     "commander": "^12.1.0",

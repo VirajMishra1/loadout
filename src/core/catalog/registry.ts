@@ -12,6 +12,7 @@ import {
 import { join, relative, resolve, sep } from "node:path";
 import type { PackageDescriptor, PackedPackage } from "../../shared/types.js";
 import { loadoutHome } from "../agents/paths.js";
+import { boundedJson } from "../runtime/bounded-json.js";
 import { analyzeUpdateSafety, type UpdateSafetyAnalysis } from "./safety.js";
 
 const NAME = /^[a-z0-9][a-z0-9._-]*$/;
@@ -393,28 +394,11 @@ async function registryJson(
   input: string | URL,
   init: RequestInit = {},
 ): Promise<{ ok: boolean; status: number; value: unknown }> {
-  const response = await fetch(input, {
-    ...init,
-    signal: AbortSignal.timeout(REGISTRY_TIMEOUT_MS),
+  const { response, value } = await boundedJson(fetch, input, init, {
+    timeoutMs: REGISTRY_TIMEOUT_MS,
+    maxBytes: REGISTRY_MAX_BYTES,
+    label: "Remote registry",
   });
-
-  // Trust the declared length when present, but still cap what is read: a
-  // server may understate or omit it.
-  const declared = Number(response.headers.get("content-length"));
-  if (Number.isFinite(declared) && declared > REGISTRY_MAX_BYTES)
-    throw new Error("Remote registry response exceeds the size limit");
-
-  const body = await response.arrayBuffer();
-  if (body.byteLength > REGISTRY_MAX_BYTES)
-    throw new Error("Remote registry response exceeds the size limit");
-
-  const text = new TextDecoder().decode(body);
-  let value: unknown;
-  try {
-    value = JSON.parse(text);
-  } catch {
-    throw new Error("Remote registry returned a malformed JSON response");
-  }
   return { ok: response.ok, status: response.status, value };
 }
 

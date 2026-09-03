@@ -1,3 +1,5 @@
+import { boundedJson } from "../runtime/bounded-json.js";
+
 export interface HackerNewsStory {
   id: number;
   type: "story";
@@ -103,12 +105,20 @@ export async function discoverHackerNewsRepositories(
   const keywords = (options.keywords ?? [])
     .map((keyword) => keyword.trim().toLowerCase())
     .filter(Boolean);
-  const idsResponse = await fetcher(`${API_BASE}/topstories.json`);
+  const { response: idsResponse, value: ids } = await boundedJson(
+    fetcher,
+    `${API_BASE}/topstories.json`,
+    {},
+    {
+      timeoutMs: 30_000,
+      maxBytes: 4 * 1024 * 1024,
+      label: "Hacker News",
+    },
+  );
   if (!idsResponse.ok)
     throw new Error(
       `Hacker News top stories request failed (${idsResponse.status})`,
     );
-  const ids = (await idsResponse.json()) as unknown;
   if (!Array.isArray(ids))
     throw new Error("Hacker News top stories response is invalid");
 
@@ -119,9 +129,18 @@ export async function discoverHackerNewsRepositories(
     .slice(0, limit);
   const stories = await Promise.all(
     selectedIds.map(async (id) => {
-      const response = await fetcher(`${API_BASE}/item/${id}.json`);
+      const { response, value } = await boundedJson(
+        fetcher,
+        `${API_BASE}/item/${id}.json`,
+        {},
+        {
+          timeoutMs: 30_000,
+          maxBytes: 1024 * 1024,
+          label: "Hacker News",
+        },
+      );
       if (!response.ok) return undefined;
-      return (await response.json()) as HackerNewsStory;
+      return value as HackerNewsStory;
     }),
   );
   const deduplicated = new Map<string, CommunityRepositoryCandidate>();

@@ -1,3 +1,5 @@
+import { boundedJson } from "../runtime/bounded-json.js";
+
 export interface GitHubRepositoryLead {
   source: "github-search";
   repository: string;
@@ -73,9 +75,15 @@ export async function discoverGitHubRepositories(
       order: "desc",
       per_page: String(limit),
     });
-    const response = await (options.fetcher ?? fetch)(
+    const { response, value } = await boundedJson(
+      options.fetcher ?? fetch,
       `https://api.github.com/search/repositories?${params}`,
       { headers },
+      {
+        timeoutMs: 30_000,
+        maxBytes: 8 * 1024 * 1024,
+        label: "GitHub repository discovery",
+      },
     );
     if (!response.ok) {
       const remaining = response.headers.get("x-ratelimit-remaining");
@@ -89,7 +97,6 @@ export async function discoverGitHubRepositories(
         `GitHub repository discovery failed (${response.status})${remaining === "0" ? `; rate limit exhausted${resetAt ? ` until ${resetAt}` : ""}` : retryAfter ? `; retry after ${retryAfter} second(s)` : ""}`,
       );
     }
-    const value: unknown = await response.json();
     if (!value || typeof value !== "object")
       throw new Error("GitHub repository discovery response is invalid");
     const items = (value as { items?: unknown }).items;

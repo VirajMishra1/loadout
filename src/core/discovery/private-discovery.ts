@@ -1,3 +1,5 @@
+import { boundedJson } from "../runtime/bounded-json.js";
+
 export interface PrivateRepositoryLead {
   id: number;
   repository: string;
@@ -26,7 +28,8 @@ export async function discoverPrivateRepositories(
     throw new Error(
       "Private discovery requires an explicit GITHUB_TOKEN or token option; public discovery needs no credentials",
     );
-  const response = await (options.fetcher ?? fetch)(
+  const { response, value } = await boundedJson(
+    options.fetcher ?? fetch,
     "https://api.github.com/user/repos?visibility=private&affiliation=owner,collaborator,organization_member&per_page=100",
     {
       headers: {
@@ -35,10 +38,14 @@ export async function discoverPrivateRepositories(
         "user-agent": "loadout-discovery",
       },
     },
+    {
+      timeoutMs: 30_000,
+      maxBytes: 8 * 1024 * 1024,
+      label: "Private GitHub discovery",
+    },
   );
   if (!response.ok)
     throw new Error(`Private GitHub discovery failed (${response.status})`);
-  const value: unknown = await response.json();
   if (!Array.isArray(value))
     throw new Error("Private GitHub discovery response is invalid");
   return value.flatMap((item): PrivateRepositoryLead[] => {

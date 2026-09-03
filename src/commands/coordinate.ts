@@ -2,12 +2,19 @@ import { Command } from "commander";
 import {
   emit,
   readAfterCursor,
+  readCoordLog,
   snapshot,
   checkOwnershipConflicts,
   getContracts,
+  getOwnership,
+  getAckState,
   formatSnapshot,
   formatConflicts,
 } from "../core/coordination/coordinator.js";
+import {
+  watchCoordination,
+  formatLiveEvent,
+} from "../core/coordination/watcher.js";
 
 export function registerCoordinate(program: Command): void {
   const coord = program
@@ -297,6 +304,155 @@ export function registerCoordinate(program: Command): void {
       console.log(
         `${agent} acknowledged through seq ${seq} (ack seq ${event.seq})`,
       );
+    });
+
+  coord
+    .command("watch")
+    .description(
+      "Watch for coordination events in real time — live terminal feed",
+    )
+    .argument("[agent]", "filter events for this agent")
+    .option("--cursor <n>", "start from this sequence number", parseInt)
+    .action(async (agent: string | undefined, options: { cursor?: number }) => {
+      const cwd = process.cwd();
+      console.log(
+        `\x1b[1mWatching coordination events${agent ? ` for ${agent}` : ""}...\x1b[0m`,
+      );
+      console.log("Press Ctrl+C to stop.\n");
+
+      // Show recent events first
+      const log = await readCoordLog(cwd);
+      const startCursor = options.cursor ?? Math.max(log.highSeq - 10, -1);
+      const recent = log.events.filter((e) => e.seq > startCursor);
+      const filtered = agent
+        ? recent.filter(
+            (e) => e.to === agent || e.to === "*" || e.from === agent,
+          )
+        : recent;
+
+      if (filtered.length) {
+        console.log("\x1b[90m── recent ──\x1b[0m");
+        for (const e of filtered) {
+          console.log(formatLiveEvent(e));
+        }
+        console.log("\x1b[90m── live ──\x1b[0m\n");
+      }
+
+      const watcher = await watchCoordination(cwd, {
+        agent,
+        cursor: log.highSeq,
+        onEvents(events) {
+          for (const e of events) {
+            console.log(formatLiveEvent(e));
+          }
+        },
+        onError(error) {
+          console.error(`Watch error: ${error.message}`);
+        },
+      });
+
+      // Keep alive until Ctrl+C
+      process.on("SIGINT", () => {
+        watcher.stop();
+        console.log("\nStopped watching.");
+        process.exit(0);
+      });
+
+      // Prevent Node from exiting
+      await new Promise(() => {});
+    });
+
+  coord
+    .command("status")
+    .description("Show live coordination status — ownership, contracts, acks")
+    .option("--json", "machine-readable JSON output")
+    .action(async (options: { json?: boolean }) => {
+      const cwd = process.cwd();
+      const log = await readCoordLog(cwd);
+      const contracts = await getContracts(cwd);
+      const ownership = await getOwnership(cwd);
+      const ackState = await getAckState(cwd);
+
+      if (options.json) {
+        console.log(
+          JSON.stringify(
+            {
+              events: log.events.length,
+              highSeq: log.highSeq,
+              corrupt: log.corrupt.length,
+              contracts: [...contracts.values()],
+              ownership: [...ownership.values()],
+              ackCursors: Object.fromEntries(ackState.cursors),
+              unacked: ackState.unacked.length,
+            },
+            null,
+            2,
+          ),
+        );
+        return;
+      }
+
+      if (log.events.length === 0) {
+        console.log("No coordination events yet.");
+        console.log("Start with: loadout coord own <agent> <paths...>");
+        return;
+      }
+
+      console.log(
+        `\x1b[1mCoordination status\x1b[0m (${log.events.length} events, seq ${log.highSeq})`,
+      );
+
+      if (contracts.size) {
+        console.log(`\n\x1b[36mContracts (${contracts.size}):\x1b[0m`);
+        for (const c of contracts.values()) {
+          console.log(
+            `  ${c.name} rev${c.revision} by ${c.publisher}${c.format ? ` (${c.format})` : ""}`,
+          );
+        }
+      }
+
+      if (ownership.size) {
+        console.log(
+          `\n\x1b[33mFile ownership (${ownership.size} paths):\x1b[0m`,
+        );
+        const byAgent = new Map<string, { paths: string[]; mode: string }>();
+        for (const claim of ownership.values()) {
+          const existing = byAgent.get(claim.agent);
+          if (existing) {
+            existing.paths.push(...claim.paths);
+          } else {
+            byAgent.set(claim.agent, {
+              paths: [...claim.paths],
+              mode: claim.mode,
+            });
+          }
+        }
+        for (const [agent, info] of byAgent) {
+          console.log(`  ${agent} (${info.mode}): ${info.paths.join(", ")}`);
+        }
+      }
+
+      if (ackState.cursors.size) {
+        console.log(`\n\x1b[32mAck cursors:\x1b[0m`);
+        for (const [agent, cursor] of ackState.cursors) {
+          const behind = log.highSeq - cursor;
+          console.log(
+            `  ${agent}: seq ${cursor}${behind > 0 ? ` (${behind} behind)` : " (up to date)"}`,
+          );
+        }
+      }
+
+      if (ackState.unacked.length) {
+        console.log(
+          `\n\x1b[31m${ackState.unacked.length} unacknowledged event(s)\x1b[0m`,
+        );
+      }
+
+      if (log.corrupt.length) {
+        console.log(
+          `\n\x1b[31mWarning: ${log.corrupt.length} corrupt line(s)\x1b[0m`,
+        );
+      }
     });
 
   // `loadout serve` — start the MCP coordination server

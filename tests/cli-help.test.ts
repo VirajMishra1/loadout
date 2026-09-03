@@ -98,7 +98,6 @@ describe("CLI contract", () => {
       "outcomes",
       "compare",
       "canary",
-      "serve",
       "pack",
       "publish",
       "badge",

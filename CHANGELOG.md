@@ -28,6 +28,13 @@
 
 ### Added
 
+- Live coordination module (`loadout coordinate`) with typed events for
+  contracts, file ownership, decisions, progress updates, and acknowledgements.
+  Events use monotonic sequence numbers and cursor-based reads so reconnecting
+  agents never miss a message.
+- `loadout serve` starts an MCP server exposing the same coordination tools
+  so both Claude Code and Codex can connect to a shared project coordinator.
+  Requires `@modelcontextprotocol/sdk` as an optional dependency.
 - Documented a concrete, safety-bounded design for future live Codex and Claude
   collaboration while keeping the 0.9.0 handoff behavior accurately described
   as a durable session-boundary inbox.

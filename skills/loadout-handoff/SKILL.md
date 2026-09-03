@@ -84,6 +84,36 @@ If the log reports unreadable lines, tell the user which line numbers — the lo
 is append-only and a partial write can leave one corrupt entry. The remaining
 messages are still shown.
 
+## Live coordination (experimental)
+
+When both agents are active at the same time, use `loadout coordinate` for
+richer collaboration than simple task passing:
+
+```bash
+# Publish a contract so the other agent builds against it
+loadout coord contract auth-api --body "interface AuthAPI { login(token: string): Promise<Session> }" --format typescript
+
+# Claim file ownership to prevent conflicts
+loadout coord own claude-code src/api/ src/db/
+
+# Report progress
+loadout coord update claude-code --note "Auth endpoints done" --files src/api/auth.ts --next "Adding rate limiting"
+
+# See everything the other agent needs to know
+loadout coord snapshot codex
+
+# Acknowledge events you've incorporated
+loadout coord ack codex 5
+```
+
+The coordination log lives at `.handoff/coordination.jsonl` alongside the
+existing task log. Events use monotonic sequence numbers so reconnecting agents
+never miss a message. Check for events since your last cursor at session start:
+
+```bash
+loadout coord subscribe claude-code --cursor 0
+```
+
 ## What this is not
 
 The other agent is **not notified**. It sees the task when it next checks its

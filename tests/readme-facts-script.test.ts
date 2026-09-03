@@ -142,13 +142,10 @@ describe("README fact generator", () => {
     expect(blocks["support-summary"]).toContain(
       "Native application execution is not inferred",
     );
-    expect(blocks["current-limits"]).toContain("excluded from Stable");
     expect(blocks["current-limits"]).toContain(
-      "review upstream terms before optional installation",
+      "All catalog records have identified SPDX licenses",
     );
-    expect(blocks["current-limits"]).not.toContain(
-      "need upstream-license review before a public release decision",
-    );
+    expect(blocks["current-limits"]).toContain("recorded license decisions");
   });
 
   it("uses catalog evidence for Stable policy counts and code-point support sorting", () => {

@@ -16,6 +16,7 @@ import { registerInventory } from "./commands/inventory.js";
 import { registerCatalog } from "./commands/catalog.js";
 import { registerMcp } from "./commands/mcp.js";
 import { registerLifecycle } from "./commands/lifecycle.js";
+import { registerCoordinate } from "./commands/coordinate.js";
 
 const program = new Command();
 
@@ -45,6 +46,7 @@ registerInventory(program);
 registerCatalog(program);
 registerMcp(program);
 registerLifecycle(program);
+registerCoordinate(program);
 
 registerCompletionCommands(
   program.commands.map((command) => ({

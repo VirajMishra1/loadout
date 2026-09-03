@@ -136,7 +136,9 @@ export function renderReadmeFactBlocksFromSources({
       `\`verify\` invokes ${markdownList(commands)} in that order. \`verify:full\` runs that gate and the coverage suite.`,
     ].join("\n"),
     "current-limits": [
-      `- **${facts.catalog.noAssertionLicenses} catalog records** retain \`NOASSERTION\` because one repository-wide SPDX license could not be identified. They are excluded from Stable; review upstream terms before optional installation. See the [recorded license decisions](./docs/UPSTREAM_LICENSE_DECISIONS.md).`,
+      facts.catalog.noAssertionLicenses > 0
+        ? `- **${facts.catalog.noAssertionLicenses} catalog records** retain \`NOASSERTION\` because one repository-wide SPDX license could not be identified. They are excluded from Stable; review upstream terms before optional installation. See the [recorded license decisions](./docs/UPSTREAM_LICENSE_DECISIONS.md).`
+        : `- All catalog records have identified SPDX licenses. See the [recorded license decisions](./docs/UPSTREAM_LICENSE_DECISIONS.md) for the source-by-source record.`,
     ].join("\n"),
   };
 }

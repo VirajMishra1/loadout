@@ -144,7 +144,6 @@ describe("CLI completion", () => {
       "publish",
       "compare",
       "sandbox-run",
-      "serve",
       "capabilities",
       "outcomes",
       "badge",

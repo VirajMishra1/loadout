@@ -4,16 +4,10 @@ import { readFile, stat } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { isDeepStrictEqual } from "node:util";
-import type {
-  CatalogPackage,
-  ComponentType,
-  OperatingSystem,
-  PackageInspection,
-  PackageTier,
-} from "../../shared/types.js";
+import type { CatalogPackage, ComponentType } from "../../shared/types.js";
 import { writeFileAtomically } from "../install/atomic-file.js";
 import { loadEffectiveCatalog, validateCatalog } from "../catalog/catalog.js";
-import { evaluatePackage, type PackageEvaluation } from "./evaluate.js";
+import { evaluatePackage } from "./evaluate.js";
 import { inspectPackage } from "../install/package.js";
 import { ensureDirectory, loadoutHome } from "../agents/paths.js";
 import {
@@ -22,123 +16,38 @@ import {
   type RepositorySnapshot,
 } from "../install/source.js";
 import { safeTerminalText } from "../reporting/terminal.js";
+import {
+  componentsFor,
+  evidencePathsFor,
+  installabilityFor,
+  overlapFor,
+} from "./candidate-intelligence-evidence.js";
+import {
+  assertDossierEvidence,
+  finiteNonnegative,
+  isTextArray,
+  validDate,
+  validPersistedEvaluation,
+  validPersistedInspection,
+} from "./candidate-intelligence-validation.js";
+import type {
+  CandidateDossier,
+  CandidateProposalOptions,
+  CandidateSummary,
+  DiscoveryArtifact,
+  DiscoveryRepository,
+} from "./candidate-intelligence-types.js";
 
-export interface DiscoveryRepository {
-  repository: string;
-  url: string;
-  description: string;
-  stars: number;
-  forks: number;
-  openIssues: number;
-  language: string | null;
-  license: string;
-  topics: string[];
-  createdAt: string;
-  pushedAt: string;
-  updatedAt: string;
-  defaultBranch: string;
-  matchedQueries: string[];
-  catalogStatus: "candidate" | "reviewed";
-  firstSeenAt: string;
-  lastSeenAt: string;
-  seenInLatestRun: boolean;
-  starVelocityPerDay?: number;
-  starVelocityWindowDays?: number;
-  starsPerDaySinceCreation?: number;
-}
-
-export interface DiscoveryArtifact {
-  schemaVersion: 1;
-  generatedAt: string;
-  repositories: DiscoveryRepository[];
-}
-
-export interface CandidateSummary {
-  repository: string;
-  url: string;
-  description: string;
-  stars: number;
-  license: string;
-  matchedQueries: string[];
-  seenInLatestRun: boolean;
-  catalogStatus: "candidate" | "reviewed";
-  growth: {
-    kind: "observed-star-velocity" | "lifetime-star-average";
-    starsPerDay: number;
-    windowDays?: number;
-  };
-  triagePriority: number;
-  triageEvidence: string[];
-}
-
-export interface CandidateDossier {
-  schemaVersion: 1;
-  dossierVersion: 1;
-  createdAt: string;
-  discoveryGeneratedAt: string;
-  repository: string;
-  url: string;
-  commit: string;
-  defaultBranch: string;
-  description: string;
-  license: string;
-  stars: number;
-  matchedQueries: string[];
-  growth: CandidateSummary["growth"];
-  triagePriority: number;
-  triageEvidence: string[];
-  inspection: Omit<PackageInspection, "root">;
-  evaluation: Omit<PackageEvaluation, "root">;
-  components: ComponentType[];
-  installability:
-    | "portable-components"
-    | "explicit-runtime-setup"
-    | "unsupported-source-shape";
-  evidencePaths: string[];
-  overlap: Array<{
-    packageId: string;
-    repository: string;
-    score: number;
-    relationship: "possible-overlap" | "same-tooling-area";
-    evidence: string[];
-  }>;
-  review: {
-    status: "blocked" | "needs-human-review";
-    reasons: string[];
-  };
-  safetyBoundary: string;
-}
-
-export interface CandidateProposalOptions {
-  id: string;
-  displayName?: string;
-  description?: string;
-  category: string;
-  tier?: PackageTier;
-  license?: string;
-  operatingSystems: OperatingSystem[];
-}
+export type {
+  CandidateDossier,
+  CandidateProposalOptions,
+  CandidateSummary,
+  DiscoveryArtifact,
+  DiscoveryRepository,
+} from "./candidate-intelligence-types.js";
 
 const dossierDirectory = (): string => join(loadoutHome(), "candidates");
 const sourceVerifiedDossiers = new WeakMap<CandidateDossier, string>();
-
-function installabilityFor(
-  components: ComponentType[],
-): CandidateDossier["installability"] {
-  if (
-    components.some((component) =>
-      ["skill", "rule", "command", "agent"].includes(component),
-    )
-  )
-    return "portable-components";
-  if (
-    components.some(
-      (component) => component === "mcp" || component === "plugin",
-    )
-  )
-    return "explicit-runtime-setup";
-  return "unsupported-source-shape";
-}
 
 function dossierIntegrity(dossier: CandidateDossier): string {
   return createHash("sha256").update(JSON.stringify(dossier)).digest("hex");
@@ -149,23 +58,10 @@ function bundledDiscoveryPath(): string {
   const candidates = [
     join(moduleDirectory, "..", "..", "catalog", "discovered.json"),
     join(moduleDirectory, "..", "..", "..", "catalog", "discovered.json"),
+    join(moduleDirectory, "..", "..", "..", "..", "catalog", "discovered.json"),
     join(process.cwd(), "catalog", "discovered.json"),
   ];
   return candidates.find((candidate) => existsSync(candidate)) ?? candidates[0];
-}
-
-function isTextArray(value: unknown): value is string[] {
-  return (
-    Array.isArray(value) && value.every((item) => typeof item === "string")
-  );
-}
-
-function finiteNonnegative(value: unknown): value is number {
-  return typeof value === "number" && Number.isFinite(value) && value >= 0;
-}
-
-function validDate(value: unknown): value is string {
-  return typeof value === "string" && !Number.isNaN(Date.parse(value));
 }
 
 function parseDiscovery(value: unknown): DiscoveryArtifact {
@@ -318,148 +214,6 @@ export async function listDiscoveryCandidates(
     .slice(0, options.limit ?? 20);
 }
 
-function componentsFor(inspection: PackageInspection): ComponentType[] {
-  const result: ComponentType[] = [];
-  if (inspection.counts.skills) result.push("skill");
-  if (inspection.counts.rules) result.push("rule");
-  if (inspection.counts.commands) result.push("command");
-  if (inspection.counts.agents) result.push("agent");
-  if (
-    inspection.plugins.some(
-      (plugin) =>
-        !plugin.warnings.some((warning) =>
-          warning.startsWith("invalid plugin manifest"),
-        ),
-    )
-  )
-    result.push("plugin");
-  if (inspection.mcpServers.length) result.push("mcp");
-  return result;
-}
-
-function evidencePathsFor(inspection: PackageInspection): string[] {
-  return [
-    ...inspection.skills.map((item) => join(item.path, "SKILL.md")),
-    ...inspection.resources.map((item) => item.path),
-    ...inspection.plugins
-      .filter(
-        (item) =>
-          !item.warnings.some((warning) =>
-            warning.startsWith("invalid plugin manifest"),
-          ),
-      )
-      .map((item) => item.path),
-    ...inspection.mcpServers.map((item) => item.path),
-  ]
-    .map((path) => path.split(/[\\/]/).join("/"))
-    .filter((path) => path !== "." && !path.startsWith("../"))
-    .filter((path, index, paths) => paths.indexOf(path) === index)
-    .sort();
-}
-
-const STOP_WORDS = new Set([
-  "the",
-  "and",
-  "for",
-  "with",
-  "from",
-  "that",
-  "this",
-  "your",
-  "into",
-  "agent",
-  "agents",
-  "skill",
-  "skills",
-  "mcp",
-  "server",
-  "servers",
-  "workflow",
-  "workflows",
-  "code",
-  "coding",
-  "developer",
-  "development",
-  "platform",
-  "context",
-  "open",
-  "source",
-  "using",
-  "across",
-  "tool",
-  "tools",
-  "github",
-]);
-
-function tokens(...values: Array<string | undefined>): Set<string> {
-  return new Set(
-    values
-      .join(" ")
-      .toLowerCase()
-      .split(/[^a-z0-9]+/)
-      .filter((word) => word.length >= 3 && !STOP_WORDS.has(word)),
-  );
-}
-
-function overlapFor(
-  discovery: DiscoveryRepository,
-  inspection: PackageInspection,
-  catalog: CatalogPackage[],
-): CandidateDossier["overlap"] {
-  const candidateTokens = tokens(
-    discovery.repository,
-    discovery.description,
-    discovery.topics.join(" "),
-    ...inspection.skills.flatMap((item) => [item.name, item.description]),
-    ...inspection.resources.map((item) => item.name),
-    ...inspection.plugins.flatMap((item) => [item.name, item.description]),
-    ...inspection.mcpServers.map((item) => item.name),
-  );
-  const candidateComponents = new Set(componentsFor(inspection));
-  return catalog
-    .map((pkg) => {
-      const packageTokens = tokens(
-        pkg.id,
-        pkg.displayName,
-        pkg.description,
-        pkg.category,
-        pkg.topics?.join(" "),
-      );
-      const common = [...candidateTokens]
-        .filter((word) => packageTokens.has(word))
-        .sort();
-      // Containment is more useful than union similarity here: a large skill
-      // collection can overlap a focused package even when most collection
-      // tokens describe unrelated capabilities.
-      const smallerVocabulary = Math.min(
-        candidateTokens.size,
-        packageTokens.size,
-      );
-      const score = smallerVocabulary ? common.length / smallerVocabulary : 0;
-      const componentMatch =
-        pkg.components?.some((component) =>
-          candidateComponents.has(component),
-        ) ?? false;
-      return {
-        packageId: pkg.id,
-        repository: pkg.repository,
-        score: Math.round(score * 1000) / 1000,
-        relationship:
-          componentMatch && common.length >= 2 && score >= 0.2
-            ? ("possible-overlap" as const)
-            : ("same-tooling-area" as const),
-        evidence: common.slice(0, 8).map((word) => `shared term: ${word}`),
-      };
-    })
-    .filter((item) => item.evidence.length >= 1 && item.score >= 0.1)
-    .sort(
-      (left, right) =>
-        right.score - left.score ||
-        left.packageId.localeCompare(right.packageId),
-    )
-    .slice(0, 5);
-}
-
 export async function buildCandidateDossier(
   repository: string,
   options: {
@@ -608,147 +362,6 @@ export async function writeCandidateDossier(
   await ensureDirectory(dirname(target));
   await writeFileAtomically(target, `${JSON.stringify(dossier, null, 2)}\n`);
   return target;
-}
-
-function validPersistedEvaluation(
-  value: unknown,
-): value is Omit<PackageEvaluation, "root"> {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
-  const evaluation = value as Omit<PackageEvaluation, "root">;
-  const categories = evaluation.categories;
-  return (
-    evaluation.evaluatorVersion === 1 &&
-    typeof evaluation.uncertainty === "string" &&
-    Array.isArray(categories) &&
-    categories.length === 2 &&
-    new Set(categories.map((item) => item.category)).size === 2 &&
-    categories.every(
-      (item) =>
-        (item.category === "skills" || item.category === "mcp") &&
-        ["ready", "needs-review", "blocked", "not-applicable"].includes(
-          item.status,
-        ) &&
-        isTextArray(item.findings),
-    )
-  );
-}
-
-function safeEvidencePath(value: unknown): value is string {
-  return (
-    typeof value === "string" &&
-    Boolean(value) &&
-    !value.startsWith("/") &&
-    !value.split(/[\\/]/).includes("..")
-  );
-}
-
-function validPersistedInspection(
-  value: unknown,
-): value is Omit<PackageInspection, "root"> {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
-  const inspection = value as Omit<PackageInspection, "root">;
-  const validCount = (count: unknown): count is number =>
-    typeof count === "number" && Number.isSafeInteger(count) && count >= 0;
-  const validNamedPath = (item: unknown, type: string): boolean =>
-    Boolean(
-      item &&
-      typeof item === "object" &&
-      !Array.isArray(item) &&
-      (item as { type?: unknown }).type === type &&
-      typeof (item as { name?: unknown }).name === "string" &&
-      safeEvidencePath((item as { path?: unknown }).path),
-    );
-  if (
-    !Array.isArray(inspection.skills) ||
-    !inspection.skills.every(
-      (item) =>
-        validNamedPath(item, "skill") &&
-        (item.description === undefined ||
-          typeof item.description === "string"),
-    ) ||
-    !Array.isArray(inspection.resources) ||
-    !inspection.resources.every(
-      (item) =>
-        ["rule", "command", "agent"].includes(item.type) &&
-        validNamedPath(item, item.type),
-    ) ||
-    !Array.isArray(inspection.plugins) ||
-    !inspection.plugins.every(
-      (item) =>
-        validNamedPath(item, "plugin") &&
-        (item.description === undefined ||
-          typeof item.description === "string") &&
-        (item.version === undefined || typeof item.version === "string") &&
-        (item.author === undefined || typeof item.author === "string") &&
-        Array.isArray(item.components) &&
-        item.components.every((component) =>
-          [
-            "skill",
-            "rule",
-            "command",
-            "agent",
-            "mcp",
-            "plugin",
-            "root",
-          ].includes(component),
-        ) &&
-        isTextArray(item.hookEvents) &&
-        isTextArray(item.mcpServers) &&
-        isTextArray(item.warnings),
-    ) ||
-    !Array.isArray(inspection.mcpServers) ||
-    !inspection.mcpServers.every(
-      (item) =>
-        validNamedPath(item, "mcp") &&
-        ["command", "url", "unknown"].includes(item.transport) &&
-        (item.command === undefined || typeof item.command === "string") &&
-        (item.url === undefined || typeof item.url === "string") &&
-        validCount(item.argumentCount) &&
-        validCount(item.environmentVariableCount) &&
-        isTextArray(item.warnings),
-    ) ||
-    !inspection.counts ||
-    !validCount(inspection.counts.skills) ||
-    !validCount(inspection.counts.rules) ||
-    !validCount(inspection.counts.commands) ||
-    !validCount(inspection.counts.agents) ||
-    !validCount(inspection.counts.plugins) ||
-    !validCount(inspection.counts.mcpServers) ||
-    !validCount(inspection.counts.manifests) ||
-    !isTextArray(inspection.warnings)
-  )
-    return false;
-  return (
-    inspection.counts.skills === inspection.skills.length &&
-    inspection.counts.rules ===
-      inspection.resources.filter((item) => item.type === "rule").length &&
-    inspection.counts.commands ===
-      inspection.resources.filter((item) => item.type === "command").length &&
-    inspection.counts.agents ===
-      inspection.resources.filter((item) => item.type === "agent").length &&
-    inspection.counts.plugins === inspection.plugins.length &&
-    inspection.counts.mcpServers === inspection.mcpServers.length
-  );
-}
-
-function assertDossierEvidence(dossier: CandidateDossier): void {
-  if (!validPersistedInspection(dossier.inspection))
-    throw new Error("Candidate dossier inspection evidence is invalid");
-  const inspection: PackageInspection = { root: ".", ...dossier.inspection };
-  const components = componentsFor(inspection);
-  const evidencePaths = evidencePathsFor(inspection);
-  if (JSON.stringify(dossier.components) !== JSON.stringify(components))
-    throw new Error(
-      "Candidate dossier components do not match inspection evidence",
-    );
-  if (dossier.installability !== installabilityFor(components))
-    throw new Error(
-      "Candidate dossier installability does not match inspection evidence",
-    );
-  if (JSON.stringify(dossier.evidencePaths) !== JSON.stringify(evidencePaths))
-    throw new Error(
-      "Candidate dossier evidencePaths do not match inspection evidence",
-    );
 }
 
 export async function readCandidateDossier(

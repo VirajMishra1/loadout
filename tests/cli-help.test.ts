@@ -67,6 +67,13 @@ describe("CLI contract", () => {
     expect(result.stdout).toContain("recommended default: 30");
   });
 
+  it("uses a currently bundled skill in install help", async () => {
+    const result = await runCli("skills", "install", "--help");
+    expect(result.code).toBe(0);
+    expect(result.stdout).toContain("loadout-handoff");
+    expect(result.stdout).not.toContain("loadout-router");
+  });
+
   it("gives beginners one read-only guide while retaining advanced commands", async () => {
     const guide = await runCli("guide");
     expect(guide.code).toBe(0);

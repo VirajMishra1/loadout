@@ -1,5 +1,5 @@
-import { describe, expect, it, beforeEach } from "vitest";
-import { mkdtemp, mkdir, readFile, writeFile } from "node:fs/promises";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import type { DetectedAgent } from "../src/shared/types.js";
@@ -13,6 +13,7 @@ import {
   planFirstPartySkill,
   removeFirstPartySkill,
 } from "../src/core/delegation/first-party-skills.js";
+import { readSnapshot, restoreSnapshot } from "../src/core/install/snapshot.js";
 
 function agent(
   id: DetectedAgent["id"],
@@ -25,9 +26,17 @@ function agent(
 
 describe("first-party skills", () => {
   let root: string;
+  const originalLoadoutHome = process.env.LOADOUT_HOME;
 
   beforeEach(async () => {
     root = await mkdtemp(join(tmpdir(), "loadout-fps-test-"));
+    process.env.LOADOUT_HOME = join(root, "state");
+  });
+
+  afterEach(async () => {
+    await rm(root, { recursive: true, force: true });
+    if (originalLoadoutHome === undefined) delete process.env.LOADOUT_HOME;
+    else process.env.LOADOUT_HOME = originalLoadoutHome;
   });
 
   it("ships the handoff and curator skills", () => {
@@ -56,6 +65,17 @@ describe("first-party skills", () => {
     );
     expect(skill).toContain("name: loadout-handoff");
     expect(skill).toContain("loadout handoff");
+  });
+
+  it("tells each supported agent to check its own handoff inbox", async () => {
+    const skillsRoot = await bundledSkillsRoot();
+    const skill = await readFile(
+      join(skillsRoot, "loadout-handoff", "SKILL.md"),
+      "utf8",
+    );
+    expect(skill).toContain("loadout handoff codex");
+    expect(skill).toContain("loadout handoff claude-code");
+    expect(skill).toMatch(/current agent|agent you are running/i);
   });
 
   it("rejects an unknown skill id with the available ids", () => {
@@ -92,13 +112,18 @@ describe("first-party skills", () => {
       agent("claude-code", "Claude Code", join(root, "claude")),
     ];
     const plan = await planFirstPartySkill("loadout-handoff", { detected });
-    await applyFirstPartySkill(plan);
+    const snapshotId = await applyFirstPartySkill(plan);
 
     const written = await readFile(
       join(root, "claude", "loadout-handoff", "SKILL.md"),
       "utf8",
     );
     expect(written).toContain("name: loadout-handoff");
+
+    await restoreSnapshot(await readSnapshot(snapshotId));
+    await expect(
+      readFile(join(root, "claude", "loadout-handoff", "SKILL.md"), "utf8"),
+    ).rejects.toThrow();
   });
 
   it("marks an existing install as replacing and removes stale files", async () => {

@@ -2,6 +2,7 @@ import { cp, rm, stat } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { detectAgents } from "../agents/paths.js";
+import { runMutationTransaction } from "../install/transaction.js";
 import type { AgentId, DetectedAgent } from "../../shared/types.js";
 
 /**
@@ -117,20 +118,41 @@ export async function planFirstPartySkill(
 
 export async function applyFirstPartySkill(
   plan: FirstPartySkillPlan,
-): Promise<void> {
-  for (const target of plan.targets) {
-    // Replace wholesale so a reinstall cannot leave files from an older
-    // version of the skill behind.
-    if (target.replacing) await rm(target.destination, { recursive: true });
-    await cp(plan.source, target.destination, { recursive: true });
-  }
+): Promise<string> {
+  const applied = await runMutationTransaction(
+    async () => ({
+      targets: plan.targets.map((target) => target.destination),
+      value: plan,
+    }),
+    async (freshPlan) => {
+      for (const target of freshPlan.targets) {
+        // Replace wholesale so a reinstall cannot leave files from an older
+        // version of the skill behind.
+        await rm(target.destination, { recursive: true, force: true });
+        await cp(freshPlan.source, target.destination, { recursive: true });
+      }
+    },
+    { label: `install first-party skill ${plan.skill.id}` },
+  );
+  return applied.snapshotId;
 }
 
 export async function removeFirstPartySkill(
   plan: FirstPartySkillPlan,
-): Promise<void> {
-  for (const target of plan.targets)
-    if (target.replacing) await rm(target.destination, { recursive: true });
+): Promise<string> {
+  const present = plan.targets.filter((target) => target.replacing);
+  const applied = await runMutationTransaction(
+    async () => ({
+      targets: present.map((target) => target.destination),
+      value: present,
+    }),
+    async (freshTargets) => {
+      for (const target of freshTargets)
+        await rm(target.destination, { recursive: true, force: true });
+    },
+    { label: `remove first-party skill ${plan.skill.id}` },
+  );
+  return applied.snapshotId;
 }
 
 export function formatFirstPartySkillList(

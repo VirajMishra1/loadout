@@ -19,9 +19,14 @@ and stop.
 
 ## Check your inbox
 
-At the start of a session, and after finishing a task:
+At the start of a session, and after finishing a task, run only the command for
+the current agent:
 
 ```bash
+# When you are running in Codex
+loadout handoff codex
+
+# When you are running in Claude Code
 loadout handoff claude-code
 ```
 

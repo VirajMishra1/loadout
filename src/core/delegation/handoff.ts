@@ -2,6 +2,7 @@ import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import { writeFileAtomically } from "../install/atomic-file.js";
+import { z } from "zod";
 
 export type HandoffMessageType =
   "task" | "handoff" | "question" | "done" | "status" | "error" | "cancel";
@@ -16,6 +17,30 @@ export interface HandoffMessage {
   timestamp: string;
   /** The task this message closes. Older logs encode it in `context`. */
   resolves?: string;
+}
+const handoffMessageSchema = z.object({
+  id: z.string().trim().min(1),
+  type: z.enum([
+    "task",
+    "handoff",
+    "question",
+    "done",
+    "status",
+    "error",
+    "cancel",
+  ]),
+  from: z.string().trim().min(1),
+  to: z.string().trim().min(1),
+  description: z.string().trim().min(1),
+  context: z.string().optional(),
+  timestamp: z.iso.datetime({ offset: true }),
+  resolves: z.string().trim().min(1).optional(),
+});
+
+function handoffValidationReason(error: z.ZodError): string {
+  return error.issues
+    .map((issue) => `${issue.path.join(".") || "message"}: ${issue.message}`)
+    .join("; ");
 }
 
 /** A line the log holds that could not be parsed. */
@@ -120,7 +145,7 @@ export async function sendHandoff(
     );
   }
 
-  const message: HandoffMessage = {
+  const candidate: HandoffMessage = {
     id: randomUUID().slice(0, 8),
     type: options.type ?? "task",
     from: options.from ?? "user",
@@ -130,6 +155,12 @@ export async function sendHandoff(
     ...(options.resolves ? { resolves: options.resolves } : {}),
     timestamp: new Date().toISOString(),
   };
+  const parsed = handoffMessageSchema.safeParse(candidate);
+  if (!parsed.success)
+    throw new Error(
+      `Invalid handoff message: ${handoffValidationReason(parsed.error)}`,
+    );
+  const message = parsed.data;
 
   const path = messagesPath(projectRoot);
   const line = JSON.stringify(message) + "\n";
@@ -142,11 +173,13 @@ export async function markDone(
   projectRoot: string,
   messageId: string,
 ): Promise<HandoffMessage> {
-  const messages = await readMessages(projectRoot);
-  const original = messages.find((m) => m.id === messageId);
+  const state = await getHandoffState(projectRoot);
+  const original = state.messages.find((m) => m.id === messageId);
   if (!original) throw new Error(`Message '${messageId}' not found`);
-  if (original.type === "done")
-    throw new Error(`Message '${messageId}' is already done`);
+  if (original.type !== "task")
+    throw new Error(`Message '${messageId}' is not a task`);
+  if (state.done.some((message) => message.id === messageId))
+    throw new Error(`Message '${messageId}' is already settled`);
 
   return sendHandoff(
     projectRoot,
@@ -183,10 +216,11 @@ export async function readMessagesDetailed(
   content.split("\n").forEach((raw, index) => {
     if (!raw.trim()) return;
     try {
-      const parsed = JSON.parse(raw) as HandoffMessage;
-      if (!parsed || typeof parsed.id !== "string" || !parsed.type)
-        throw new Error("missing id or type");
-      messages.push(parsed);
+      const parsed = handoffMessageSchema.safeParse(JSON.parse(raw));
+      if (!parsed.success) {
+        throw new Error(handoffValidationReason(parsed.error));
+      }
+      messages.push(parsed.data);
     } catch (error) {
       corrupt.push({
         line: index + 1,

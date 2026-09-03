@@ -14,6 +14,7 @@ import {
   planPickup,
   readInbox,
   readMessages,
+  readMessagesDetailed,
   sendHandoff,
 } from "../src/core/delegation/handoff.js";
 
@@ -58,6 +59,25 @@ describe("handoff", () => {
     expect(state.pending).toHaveLength(0);
     expect(state.done).toHaveLength(1);
     expect(state.done[0].id).toBe(msg.id);
+  });
+
+  it("refuses to settle the same task twice", async () => {
+    await initHandoff(projectRoot);
+    const msg = await sendHandoff(projectRoot, "codex", "review PR");
+    await markDone(projectRoot, msg.id);
+
+    await expect(markDone(projectRoot, msg.id)).rejects.toThrow(
+      /already (done|settled)/i,
+    );
+  });
+
+  it("rejects invalid outbound messages before appending them", async () => {
+    await initHandoff(projectRoot);
+
+    await expect(sendHandoff(projectRoot, "", "")).rejects.toThrow(
+      /invalid handoff message/i,
+    );
+    expect(await readMessages(projectRoot)).toEqual([]);
   });
 
   it("throws when sending without init", async () => {
@@ -203,6 +223,96 @@ describe("handoff resilience", () => {
     expect(state.corrupt).toHaveLength(1);
     expect(state.corrupt[0].line).toBe(2);
     expect(formatHandoffStatus(state)).toMatch(/unreadable line/i);
+  });
+
+  it.each([
+    [
+      "missing timestamp",
+      {
+        id: "bad00001",
+        type: "task",
+        from: "user",
+        to: "codex",
+        description: "task",
+      },
+    ],
+    [
+      "missing sender",
+      {
+        id: "bad00002",
+        type: "task",
+        to: "codex",
+        description: "task",
+        timestamp: "2026-09-03T12:00:00.000Z",
+      },
+    ],
+    [
+      "missing recipient",
+      {
+        id: "bad00003",
+        type: "task",
+        from: "user",
+        description: "task",
+        timestamp: "2026-09-03T12:00:00.000Z",
+      },
+    ],
+    [
+      "missing description",
+      {
+        id: "bad00004",
+        type: "task",
+        from: "user",
+        to: "codex",
+        timestamp: "2026-09-03T12:00:00.000Z",
+      },
+    ],
+    [
+      "unsupported type",
+      {
+        id: "bad00005",
+        type: "pending",
+        from: "user",
+        to: "codex",
+        description: "task",
+        timestamp: "2026-09-03T12:00:00.000Z",
+      },
+    ],
+    [
+      "invalid timestamp",
+      {
+        id: "bad00006",
+        type: "task",
+        from: "user",
+        to: "codex",
+        description: "task",
+        timestamp: "yesterday",
+      },
+    ],
+    [
+      "invalid resolution id",
+      {
+        id: "bad00007",
+        type: "done",
+        from: "codex",
+        to: "user",
+        description: "done",
+        resolves: "",
+        timestamp: "2026-09-03T12:00:00.000Z",
+      },
+    ],
+  ])("reports a schema-invalid line: %s", async (_label, invalid) => {
+    const valid = await sendHandoff(projectRoot, "codex", "valid task");
+    const log = join(projectRoot, ".handoff", "messages.jsonl");
+    await writeFile(
+      log,
+      `${JSON.stringify(invalid)}\n${JSON.stringify(valid)}\n`,
+      "utf8",
+    );
+
+    const result = await readMessagesDetailed(projectRoot);
+    expect(result.messages).toEqual([valid]);
+    expect(result.corrupt).toHaveLength(1);
+    expect(result.corrupt[0].line).toBe(1);
   });
 
   it("treats an error reply as terminal", async () => {

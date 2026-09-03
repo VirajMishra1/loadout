@@ -32,7 +32,7 @@ jobs:
         run: npm install --global npm@11.5.1
       - run: npm --version
       - run: npm ci
-      - run: npm run verify
+      - run: npm run verify:full
       - name: Verify tag matches package version
         shell: bash
         run: |

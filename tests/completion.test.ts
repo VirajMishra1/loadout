@@ -1,9 +1,10 @@
-import { describe, expect, it, beforeAll } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { resolve } from "node:path";
 import {
   completionCommands,
+  completionCommandPaths,
   parseCompletionShell,
   registerCompletionCommands,
   renderShellCompletion,
@@ -42,13 +43,23 @@ async function actualCommands(): Promise<string[]> {
 }
 
 describe("CLI completion", () => {
-  beforeAll(() => {
+  beforeEach(() => {
     // The registry is populated by cli.ts at startup; unit tests drive it
     // directly so rendering can be checked without spawning a process.
     registerCompletionCommands([
       { name: "setup", subcommands: [] },
-      { name: "candidate", subcommands: ["list", "inspect", "propose"] },
-      { name: "models", subcommands: ["status", "set", "verify"] },
+      {
+        name: "candidate",
+        subcommands: ["list", "inspect", "propose"],
+      },
+      {
+        name: "models",
+        subcommands: ["status", "set", "verify"],
+      },
+      {
+        name: "skills",
+        subcommands: ["list", "install", "remove"],
+      },
     ]);
   });
 
@@ -66,7 +77,21 @@ describe("CLI completion", () => {
       const script = renderShellCompletion(shell);
       expect(script).toContain("propose");
       expect(script).toContain("verify");
+      expect(script).toContain("install");
+      expect(script).toContain("remove");
     }
+  });
+
+  it("exposes every registered parent and child as a complete command path", () => {
+    expect(completionCommandPaths()).toEqual(
+      expect.arrayContaining([
+        "candidate",
+        "candidate inspect",
+        "models verify",
+        "skills install",
+        "skills remove",
+      ]),
+    );
   });
 
   it("renders only what the registry holds", () => {
@@ -127,4 +152,16 @@ describe("CLI completion", () => {
     ])
       expect(advertised, `${retired} was removed`).not.toContain(retired);
   }, 30_000);
+
+  it("prints machine-readable full command paths for documentation tooling", async () => {
+    const { stdout } = await exec(
+      process.execPath,
+      ["--import", "tsx", "src/cli.ts", "completion", "--commands-json"],
+      { cwd: repositoryRoot, env: { ...process.env, NO_COLOR: "1" } },
+    );
+    const paths = JSON.parse(stdout) as string[];
+    expect(paths).toContain("skills install");
+    expect(paths).toContain("candidate inspect");
+    expect(paths).not.toContain("loadout-router");
+  });
 });

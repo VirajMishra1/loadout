@@ -1,137 +1,163 @@
 #!/usr/bin/env node
-// Fails when documentation tells a reader to run a command the CLI does not
-// have. Docs previously described `pack`, `publish`, and `registry-serve` for a
-// release after those commands were removed, and no gate noticed.
 import { execFile } from "node:child_process";
 import { readFile, readdir } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { join, relative, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
 const exec = promisify(execFile);
 const root = resolve(import.meta.dirname, "..");
+const PROSE_WORDS = new Set([
+  "ai",
+  "home",
+  "and",
+  "the",
+  "was",
+  "can",
+  "will",
+  "does",
+  "has",
+  "not",
+  "for",
+  "with",
+  "from",
+  "run",
+  "adds",
+  "keeps",
+  "installs",
+  "manages",
+  "previews",
+  "reads",
+  "shows",
+  "supports",
+  "uses",
+  "writes",
+  "should",
+  "you",
+  "your",
+  "must",
+  "may",
+  "never",
+  "always",
+  "still",
+  "then",
+  "when",
+  "which",
+]);
+const RETIRED_PATHS = new Set([
+  "handoff init",
+  "handoff send",
+  "handoff done",
+  "handoff status",
+  "handoff cancel",
+]);
 
-/** Every command and subcommand the CLI registers. */
-async function registeredCommands() {
+async function registeredCommands(repositoryRoot) {
   const { stdout } = await exec(
     process.execPath,
-    ["--import", "tsx", "src/cli.ts", "completion", "bash"],
-    { cwd: root, env: { ...process.env, NO_COLOR: "1" }, timeout: 60_000 },
+    ["--import", "tsx", "src/cli.ts", "completion", "--commands-json"],
+    {
+      cwd: repositoryRoot,
+      env: { ...process.env, NO_COLOR: "1" },
+      timeout: 60_000,
+    },
   );
-  const names = new Set(
-    /commands="([^"]*)"/.exec(stdout)?.[1].split(/\s+/).filter(Boolean) ?? [],
-  );
-  if (!names.size) throw new Error("Could not read the CLI command list");
-  // Subcommands are addressed as `loadout <parent> <child>`; allow both words.
-  for (const extra of [
-    "list",
-    "inspect",
-    "propose",
-    "promote",
-    "status",
-    "set",
-    "verify",
-    "check",
-    "delete",
-    "install",
-    "remove",
-    "init",
-    "send",
-    "done",
-  ])
-    names.add(extra);
-  return names;
+  const paths = JSON.parse(stdout);
+  if (!Array.isArray(paths) || !paths.every((path) => typeof path === "string"))
+    throw new Error("Could not read the CLI command paths");
+  return new Set(paths);
 }
 
-async function markdownFiles() {
+async function markdownFiles(repositoryRoot) {
   const found = [];
-  for (const entry of await readdir(join(root, "docs"), {
-    withFileTypes: true,
-  }))
-    if (entry.isFile() && entry.name.endsWith(".md"))
-      found.push(join(root, "docs", entry.name));
-  found.push(join(root, "README.md"));
+  async function walk(directory) {
+    for (const entry of await readdir(directory, { withFileTypes: true })) {
+      const path = join(directory, entry.name);
+      if (entry.isDirectory()) await walk(path);
+      else if (entry.isFile() && entry.name.endsWith(".md")) found.push(path);
+    }
+  }
+  await walk(join(repositoryRoot, "docs"));
+  found.push(join(repositoryRoot, "README.md"));
   return found;
 }
 
-const known = await registeredCommands();
-const failures = [];
-
-for (const path of await markdownFiles()) {
-  const text = await readFile(path, "utf8");
-  // A section may document a command that does not exist provided it says so.
-  // The exemption runs from the disclaimer to the next heading, so it cannot
-  // silently cover the rest of a file.
+/** Validate documented top-level and nested paths against the live CLI tree. */
+export function validateDocumentedCommands(
+  text,
+  commandPaths,
+  filePath = "document",
+) {
+  const failures = [];
+  const parents = new Set(
+    [...commandPaths]
+      .filter((path) => path.includes(" "))
+      .map((path) => path.split(" ")[0]),
+  );
   let inDesignSection = false;
   let inFence = false;
   text.split("\n").forEach((line, index) => {
     if (/^\s*```/.test(line)) inFence = !inFence;
-    // A shell comment inside a fence looks like a markdown heading, so only
-    // headings outside a code block end the exemption.
     if (!inFence && /^#{1,6} /.test(line)) inDesignSection = false;
     if (/\*\*(?:Not implemented|Partly unimplemented)/.test(line))
       inDesignSection = true;
     if (inDesignSection) return;
-    // Only flag imperative usages: `loadout <name>` in prose or a code block.
-    for (const match of line.matchAll(/\bloadout\s+([a-z][a-z-]{2,})\b/g)) {
-      const name = match[1];
-      if (known.has(name)) continue;
-      // Flags and prose words that follow "loadout" are not commands.
-      if (
-        name.startsWith("-") ||
-        [
-          "ai",
-          "home",
-          "and",
-          "the",
-          "was",
-          "can",
-          "will",
-          "does",
-          "has",
-          "not",
-          "for",
-          "with",
-          "from",
-          "run",
-          "adds",
-          "keeps",
-          "installs",
-          "manages",
-          "previews",
-          "reads",
-          "shows",
-          "supports",
-          "uses",
-          "writes",
-          "should",
-          "you",
-          "your",
-          "must",
-          "may",
-          "never",
-          "always",
-          "still",
-          "then",
-          "when",
-          "which",
-        ].includes(name)
-      )
+
+    for (const match of line.matchAll(
+      /\bloadout\s+([a-z][a-z-]{2,})(?:\s+([a-z][a-z-]{2,}))?/g,
+    )) {
+      const top = match[1];
+      const child = match[2];
+      if (!commandPaths.has(top)) {
+        if (PROSE_WORDS.has(top)) continue;
+        failures.push(
+          `${filePath}:${index + 1} documents 'loadout ${top}', which the CLI does not register`,
+        );
         continue;
-      failures.push(
-        `${path.replace(root + "/", "")}:${index + 1} documents 'loadout ${name}', which the CLI does not register`,
-      );
+      }
+
+      if (!child) continue;
+      const nested = `${top} ${child}`;
+      if (RETIRED_PATHS.has(nested)) {
+        failures.push(
+          `${filePath}:${index + 1} documents retired syntax 'loadout ${nested}'`,
+        );
+      } else if (parents.has(top) && !commandPaths.has(nested)) {
+        failures.push(
+          `${filePath}:${index + 1} documents 'loadout ${nested}', which the CLI does not register`,
+        );
+      }
     }
   });
+  return failures;
 }
 
-if (failures.length) {
-  console.error("[documented.commands]");
-  for (const failure of failures) console.error(`  ${failure}`);
-  console.error(
-    "\n  Remediation: update the document to a command that exists, or restore the command.",
+async function main(repositoryRoot = root) {
+  const known = await registeredCommands(repositoryRoot);
+  const failures = [];
+  for (const path of await markdownFiles(repositoryRoot)) {
+    const text = await readFile(path, "utf8");
+    failures.push(
+      ...validateDocumentedCommands(
+        text,
+        known,
+        relative(repositoryRoot, path),
+      ),
+    );
+  }
+  if (failures.length) {
+    console.error("[documented.commands]");
+    for (const failure of failures) console.error(`  ${failure}`);
+    console.error(
+      "\n  Remediation: update the document to a registered command path, or restore the command.",
+    );
+    process.exitCode = 1;
+    return;
+  }
+  console.log(
+    `Verified documented commands against ${known.size} registered CLI paths.`,
   );
-  process.exit(1);
 }
-console.log(
-  `Verified documented commands against ${known.size} registered CLI names.`,
-);
+
+const invokedPath = process.argv[1] ? resolve(process.argv[1]) : "";
+if (invokedPath === fileURLToPath(import.meta.url)) await main(root);

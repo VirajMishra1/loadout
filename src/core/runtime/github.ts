@@ -2,6 +2,7 @@ import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import { loadoutHome } from "../agents/paths.js";
+import { boundedJson } from "./bounded-json.js";
 
 export interface GitHubRepositoryMetadata {
   repository: string;
@@ -93,10 +94,18 @@ export async function fetchGitHubMetadata(
   if (process.env.GITHUB_TOKEN)
     headers.authorization = `Bearer ${process.env.GITHUB_TOKEN}`;
   let response: Response;
+  let value: unknown;
   try {
-    response = await fetcher(`https://api.github.com/repos/${repository}`, {
-      headers,
-    });
+    ({ response, value } = await boundedJson(
+      fetcher,
+      `https://api.github.com/repos/${repository}`,
+      { headers },
+      {
+        timeoutMs: 30_000,
+        maxBytes: 4 * 1024 * 1024,
+        label: "GitHub metadata",
+      },
+    ));
   } catch (error) {
     if (cached) return cached;
     throw new Error(
@@ -110,27 +119,34 @@ export async function fetchGitHubMetadata(
       `GitHub metadata request failed (${response.status}${rateLimited ? ", rate limit exceeded" : ""}) for ${repository}`,
     );
   }
-  const value = (await response.json()) as Record<string, unknown>;
+  if (!value || typeof value !== "object")
+    throw new Error(`GitHub metadata response is invalid for ${repository}`);
+  const record = value as Record<string, unknown>;
   const metadata: GitHubRepositoryMetadata = {
     repository,
     stars:
-      typeof value.stargazers_count === "number" ? value.stargazers_count : 0,
-    description: typeof value.description === "string" ? value.description : "",
+      typeof record.stargazers_count === "number" ? record.stargazers_count : 0,
+    description:
+      typeof record.description === "string" ? record.description : "",
     defaultBranch:
-      typeof value.default_branch === "string" ? value.default_branch : "main",
-    topics: Array.isArray(value.topics)
-      ? value.topics.filter(
+      typeof record.default_branch === "string"
+        ? record.default_branch
+        : "main",
+    topics: Array.isArray(record.topics)
+      ? record.topics.filter(
           (topic): topic is string => typeof topic === "string",
         )
       : [],
     openIssues:
-      typeof value.open_issues_count === "number" ? value.open_issues_count : 0,
-    archived: value.archived === true,
+      typeof record.open_issues_count === "number"
+        ? record.open_issues_count
+        : 0,
+    archived: record.archived === true,
     lastUpdatedAt:
-      typeof value.updated_at === "string"
-        ? value.updated_at
+      typeof record.updated_at === "string"
+        ? record.updated_at
         : new Date().toISOString(),
-    pushedAt: typeof value.pushed_at === "string" ? value.pushed_at : null,
+    pushedAt: typeof record.pushed_at === "string" ? record.pushed_at : null,
     fetchedAt: new Date().toISOString(),
   };
   await mkdir(join(loadoutHome(), "cache", "github-metadata"), {
@@ -170,11 +186,18 @@ export async function fetchGitHubReleaseMetadata(
   if (process.env.GITHUB_TOKEN)
     headers.authorization = `Bearer ${process.env.GITHUB_TOKEN}`;
   let response: Response;
+  let releases: unknown;
   try {
-    response = await fetcher(
+    ({ response, value: releases } = await boundedJson(
+      fetcher,
       `https://api.github.com/repos/${repository}/releases?per_page=1`,
       { headers },
-    );
+      {
+        timeoutMs: 30_000,
+        maxBytes: 4 * 1024 * 1024,
+        label: "GitHub releases",
+      },
+    ));
   } catch (error) {
     if (cached) return cached;
     throw new Error(
@@ -187,7 +210,6 @@ export async function fetchGitHubReleaseMetadata(
       `GitHub release request failed (${response.status}) for ${repository}`,
     );
   }
-  const releases = (await response.json()) as unknown;
   const release = Array.isArray(releases) ? releases[0] : undefined;
   const record = release && typeof release === "object" ? release : {};
   const assets = Array.isArray((record as { assets?: unknown }).assets)

@@ -125,21 +125,26 @@ describe("bounded network and repository defaults", () => {
     const home = await mkdtemp(join(tmpdir(), "loadout-reg-"));
     const previous = process.env.LOADOUT_HOME;
     process.env.LOADOUT_HOME = home;
-    const huge = "x".repeat(33 * 1024 * 1024);
+    let cancelled = false;
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new Uint8Array(16 * 1024 * 1024));
+        controller.enqueue(new Uint8Array(17 * 1024 * 1024));
+      },
+      cancel() {
+        cancelled = true;
+      },
+    });
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () => ({
-        ok: true,
-        status: 200,
-        headers: new Headers(),
-        arrayBuffer: async () => new TextEncoder().encode(`"${huge}"`).buffer,
-      })),
+      vi.fn(async () => new Response(body)),
     );
     const { fetchRemoteRegistryPackage: fetchPackage } =
       await import("../src/core/catalog/registry.js");
     await expect(
       fetchPackage("https://registry.example", "demo", "1.0.0"),
     ).rejects.toThrow(/size limit/i);
+    expect(cancelled).toBe(true);
     if (previous === undefined) delete process.env.LOADOUT_HOME;
     else process.env.LOADOUT_HOME = previous;
     await rm(home, { recursive: true, force: true });

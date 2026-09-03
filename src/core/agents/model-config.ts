@@ -12,6 +12,7 @@ import type {
 import { writeFileAtomically } from "../install/atomic-file.js";
 import { ensureDirectory, loadoutHome } from "../agents/paths.js";
 import { runMutationTransaction } from "../install/transaction.js";
+import { boundedJson } from "../runtime/bounded-json.js";
 
 export const defaultModelConfigurationPath = (): string =>
   join(loadoutHome(), "models.json");
@@ -166,7 +167,8 @@ export async function requestOpenRouter(
   const token = await options.resolveCredential(selection.credential);
   if (!token)
     throw new Error("OpenRouter credential reference did not resolve");
-  const response = await (options.fetcher ?? fetch)(
+  const { response, value } = await boundedJson(
+    options.fetcher ?? fetch,
     `${selection.endpoint.replace(/\/$/, "")}/chat/completions`,
     {
       method: "POST",
@@ -177,8 +179,13 @@ export async function requestOpenRouter(
       },
       body: JSON.stringify({ model: selection.model, messages }),
     },
+    {
+      timeoutMs: 30_000,
+      maxBytes: 8 * 1024 * 1024,
+      label: "OpenRouter",
+    },
   );
   if (!response.ok)
     throw new Error(`OpenRouter request failed (${response.status})`);
-  return response.json();
+  return value;
 }

@@ -384,17 +384,14 @@ async function assertPlanUnchanged(plan: ReconcilePlan): Promise<void> {
 export async function applyReconcilePlan(
   plan: ReconcilePlan,
   options: { replaceOutdated?: boolean; approveRisk?: boolean } = {},
-): Promise<{ snapshotId: string; adopted: number; updated: number }> {
+): Promise<{ snapshotId: string | null; adopted: number; updated: number }> {
   await assertPlanUnchanged(plan);
   const exact = plan.items.filter((item) => item.status === "exact");
   const outdated = options.replaceOutdated
     ? plan.items.filter((item) => item.status === "outdated")
     : [];
   const selected = [...exact, ...outdated];
-  if (!selected.length)
-    throw new Error(
-      "No exact or explicitly selected outdated skills to reconcile",
-    );
+  if (!selected.length) return { snapshotId: null, adopted: 0, updated: 0 };
   const risky = outdated.filter((item) => item.approvalRequired);
   if (risky.length && !options.approveRisk)
     throw new Error(

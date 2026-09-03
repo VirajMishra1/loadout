@@ -86,7 +86,9 @@ export function registerAgents(program: Command): void {
           console.log(
             options.json
               ? JSON.stringify({ plan, snapshotId }, null, 2)
-              : `${formatProjectActivation(plan)}\nApplied and verified. Snapshot: ${snapshotId}\nRollback: loadout rollback --snapshot ${snapshotId}`,
+              : snapshotId
+                ? `${formatProjectActivation(plan)}\nApplied and verified. Snapshot: ${snapshotId}\nRollback: loadout rollback --snapshot ${snapshotId}`
+                : `${formatProjectActivation(plan)}\nAlready within the requested active-set limit. No changes or snapshot were needed.`,
           );
         },
       );

@@ -113,7 +113,7 @@ export function registerInventory(program: Command): void {
           onProgress: (message) => console.log(`→ ${message}`),
         });
         console.log(
-          `Removed ${result.removedPackages} managed package(s), ${result.removedRuntimeTools} runtime tool(s), daily jobs, cache, library, and Loadout state.`,
+          `Removed ${result.removedPackages} managed package(s), ${result.removedRuntimeTools} runtime tool(s), ${result.removedFirstPartySkills} first-party skill install(s), daily jobs, cache, library, and Loadout state.`,
         );
         if (options.removeCli) {
           await uninstallGlobalCli();
@@ -403,7 +403,9 @@ export function registerInventory(program: Command): void {
         console.log(
           options.json
             ? JSON.stringify({ plan, result }, null, 2)
-            : `${formatReconcilePlan(plan)}\n\nReconciled ${result.adopted} exact group(s) and ${result.updated} outdated group(s). Snapshot: ${result.snapshotId}`,
+            : result.snapshotId
+              ? `${formatReconcilePlan(plan)}\n\nReconciled ${result.adopted} exact group(s) and ${result.updated} outdated group(s). Snapshot: ${result.snapshotId}`
+              : `${formatReconcilePlan(plan)}\n\nNothing to reconcile. No snapshot was needed.`,
         );
       },
     );

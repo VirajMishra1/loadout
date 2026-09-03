@@ -2,6 +2,10 @@
 
 Loadout handles third-party repositories and agent configuration, so its safety boundary is deliberately conservative.
 
+## Reporting a vulnerability
+
+Please use [GitHub's private vulnerability reporting form](https://github.com/VirajMishra1/loadout/security/advisories/new). Do not open a public issue or include credentials, private source code, or unredacted Loadout state. Include the affected version, impact, and minimal reproduction details when possible.
+
 ## Protected actions
 
 - Repository discovery uses a shallow Git fetch and reads files; it does not run package managers, lifecycle hooks, binaries, or scripts.

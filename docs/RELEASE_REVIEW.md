@@ -22,6 +22,6 @@ For current behavior and evidence, use:
   [sanitized July 19 live checks](./evidence/live-checks-2026-07-19.json) only when
   investigating that historical release line.
 
-The current release gate is `npm run verify`. Publication status must be checked
+The current release gate is `npm run verify:full`. Publication status must be checked
 against the npm registry and the corresponding GitHub release rather than inferred
 from this archived document.

@@ -10,7 +10,7 @@ not show the retired dashboard. The final YouTube upload must be public.
 2. Confirm the release and product health:
 
    ```bash
-   npm install --global loadout-ai@0.5.9
+   npm install --global loadout-ai@0.9.0
    hash -r
    loadout --version
    loadout health
@@ -107,33 +107,32 @@ loadout install --mode custom --package humanizer --agents codex
 > skill such as Humanizer can be installed directly through Custom mode. Each path
 > discloses permissions and credentials before approval.
 
-### 2:05 to 2:25: today and tomorrow
+### 2:05 to 2:28: hand work from Claude Code to Codex
 
 **Screen:**
 
 ```bash
-loadout update
-loadout candidate list --limit 5
+loadout skills install loadout-handoff --yes
+loadout handoff codex "write tests for the auth module" --context "see src/auth.ts"
+loadout handoff
 ```
 
 **Say:**
 
-> Update checks managed pinned sources without silently changing them. The discovery
-> feed watches a wider ecosystem and ranks new projects for review. A repository can
-> be noticed quickly without being trusted or installed blindly.
+> Loadout also gives Claude Code and Codex a tiny shared handoff log. Claude can leave
+> a bounded task with context, and Codex sees it when the next session checks its
+> inbox. It is intentionally a local file workflow—not a background service or a live
+> chat channel.
 
-### 2:25 to 2:48: Codex, GPT-5.6, and close
+### 2:28 to 2:48: close
 
-**Screen:** README section “Built with Codex and GPT-5.6”, then return to the hero.
+**Screen:** Return to the README hero and the handoff row in the workflow image.
 
 **Say:**
 
-> We used Codex and GPT-5.6 throughout the build: architecture, threat modelling,
-> cross-platform implementation, repo-wide debugging, tests, and the real founder
-> acceptance loop. Those tests caught rollback, project-scope, inventory, and update
-> bugs on my actual Codex and Claude profiles. Loadout itself stays local and does not
-> require an OpenAI API key. One command gives your AI agents a loadout you can
-> understand, improve, and undo.
+> Loadout stays local and does not require an LLM API key to manage skills. One CLI
+> gives your coding agents a setup you can inspect, improve, pass work through, and
+> undo. Agent extensions, under control.
 
 ## Final edit and upload
 
@@ -142,15 +141,12 @@ loadout candidate list --limit 5
 - Add a small title card: **Loadout: Agent extensions, under control.**
 - Export under three minutes and upload publicly to YouTube.
 - Watch the uploaded video once, confirm audio and text are legible, then paste the
-  exact public URL into README and Devpost.
+  exact public URL into the README.
 
 ## Submission checklist
 
 - [ ] Public YouTube video is under three minutes and its URL opens signed out.
-- [ ] Voiceover explains the product, Codex usage, and GPT-5.6 usage.
-- [ ] `/feedback` was run in Codex and the session ID is in Devpost.
-- [ ] Repository URL is accessible to Devpost and OpenAI.
-- [ ] README has npm setup and the judge testing path.
-- [ ] Every teammate has accepted the Devpost invitation.
-- [ ] Category is **Developer Tools**.
-- [ ] Submission is submitted, not left as a draft.
+- [ ] Voiceover shows preview, rollback, and Claude Code ↔ Codex handoff.
+- [ ] Repository and npm links open in a signed-out browser.
+- [ ] README installation and user-test paths match the published version.
+- [ ] No terminal frame exposes tokens, usernames, or private repository names.

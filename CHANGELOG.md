@@ -1,6 +1,36 @@
 # Changelog
 
-## Unreleased
+## 0.9.0 - 2026-09-03
+
+### Removed
+
+- Model routing (`loadout route`, policy files, model-config routing). The
+  feature was too subjective and prices rotted within weeks. Handoff is now
+  the sole cross-agent coordination feature.
+
+### Changed
+
+- Moved handoff code from `src/core/routing/` to `src/core/delegation/`, and
+  model/credential configuration to `src/core/agents/`. API-access parsing
+  remains in `src/core/routing/access.ts` because it still governs setup choices.
+- Renamed the `loadout-router` first-party skill to `loadout-handoff`, stripped
+  model advice, focused on delegation only.
+- All JSON HTTP responses are now streamed through a bounded reader with
+  per-endpoint byte caps and timeouts. Oversized or timed-out responses
+  are rejected before parsing.
+- Release workflow runs `verify:full` (includes coverage) instead of `verify`.
+- npm description and keywords aligned with the project's actual scope.
+
+### Fixed
+
+- Validated every handoff log entry against a strict Zod schema at parse time.
+  Schema-invalid lines are reported as corrupt without hiding valid neighbors.
+
+### Added
+
+- Documented a concrete, safety-bounded design for future live Codex and Claude
+  collaboration while keeping the 0.9.0 handoff behavior accurately described
+  as a durable session-boundary inbox.
 
 ## 0.8.0 - 2026-09-02
 

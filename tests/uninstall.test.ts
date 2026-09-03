@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import {
   access,
+  cp,
   mkdir,
   mkdtemp,
   readFile,
@@ -15,13 +16,47 @@ import {
   formatUninstallPlan,
 } from "../src/core/install/uninstall.js";
 import { recordInstall } from "../src/core/workspace/state.js";
+import { bundledSkillsRoot } from "../src/core/delegation/first-party-skills.js";
 
 describe("complete Loadout uninstall", () => {
   let root = "";
+  const originalUserHome = process.env.LOADOUT_USER_HOME;
 
   afterEach(async () => {
     if (root) await rm(root, { recursive: true, force: true });
     delete process.env.LOADOUT_HOME;
+    if (originalUserHome === undefined) delete process.env.LOADOUT_USER_HOME;
+    else process.env.LOADOUT_USER_HOME = originalUserHome;
+  });
+
+  it("previews and removes exact first-party skills", async () => {
+    root = await mkdtemp(join(tmpdir(), "loadout-uninstall-first-party-"));
+    process.env.LOADOUT_HOME = join(root, ".loadout");
+    process.env.LOADOUT_USER_HOME = join(root, "home");
+    const target = join(
+      process.env.LOADOUT_USER_HOME,
+      ".claude",
+      "skills",
+      "loadout-handoff",
+    );
+    await mkdir(join(process.env.LOADOUT_USER_HOME, ".claude"), {
+      recursive: true,
+    });
+    await cp(join(await bundledSkillsRoot(), "loadout-handoff"), target, {
+      recursive: true,
+    });
+
+    const dependencies = {
+      runtimeTools: async () => [],
+      schedulerPlans: () => [],
+      unschedule: async () => undefined,
+    };
+    const plan = await buildUninstallPlan(dependencies);
+    expect(plan).toHaveProperty("firstPartySkills");
+    expect(formatUninstallPlan(plan)).toContain("First-party skills: 1");
+    await applyUninstall(plan, dependencies);
+
+    await expect(access(target)).rejects.toMatchObject({ code: "ENOENT" });
   });
 
   it("previews managed packages, disabled library records, schedules, and state deletion", async () => {

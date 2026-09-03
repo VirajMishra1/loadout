@@ -1,6 +1,6 @@
 import { execFile } from "node:child_process";
 import { readdir, rm, rmdir } from "node:fs/promises";
-import { dirname, parse, resolve } from "node:path";
+import { dirname, parse, relative, resolve } from "node:path";
 import { promisify } from "node:util";
 import { loadoutHome } from "../agents/paths.js";
 import { applyRemove, planRemove, type RemovePlan } from "./remove.js";
@@ -14,12 +14,23 @@ import {
   planNativeScheduler,
   type NativeSchedulerPlan,
 } from "../runtime/scheduler.js";
-import { readInstallState } from "../workspace/state.js";
+import { hashDirectory, readInstallState } from "../workspace/state.js";
+import {
+  FIRST_PARTY_SKILLS,
+  planFirstPartySkill,
+} from "../delegation/first-party-skills.js";
+
+export interface FirstPartyUninstallTarget {
+  id: string;
+  path: string;
+  modified: boolean;
+}
 
 export interface CompleteUninstallPlan {
   stateHome: string;
   packages: RemovePlan[];
   runtimeTools: string[];
+  firstPartySkills: FirstPartyUninstallTarget[];
   schedulers: UninstallSchedulerPlan[];
   disabledLibraryRecords: number;
   blocked: boolean;
@@ -38,6 +49,32 @@ interface UninstallDependencies {
   unschedule?: (plans: UninstallSchedulerPlan[]) => Promise<void>;
 }
 
+async function directorySignature(root: string): Promise<string> {
+  return JSON.stringify(
+    (await hashDirectory(root))
+      .map((file) => ({ path: relative(root, file.path), sha256: file.sha256 }))
+      .sort((left, right) => left.path.localeCompare(right.path)),
+  );
+}
+
+async function firstPartyUninstallTargets(): Promise<
+  FirstPartyUninstallTarget[]
+> {
+  const targets: FirstPartyUninstallTarget[] = [];
+  for (const skill of FIRST_PARTY_SKILLS) {
+    const plan = await planFirstPartySkill(skill.id);
+    const sourceSignature = await directorySignature(plan.source);
+    for (const target of plan.targets.filter((item) => item.replacing))
+      targets.push({
+        id: skill.id,
+        path: target.destination,
+        modified:
+          (await directorySignature(target.destination)) !== sourceSignature,
+      });
+  }
+  return targets;
+}
+
 export async function buildUninstallPlan(
   dependencies: UninstallDependencies = {},
 ): Promise<CompleteUninstallPlan> {
@@ -53,6 +90,7 @@ export async function buildUninstallPlan(
   const runtimeTools = await (
     dependencies.runtimeTools ?? listInstalledRuntimeTools
   )(stateHome);
+  const firstPartySkills = await firstPartyUninstallTargets();
   const schedulers =
     dependencies.schedulerPlans?.() ??
     (["updates", "discovery"] as const).map((job) =>
@@ -63,6 +101,13 @@ export async function buildUninstallPlan(
     warnings.push(
       `${runtimeTools.length} Loadout-managed runtime tool(s) will be restored to their pre-install snapshots.`,
     );
+  const modifiedFirstPartySkills = firstPartySkills.filter(
+    (target) => target.modified,
+  );
+  if (modifiedFirstPartySkills.length)
+    warnings.push(
+      `${modifiedFirstPartySkills.length} first-party skill install(s) differ from this Loadout release. Review them, or use --force to remove them.`,
+    );
   warnings.push(
     "Loadout's cache, disabled library, history, and rollback snapshots will be deleted. This final state cleanup cannot itself be rolled back.",
   );
@@ -70,11 +115,14 @@ export async function buildUninstallPlan(
     stateHome,
     packages,
     runtimeTools,
+    firstPartySkills,
     schedulers,
     disabledLibraryRecords: (state.activations ?? []).filter(
       (entry) => entry.activationState === "disabled",
     ).length,
-    blocked: packages.some((entry) => entry.blocked),
+    blocked:
+      packages.some((entry) => entry.blocked) ||
+      modifiedFirstPartySkills.length > 0,
     warnings,
   };
 }
@@ -136,7 +184,11 @@ export async function applyUninstall(
   plan: CompleteUninstallPlan,
   dependencies: UninstallDependencies = {},
   options: { force?: boolean; onProgress?: (message: string) => void } = {},
-): Promise<{ removedPackages: number; removedRuntimeTools: number }> {
+): Promise<{
+  removedPackages: number;
+  removedRuntimeTools: number;
+  removedFirstPartySkills: number;
+}> {
   assertSafeStateHome(plan.stateHome);
   const fresh = await buildUninstallPlan(dependencies);
   if (fresh.blocked && !options.force)
@@ -158,6 +210,10 @@ export async function applyUninstall(
     );
     await applyRemove(packagePlan, { force: options.force });
   }
+  for (const target of fresh.firstPartySkills) {
+    options.onProgress?.(`Removing first-party skill: ${target.id}`);
+    await rm(target.path, { recursive: true, force: true });
+  }
   await removeEmptyManagedDirectories(fresh.packages);
   if (fresh.schedulers.length) {
     options.onProgress?.("Removing daily read-only schedules");
@@ -170,6 +226,7 @@ export async function applyUninstall(
   return {
     removedPackages: fresh.packages.length,
     removedRuntimeTools: fresh.runtimeTools.length,
+    removedFirstPartySkills: fresh.firstPartySkills.length,
   };
 }
 
@@ -197,6 +254,7 @@ export function formatUninstallPlan(
     "",
     `Managed packages: ${plan.packages.length}`,
     `Managed runtime tools: ${plan.runtimeTools.length ? plan.runtimeTools.join(", ") : "none"}`,
+    `First-party skills: ${plan.firstPartySkills.length}`,
     `Disabled library records: ${plan.disabledLibraryRecords}`,
     `Daily jobs to remove: ${plan.schedulers.map((item) => item.job).join(", ") || "none"}`,
     `State and cache: ${plan.stateHome}`,
@@ -205,6 +263,10 @@ export function formatUninstallPlan(
           "",
           "BLOCKED: managed files were changed outside Loadout.",
           ...modifiedPaths.slice(0, 10).map((path) => `  Modified: ${path}`),
+          ...plan.firstPartySkills
+            .filter((target) => target.modified)
+            .slice(0, 10)
+            .map((target) => `  Modified: ${target.path}`),
           ...(modifiedPaths.length > 10
             ? [`  …and ${modifiedPaths.length - 10} more`]
             : []),

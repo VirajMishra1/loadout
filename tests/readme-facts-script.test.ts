@@ -115,6 +115,10 @@ describe("README fact generator", () => {
     expect(blocks["verification-summary"]).toContain(
       "`check:evidence`, `test`, `test:e2e:cli`",
     );
+    expect(blocks["verification-summary"]).toContain(
+      "`verify:full` runs that gate and the coverage suite",
+    );
+    expect(blocks["verification-summary"]).not.toContain("is an alias");
     expect(blocks["evidence-stages"]).toContain(
       "[catalog policy](./docs/CATALOG_POLICY.md)",
     );
@@ -137,6 +141,13 @@ describe("README fact generator", () => {
     );
     expect(blocks["support-summary"]).toContain(
       "Native application execution is not inferred",
+    );
+    expect(blocks["current-limits"]).toContain("excluded from Stable");
+    expect(blocks["current-limits"]).toContain(
+      "review upstream terms before optional installation",
+    );
+    expect(blocks["current-limits"]).not.toContain(
+      "need upstream-license review before a public release decision",
     );
   });
 

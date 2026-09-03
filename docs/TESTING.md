@@ -68,7 +68,8 @@ checks the current pinned Stable sources and remains network-dependent.
 
 Run `npm run verify` for formatting, lint, types, deterministic evidence checks, all
 Vitest suites, both CLI journeys, package smoke, and the performance gate.
-`npm run verify:full` is retained as an alias for the same complete CLI gate.
+Run `npm run verify:full` before a release; it runs that gate and then enforces
+the global and security-sensitive per-file coverage floors.
 
 Current npm publication, the current pinned Stable repositories, and GitHub repository
 settings are external state. Check them separately with:

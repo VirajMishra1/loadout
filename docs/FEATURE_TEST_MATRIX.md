@@ -108,11 +108,11 @@ the capability table names native, adapted, and unsupported surfaces honestly.
 Run the entire required gate with one command:
 
 ```bash
-npm run verify
+npm run verify:full
 ```
 
-`npm run verify:full` is an alias for the same CLI release gate. The individual stages
-are listed below for focused reruns and diagnosis.
+This is the release gate. It runs the normal verification path plus coverage.
+The individual stages are listed below for focused reruns and diagnosis.
 
 | Command                    | Coverage                                                                | Expected result                                    |
 | -------------------------- | ----------------------------------------------------------------------- | -------------------------------------------------- |

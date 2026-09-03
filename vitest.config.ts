@@ -42,6 +42,15 @@ export default defineConfig({
           statements: 71,
           branches: 65,
         },
+        // Every install module must retain a meaningful individual floor.
+        // `source.ts` is currently the limiting file; these values leave
+        // cross-platform headroom while preventing an untested install path.
+        "src/core/install/**.ts": {
+          lines: 48,
+          functions: 64,
+          statements: 47,
+          branches: 52,
+        },
       },
     },
   },

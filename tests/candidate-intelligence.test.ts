@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
@@ -76,6 +76,21 @@ describe("candidate intelligence", () => {
     await writeFile(feed, JSON.stringify(artifact));
     return { feed, source, artifact };
   }
+
+  it("keeps the public candidate intelligence facade focused", async () => {
+    const source = await readFile(
+      join(
+        process.cwd(),
+        "src",
+        "core",
+        "discovery",
+        "candidate-intelligence.ts",
+      ),
+      "utf8",
+    );
+
+    expect(source.split("\n").length).toBeLessThanOrEqual(850);
+  });
 
   it("lists evidence-backed triage priority without calling it quality", async () => {
     const { feed } = await fixture();

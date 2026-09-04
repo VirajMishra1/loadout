@@ -17,6 +17,13 @@ import {
 } from "../core/coordination/watcher.js";
 import { compact, logSize } from "../core/coordination/retention.js";
 import { startDaemon } from "../core/coordination/daemon.js";
+import {
+  getDaemonStatus,
+  stopDaemon,
+  activateKillSwitch,
+  deactivateKillSwitch,
+  isKillSwitchActive,
+} from "../core/coordination/crash-recovery.js";
 
 export function registerCoordinate(program: Command): void {
   const coord = program
@@ -525,6 +532,84 @@ export function registerCoordinate(program: Command): void {
           `Failed to start daemon: ${error instanceof Error ? error.message : error}`,
         );
         process.exitCode = 1;
+      }
+    });
+
+  daemon
+    .command("stop")
+    .description("Stop a running coordination daemon")
+    .action(async () => {
+      const result = await stopDaemon(process.cwd());
+      if (result.stopped) {
+        console.log(`\x1b[32m✓\x1b[0m Daemon stopped (pid ${result.pid})`);
+      } else if (result.stale) {
+        console.log(
+          `Cleaned up stale PID file (pid ${result.pid} was not running)`,
+        );
+      } else {
+        console.log("No daemon running.");
+      }
+    });
+
+  daemon
+    .command("status")
+    .description("Check if the coordination daemon is running")
+    .option("--json", "machine-readable JSON output")
+    .action(async (options: { json?: boolean }) => {
+      const cwd = process.cwd();
+      const status = await getDaemonStatus(cwd);
+      const ks = await isKillSwitchActive(cwd);
+
+      if (options.json) {
+        console.log(JSON.stringify({ ...status, killSwitch: ks }, null, 2));
+        return;
+      }
+
+      if (ks.active) {
+        console.log(`\x1b[31m⛔ Kill switch active: ${ks.reason}\x1b[0m`);
+        console.log(`  Activated: ${ks.activatedAt}`);
+        console.log("  Resume with: loadout daemon resume");
+        return;
+      }
+
+      if (status.running && status.info) {
+        console.log(`\x1b[32m✓\x1b[0m Daemon running`);
+        console.log(`  PID:     ${status.info.pid}`);
+        console.log(`  Port:    ${status.info.port}`);
+        console.log(`  Started: ${status.info.startedAt}`);
+        console.log(`  Dashboard: http://127.0.0.1:${status.info.port}`);
+      } else if (status.stale) {
+        console.log("Daemon not running (cleaned up stale PID file)");
+      } else {
+        console.log("Daemon not running.");
+        console.log("Start with: loadout daemon start");
+      }
+    });
+
+  daemon
+    .command("kill")
+    .description("Emergency kill switch — halt all coordination immediately")
+    .argument("<reason>", "why coordination is being halted")
+    .action(async (reason: string) => {
+      await activateKillSwitch(process.cwd(), reason);
+      console.log("\x1b[31m⛔ Kill switch activated\x1b[0m");
+      console.log(`  Reason: ${reason}`);
+      console.log("  Daemon stopped, all coordination halted.");
+      console.log("  Resume with: loadout daemon resume");
+    });
+
+  daemon
+    .command("resume")
+    .description("Deactivate the kill switch and resume coordination")
+    .action(async () => {
+      const deactivated = await deactivateKillSwitch(process.cwd());
+      if (deactivated) {
+        console.log(
+          "\x1b[32m✓\x1b[0m Kill switch deactivated. Coordination resumed.",
+        );
+        console.log("  Start daemon with: loadout daemon start");
+      } else {
+        console.log("Kill switch was not active.");
       }
     });
 

@@ -1,0 +1,158 @@
+/**
+ * Common adapter interface for AI coding agent providers.
+ *
+ * Each adapter translates between the coordination protocol and a specific
+ * agent's CLI/SDK. Adapters are optional — coordination works without them
+ * via the JSONL log and the loadout-handoff skill. Adapters add:
+ *
+ * - Programmatic session management (start, resume, stop)
+ * - Event injection into active sessions
+ * - Automatic reconnection with snapshot replay
+ */
+
+import type { CoordinationEvent } from "../events.js";
+
+export interface AgentSession {
+  /** Unique session identifier from the provider. */
+  sessionId: string;
+  /** Agent name used in coordination events. */
+  agent: string;
+  /** Provider: "claude-code" | "codex" */
+  provider: string;
+  /** Whether the session is currently active. */
+  active: boolean;
+  /** Last coordination seq this session acknowledged. */
+  cursor: number;
+  /** When the session was started. */
+  startedAt: string;
+  /** Working directory. */
+  cwd: string;
+}
+
+export interface AdapterCapabilities {
+  /** Can inject messages into an active session. */
+  canInject: boolean;
+  /** Can resume a previous session. */
+  canResume: boolean;
+  /** Can stream events from the agent in real time. */
+  canStream: boolean;
+  /** Can start new sessions programmatically. */
+  canStart: boolean;
+}
+
+export interface InjectOptions {
+  /** The message to inject. */
+  message: string;
+  /** Whether to wait for the agent to process it. */
+  wait?: boolean;
+  /** Timeout in milliseconds. */
+  timeout?: number;
+}
+
+export interface StartOptions {
+  /** Working directory. */
+  cwd: string;
+  /** Initial prompt/task. */
+  prompt?: string;
+  /** Resume a previous session. */
+  resumeSessionId?: string;
+  /** Additional CLI flags. */
+  flags?: string[];
+}
+
+export interface AgentAdapter {
+  /** Provider name. */
+  readonly provider: string;
+
+  /** What this adapter can do. */
+  readonly capabilities: AdapterCapabilities;
+
+  /**
+   * Check if the provider CLI/SDK is available.
+   * Returns the version string if found, null otherwise.
+   */
+  detect(): Promise<string | null>;
+
+  /**
+   * Start a new agent session.
+   */
+  start(options: StartOptions): Promise<AgentSession>;
+
+  /**
+   * Resume an existing session.
+   */
+  resume(sessionId: string, cwd: string): Promise<AgentSession>;
+
+  /**
+   * Inject a coordination message into an active session.
+   * The adapter formats it appropriately for the provider.
+   */
+  inject(session: AgentSession, options: InjectOptions): Promise<boolean>;
+
+  /**
+   * Send a batch of coordination events as a formatted summary.
+   */
+  injectEvents(
+    session: AgentSession,
+    events: CoordinationEvent[],
+  ): Promise<boolean>;
+
+  /**
+   * Stop an active session.
+   */
+  stop(session: AgentSession): Promise<void>;
+
+  /**
+   * List active sessions from the provider.
+   */
+  listSessions(cwd: string): Promise<AgentSession[]>;
+}
+
+/**
+ * Format coordination events into a human-readable summary
+ * suitable for injection into an agent session.
+ */
+export function formatEventsForInjection(events: CoordinationEvent[]): string {
+  if (events.length === 0) return "";
+
+  const lines = [`[Loadout coordination] ${events.length} new event(s):`, ""];
+
+  for (const e of events) {
+    const prefix =
+      e.type === "contract"
+        ? "📋"
+        : e.type === "ownership"
+          ? "🔒"
+          : e.type === "decision"
+            ? "📌"
+            : e.type === "update"
+              ? "📝"
+              : e.type === "task"
+                ? "📋"
+                : e.type === "done"
+                  ? "✅"
+                  : e.type === "error"
+                    ? "❌"
+                    : "•";
+
+    lines.push(`${prefix} [${e.type}] ${e.from}: ${e.description}`);
+
+    if (e.type === "contract" && e.payload) {
+      const p = e.payload as { name: string; revision: number; body?: string };
+      lines.push(`  Contract: ${p.name} rev${p.revision}`);
+      if (p.body) lines.push(`  ${p.body.slice(0, 200)}`);
+    }
+    if (e.type === "ownership" && e.payload) {
+      const p = e.payload as { paths: string[]; mode: string };
+      lines.push(`  ${p.mode}: ${p.paths.join(", ")}`);
+    }
+  }
+
+  lines.push(
+    "",
+    "Acknowledge with: loadout coord ack <your-agent> " +
+      events[events.length - 1]!.seq,
+  );
+
+  return lines.join("\n");
+}

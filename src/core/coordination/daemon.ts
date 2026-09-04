@@ -39,6 +39,11 @@ import { watchCoordination, type CoordinationWatcher } from "./watcher.js";
 import { redactDescription, redactPayload } from "./redaction.js";
 import { compact, logSize, DEFAULT_RETENTION } from "./retention.js";
 import { type CoordinationEvent, COORDINATION_EVENT_TYPES } from "./events.js";
+import {
+  writePidFile,
+  removePidFile,
+  isKillSwitchActive,
+} from "./crash-recovery.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -183,6 +188,12 @@ async function handleRequest(
 
     // POST /api/emit
     if (route === "/emit" && req.method === "POST") {
+      // Kill switch check
+      const ks = await isKillSwitchActive(state.projectRoot);
+      if (ks.active) {
+        return error(res, `Kill switch active: ${ks.reason}`, 503);
+      }
+
       const body = JSON.parse(await readBody(req)) as {
         from: string;
         to: string;
@@ -612,6 +623,15 @@ export async function startDaemon(
   projectRoot: string,
   port = 4510,
 ): Promise<{ port: number; close: () => void }> {
+  // Check kill switch
+  const killSwitch = await isKillSwitchActive(projectRoot);
+  if (killSwitch.active) {
+    throw new Error(
+      `Kill switch active: ${killSwitch.reason}\n` +
+        `Deactivate with: loadout daemon resume`,
+    );
+  }
+
   const state: DaemonState = {
     projectRoot,
     clients: new Map(),
@@ -655,10 +675,24 @@ export async function startDaemon(
       }
     });
 
-    server.listen(port, "127.0.0.1", () => {
+    server.listen(port, "127.0.0.1", async () => {
+      // Write PID file after successful bind
+      await writePidFile(projectRoot, port);
+
+      // Clean up PID file on exit — only register once per process
+      const onExit = () => removePidFile(projectRoot);
+      const onTerm = async () => {
+        await removePidFile(projectRoot);
+        process.exit(0);
+      };
+      process.once("exit", onExit);
+      process.once("SIGTERM", onTerm);
+
       resolve({
         port,
         close() {
+          process.removeListener("exit", onExit);
+          process.removeListener("SIGTERM", onTerm);
           state.watcher?.stop();
           for (const client of state.clients.values()) {
             try {
@@ -669,6 +703,7 @@ export async function startDaemon(
           }
           state.clients.clear();
           server.close();
+          removePidFile(projectRoot);
         },
       });
     });

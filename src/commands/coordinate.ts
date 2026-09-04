@@ -43,6 +43,10 @@ import {
   quickStart,
   formatQuickStart,
 } from "../core/coordination/quick-start.js";
+import {
+  detectContracts,
+  formatDetectionResult,
+} from "../core/coordination/auto-contract.js";
 import { registerCoordinationSessions } from "./coordination-sessions.js";
 import { registerCoordinationDiscussions } from "./coordination-discussions.js";
 
@@ -107,6 +111,75 @@ export function registerCoordinate(program: Command): void {
         process.exitCode = 1;
       }
     });
+
+  coord
+    .command("detect")
+    .description("Auto-detect cross-boundary exports that should be contracts")
+    .option(
+      "--scope <dirs...>",
+      "only scan these directories (default: whole project)",
+    )
+    .option("--publish", "auto-publish detected contracts (default: preview)")
+    .option("--json", "machine-readable output")
+    .action(
+      async (opts: { scope?: string[]; publish?: boolean; json?: boolean }) => {
+        const cwd = process.cwd();
+        try {
+          const result = await detectContracts(cwd, { scope: opts.scope });
+
+          if (opts.json) {
+            console.log(
+              JSON.stringify(
+                {
+                  filesScanned: result.filesScanned,
+                  crossBoundaryImports: result.crossBoundaryImports.length,
+                  candidates: result.candidates.map((c) => ({
+                    name: c.name,
+                    sourceFile: c.sourceFile,
+                    sourceAgent: c.sourceAgent,
+                    consumers: c.consumers,
+                    symbols: c.sharedSymbols.map((s) => s.name),
+                    covered: !!c.existingContract,
+                  })),
+                },
+                null,
+                2,
+              ),
+            );
+          } else {
+            console.log(formatDetectionResult(result));
+          }
+
+          if (opts.publish) {
+            const uncovered = result.candidates.filter(
+              (c) => !c.existingContract,
+            );
+            if (uncovered.length === 0) {
+              if (!opts.json)
+                console.log("\nAll boundaries already covered by contracts.");
+              return;
+            }
+            for (const c of uncovered) {
+              const event = await publishContract(cwd, {
+                from: c.sourceAgent,
+                name: c.name,
+                body: c.suggestedBody,
+                format: "typescript",
+              });
+              const rev = (event.payload as { revision: number }).revision;
+              if (!opts.json) {
+                console.log(`\x1b[32m✓\x1b[0m Published '${c.name}' rev${rev}`);
+              }
+            }
+          }
+        } catch (error) {
+          console.error(
+            `Error: ${error instanceof Error ? error.message : error}`,
+          );
+          process.exitCode = 1;
+        }
+      },
+    );
 
   coord
     .command("snapshot")

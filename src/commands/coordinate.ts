@@ -47,6 +47,10 @@ import {
   detectContracts,
   formatDetectionResult,
 } from "../core/coordination/auto-contract.js";
+import {
+  applyGitOwnership,
+  formatGitOwnership,
+} from "../core/coordination/git-ownership.js";
 import { registerCoordinationSessions } from "./coordination-sessions.js";
 import { registerCoordinationDiscussions } from "./coordination-discussions.js";
 
@@ -171,6 +175,70 @@ export function registerCoordinate(program: Command): void {
                 console.log(`\x1b[32m✓\x1b[0m Published '${c.name}' rev${rev}`);
               }
             }
+          }
+        } catch (error) {
+          console.error(
+            `Error: ${error instanceof Error ? error.message : error}`,
+          );
+          process.exitCode = 1;
+        }
+      },
+    );
+
+  coord
+    .command("git-ownership")
+    .description(
+      "Infer directory ownership from git commit history and optionally apply it",
+    )
+    .requiredOption(
+      "--agents <agents>",
+      "agent names to match against git authors, comma-separated",
+    )
+    .option("--depth <n>", "directory grouping depth (default 1)", parseInt, 1)
+    .option(
+      "--threshold <n>",
+      "minimum % of commits to suggest ownership (default 60)",
+      parseInt,
+      60,
+    )
+    .option("--max-commits <n>", "max commits to scan (default 200)", parseInt)
+    .option("--yes", "apply suggested ownership (default is dry run)")
+    .option("--json", "machine-readable output")
+    .action(
+      async (opts: {
+        agents: string;
+        depth: number;
+        threshold: number;
+        maxCommits?: number;
+        yes?: boolean;
+        json?: boolean;
+      }) => {
+        const agents = opts.agents.split(",").map((a: string) => a.trim());
+        try {
+          const result = await applyGitOwnership(process.cwd(), agents, {
+            depth: opts.depth,
+            threshold: opts.threshold,
+            maxCommits: opts.maxCommits,
+            dryRun: !opts.yes,
+          });
+          if (opts.json) {
+            console.log(
+              JSON.stringify(
+                {
+                  suggestions: result.suggestions,
+                  ownershipApplied: result.ownershipApplied,
+                  authorStats: result.authorStats.map((s) => ({
+                    author: s.author,
+                    totalCommits: s.totalCommits,
+                    directories: Object.fromEntries(s.directories),
+                  })),
+                },
+                null,
+                2,
+              ),
+            );
+          } else {
+            console.log(formatGitOwnership(result, !opts.yes));
           }
         } catch (error) {
           console.error(

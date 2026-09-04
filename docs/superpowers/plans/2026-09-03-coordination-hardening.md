@@ -23,6 +23,7 @@
 ### Task 1: Restore the quality gate
 
 **Files:**
+
 - Modify: `src/core/coordination/adapters/codex.ts`
 - Modify: `src/core/coordination/daemon.ts`
 - Modify: `src/core/coordination/retention.ts`
@@ -31,6 +32,7 @@
 - Modify: `tests/coordination-interrupt-policy.test.ts`
 
 **Interfaces:**
+
 - Produces: a zero-error `npm run lint` baseline without weakening ESLint rules.
 
 - [ ] Remove imports that have no runtime or type use.
@@ -42,6 +44,7 @@
 ### Task 2: Serialize the coordination log and enforce invariants
 
 **Files:**
+
 - Create: `src/core/coordination/lock.ts`
 - Modify: `src/core/coordination/coordinator.ts`
 - Modify: `src/core/coordination/events.ts`
@@ -50,6 +53,7 @@
 - Create: `tests/fixtures/coordination-writer.mjs`
 
 **Interfaces:**
+
 - Produces: `withCoordinationLock<T>(projectRoot, operation): Promise<T>`.
 - Produces: `claimOwnership(projectRoot, input): Promise<CoordinationEvent>`.
 - Produces: atomic `publishContract` revision allocation and validated `ack` watermarks.
@@ -68,6 +72,7 @@
 ### Task 3: Make redaction canonical
 
 **Files:**
+
 - Modify: `src/core/coordination/redaction.ts`
 - Modify: `src/core/coordination/coordinator.ts`
 - Modify: `src/core/coordination/daemon.ts`
@@ -75,6 +80,7 @@
 - Modify: `tests/coordination.test.ts`
 
 **Interfaces:**
+
 - Produces: `sanitizeEmitOptions(options): EmitOptions` used by the sole append path.
 
 - [ ] Add failing tests that emit secrets through direct core calls, CLI-equivalent calls, nested payloads, and daemon calls.
@@ -87,6 +93,7 @@
 ### Task 4: Secure the localhost daemon and stabilize its API
 
 **Files:**
+
 - Create: `src/core/coordination/auth.ts`
 - Create: `src/core/coordination/http-api.ts`
 - Modify: `src/core/coordination/daemon.ts`
@@ -95,6 +102,7 @@
 - Create: `tests/coordination-daemon-security.test.ts`
 
 **Interfaces:**
+
 - Produces: `ensureDaemonToken(projectRoot): Promise<string>` with a mode-0600 token file.
 - Produces: one structured error shape `{ error: { code, message } }`.
 - Consumes: atomic coordinator operations from Task 2.
@@ -113,6 +121,7 @@
 ### Task 5: Ship a real MCP server
 
 **Files:**
+
 - Modify: `package.json`
 - Modify: `package-lock.json`
 - Modify: `tsconfig.json`
@@ -121,6 +130,7 @@
 - Modify: `scripts/package-smoke.mjs`
 
 **Interfaces:**
+
 - Produces: packaged `dist/src/core/coordination/mcp-server.js`.
 - Produces: stdio tools backed only by validated coordinator operations.
 
@@ -135,6 +145,7 @@
 ### Task 6: Replace fictional provider commands with supported adapters
 
 **Files:**
+
 - Modify: `package.json`
 - Modify: `package-lock.json`
 - Modify: `src/core/coordination/adapters/types.ts`
@@ -146,6 +157,7 @@
 - Create: `tests/coordination-session-manager.test.ts`
 
 **Interfaces:**
+
 - Produces: capability `canSubmitTurn`, distinct from unsupported mid-turn injection.
 - Produces: Codex `start`, `resume`, and `submitTurn` through `@openai/codex-sdk`.
 - Produces: Claude `start`, `resume`, and `submitTurn` through documented positional CLI prompts.
@@ -162,6 +174,7 @@
 ### Task 7: Reconcile retention, recovery, and observability
 
 **Files:**
+
 - Modify: `src/core/coordination/retention.ts`
 - Modify: `src/core/coordination/crash-recovery.ts`
 - Modify: `src/core/coordination/replay.ts`
@@ -171,6 +184,7 @@
 - Modify: `tests/coordination-replay.test.ts`
 
 **Interfaces:**
+
 - Consumes: the same lock from Task 2 for compaction and recovery.
 - Produces: explicit health data without filesystem secrets.
 
@@ -185,6 +199,7 @@
 ### Task 8: Make the product contract truthful and test the release artifact
 
 **Files:**
+
 - Create: `docs/decisions/001-coordination-jsonl-locking.md`
 - Create: `docs/decisions/002-local-daemon-authentication.md`
 - Modify: `README.md`
@@ -196,6 +211,7 @@
 - Modify: `scripts/cli-product-flow.mjs`
 
 **Interfaces:**
+
 - Produces: one user-facing distinction between durable handoff, live coordination, and provider-driven beta turns.
 
 - [ ] Document the locking and authentication decisions, rejected alternatives, limitations, and recovery behavior.
@@ -203,7 +219,7 @@
 - [ ] Add a two-agent walkthrough: backend contract publish, frontend acknowledgement, revision diff, ownership conflict, reconnect, and kill switch.
 - [ ] Add CLI/product-flow coverage for the walkthrough without invoking paid model turns.
 - [ ] Run `npm run verify:full` from the clean branch.
-- [ ] Run `npm pack --dry-run --json`, install the tarball in a temporary directory, and execute `loadout --version`, `loadout coord --help`, daemon authentication, and MCP initialization.
+- [ ] Run `npm pack --dry-run --json`, install the tarball in a temporary directory, and execute `loadout --version`, `loadout coordinate --help`, daemon authentication, and MCP initialization.
 - [ ] Run opt-in real-host smoke tests with installed Codex and Claude CLIs; do not make destructive project changes.
 - [ ] Review `git diff` for secrets and unrelated changes.
 - [ ] Commit as `docs: define the live coordination beta contract`.

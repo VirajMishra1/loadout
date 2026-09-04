@@ -129,9 +129,7 @@ export function registerCoordinate(program: Command): void {
           format: options.format,
         });
         const revision = (event.payload as { revision: number }).revision;
-        console.log(
-          `Published '${name}' rev${revision} (seq ${event.seq})`,
-        );
+        console.log(`Published '${name}' rev${revision} (seq ${event.seq})`);
       },
     );
 

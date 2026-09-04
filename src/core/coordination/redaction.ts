@@ -6,7 +6,8 @@
  */
 
 const REDACTION_MARKER = "[REDACTED]";
-const SENSITIVE_KEY = /^(?:api[_-]?key|access[_-]?token|auth(?:orization)?|bearer|client[_-]?secret|secret|token|password|passwd|pwd|credentials?)$/i;
+const SENSITIVE_KEY =
+  /^(?:api[_-]?key|access[_-]?token|auth(?:orization)?|bearer|client[_-]?secret|secret|token|password|passwd|pwd|credentials?)$/i;
 
 const SECRET_PATTERNS: RegExp[] = [
   // Key-value patterns: api_key=..., secret: "...", password='...'

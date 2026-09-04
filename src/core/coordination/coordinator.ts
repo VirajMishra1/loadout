@@ -235,9 +235,13 @@ async function appendLocked(
     throw new Error(`Invalid coordination event: ${reason}`);
   }
 
-  await writeFile(coordLogPath(projectRoot), `${JSON.stringify(parsed.data)}\n`, {
-    flag: "a",
-  });
+  await writeFile(
+    coordLogPath(projectRoot),
+    `${JSON.stringify(parsed.data)}\n`,
+    {
+      flag: "a",
+    },
+  );
   return parsed.data;
 }
 

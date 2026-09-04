@@ -7,10 +7,7 @@ import {
   redactPayload,
   redactDescription,
 } from "../src/core/coordination/redaction.js";
-import {
-  emit,
-  readCoordLog,
-} from "../src/core/coordination/coordinator.js";
+import { emit, readCoordLog } from "../src/core/coordination/coordinator.js";
 
 describe("redactString", () => {
   it("redacts API key patterns", () => {

@@ -101,8 +101,12 @@ function relativeTimestamp(eventTime: Date, startTime: Date): string {
   return `+${formatDuration(ms)}`;
 }
 
+/** Max events to include in a replay to prevent memory issues. */
+const MAX_REPLAY_EVENTS = 2000;
+
 /**
- * Build the full replay timeline from the coordination log.
+ * Build the replay timeline from the coordination log.
+ * Bounded to the most recent MAX_REPLAY_EVENTS entries.
  */
 export async function buildReplay(
   projectRoot: string,
@@ -124,11 +128,17 @@ export async function buildReplay(
     };
   }
 
-  const startTime = new Date(log.events[0].timestamp);
-  const endTime = new Date(log.events[log.events.length - 1].timestamp);
-  const agents = [...new Set(log.events.map((e) => e.from))];
+  // Bound to recent events
+  const bounded =
+    log.events.length > MAX_REPLAY_EVENTS
+      ? log.events.slice(-MAX_REPLAY_EVENTS)
+      : log.events;
 
-  const entries: ReplayEntry[] = log.events.map((event) => ({
+  const startTime = new Date(bounded[0].timestamp);
+  const endTime = new Date(bounded[bounded.length - 1].timestamp);
+  const agents = [...new Set(bounded.map((e) => e.from))];
+
+  const entries: ReplayEntry[] = bounded.map((event) => ({
     seq: event.seq,
     timestamp: event.timestamp,
     agent: event.from,
@@ -142,8 +152,8 @@ export async function buildReplay(
   return {
     entries,
     agents,
-    startTime: log.events[0].timestamp,
-    endTime: log.events[log.events.length - 1].timestamp,
+    startTime: bounded[0].timestamp,
+    endTime: bounded[bounded.length - 1].timestamp,
     duration: formatDuration(endTime.getTime() - startTime.getTime()),
     contractCount: contracts.size,
     ownershipCount: ownership.size,

@@ -1,8 +1,8 @@
 # Live collaboration design
 
-> Design proposal for a release after 0.9.0. The live coordinator described
-> here is not implemented yet. Loadout 0.9.0 handoff is intentionally a durable,
-> session-boundary inbox.
+> All four phases are implemented and shipping in 0.9.0. The coordination
+> system is marked **beta** — the async handoff inbox remains the stable,
+> always-available fallback.
 
 ## The idea
 
@@ -99,11 +99,11 @@ Those host interfaces are the right integration layer; the first-party
 
 ## Delivery plan
 
-### Phase 1: structured asynchronous handoff
+### Phase 1: structured asynchronous handoff ✅
 
-Extend the current log with typed events for contracts, ownership, decisions,
-and verification. Add cursors, acknowledgements, snapshots, conflict checks,
-and CLI/MCP parity. This makes handoff reliable without running a daemon.
+Typed events for contracts, ownership, decisions, and verification. Cursors,
+acknowledgements, snapshots, conflict checks, and CLI/MCP parity. Reliable
+handoff without running a daemon.
 
 ### Phase 2: local live coordinator ✅
 
@@ -112,18 +112,20 @@ live web dashboard, automatic secret redaction, and log retention/compaction.
 No SQLite needed — the append-only JSONL log handles the scale of two agents
 on one repo. Agents connect via SSE for real-time event push.
 
-### Phase 3: provider adapters
+### Phase 3: provider adapters ✅
 
-Integrate the Codex SDK/app server and Claude Agent SDK, resume persistent
-sessions, translate streamed events into the common schema, and add policy for
-which events may interrupt active work.
+Claude Code adapter (CLI-based sessions) and Codex adapter (SDK-based) with
+start, resume, and turn submission. Session manager tracks sessions across
+providers and replays missed events on reconnection. Interrupt policy with
+immediate/boundary/passive rules per event type.
 
-### Phase 4: production hardening
+### Phase 4: production hardening ✅
 
-Add crash recovery, concurrency and race tests, prompt-injection tests,
-cross-platform installers, metrics, audit export, version negotiation, and a
-kill switch. Ship it as an opt-in beta before making any live behavior a
-default.
+Atomic cross-process locking for all state mutations. Bearer token auth for
+the daemon (mode 0600, timing-safe comparison). PID management with stale
+process detection. Kill switch for emergency halt. Conflict preview with git
+diffs. Contract diffing between revisions. Coordination replay timeline.
+Bounded replay output. Corrupt line preservation during compaction.
 
 ## Success criteria
 

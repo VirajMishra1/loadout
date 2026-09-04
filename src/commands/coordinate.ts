@@ -24,6 +24,17 @@ import {
   deactivateKillSwitch,
   isKillSwitchActive,
 } from "../core/coordination/crash-recovery.js";
+import {
+  previewConflicts,
+  formatConflictPreview,
+} from "../core/coordination/conflict-preview.js";
+import {
+  getContractHistory,
+  diffLatestContract,
+  diffContracts,
+  formatContractDelta,
+} from "../core/coordination/contract-diff.js";
+import { buildReplay, formatReplay } from "../core/coordination/replay.js";
 
 export function registerCoordinate(program: Command): void {
   const coord = program
@@ -461,6 +472,117 @@ export function registerCoordinate(program: Command): void {
         console.log(
           `\n\x1b[31mWarning: ${log.corrupt.length} corrupt line(s)\x1b[0m`,
         );
+      }
+    });
+
+  coord
+    .command("conflicts")
+    .alias("preview")
+    .description(
+      "Preview file conflicts before writing — shows what other agents changed",
+    )
+    .argument("<agent>", "agent about to write")
+    .argument("<paths...>", "file paths the agent intends to write")
+    .option("--json", "machine-readable JSON output")
+    .action(
+      async (agent: string, paths: string[], options: { json?: boolean }) => {
+        const preview = await previewConflicts(process.cwd(), agent, paths);
+        if (options.json) {
+          console.log(JSON.stringify(preview, null, 2));
+        } else {
+          console.log(formatConflictPreview(preview));
+        }
+      },
+    );
+
+  coord
+    .command("diff")
+    .description(
+      "Diff contract revisions — shows exactly what changed between versions",
+    )
+    .argument("<name>", "contract name to diff")
+    .option("--from <n>", "from revision (defaults to previous)", parseInt)
+    .option("--to <n>", "to revision (defaults to latest)", parseInt)
+    .option("--history", "show full revision history")
+    .option("--json", "machine-readable JSON output")
+    .action(
+      async (
+        name: string,
+        options: {
+          from?: number;
+          to?: number;
+          history?: boolean;
+          json?: boolean;
+        },
+      ) => {
+        const cwd = process.cwd();
+
+        if (options.history) {
+          const history = await getContractHistory(cwd, name);
+          if (history.length === 0) {
+            console.log(`No contract named '${name}'.`);
+            return;
+          }
+          if (options.json) {
+            console.log(JSON.stringify(history, null, 2));
+          } else {
+            console.log(
+              `\x1b[1m${name}\x1b[0m — ${history.length} revision(s):`,
+            );
+            for (const rev of history) {
+              console.log(
+                `  rev${rev.revision} by ${rev.publisher} at ${rev.timestamp} (seq ${rev.seq})`,
+              );
+            }
+          }
+          return;
+        }
+
+        // Specific revision range or latest diff
+        if (options.from && options.to) {
+          const history = await getContractHistory(cwd, name);
+          const fromRev = history.find((r) => r.revision === options.from);
+          const toRev = history.find((r) => r.revision === options.to);
+          if (!fromRev || !toRev) {
+            console.log(
+              `Could not find rev${options.from} or rev${options.to} for '${name}'.`,
+            );
+            return;
+          }
+          const delta = diffContracts(fromRev, toRev);
+          if (options.json) {
+            console.log(JSON.stringify(delta, null, 2));
+          } else {
+            console.log(formatContractDelta(delta));
+          }
+          return;
+        }
+
+        const delta = await diffLatestContract(cwd, name);
+        if (!delta) {
+          console.log(
+            `Need at least 2 revisions of '${name}' to diff. Use --history to see revisions.`,
+          );
+          return;
+        }
+        if (options.json) {
+          console.log(JSON.stringify(delta, null, 2));
+        } else {
+          console.log(formatContractDelta(delta));
+        }
+      },
+    );
+
+  coord
+    .command("replay")
+    .description("Replay the full coordination timeline as a narrative story")
+    .option("--json", "machine-readable JSON output")
+    .action(async (options: { json?: boolean }) => {
+      const timeline = await buildReplay(process.cwd());
+      if (options.json) {
+        console.log(JSON.stringify(timeline, null, 2));
+      } else {
+        console.log(formatReplay(timeline));
       }
     });
 

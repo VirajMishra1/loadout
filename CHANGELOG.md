@@ -49,6 +49,12 @@
   via `fs.watch` with sub-second latency, no daemon required.
 - `loadout coord status` shows a colored terminal overview of ownership,
   contracts, and acknowledgement state.
+- Conflict preview (`loadout coord conflicts`) — before an agent writes, shows
+  what the other agent changed in the same files with git diffs.
+- Contract diffing (`loadout coord diff`) — auto-generates a structured delta
+  when a contract revision bumps, showing exactly what changed.
+- Coordination replay (`loadout coord replay`) — plays back the full
+  coordination timeline as a formatted narrative story.
 
 ## 0.8.0 - 2026-09-02
 

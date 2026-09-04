@@ -8,6 +8,10 @@ import {
   validateDiscussionOptions,
   type DiscussionParticipant,
 } from "../core/coordination/discussion.js";
+import {
+  runPipeline,
+  formatPlan,
+} from "../core/coordination/discussion-pipeline.js";
 import { SessionManager } from "../core/coordination/session-manager.js";
 import { createProviderAdapters } from "../core/coordination/runtime.js";
 import { acquireBridgeLease } from "../core/coordination/bridge-lease.js";
@@ -222,6 +226,34 @@ export function registerCoordinationDiscussions(coord: Command): void {
           : formatDiscussion(discussion),
       );
     });
+
+  discuss
+    .command("implement")
+    .description(
+      "Create implementation tasks from a closed discussion's decision",
+    )
+    .argument("<thread-id>", "discussion thread ID")
+    .option("--yes", "send handoff tasks (default is dry run)")
+    .option("--json", "machine-readable output")
+    .action(
+      async (threadId: string, options: { yes?: boolean; json?: boolean }) => {
+        try {
+          const result = await runPipeline(process.cwd(), threadId, {
+            dryRun: !options.yes,
+          });
+          if (options.json) {
+            console.log(JSON.stringify(result, null, 2));
+          } else {
+            console.log(formatPlan(result.plan, !options.yes));
+          }
+        } catch (error) {
+          console.error(
+            `Error: ${error instanceof Error ? error.message : error}`,
+          );
+          process.exitCode = 1;
+        }
+      },
+    );
 
   discuss
     .command("start")

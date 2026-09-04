@@ -1,13 +1,9 @@
 /**
  * Codex adapter.
  *
- * Uses the `codex` CLI directly. Supports:
- * - Detection via `codex --version`
- * - Starting sessions via `codex --quiet`
- * - Message injection into running sessions
- *
- * The Codex SDK (`@openai/codex`) is not required — this adapter
- * uses the CLI, which is how most users interact with Codex.
+ * Uses an injected Codex SDK-shaped driver. This keeps the adapter testable
+ * without running paid turns and keeps the SDK dependency at the composition
+ * boundary.
  */
 
 import { execFile } from "node:child_process";
@@ -16,28 +12,71 @@ import type {
   AgentAdapter,
   AgentSession,
   AdapterCapabilities,
-  InjectOptions,
+  SubmitTurnOptions,
   StartOptions,
 } from "./types.js";
-import { formatEventsForInjection } from "./types.js";
-import type { CoordinationEvent } from "../events.js";
-
 const exec = promisify(execFile);
 
 const PROVIDER = "codex";
 const CLI = "codex";
 
+export interface CodexThreadOptions {
+  workingDirectory: string;
+}
+
+export interface CodexThreadDriver {
+  readonly id: string | null;
+  run(prompt: string): Promise<unknown>;
+}
+
+export interface CodexSdkDriver {
+  /** Human-readable SDK/runtime version for capability detection. */
+  readonly runtimeVersion?: string;
+  startThread(options: CodexThreadOptions): CodexThreadDriver;
+  resumeThread(
+    sessionId: string,
+    options: CodexThreadOptions,
+  ): CodexThreadDriver;
+}
+
+function requireThreadId(thread: CodexThreadDriver): string {
+  const id = thread.id;
+  if (typeof id !== "string" || id.trim().length === 0) {
+    throw new Error("Codex SDK did not return a valid thread id");
+  }
+  return id;
+}
+
+function responseFromRun(result: unknown): string | undefined {
+  if (
+    typeof result === "object" &&
+    result !== null &&
+    "finalResponse" in result &&
+    typeof result.finalResponse === "string"
+  ) {
+    return result.finalResponse;
+  }
+  return undefined;
+}
+
 export class CodexAdapter implements AgentAdapter {
   readonly provider = PROVIDER;
+  private readonly threads = new Map<string, CodexThreadDriver>();
+  private readonly sessions = new Map<string, AgentSession>();
+  private readonly responses = new Map<string, string>();
+
+  constructor(private readonly driver: CodexSdkDriver) {}
 
   readonly capabilities: AdapterCapabilities = {
-    canInject: false, // Codex CLI doesn't support message injection into running sessions
-    canResume: false, // Codex sessions are not resumable via CLI
+    canSubmitTurn: true,
+    canInjectDuringTurn: false,
+    canResume: true,
     canStream: false,
     canStart: true,
   };
 
   async detect(): Promise<string | null> {
+    if (this.driver.runtimeVersion) return this.driver.runtimeVersion;
     try {
       const { stdout } = await exec(CLI, ["--version"], { timeout: 5000 });
       return stdout.trim();
@@ -47,73 +86,86 @@ export class CodexAdapter implements AgentAdapter {
   }
 
   async start(options: StartOptions): Promise<AgentSession> {
-    const args = ["--quiet"];
-
-    if (options.prompt) {
-      args.push(options.prompt);
+    if (options.flags?.length) {
+      throw new Error("Codex adapter does not support additional CLI flags");
     }
-
-    if (options.flags) {
-      args.push(...options.flags);
+    if (options.resumeSessionId) {
+      throw new Error("Use resume() to continue a Codex thread");
     }
-
-    const sessionId = `codex-${Date.now()}`;
-
-    // Codex runs as a foreground process — we spawn it detached
-    // so it continues in the background. The user interacts with
-    // it in their terminal/app.
-    try {
-      await exec(CLI, args, {
-        cwd: options.cwd,
-        timeout: 30000,
-      });
-    } catch {
-      // Codex may exit with non-zero if it completes the task
-    }
-
-    return {
+    const thread = this.driver.startThread({
+      workingDirectory: options.cwd,
+    });
+    const result = await thread.run(options.prompt ?? "");
+    const sessionId = requireThreadId(thread);
+    const session: AgentSession = {
       sessionId,
       agent: PROVIDER,
       provider: PROVIDER,
       active: true,
+      busy: false,
       cursor: -1,
       startedAt: new Date().toISOString(),
       cwd: options.cwd,
     };
+    this.threads.set(sessionId, thread);
+    this.sessions.set(sessionId, session);
+    const response = responseFromRun(result);
+    if (response) this.responses.set(sessionId, response);
+    return session;
   }
 
-  async resume(_sessionId: string, _cwd: string): Promise<AgentSession> {
-    throw new Error(
-      "Codex does not support session resumption. " +
-        "Start a new session and it will pick up coordination state " +
-        "from the JSONL log via the loadout-handoff skill.",
-    );
+  async resume(sessionId: string, cwd: string): Promise<AgentSession> {
+    const thread = this.driver.resumeThread(sessionId, {
+      workingDirectory: cwd,
+    });
+    const existing = this.sessions.get(sessionId);
+    const session: AgentSession = {
+      sessionId,
+      agent: PROVIDER,
+      provider: PROVIDER,
+      active: true,
+      busy: false,
+      cursor: existing?.cursor ?? -1,
+      startedAt: existing?.startedAt ?? new Date().toISOString(),
+      cwd,
+    };
+    this.threads.set(sessionId, thread);
+    this.sessions.set(sessionId, session);
+    return session;
   }
 
-  async inject(
-    _session: AgentSession,
-    _options: InjectOptions,
+  async submitTurn(
+    session: AgentSession,
+    options: SubmitTurnOptions,
   ): Promise<boolean> {
-    // Codex CLI doesn't support injecting messages into a running session.
-    // Coordination events are picked up via the loadout-handoff skill
-    // at session boundaries.
-    return false;
-  }
-
-  async injectEvents(
-    _session: AgentSession,
-    _events: CoordinationEvent[],
-  ): Promise<boolean> {
-    // Same limitation — Codex reads events at session start via the skill.
-    return false;
+    if (!session.active || session.busy) return false;
+    const thread = this.threads.get(session.sessionId);
+    if (!thread) return false;
+    session.busy = true;
+    try {
+      const result = await thread.run(options.message);
+      const response = responseFromRun(result);
+      if (response) this.responses.set(session.sessionId, response);
+      return true;
+    } catch {
+      return false;
+    } finally {
+      session.busy = false;
+    }
   }
 
   async stop(session: AgentSession): Promise<void> {
     session.active = false;
+    session.busy = false;
   }
 
-  async listSessions(_cwd: string): Promise<AgentSession[]> {
-    // Codex doesn't expose a session listing API
-    return [];
+  async listSessions(cwd: string): Promise<AgentSession[]> {
+    return [...this.sessions.values()]
+      .filter((session) => session.cwd === cwd)
+      .map((session) => ({ ...session }));
+  }
+
+  lastResponse(sessionId: string): string | undefined {
+    return this.responses.get(sessionId);
   }
 }

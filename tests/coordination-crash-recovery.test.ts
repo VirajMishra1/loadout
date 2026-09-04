@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { mkdtemp, rm, readFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import {
@@ -12,6 +12,7 @@ import {
   deactivateKillSwitch,
   isKillSwitchActive,
 } from "../src/core/coordination/crash-recovery.js";
+import { emit } from "../src/core/coordination/coordinator.js";
 
 let root: string;
 
@@ -98,6 +99,19 @@ describe("getDaemonStatus", () => {
 });
 
 describe("kill switch", () => {
+  it("blocks writes through the canonical coordination store", async () => {
+    await activateKillSwitch(root, "security incident");
+
+    await expect(
+      emit(root, {
+        from: "codex",
+        to: "*",
+        type: "task",
+        description: "must not be stored",
+      }),
+    ).rejects.toThrow(/kill switch/i);
+  });
+
   it("activates and deactivates", async () => {
     await activateKillSwitch(root, "Testing halt");
 
@@ -121,5 +135,16 @@ describe("kill switch", () => {
   it("reports inactive when no kill switch file", async () => {
     const status = await isKillSwitchActive(root);
     expect(status.active).toBe(false);
+  });
+
+  it("treats a malformed kill-switch file as active and fail-closed", async () => {
+    await mkdir(join(root, ".handoff"), { recursive: true });
+    await writeFile(join(root, ".handoff", "KILL_SWITCH"), "damaged", "utf8");
+
+    const status = await isKillSwitchActive(root);
+    expect(status).toEqual({
+      active: true,
+      reason: "Kill-switch file is unreadable",
+    });
   });
 });

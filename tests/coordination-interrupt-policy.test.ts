@@ -1,8 +1,11 @@
-import { describe, it, expect } from "vitest";
+import { afterEach, describe, it, expect } from "vitest";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
 import {
   evaluatePolicy,
   categorizeEvents,
-  DEFAULT_POLICY,
+  loadPolicy,
 } from "../src/core/coordination/interrupt-policy.js";
 import type { CoordinationEvent } from "../src/core/coordination/events.js";
 
@@ -88,5 +91,28 @@ describe("categorizeEvents", () => {
     expect(result.immediate).toHaveLength(0);
     expect(result.boundary).toHaveLength(0);
     expect(result.passive).toHaveLength(0);
+  });
+});
+
+describe("loadPolicy", () => {
+  let root = "";
+
+  afterEach(async () => {
+    if (root) await rm(root, { recursive: true, force: true });
+  });
+
+  it("rejects unsafe policy values and falls back to the bounded default", async () => {
+    root = await mkdtemp(join(tmpdir(), "loadout-policy-"));
+    await mkdir(join(root, ".handoff"), { recursive: true });
+    await writeFile(
+      join(root, ".handoff", "policy.json"),
+      JSON.stringify({ defaultLevel: "execute-now", rules: [] }),
+      "utf8",
+    );
+
+    const policy = await loadPolicy(root);
+    expect(evaluatePolicy(makeEvent("unknown", "agent"), policy)).toBe(
+      "boundary",
+    );
   });
 });

@@ -297,6 +297,26 @@ describe("snapshot", () => {
     expect(text).toContain("Active contracts");
     expect(text).toContain("user-api");
   });
+
+  it("caps reconnect payloads and reports omitted history", async () => {
+    for (let index = 0; index < 105; index += 1) {
+      await emit(root, {
+        from: "claude-code",
+        to: "codex",
+        type: "task",
+        description: `task ${index}`,
+      });
+    }
+
+    const snap = await snapshot(root, "codex");
+    expect(snap.pendingTasks).toHaveLength(50);
+    expect(snap.unackedForAgent).toHaveLength(100);
+    expect(snap.truncated).toMatchObject({
+      pendingTasks: 55,
+      unackedForAgent: 5,
+    });
+    expect(snap.pendingTasks.at(-1)?.description).toBe("task 104");
+  });
 });
 
 describe("payload validation", () => {

@@ -15,8 +15,24 @@ Please use [GitHub's private vulnerability reporting form](https://github.com/Vi
 - Blocked updates can be quarantined as metadata under `$LOADOUT_HOME/quarantine`. Quarantine never installs or executes the fetched repository.
 - Approved changes still run through a transactional snapshot and rollback path; approval is a human acknowledgement, not a claim that the package is safe.
 
+## Coordination boundary
+
+- Coordination events are validated, size-bounded, redacted at the canonical
+  storage boundary, and written to owner-only project files.
+- Event text is untrusted project data. The provider bridge frames it as data,
+  never as authority to execute commands, publish, deploy, delete, or expand
+  scope.
+- The optional HTTP daemon binds only to loopback, requires a random bearer
+  token, rejects query-string credentials and hostile browser origins, and is
+  not supported on a LAN or public network.
+- Provider bridging is explicit and can consume the user's existing provider
+  quota. Passive events do not trigger turns, one bridge may run per project,
+  and automatic turns have a configurable hard cap.
+- `.handoff` may reveal repository structure, decisions, session IDs, and
+  contracts. Do not commit it when that information is private.
+
 ## Explicit non-guarantees
 
 Static inspection cannot prove that a package is benign. It may miss obfuscated behavior, interpreter-specific behavior, malicious content hidden in generated files, or risks introduced by an agent consuming a text instruction. Stars, repository age, and “official” labels are discovery signals, not security proofs.
 
-Loadout does not currently sandbox arbitrary executables or automatically execute third-party installers. Users should review diffs, licenses, requested permissions, and provenance before approving a change.
+Loadout does not currently sandbox arbitrary executables or automatically execute third-party installers. Users should review diffs, licenses, requested permissions, and provenance before approving a change. Live coordination does not merge provider context windows, bypass provider authentication, or make agent output trustworthy.

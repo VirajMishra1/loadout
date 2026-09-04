@@ -1,9 +1,13 @@
 import { describe, it, expect } from "vitest";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import {
   redactString,
   redactPayload,
   redactDescription,
 } from "../src/core/coordination/redaction.js";
+import { emit, readCoordLog } from "../src/core/coordination/coordinator.js";
 
 describe("redactString", () => {
   it("redacts API key patterns", () => {
@@ -59,6 +63,17 @@ describe("redactString", () => {
 });
 
 describe("redactPayload", () => {
+  it("redacts values stored under sensitive field names", () => {
+    const result = redactPayload({
+      apiKey: "plain-secret-value-123456",
+      nested: { access_token: "another-plain-secret-123456" },
+    });
+    expect(result.apiKey).toBe("[REDACTED]");
+    expect((result.nested as { access_token: string }).access_token).toBe(
+      "[REDACTED]",
+    );
+  });
+
   it("redacts nested string values", () => {
     const payload = {
       name: "auth-api",
@@ -105,5 +120,33 @@ describe("redactDescription", () => {
   it("leaves normal descriptions alone", () => {
     const desc = "Published auth-api rev3 with JWT support";
     expect(redactDescription(desc)).toBe(desc);
+  });
+});
+
+describe("coordination persistence", () => {
+  it("redacts direct writes before they reach the log", async () => {
+    const root = await mkdtemp(join(tmpdir(), "loadout-redaction-"));
+    try {
+      await emit(root, {
+        from: "codex",
+        to: "*",
+        type: "update",
+        description: "Use api_key=supersecretvalue123456",
+        context: "Authorization: Bearer abcdefghijklmnopqrstuvwxyz123456",
+        payload: {
+          note: "password=anothersecretvalue123456",
+          files: ["src/auth.ts"],
+        },
+      });
+
+      const [event] = (await readCoordLog(root)).events;
+      expect(event?.description).toContain("[REDACTED]");
+      expect(event?.context).toContain("[REDACTED]");
+      expect((event?.payload as { note: string }).note).toContain("[REDACTED]");
+      expect(JSON.stringify(event)).not.toContain("supersecretvalue123456");
+      expect(JSON.stringify(event)).not.toContain("anothersecretvalue123456");
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
   });
 });

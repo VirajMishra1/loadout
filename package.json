@@ -77,6 +77,8 @@
     "verify:full": "npm run verify && npm run test:coverage"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "@openai/codex-sdk": "^0.153.2",
     "commander": "^12.1.0",
     "zod": "^4.4.3"
   },
@@ -86,6 +88,7 @@
     "@vitest/coverage-v8": "^4.1.10",
     "eslint": "^9.39.5",
     "eslint-config-prettier": "^10.1.8",
+    "globals": "^17.12.0",
     "prettier": "^3.9.5",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2",

@@ -10,6 +10,7 @@
 
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
+import { z } from "zod";
 import type { CoordinationEvent } from "./events.js";
 
 export type InterruptLevel = "immediate" | "boundary" | "passive";
@@ -51,6 +52,24 @@ const DEFAULT_POLICY: InterruptPolicy = {
     { type: "done", from: "*", level: "boundary" },
   ],
 };
+
+const policySchema = z
+  .object({
+    defaultLevel: z.enum(["immediate", "boundary", "passive"]).optional(),
+    rules: z
+      .array(
+        z
+          .object({
+            type: z.string().trim().min(1).max(128),
+            from: z.string().trim().min(1).max(128),
+            level: z.enum(["immediate", "boundary", "passive"]),
+          })
+          .strict(),
+      )
+      .max(100)
+      .optional(),
+  })
+  .strict();
 
 export function evaluatePolicy(
   event: CoordinationEvent,
@@ -96,7 +115,9 @@ export async function loadPolicy(
       join(projectRoot, ".handoff", "policy.json"),
       "utf-8",
     );
-    const custom = JSON.parse(raw) as Partial<InterruptPolicy>;
+    const parsed = policySchema.safeParse(JSON.parse(raw));
+    if (!parsed.success) return DEFAULT_POLICY;
+    const custom = parsed.data;
     return {
       defaultLevel: custom.defaultLevel ?? DEFAULT_POLICY.defaultLevel,
       rules: custom.rules ?? DEFAULT_POLICY.rules,

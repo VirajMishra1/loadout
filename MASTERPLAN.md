@@ -71,7 +71,31 @@ Phase 2 ships as `loadout daemon` with a full HTTP coordination server:
 - **Full REST API** — snapshot, contracts, ownership, events, emit, ack,
   compact, status endpoints.
 
+## Live collaboration — Phase 3+4 complete
+
+- **Provider adapters** — Claude Code (CLI-based sessions) and Codex
+  (SDK-based) with start, resume, and turn submission.
+- **Session manager** — tracks sessions across providers, replays missed
+  events on reconnection.
+- **Interrupt policy** — immediate/boundary/passive rules per event type,
+  configurable per-project.
+- **Crash recovery** — PID management, stale process detection, automatic
+  cleanup.
+- **Kill switch** (`loadout daemon kill`) — halts all coordination instantly,
+  resume with `loadout daemon resume`.
+- **Atomic locking** — cross-process file lock serializes all state mutations,
+  prevents duplicate sequence numbers.
+- **Daemon security** — bearer token auth (mode 0600), loopback-only binding,
+  origin validation, timing-safe comparison.
+- **Conflict preview** (`loadout coord conflicts`) — shows what another agent
+  changed in files you're about to write, with git diffs.
+- **Contract diffing** (`loadout coord diff`) — structured delta between
+  contract revisions.
+- **Coordination replay** (`loadout coord replay`) — narrative timeline of
+  all coordination events.
+
 ## After 0.9.0
 
-- Phase 3: Codex SDK and Claude Agent SDK adapters with session resumption.
-- Phase 4: crash recovery, concurrency tests, cross-platform, kill switch.
+- Real two-agent end-to-end walkthrough with installed Claude and Codex CLIs.
+- Demo recording for README and social media.
+- npm publish, GitHub release, launch post.

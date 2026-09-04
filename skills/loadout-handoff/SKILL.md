@@ -92,15 +92,18 @@ user should never have to type `loadout coord` commands — that is your job.
 
 ### At session start — check for updates
 
+Use the current agent id in every command: `claude-code` inside Claude Code and
+`codex` inside Codex.
+
 ```bash
-loadout coord snapshot claude-code --json
+loadout coord snapshot <current-agent> --json
 ```
 
 If there are unacknowledged events (contracts, decisions, ownership claims from
 the other agent), read them, incorporate them into your work, and acknowledge:
 
 ```bash
-loadout coord ack claude-code <seq>
+loadout coord ack <current-agent> <seq>
 ```
 
 Tell the user briefly what the other agent has been doing: "Codex published
@@ -111,7 +114,7 @@ auth-api rev2 — I'll build against that contract."
 Before writing to files, claim them so the other agent knows not to touch them:
 
 ```bash
-loadout coord own claude-code src/api/ src/db/ --json
+loadout coord own <current-agent> src/api/ src/db/ --json
 ```
 
 If there's a conflict (other agent already owns those paths), tell the user and
@@ -128,7 +131,7 @@ loadout coord contract auth-api --body "export interface AuthAPI {
   login(credentials: LoginRequest): Promise<Session>;
   logout(sessionId: string): Promise<void>;
   refresh(token: string): Promise<Session>;
-}" --format typescript --agent claude-code
+}" --format typescript --agent <current-agent>
 ```
 
 The revision auto-increments. The other agent sees it on their next check.
@@ -136,19 +139,26 @@ The revision auto-increments. The other agent sees it on their next check.
 ### When you finish a chunk of work — report progress
 
 ```bash
-loadout coord update claude-code --note "Auth endpoints done, rate limiting added" --files "src/api/auth.ts,src/api/middleware.ts" --next "Starting payment integration"
+loadout coord update <current-agent> --note "Auth endpoints done, rate limiting added" --files src/api/auth.ts src/api/middleware.ts --next "Starting payment integration"
+```
+
+Release exact paths when you are finished with them so ownership does not stay
+stale:
+
+```bash
+loadout coord release <current-agent> src/api/ src/db/
 ```
 
 ### When you make a design decision — record it
 
 ```bash
-loadout coord decide claude-code "Use JWT for session tokens" --rationale "Stateless, works across services, Codex frontend can decode without API call"
+loadout coord decide <current-agent> "Use JWT for session tokens" --rationale "Stateless, works across services, Codex frontend can decode without API call"
 ```
 
 ### When the user asks what the other agent is doing
 
 ```bash
-loadout coord snapshot claude-code
+loadout coord snapshot <current-agent>
 ```
 
 This shows pending tasks, active contracts, file ownership, recent decisions,
@@ -156,21 +166,37 @@ and unacknowledged events in one bounded summary.
 
 ## Live daemon mode
 
-If the user starts `loadout daemon start`, both agents can connect to the
-local HTTP server for real-time push notifications via SSE:
+If the user starts `loadout daemon start`, dashboards and custom clients can
+observe the local event stream via authenticated SSE:
 
-- Dashboard: `http://127.0.0.1:4510` (open in browser for live status)
-- SSE stream: `http://127.0.0.1:4510/api/subscribe/claude-code`
-- REST API: all coordination operations available via HTTP
+- Open the authenticated dashboard URL printed by the command.
+- REST and SSE require a bearer token; query-string tokens are rejected.
+- The dashboard observes events. It does not inject them into an agent session.
 
-The daemon also auto-redacts secrets from events and provides log compaction.
+All write paths redact secret-like data at the shared storage boundary.
 
-## What this is not (without the daemon)
+## Provider bridge mode (opt-in)
 
-Without `loadout daemon start`, the other agent is **not notified in real
-time**. It sees events when it next checks (at session start, or when it runs
-`loadout coord subscribe`). If the user needs something done now, tell them
-to open the other agent and it will pick up the events.
+When the user explicitly wants automatic follow-up turns, they can run:
+
+```bash
+loadout coord agents detect
+loadout coord agents bridge claude-code:<session-id> codex:<thread-id>
+```
+
+The bridge uses supported provider interfaces and delivers relevant events at
+safe turn boundaries. It cannot steer a turn already in progress. Progress
+updates are passive by default, one bridge may own a project, and automatic
+turns stop after 20 per session unless the user changes `--max-turns`. Starting,
+attaching, sending, or bridging provider sessions can consume the user's
+provider quota, so do not do it without an explicit request.
+
+## What this is not (without the provider bridge)
+
+Without a provider bridge, the other agent is **not given a new turn
+automatically**. The daemon can receive events instantly, but an agent sees them
+when it next checks its MCP tools, snapshot, or subscription. If the user needs
+work now, tell them to open the other agent or explicitly start a bridge.
 
 ## Summary of when to run what
 
@@ -180,6 +206,7 @@ to open the other agent and it will pick up the events.
 | Before writing files                       | `loadout coord own <agent> <paths...>`                              |
 | Created/changed an API or schema           | `loadout coord contract <name> --body "..." --agent <agent>`        |
 | Finished a chunk of work                   | `loadout coord update <agent> --note "..." --files "..."`           |
+| Finished writing owned paths               | `loadout coord release <agent> <paths...>`                          |
 | Made a design decision                     | `loadout coord decide <agent> "<title>" --rationale "..."`          |
 | After reading other agent's events         | `loadout coord ack <agent> <seq>`                                   |
 | User asks "what is the other agent doing?" | `loadout coord snapshot <agent>`                                    |

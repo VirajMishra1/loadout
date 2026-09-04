@@ -5,8 +5,8 @@
 ### Removed
 
 - Model routing (`loadout route`, policy files, model-config routing). The
-  feature was too subjective and prices rotted within weeks. Handoff is now
-  the sole cross-agent coordination feature.
+  feature was too subjective and prices rotted within weeks. Handoff and the
+  factual coordination protocol replace model-selection advice.
 
 ### Changed
 
@@ -14,7 +14,7 @@
   model/credential configuration to `src/core/agents/`. API-access parsing
   remains in `src/core/routing/access.ts` because it still governs setup choices.
 - Renamed the `loadout-router` first-party skill to `loadout-handoff`, stripped
-  model advice, focused on delegation only.
+  model advice, and focused it on delegation and factual project coordination.
 - All JSON HTTP responses are now streamed through a bounded reader with
   per-endpoint byte caps and timeouts. Oversized or timed-out responses
   are rejected before parsing.
@@ -34,15 +34,21 @@
   agents never miss a message.
 - `loadout serve` starts an MCP server exposing the same coordination tools
   so both Claude Code and Codex can connect to a shared project coordinator.
-  Requires `@modelcontextprotocol/sdk` as an optional dependency.
-- Documented a concrete, safety-bounded design for future live Codex and Claude
-  collaboration while keeping the 0.9.0 handoff behavior accurately described
-  as a durable session-boundary inbox.
+  The MCP runtime is packaged and smoke-tested as a normal dependency.
+- Provider-session bridge commands backed by Claude Code's print-mode CLI and
+  the official Codex SDK. The bridge resumes explicit session IDs and delivers
+  relevant events as follow-up turns at safe boundaries; it does not claim
+  mid-turn injection or shared private context.
+- Bridge safeguards: one process per project, concurrent cross-provider
+  delivery, passive updates, an automatic-turn cap, untrusted-data framing,
+  owner-only session state, and provider responses that are displayed but not
+  persisted.
 - `loadout daemon start` runs a local HTTP coordination server with REST API,
   SSE push subscriptions, and a live web dashboard showing contracts, file
   ownership, agent activity, and real-time event feed.
 - Automatic secret redaction — API keys, tokens, passwords, JWTs, and other
-  credentials are stripped from coordination events before storage.
+  credentials are stripped from coordination events at the canonical storage
+  boundary before CLI, MCP, or HTTP writes are persisted.
 - Log retention and compaction (`loadout coord compact`) — configurable max
   events and max age, atomic log rewrite with archived backup.
 - Live file watcher (`loadout coord watch`) detects new coordination events

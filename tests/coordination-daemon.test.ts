@@ -1,16 +1,44 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, stat } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { emit } from "../src/core/coordination/coordinator.js";
 import { startDaemon } from "../src/core/coordination/daemon.js";
 
 let root: string;
-let daemon: { port: number; close: () => void } | null = null;
+let daemon: {
+  port: number;
+  token: string;
+  dashboardUrl: string;
+  close: () => void;
+} | null = null;
 
 // Use a random high port to avoid conflicts
 function randomPort(): number {
   return 10000 + Math.floor(Math.random() * 50000);
+}
+
+async function startAuthenticatedDaemon(): Promise<NonNullable<typeof daemon>> {
+  daemon = await startDaemon(root, randomPort());
+  return daemon;
+}
+
+function authorization(token = daemon?.token): Record<string, string> {
+  return { Authorization: `Bearer ${token ?? ""}` };
+}
+
+async function apiFetch(
+  path: string,
+  init: RequestInit = {},
+): Promise<Response> {
+  if (!daemon) throw new Error("Daemon has not started");
+  return fetch(`http://127.0.0.1:${daemon.port}${path}`, {
+    ...init,
+    headers: {
+      ...authorization(),
+      ...init.headers,
+    },
+  });
 }
 
 beforeEach(async () => {
@@ -25,32 +53,50 @@ afterEach(async () => {
 
 describe("coordination daemon", () => {
   it("starts and responds to /api/status", async () => {
-    const port = randomPort();
-    daemon = await startDaemon(root, port);
+    await startAuthenticatedDaemon();
 
-    const res = await fetch(`http://127.0.0.1:${port}/api/status`);
+    const res = await apiFetch("/api/status");
     expect(res.status).toBe(200);
 
     const data = (await res.json()) as {
       daemon: string;
-      projectRoot: string;
       connectedClients: number;
     };
     expect(data.daemon).toBe("running");
-    expect(data.projectRoot).toBe(root);
+    expect(data).not.toHaveProperty("projectRoot");
     expect(data.connectedClients).toBe(0);
   });
 
-  it("serves the dashboard at /", async () => {
-    const port = randomPort();
-    daemon = await startDaemon(root, port);
+  it("creates a persistent 32-byte daemon token readable only by the user", async () => {
+    const running = await startAuthenticatedDaemon();
 
-    const res = await fetch(`http://127.0.0.1:${port}/`);
+    expect(running.token).toMatch(/^[a-f0-9]{64}$/);
+    const tokenStat = await stat(join(root, ".handoff", "daemon.token"));
+    expect(tokenStat.mode & 0o777).toBe(0o600);
+  });
+
+  it("serves the dashboard at /", async () => {
+    const running = await startAuthenticatedDaemon();
+
+    const res = await fetch(`http://127.0.0.1:${running.port}/`);
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toContain("text/html");
 
     const html = await res.text();
     expect(html).toContain("Loadout Coordination");
+  });
+
+  it("keeps dashboard credentials out of request URLs", async () => {
+    const running = await startAuthenticatedDaemon();
+
+    expect(running.dashboardUrl).toBe(
+      `http://127.0.0.1:${running.port}/#token=${running.token}`,
+    );
+    const res = await fetch(`http://127.0.0.1:${running.port}/`);
+    const html = await res.text();
+    expect(html).toContain("sessionStorage");
+    expect(html).toContain("Authorization: 'Bearer ' + daemonToken");
+    expect(html).not.toContain("new EventSource");
   });
 
   it("returns contracts via /api/contracts", async () => {
@@ -63,10 +109,9 @@ describe("coordination daemon", () => {
       payload: { name: "auth-api", revision: 1, body: "types here" },
     });
 
-    const port = randomPort();
-    daemon = await startDaemon(root, port);
+    await startAuthenticatedDaemon();
 
-    const res = await fetch(`http://127.0.0.1:${port}/api/contracts`);
+    const res = await apiFetch("/api/contracts");
     const contracts = (await res.json()) as Array<{
       name: string;
       revision: number;
@@ -84,10 +129,9 @@ describe("coordination daemon", () => {
       payload: { paths: ["src/components/"], mode: "exclusive" },
     });
 
-    const port = randomPort();
-    daemon = await startDaemon(root, port);
+    await startAuthenticatedDaemon();
 
-    const res = await fetch(`http://127.0.0.1:${port}/api/ownership`);
+    const res = await apiFetch("/api/ownership");
     const ownership = (await res.json()) as Array<{
       agent: string;
       mode: string;
@@ -97,10 +141,9 @@ describe("coordination daemon", () => {
   });
 
   it("emits events via POST /api/emit", async () => {
-    const port = randomPort();
-    daemon = await startDaemon(root, port);
+    await startAuthenticatedDaemon();
 
-    const res = await fetch(`http://127.0.0.1:${port}/api/emit`, {
+    const res = await apiFetch("/api/emit", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -118,10 +161,9 @@ describe("coordination daemon", () => {
   });
 
   it("redacts secrets in emitted events", async () => {
-    const port = randomPort();
-    daemon = await startDaemon(root, port);
+    await startAuthenticatedDaemon();
 
-    await fetch(`http://127.0.0.1:${port}/api/emit`, {
+    await apiFetch("/api/emit", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -133,7 +175,7 @@ describe("coordination daemon", () => {
       }),
     });
 
-    const res = await fetch(`http://127.0.0.1:${port}/api/events?after=-1`);
+    const res = await apiFetch("/api/events?after=-1");
     const data = (await res.json()) as {
       events: Array<{
         description: string;
@@ -152,10 +194,9 @@ describe("coordination daemon", () => {
       description: "Do the thing",
     });
 
-    const port = randomPort();
-    daemon = await startDaemon(root, port);
+    await startAuthenticatedDaemon();
 
-    const res = await fetch(`http://127.0.0.1:${port}/api/snapshot/codex`);
+    const res = await apiFetch("/api/snapshot/codex");
     const snap = (await res.json()) as {
       pendingTasks: Array<unknown>;
       highSeq: number;
@@ -178,10 +219,9 @@ describe("coordination daemon", () => {
       description: "second",
     });
 
-    const port = randomPort();
-    daemon = await startDaemon(root, port);
+    await startAuthenticatedDaemon();
 
-    const res = await fetch(`http://127.0.0.1:${port}/api/events?after=0`);
+    const res = await apiFetch("/api/events?after=0");
     const data = (await res.json()) as {
       events: Array<{ description: string }>;
     };
@@ -197,10 +237,9 @@ describe("coordination daemon", () => {
       description: "task",
     });
 
-    const port = randomPort();
-    daemon = await startDaemon(root, port);
+    await startAuthenticatedDaemon();
 
-    const res = await fetch(`http://127.0.0.1:${port}/api/ack`, {
+    const res = await apiFetch("/api/ack", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ agent: "codex", seq: 0 }),
@@ -209,10 +248,9 @@ describe("coordination daemon", () => {
   });
 
   it("triggers compaction via POST /api/compact", async () => {
-    const port = randomPort();
-    daemon = await startDaemon(root, port);
+    await startAuthenticatedDaemon();
 
-    const res = await fetch(`http://127.0.0.1:${port}/api/compact`, {
+    const res = await apiFetch("/api/compact", {
       method: "POST",
     });
     const data = (await res.json()) as { compacted: boolean };
@@ -224,5 +262,20 @@ describe("coordination daemon", () => {
     daemon = await startDaemon(root, port);
 
     await expect(startDaemon(root, port)).rejects.toThrow("already in use");
+  });
+
+  it("allows only one daemon per project even on different ports", async () => {
+    daemon = await startDaemon(root, randomPort());
+    let second: Awaited<ReturnType<typeof startDaemon>> | undefined;
+    let failure: unknown;
+    try {
+      second = await startDaemon(root, randomPort());
+    } catch (error) {
+      failure = error;
+    } finally {
+      second?.close();
+    }
+    expect(failure).toBeInstanceOf(Error);
+    expect((failure as Error).message).toMatch(/already running/i);
   });
 });

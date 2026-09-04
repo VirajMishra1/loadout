@@ -130,6 +130,24 @@ loadout handoff            # everything pending, both directions
 loadout handoff --done 4f2a1c
 ```
 
+### Make Claude Code and Codex coordinate live (beta)
+
+Live coordination adds file ownership, versioned contracts, decisions, and
+acknowledgements over a shared project event stream — not a merged context
+window. See the [live coordination guide](./docs/LIVE_COLLABORATION.md).
+
+```bash
+loadout coord own claude-code src/api
+loadout coord contract checkout-api --agent claude-code \
+  --body "POST /api/checkout -> 201 { id: string }"
+loadout coord snapshot codex            # what codex needs to know
+loadout coord replay                    # full timeline as a story
+```
+
+`loadout serve` exposes the same operations as MCP tools for both hosts.
+The optional provider bridge (`loadout coord agents bridge`) resumes sessions
+and delivers events at safe turn boundaries — never mid-turn.
+
 ## How it works
 
 **Choose -> Inspect -> Preview -> Apply -> Undo**
@@ -325,6 +343,9 @@ Configured CI platforms describe a manually triggered workflow, not evidence tha
 | Find newly launched candidates          | `loadout discover --source all --queue`        |
 | Install Loadout's own skill             | `loadout skills install loadout-handoff --yes` |
 | Send a task to another agent            | `loadout handoff codex "write tests"`          |
+| Inspect shared agent state              | `loadout coord snapshot codex`                 |
+| Detect live provider runtimes           | `loadout coord agents detect`                  |
+| Start the coordination MCP server       | `loadout serve`                                |
 | Agent health check                      | `loadout doctor`                               |
 | Rollback the latest managed change      | `loadout rollback`                             |
 | Preview complete removal                | `loadout uninstall`                            |

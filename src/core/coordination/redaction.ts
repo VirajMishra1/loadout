@@ -6,10 +6,12 @@
  */
 
 const REDACTION_MARKER = "[REDACTED]";
+const SENSITIVE_KEY =
+  /^(?:api[_-]?key|access[_-]?token|auth(?:orization)?|bearer|client[_-]?secret|secret|token|password|passwd|pwd|credentials?)$/i;
 
 const SECRET_PATTERNS: RegExp[] = [
   // Key-value patterns: api_key=..., secret: "...", password='...'
-  /(?:api[_-]?key|apikey|secret|token|password|passwd|pwd|credentials?)\s*[:=]\s*['"]?([^\s'"]{8,})['"]?/gi,
+  /(?:api[_-]?key|apikey|secret|token|password|passwd|pwd|credentials?)\s*[:=]\s*['"]?([^\s'"]{12,})['"]?/gi,
   // Stripe keys: sk_live_..., pk_test_..., rk_live_...
   /(?:sk|pk|rk)[-_](?:live|test)[-_][a-zA-Z0-9]{10,}/g,
   // GitHub PATs
@@ -53,7 +55,9 @@ export function redactPayload(
 ): Record<string, unknown> {
   const result: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(payload)) {
-    if (typeof value === "string") {
+    if (SENSITIVE_KEY.test(key) && typeof value === "string") {
+      result[key] = REDACTION_MARKER;
+    } else if (typeof value === "string") {
       result[key] = redactString(value);
     } else if (
       value !== null &&
@@ -78,4 +82,19 @@ export function redactPayload(
 
 export function redactDescription(description: string): string {
   return redactString(description);
+}
+
+export function redactCoordinationInput<
+  T extends {
+    description: string;
+    context?: string;
+    payload?: Record<string, unknown>;
+  },
+>(input: T): T {
+  return {
+    ...input,
+    description: redactString(input.description),
+    ...(input.context ? { context: redactString(input.context) } : {}),
+    ...(input.payload ? { payload: redactPayload(input.payload) } : {}),
+  };
 }

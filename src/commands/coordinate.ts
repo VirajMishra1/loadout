@@ -4,7 +4,10 @@ import {
   readAfterCursor,
   readCoordLog,
   snapshot,
-  checkOwnershipConflicts,
+  claimOwnership,
+  releaseOwnership,
+  OwnershipConflictError,
+  publishContract,
   getContracts,
   getOwnership,
   getAckState,
@@ -17,6 +20,7 @@ import {
 } from "../core/coordination/watcher.js";
 import { compact, logSize } from "../core/coordination/retention.js";
 import { startDaemon } from "../core/coordination/daemon.js";
+import { ensureDaemonToken } from "../core/coordination/auth.js";
 import {
   getDaemonStatus,
   stopDaemon,
@@ -35,6 +39,7 @@ import {
   formatContractDelta,
 } from "../core/coordination/contract-diff.js";
 import { buildReplay, formatReplay } from "../core/coordination/replay.js";
+import { registerCoordinationSessions } from "./coordination-sessions.js";
 
 export function registerCoordinate(program: Command): void {
   const coord = program
@@ -43,6 +48,8 @@ export function registerCoordinate(program: Command): void {
     .description(
       "Live coordination between agents — contracts, ownership, updates, and snapshots",
     );
+
+  registerCoordinationSessions(coord);
 
   coord
     .command("snapshot")
@@ -119,29 +126,15 @@ export function registerCoordinate(program: Command): void {
           return;
         }
 
-        // Publish
-        if (!options.revision) {
-          // Auto-increment
-          const contracts = await getContracts(cwd);
-          const existing = contracts.get(name);
-          options.revision = existing ? existing.revision + 1 : 1;
-        }
-
-        const event = await emit(cwd, {
+        const event = await publishContract(cwd, {
           from: options.agent,
-          to: "*",
-          type: "contract",
-          description: `Contract '${name}' rev${options.revision}`,
-          payload: {
-            name,
-            revision: options.revision,
-            body: options.body,
-            ...(options.format ? { format: options.format } : {}),
-          },
+          name,
+          body: options.body,
+          revision: options.revision,
+          format: options.format,
         });
-        console.log(
-          `Published '${name}' rev${options.revision} (seq ${event.seq})`,
-        );
+        const revision = (event.payload as { revision: number }).revision;
+        console.log(`Published '${name}' rev${revision} (seq ${event.seq})`);
       },
     );
 
@@ -161,31 +154,42 @@ export function registerCoordinate(program: Command): void {
         const cwd = process.cwd();
         const mode = options.shared ? "shared" : "exclusive";
 
-        const conflicts = await checkOwnershipConflicts(
-          cwd,
-          agent,
-          paths,
-          mode,
-        );
-        if (conflicts.length) {
-          console.error(formatConflicts(conflicts));
-          process.exitCode = 1;
-          return;
+        let event;
+        try {
+          event = await claimOwnership(cwd, { agent, paths, mode });
+        } catch (error) {
+          if (error instanceof OwnershipConflictError) {
+            console.error(formatConflicts(error.conflicts));
+            process.exitCode = 1;
+            return;
+          }
+          throw error;
         }
-
-        const event = await emit(cwd, {
-          from: agent,
-          to: "*",
-          type: "ownership",
-          description: `${agent} claims: ${paths.join(", ")}`,
-          payload: { paths, mode },
-        });
 
         if (options.json) {
           console.log(JSON.stringify(event, null, 2));
         } else {
           console.log(
             `${agent} now owns (${mode}): ${paths.join(", ")} (seq ${event.seq})`,
+          );
+        }
+      },
+    );
+
+  coord
+    .command("release")
+    .description("Release exact file/directory ownership paths")
+    .argument("<agent>", "releasing agent")
+    .argument("<paths...>", "exact paths to release")
+    .option("--json", "machine-readable JSON output")
+    .action(
+      async (agent: string, paths: string[], options: { json?: boolean }) => {
+        const event = await releaseOwnership(process.cwd(), { agent, paths });
+        if (options.json) {
+          console.log(JSON.stringify(event, null, 2));
+        } else {
+          console.log(
+            `${agent} released: ${paths.join(", ")} (seq ${event.seq})`,
           );
         }
       },
@@ -636,9 +640,10 @@ export function registerCoordinate(program: Command): void {
         console.log(
           `\x1b[32m✓\x1b[0m Daemon running at http://127.0.0.1:${d.port}`,
         );
-        console.log(`  Dashboard: http://127.0.0.1:${d.port}`);
-        console.log(`  API:       http://127.0.0.1:${d.port}/api/status`);
-        console.log(`  SSE:       http://127.0.0.1:${d.port}/api/subscribe`);
+        console.log(`  Dashboard: ${d.dashboardUrl}`);
+        console.log(
+          "  API/SSE:   bearer-authenticated (token stored in .handoff/daemon.token)",
+        );
         console.log(`\nPress Ctrl+C to stop.`);
 
         process.on("SIGINT", () => {
@@ -695,11 +700,14 @@ export function registerCoordinate(program: Command): void {
       }
 
       if (status.running && status.info) {
+        const token = await ensureDaemonToken(cwd);
         console.log(`\x1b[32m✓\x1b[0m Daemon running`);
         console.log(`  PID:     ${status.info.pid}`);
         console.log(`  Port:    ${status.info.port}`);
         console.log(`  Started: ${status.info.startedAt}`);
-        console.log(`  Dashboard: http://127.0.0.1:${status.info.port}`);
+        console.log(
+          `  Dashboard: http://127.0.0.1:${status.info.port}/#token=${encodeURIComponent(token)}`,
+        );
       } else if (status.stale) {
         console.log("Daemon not running (cleaned up stale PID file)");
       } else {

@@ -54,9 +54,24 @@ The existing `loadout handoff` and `.handoff/messages.jsonl` are preserved as
 the human-readable task log. The coordination log lives in
 `.handoff/coordination.jsonl`.
 
+## Live collaboration — Phase 2 complete
+
+Phase 2 ships as `loadout daemon` with a full HTTP coordination server:
+
+- **HTTP daemon** (`loadout daemon start`) — local REST API on 127.0.0.1:4510
+  with SSE push for connected agents.
+- **Web dashboard** — live status UI at the daemon URL showing contracts,
+  file ownership, agent activity, and a real-time event feed.
+- **SSE subscriptions** — agents connect to `/api/subscribe/:agent` and receive
+  events pushed in real time, no polling needed.
+- **Redaction** — secrets, API keys, tokens, and credentials are automatically
+  stripped from event payloads before storage.
+- **Retention and compaction** (`loadout coord compact`) — configurable max
+  events and max age, atomic log rewrite with archived backup.
+- **Full REST API** — snapshot, contracts, ownership, events, emit, ack,
+  compact, status endpoints.
+
 ## After 0.9.0
 
-- Phase 2: SQLite-backed local daemon with subscriptions, retention, and a
-  read-only status UI.
 - Phase 3: Codex SDK and Claude Agent SDK adapters with session resumption.
 - Phase 4: crash recovery, concurrency tests, cross-platform, kill switch.

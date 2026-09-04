@@ -45,7 +45,7 @@ export const ADVANCED_GUIDE = [
   "Discovery:    candidate, discover, review-queue, evaluate, skill-audit",
   "Sharing:      init, lock, export, import, share, card",
   "Integrations: mcp-recipe, mcp-config, credentials, models, handoff, skills, convert",
-  "Coordination: coordinate (coord), serve",
+  "Coordination: coordinate (coord), daemon, serve",
   "Lifecycle:    plan, adopt, uninstall, profiles, autopilot, tool, watch",
   "",
   "`loadout <command> --help` for options. Mutations preview first or require --yes.",
@@ -104,5 +104,6 @@ export const HIDDEN_FROM_FIRST_SCREEN = new Set([
   "alert-pins",
   // coordination
   "coordinate",
+  "daemon",
   "serve",
 ]);

@@ -38,6 +38,17 @@
 - Documented a concrete, safety-bounded design for future live Codex and Claude
   collaboration while keeping the 0.9.0 handoff behavior accurately described
   as a durable session-boundary inbox.
+- `loadout daemon start` runs a local HTTP coordination server with REST API,
+  SSE push subscriptions, and a live web dashboard showing contracts, file
+  ownership, agent activity, and real-time event feed.
+- Automatic secret redaction — API keys, tokens, passwords, JWTs, and other
+  credentials are stripped from coordination events before storage.
+- Log retention and compaction (`loadout coord compact`) — configurable max
+  events and max age, atomic log rewrite with archived backup.
+- Live file watcher (`loadout coord watch`) detects new coordination events
+  via `fs.watch` with sub-second latency, no daemon required.
+- `loadout coord status` shows a colored terminal overview of ownership,
+  contracts, and acknowledgement state.
 
 ## 0.8.0 - 2026-09-02
 

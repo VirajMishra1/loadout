@@ -15,6 +15,8 @@ import {
   watchCoordination,
   formatLiveEvent,
 } from "../core/coordination/watcher.js";
+import { compact, logSize } from "../core/coordination/retention.js";
+import { startDaemon } from "../core/coordination/daemon.js";
 
 export function registerCoordinate(program: Command): void {
   const coord = program
@@ -452,6 +454,77 @@ export function registerCoordinate(program: Command): void {
         console.log(
           `\n\x1b[31mWarning: ${log.corrupt.length} corrupt line(s)\x1b[0m`,
         );
+      }
+    });
+
+  coord
+    .command("compact")
+    .description("Compact the coordination log — archive old events")
+    .option("--max-events <n>", "max events to keep", parseInt, 10000)
+    .option("--max-age <days>", "max age in days", parseInt, 30)
+    .option("--json", "machine-readable JSON output")
+    .action(
+      async (options: {
+        maxEvents: number;
+        maxAge: number;
+        json?: boolean;
+      }) => {
+        const result = await compact(process.cwd(), {
+          maxEvents: options.maxEvents,
+          maxAgeDays: options.maxAge,
+        });
+        if (options.json) {
+          console.log(JSON.stringify(result, null, 2));
+        } else if (!result.compacted) {
+          const size = await logSize(process.cwd());
+          console.log(
+            `Log has ${size.events} events (${(size.bytes / 1024).toFixed(1)} KB) — under threshold, nothing to compact.`,
+          );
+        } else {
+          console.log(
+            `Compacted: ${result.before} → ${result.after} events (removed ${result.removed})`,
+          );
+        }
+      },
+    );
+
+  // `loadout daemon` — start/stop the coordination daemon
+  const daemon = program
+    .command("daemon")
+    .description("Local coordination daemon with REST API, SSE, and dashboard");
+
+  daemon
+    .command("start")
+    .description(
+      "Start the coordination daemon — HTTP server with live dashboard",
+    )
+    .option("--port <n>", "port to listen on", parseInt, 4510)
+    .action(async (options: { port: number }) => {
+      const cwd = process.cwd();
+      console.log(`Starting coordination daemon on port ${options.port}...`);
+      try {
+        const d = await startDaemon(cwd, options.port);
+        console.log(
+          `\x1b[32m✓\x1b[0m Daemon running at http://127.0.0.1:${d.port}`,
+        );
+        console.log(`  Dashboard: http://127.0.0.1:${d.port}`);
+        console.log(`  API:       http://127.0.0.1:${d.port}/api/status`);
+        console.log(`  SSE:       http://127.0.0.1:${d.port}/api/subscribe`);
+        console.log(`\nPress Ctrl+C to stop.`);
+
+        process.on("SIGINT", () => {
+          console.log("\nStopping daemon...");
+          d.close();
+          process.exit(0);
+        });
+
+        // Keep alive
+        await new Promise(() => {});
+      } catch (error) {
+        console.error(
+          `Failed to start daemon: ${error instanceof Error ? error.message : error}`,
+        );
+        process.exitCode = 1;
       }
     });
 

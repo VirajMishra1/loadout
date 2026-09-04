@@ -105,11 +105,12 @@ Extend the current log with typed events for contracts, ownership, decisions,
 and verification. Add cursors, acknowledgements, snapshots, conflict checks,
 and CLI/MCP parity. This makes handoff reliable without running a daemon.
 
-### Phase 2: local live coordinator
+### Phase 2: local live coordinator ✅
 
-Add the SQLite-backed daemon, authenticated local transport, subscriptions,
-redaction, retention limits, and a read-only status UI. Agents still act only
-at safe turn boundaries.
+HTTP daemon on `127.0.0.1:4510` with REST API, SSE push subscriptions,
+live web dashboard, automatic secret redaction, and log retention/compaction.
+No SQLite needed — the append-only JSONL log handles the scale of two agents
+on one repo. Agents connect via SSE for real-time event push.
 
 ### Phase 3: provider adapters
 

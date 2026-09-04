@@ -154,12 +154,23 @@ loadout coord snapshot claude-code
 This shows pending tasks, active contracts, file ownership, recent decisions,
 and unacknowledged events in one bounded summary.
 
-## What this is not
+## Live daemon mode
 
-The other agent is **not notified in real time**. It sees events when it next
-checks (at session start, or when it runs `loadout coord subscribe`). If the
-user needs something done now, tell them to open the other agent and it will
-pick up the events.
+If the user starts `loadout daemon start`, both agents can connect to the
+local HTTP server for real-time push notifications via SSE:
+
+- Dashboard: `http://127.0.0.1:4510` (open in browser for live status)
+- SSE stream: `http://127.0.0.1:4510/api/subscribe/claude-code`
+- REST API: all coordination operations available via HTTP
+
+The daemon also auto-redacts secrets from events and provides log compaction.
+
+## What this is not (without the daemon)
+
+Without `loadout daemon start`, the other agent is **not notified in real
+time**. It sees events when it next checks (at session start, or when it runs
+`loadout coord subscribe`). If the user needs something done now, tell them
+to open the other agent and it will pick up the events.
 
 ## Summary of when to run what
 

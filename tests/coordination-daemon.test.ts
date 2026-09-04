@@ -263,4 +263,19 @@ describe("coordination daemon", () => {
 
     await expect(startDaemon(root, port)).rejects.toThrow("already in use");
   });
+
+  it("allows only one daemon per project even on different ports", async () => {
+    daemon = await startDaemon(root, randomPort());
+    let second: Awaited<ReturnType<typeof startDaemon>> | undefined;
+    let failure: unknown;
+    try {
+      second = await startDaemon(root, randomPort());
+    } catch (error) {
+      failure = error;
+    } finally {
+      second?.close();
+    }
+    expect(failure).toBeInstanceOf(Error);
+    expect((failure as Error).message).toMatch(/already running/i);
+  });
 });

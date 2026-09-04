@@ -118,6 +118,7 @@ describe("coordination MCP server", () => {
       const tools = (listed.result as { tools: Array<{ name: string }> }).tools;
       expect(tools.map((tool) => tool.name)).toEqual([
         "claim_task",
+        "release_ownership",
         "publish_contract",
         "publish_update",
         "subscribe",
@@ -169,6 +170,48 @@ describe("coordination MCP server", () => {
       );
       expect(conflict.isError).toBe(true);
       expect(conflict.content[0]?.text).toContain("src/mcp.ts");
+
+      const firstContract = toolResult(
+        await request(7, "tools/call", {
+          name: "publish_contract",
+          arguments: {
+            agent: "claude-code",
+            name: "checkout-api",
+            body: "POST /checkout -> 201",
+          },
+        }),
+      );
+      const secondContract = toolResult(
+        await request(8, "tools/call", {
+          name: "publish_contract",
+          arguments: {
+            agent: "claude-code",
+            name: "checkout-api",
+            body: "POST /checkout -> 202",
+          },
+        }),
+      );
+      expect(firstContract.content[0]?.text).toContain("rev1");
+      expect(secondContract.content[0]?.text).toContain("rev2");
+
+      const released = toolResult(
+        await request(9, "tools/call", {
+          name: "release_ownership",
+          arguments: { agent: "codex", paths: ["src/mcp.ts"] },
+        }),
+      );
+      expect(released.isError).not.toBe(true);
+      const reclaimed = toolResult(
+        await request(10, "tools/call", {
+          name: "claim_task",
+          arguments: {
+            agent: "claude-code",
+            description: "Ownership after release",
+            ownPaths: ["src/mcp.ts"],
+          },
+        }),
+      );
+      expect(reclaimed.isError).not.toBe(true);
       expect(protocolErrors).toEqual([]);
     } finally {
       lines.close();

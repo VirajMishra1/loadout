@@ -171,6 +171,77 @@ describe("coordination daemon HTTP security", () => {
     });
   });
 
+  it.each([
+    ["/api/emit", { from: 42, type: "task", description: "invalid" }],
+    ["/api/ack", { agent: "codex", seq: "zero" }],
+  ])("returns 400 for schema-invalid JSON at %s", async (path, body) => {
+    const res = await fetch(daemonUrl(path), {
+      method: "POST",
+      headers: authHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify(body),
+    });
+
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({
+      error: {
+        code: "invalid_request",
+        message: "Request validation failed",
+      },
+    });
+  });
+
+  it("rejects invalid cursor and agent query values", async () => {
+    const invalidCursor = await fetch(daemonUrl("/api/events?after=nope"), {
+      headers: authHeaders(),
+    });
+    const oversizedAgent = await fetch(
+      daemonUrl(`/api/snapshot/${"a".repeat(129)}`),
+      { headers: authHeaders() },
+    );
+
+    expect(invalidCursor.status).toBe(400);
+    expect(oversizedAgent.status).toBe(400);
+  });
+
+  it("returns 409 for acknowledgement and contract revision conflicts", async () => {
+    const firstEvent = await fetch(daemonUrl("/api/emit"), {
+      method: "POST",
+      headers: authHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify({
+        from: "claude-code",
+        type: "task",
+        description: "seed",
+      }),
+    });
+    expect(firstEvent.status).toBe(201);
+
+    const futureAck = await fetch(daemonUrl("/api/ack"), {
+      method: "POST",
+      headers: authHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify({ agent: "codex", seq: 99 }),
+    });
+    expect(futureAck.status).toBe(409);
+
+    const contract = {
+      from: "claude-code",
+      type: "contract",
+      description: "API contract",
+      payload: { name: "api", revision: 1, body: "v1" },
+    };
+    const firstContract = await fetch(daemonUrl("/api/emit"), {
+      method: "POST",
+      headers: authHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify(contract),
+    });
+    expect(firstContract.status).toBe(201);
+    const staleContract = await fetch(daemonUrl("/api/emit"), {
+      method: "POST",
+      headers: authHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify(contract),
+    });
+    expect(staleContract.status).toBe(409);
+  });
+
   it("never exposes the absolute project root in browser-visible status", async () => {
     const res = await fetch(daemonUrl("/api/status"), {
       headers: authHeaders(),

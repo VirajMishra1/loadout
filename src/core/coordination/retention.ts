@@ -8,7 +8,7 @@
 
 import { readFile, writeFile, rename, stat, mkdir } from "node:fs/promises";
 import { join } from "node:path";
-import { readCoordLog } from "./coordinator.js";
+import { assertCoordinationEnabled, readCoordLog } from "./coordinator.js";
 import { withCoordinationLock } from "./lock.js";
 
 const COORD_DIR = ".handoff";
@@ -45,31 +45,26 @@ export async function compact(
   await mkdir(dir, { recursive: true });
 
   return withCoordinationLock(dir, async () => {
+    await assertCoordinationEnabled(projectRoot);
     const log = await readCoordLog(projectRoot);
-
-    if (log.events.length <= config.maxEvents) {
-      return {
-        before: log.events.length,
-        after: log.events.length,
-        removed: 0,
-        compacted: false,
-      };
+    if (!Number.isSafeInteger(config.maxEvents) || config.maxEvents < 1) {
+      throw new Error("maxEvents must be a positive integer");
+    }
+    if (!Number.isFinite(config.maxAgeDays) || config.maxAgeDays < 0) {
+      throw new Error("maxAgeDays must be a non-negative number");
     }
 
-    // Keep the most recent maxEvents events
-    const retained = log.events.slice(-config.maxEvents);
-    const remove = log.events.slice(0, -config.maxEvents);
-
-    // Also compact events older than maxAgeDays from the retained set
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - config.maxAgeDays);
     const cutoffIso = cutoffDate.toISOString();
-    const expiredFromRetained = retained.filter((e) => e.timestamp < cutoffIso);
-    const finalRetained =
-      expiredFromRetained.length > 0
-        ? retained.filter((e) => e.timestamp >= cutoffIso)
-        : retained;
-    remove.push(...expiredFromRetained);
+    const firstFresh = log.events.findIndex(
+      (event) => event.timestamp >= cutoffIso,
+    );
+    const ageStart = firstFresh === -1 ? log.events.length : firstFresh;
+    const countStart = Math.max(0, log.events.length - config.maxEvents);
+    const keepStart = Math.max(ageStart, countStart);
+    const remove = log.events.slice(0, keepStart);
+    const finalRetained = log.events.slice(keepStart);
 
     if (remove.length === 0) {
       return {
@@ -101,19 +96,19 @@ export async function compact(
 
     const logPath = join(projectRoot, COORD_DIR, COORD_LOG);
 
-    // Archive the full log before compaction
+    // Archival is the durability boundary: never rewrite if it fails.
     const archivePath = `${logPath}.${Date.now()}.archive`;
-    try {
-      const raw = await readFile(logPath, "utf-8");
-      await writeFile(archivePath, raw, "utf-8");
-    } catch {
-      // If we can't archive, still proceed — the data is append-only elsewhere
-    }
+    const raw = await readFile(logPath, "utf-8");
+    await writeFile(archivePath, raw, {
+      encoding: "utf-8",
+      flag: "wx",
+      mode: 0o600,
+    });
 
     // Write compacted log: summary event + retained events
     const summaryLine = JSON.stringify({
       id: `compaction-${Date.now()}`,
-      seq: -1,
+      seq: remove[remove.length - 1]!.seq,
       type: "status",
       from: "loadout",
       to: "*",
@@ -129,14 +124,20 @@ export async function compact(
 
     // Atomic write: write to temp, rename over
     const tmpPath = `${logPath}.tmp`;
-    await writeFile(tmpPath, lines + "\n", "utf-8");
+    await writeFile(tmpPath, lines + "\n", {
+      encoding: "utf-8",
+      mode: 0o600,
+    });
     await rename(tmpPath, logPath);
 
     // Log corrupt lines if any were found
     if (log.corrupt.length > 0) {
       const corruptPath = `${logPath}.${Date.now()}.corrupt`;
       const corruptData = log.corrupt.map((c) => JSON.stringify(c)).join("\n");
-      await writeFile(corruptPath, corruptData + "\n", "utf-8").catch(() => {});
+      await writeFile(corruptPath, corruptData + "\n", {
+        encoding: "utf-8",
+        mode: 0o600,
+      }).catch(() => {});
     }
 
     return {
@@ -156,7 +157,15 @@ export async function logSize(
     const s = await stat(logPath);
     const log = await readCoordLog(projectRoot);
     return { events: log.events.length, bytes: s.size };
-  } catch {
-    return { events: 0, bytes: 0 };
+  } catch (error) {
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      (error as { code?: unknown }).code === "ENOENT"
+    ) {
+      return { events: 0, bytes: 0 };
+    }
+    throw error;
   }
 }

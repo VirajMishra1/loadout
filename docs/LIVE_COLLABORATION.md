@@ -1,138 +1,184 @@
-# Live collaboration design
+# Live Claude Code ↔ Codex coordination
 
-> All four phases are implemented and shipping in 0.9.0. The coordination
-> system is marked **beta** — the async handoff inbox remains the stable,
-> always-available fallback.
+Live coordination is beta in 0.9.0. The ordinary `loadout handoff` inbox is
+the stable fallback: it is durable, understandable, and does not run either
+provider automatically.
 
-## The idea
+## What “shared memory” means
 
-One developer should be able to give Codex the frontend and Claude Code the
-backend while both agents share the same current contract: tasks, ownership,
-decisions, endpoint changes, blockers, and verification results. The user
-should not have to relay those facts manually.
-
-This is possible, but a skill alone cannot make it live. A skill teaches an
-agent when and how to use tools; it does not keep running or inject context
-into another provider's active conversation. Live coordination needs a small
-local process that both agents can reach and an adapter that resumes or steers
-each agent when relevant events arrive.
-
-## Proposed architecture
+Loadout shares structured project facts, not private conversations or model
+context windows. Both agents can see the same tasks, file ownership, versioned
+contracts, decisions, progress, blockers, verification results, and cursors.
+Every accepted event is persisted before a watcher, dashboard, or provider
+bridge sees it.
 
 ```text
-Codex SDK / app server  <---->  Loadout coordinator  <---->  Claude Agent SDK
-                                  |       |
-                                  |       +-- project event stream
-                                  +---------- SQLite state + append-only log
+Claude Code CLI  <---->  provider bridge  <---->  Codex SDK
+                              |
+                    coordination protocol
+                    .handoff/coordination.jsonl
+                       /        |        \
+                    CLI        MCP     HTTP/SSE
 ```
 
-The coordinator would run locally and expose the same MCP tools to both
-agents:
+The source of truth is an append-only project JSONL log protected by an
+exclusive cross-process lock. There is no cloud service and no SQLite database.
+Sequence numbers, acknowledgements, and snapshots make reconnects deterministic.
 
-- `claim_task`: reserve work and declare owned files or surfaces.
-- `publish_contract`: publish a versioned API, schema, component, or decision.
-- `publish_update`: report progress, touched files, tests, blockers, and next
-  action.
-- `subscribe`: stream relevant events after a cursor.
-- `ack`: record that an agent incorporated an event.
-- `snapshot`: return a bounded, current summary for reconnecting sessions.
+## Three operating levels
 
-The existing `.handoff/messages.jsonl` remains the human-readable audit trail.
-A project-local SQLite database becomes the indexed source of truth for live
-state, with every state change mirrored to the log. A monotonically increasing
-sequence number makes reconnects deterministic and prevents missed messages.
+1. **Durable handoff (stable):** `loadout handoff` passes a bounded task and
+   context to the next agent session.
+2. **Shared coordination protocol (beta):** CLI or MCP tools publish and read
+   structured events. Agents see changes when they call `snapshot`/`subscribe`,
+   while the local daemon and dashboard can observe changes immediately.
+3. **Provider bridge (beta, opt-in):** a long-running local process resumes
+   provider sessions and submits relevant events as new follow-up turns.
 
-## What should be shared
+The bridge does not inject into an already-running turn. Delivery happens at a
+safe turn boundary because that is what the supported Claude Code CLI and Codex
+SDK interfaces provide.
 
-Share structured project facts, not entire private conversations:
+## Quick protocol test (no paid agent turn)
 
-- task ID, status, owner, dependencies, and acceptance criteria;
-- file or directory ownership and expected write set;
-- versioned contracts such as OpenAPI fragments, TypeScript types, database
-  migrations, and environment-variable names;
-- decisions with rationale and superseded decision IDs;
-- changed files, commit or diff reference, verification commands, and results;
-- blockers and explicit requests for another agent.
+Run these commands in a disposable Git repository:
 
-For the frontend/backend example, Claude publishes an endpoint contract with a
-revision number. Codex receives that event, acknowledges the revision, and
-generates against the saved contract. If Claude changes it, the coordinator
-marks Codex's older acknowledgement stale and sends only the contract delta.
+```bash
+loadout coord own claude-code src/api
+loadout coord contract checkout-api --agent claude-code \
+  --body "POST /api/checkout -> 201 { id: string }"
+loadout coord snapshot codex
+loadout coord ack codex 1
+loadout coord release claude-code src/api
+loadout coord status
+loadout coord replay
+```
 
-## Delivery semantics
+The contract revision is allocated atomically when `--revision` is omitted.
+Overlapping exclusive ownership is rejected. A future acknowledgement or stale
+explicit contract revision is rejected as a conflict.
 
-"Live" should mean seconds, with durable recovery—not two models sharing one
-hidden context window.
+## Connect the MCP server
 
-1. Each adapter keeps a streaming connection to the local coordinator.
-2. Events are persisted before notification.
-3. The adapter filters events by task, ownership, and dependency.
-4. A relevant event steers an active turn when the host supports it; otherwise
-   it resumes the agent at the next safe turn boundary.
-5. The agent acknowledges the exact event sequence it incorporated.
-6. Reconnecting agents request a bounded snapshot plus events after their last
-   cursor.
+`loadout serve` starts a protocol-only stdio MCP server in the current project.
+It exposes `claim_task`, `release_ownership`, `publish_contract`,
+`publish_update`, `subscribe`, `ack`, and `snapshot`. Contract revisions
+auto-increment when omitted.
 
-OpenAI documents programmatic local Codex threads and streamed agent events
-through the [Codex SDK and app server](https://developers.openai.com/codex/sdk/).
-Anthropic documents programmatic and streaming Claude Code operation through
-its [CLI and SDK](https://docs.anthropic.com/en/docs/claude-code/cli-usage).
-Those host interfaces are the right integration layer; the first-party
-`loadout-handoff` skill should remain the conversational interface on top.
+For Claude Code, add the server at project scope using its MCP command:
 
-## Safety and conflict rules
+```bash
+claude mcp add --transport stdio --scope project loadout-coordination -- loadout serve
+```
 
-- Keep secrets, credentials, raw prompts, and unredacted tool output out of the
-  shared store by default.
-- Validate every event against a versioned schema and cap every field and
-  payload.
-- Treat agent-written messages as untrusted input; never turn them directly
-  into shell commands.
-- Require explicit file ownership or separate worktrees for concurrent writes.
-- Detect overlapping write sets before either agent applies a conflicting
-  change.
-- Require user approval for destructive actions, publishing, deployment, and
-  permission expansion.
-- Preserve append-only provenance: author, provider, session, timestamp,
-  sequence, and the event being superseded.
-- Compact old events into signed summaries without deleting the audit log.
+For Codex, add this table to `~/.codex/config.toml` (or use the equivalent
+Codex MCP configuration UI):
 
-## Delivery plan
+```toml
+[mcp_servers."loadout-coordination"]
+command = "loadout"
+args = ["serve"]
+```
 
-### Phase 1: structured asynchronous handoff ✅
+Restart the host after changing its MCP configuration. The server inherits the
+host process working directory, so confirm the agent opened the intended
+project before publishing coordination state.
 
-Typed events for contracts, ownership, decisions, and verification. Cursors,
-acknowledgements, snapshots, conflict checks, and CLI/MCP parity. Reliable
-handoff without running a daemon.
+## Run the provider bridge
 
-### Phase 2: local live coordinator ✅
+First check what is available:
 
-HTTP daemon on `127.0.0.1:4510` with REST API, SSE push subscriptions,
-live web dashboard, automatic secret redaction, and log retention/compaction.
-No SQLite needed — the append-only JSONL log handles the scale of two agents
-on one repo. Agents connect via SSE for real-time event push.
+```bash
+loadout coord agents detect
+```
 
-### Phase 3: provider adapters ✅
+You can start sessions through Loadout (this runs paid provider turns):
 
-Claude Code adapter (CLI-based sessions) and Codex adapter (SDK-based) with
-start, resume, and turn submission. Session manager tracks sessions across
-providers and replays missed events on reconnection. Interrupt policy with
-immediate/boundary/passive rules per event type.
+```bash
+loadout coord agents start claude-code "Own the backend and publish endpoint contracts"
+loadout coord agents start codex "Own the frontend and consume backend contracts"
+```
 
-### Phase 4: production hardening ✅
+Copy the returned IDs, then keep both attached:
 
-Atomic cross-process locking for all state mutations. Bearer token auth for
-the daemon (mode 0600, timing-safe comparison). PID management with stale
-process detection. Kill switch for emergency halt. Conflict preview with git
-diffs. Contract diffing between revisions. Coordination replay timeline.
-Bounded replay output. Corrupt line preservation during compaction.
+```bash
+loadout coord agents bridge \
+  claude-code:<session-id> \
+  codex:<thread-id>
+```
 
-## Success criteria
+You can instead validate an existing known host session with
+`loadout coord agents attach provider:session-id`. `loadout coord agents list`
+shows project-tracked sessions, and `loadout coord agents send` performs one
+explicit follow-up turn.
 
-- A contract update is durable before either agent sees it.
-- The dependent agent observes it within five seconds while connected.
-- Restarting either agent loses no acknowledged or unacknowledged event.
-- Concurrent ownership of the same file is blocked or explicitly approved.
-- Shared context stays bounded as the repository and conversation grow.
-- The user can inspect, pause, export, and completely remove coordination
-  state.
+Bridge safeguards:
+
+- only one bridge process can own a project at a time;
+- events route to different providers concurrently;
+- update and acknowledgement events are passive by default and do not spend a
+  provider turn;
+- contract, task, decision, done, ownership, and error events are delivered at
+  the next safe boundary;
+- automatic delivery stops after 20 turns per session unless
+  `--max-turns <n>` changes the cap;
+- provider responses are printed but never saved in `.handoff`;
+- injected event text is labeled untrusted project data and must not authorize
+  commands, scope expansion, publishing, or destructive actions;
+- the project kill switch blocks CLI, MCP, daemon, compaction, and provider
+  turns.
+
+Use `loadout daemon kill "reason"` to stop coordination and
+`loadout daemon resume` to re-enable it.
+
+## Optional daemon and dashboard
+
+```bash
+loadout daemon start
+```
+
+The daemon binds only to `127.0.0.1`. It prints an authenticated dashboard URL
+whose token is carried in the URL fragment, moved immediately into browser
+session storage, and removed from visible history. REST and SSE accept bearer
+headers only; query-string tokens, non-loopback Host headers, and cross-origin
+browser requests are rejected. The token and session state are project-local
+files with mode `0600`.
+
+The dashboard is observability, not an agent injector. Use the MCP tools or the
+provider bridge for agent-to-agent delivery.
+
+## Safety and data model
+
+- Event schemas cap names, descriptions, context, payloads, arrays, and paths.
+- Secret-like keys and values are redacted at the canonical write boundary, so
+  CLI, MCP, and HTTP writes follow the same rule.
+- Ownership claims use normalized project-relative paths and detect directory /
+  child overlap.
+- Contract revisions and event sequences are allocated while holding the same
+  project lock.
+- Compaction first writes a complete archival copy and aborts if archival fails.
+- Corrupt JSONL lines are reported rather than hiding valid neighboring events.
+- `.handoff/coordination.jsonl` is project data. Do not commit it when its facts
+  are private; add the appropriate `.handoff` paths to `.gitignore`.
+
+## Honest limitations
+
+- This is durable shared state plus follow-up turns, not one simultaneous model
+  context or provider-to-provider hidden channel.
+- Claude Code and Codex authentication, quotas, billing, and host session IDs
+  remain provider concerns.
+- The bridge cannot steer a turn already in progress.
+- A provider may fail, time out, reject a resume ID, or return output Loadout
+  cannot parse. The event stays durable and can still be consumed manually.
+- The bridge is local to one machine and one repository. Remote teams need a
+  separately designed authenticated transport; this release intentionally does
+  not expose the daemon to a network.
+
+## Evidence
+
+The coordination test suite covers concurrent writers, ownership conflicts,
+revision allocation, malformed logs, redaction, authenticated HTTP/SSE, MCP
+stdio framing, retention failure safety, kill-switch behavior, provider CLI/SDK
+shapes, session replay, concurrent provider delivery, passive policy, and the
+automatic-turn cap. The package smoke test verifies the compiled MCP artifact is
+included in the npm tarball.

@@ -18,7 +18,7 @@ class FakeThread implements CodexThreadDriver {
   async run(prompt: string): Promise<unknown> {
     this.prompts.push(prompt);
     this.id ??= this.assignedId;
-    return {};
+    return { finalResponse: `response:${prompt}` };
   }
 }
 
@@ -63,6 +63,9 @@ describe("CodexAdapter", () => {
       provider: "codex",
       busy: false,
     });
+    expect(adapter.lastResponse?.(session.sessionId)).toBe(
+      "response:Implement the contract",
+    );
   });
 
   it("resumes a thread and submits the next turn through run", async () => {

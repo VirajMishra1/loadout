@@ -161,6 +161,8 @@ describe("CLI completion", () => {
     const paths = JSON.parse(stdout) as string[];
     expect(paths).toContain("skills install");
     expect(paths).toContain("candidate inspect");
+    expect(paths).toContain("coordinate agents");
+    expect(paths).toContain("coord agents");
     expect(paths).not.toContain("loadout-router");
   });
 });

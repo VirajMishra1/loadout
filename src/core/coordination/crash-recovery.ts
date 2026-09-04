@@ -38,11 +38,10 @@ export async function writePidFile(
     projectRoot,
   };
 
-  await writeFile(
-    join(dir, PID_FILE),
-    JSON.stringify(info, null, 2) + "\n",
-    "utf-8",
-  );
+  await writeFile(join(dir, PID_FILE), JSON.stringify(info, null, 2) + "\n", {
+    encoding: "utf-8",
+    mode: 0o600,
+  });
 }
 
 /**
@@ -158,7 +157,7 @@ export async function activateKillSwitch(
   await writeFile(
     join(dir, KILL_SWITCH_FILE),
     JSON.stringify(data, null, 2) + "\n",
-    "utf-8",
+    { encoding: "utf-8", mode: 0o600 },
   );
 
   // Also stop the daemon if running
@@ -185,17 +184,37 @@ export async function deactivateKillSwitch(
 export async function isKillSwitchActive(
   projectRoot: string,
 ): Promise<{ active: boolean; reason?: string; activatedAt?: string }> {
+  let raw: string;
   try {
-    const raw = await readFile(
+    raw = await readFile(
       join(projectRoot, COORD_DIR, KILL_SWITCH_FILE),
       "utf-8",
     );
+  } catch (error) {
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      (error as { code?: unknown }).code === "ENOENT"
+    ) {
+      return { active: false };
+    }
+    return { active: true, reason: "Kill-switch file is unreadable" };
+  }
+
+  try {
     const data = JSON.parse(raw) as {
-      reason: string;
-      activatedAt: string;
+      reason?: unknown;
+      activatedAt?: unknown;
     };
-    return { active: true, reason: data.reason, activatedAt: data.activatedAt };
+    return {
+      active: true,
+      ...(typeof data.reason === "string" ? { reason: data.reason } : {}),
+      ...(typeof data.activatedAt === "string"
+        ? { activatedAt: data.activatedAt }
+        : {}),
+    };
   } catch {
-    return { active: false };
+    return { active: true, reason: "Kill-switch file is unreadable" };
   }
 }

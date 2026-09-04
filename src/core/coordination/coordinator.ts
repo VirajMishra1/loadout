@@ -6,7 +6,7 @@
  * detection. No daemon — reads and writes go through the same append-only log.
  */
 
-import { readFile, writeFile, mkdir } from "node:fs/promises";
+import { chmod, readFile, writeFile, mkdir } from "node:fs/promises";
 import { isAbsolute, join, posix } from "node:path";
 import { randomUUID } from "node:crypto";
 import {
@@ -24,6 +24,7 @@ import { redactCoordinationInput } from "./redaction.js";
 
 const COORD_DIR = ".handoff";
 const COORD_LOG = "coordination.jsonl";
+const KILL_SWITCH_FILE = "KILL_SWITCH";
 
 function coordDir(projectRoot: string): string {
   return join(projectRoot, COORD_DIR);
@@ -31,6 +32,52 @@ function coordDir(projectRoot: string): string {
 
 function coordLogPath(projectRoot: string): string {
   return join(coordDir(projectRoot), COORD_LOG);
+}
+
+export class CoordinationHaltedError extends Error {
+  constructor(reason?: string) {
+    super(`Coordination kill switch is active${reason ? `: ${reason}` : ""}`);
+    this.name = "CoordinationHaltedError";
+  }
+}
+
+export class CoordinationConflictError extends Error {
+  constructor(
+    readonly code: string,
+    message: string,
+  ) {
+    super(message);
+    this.name = "CoordinationConflictError";
+  }
+}
+
+export async function assertCoordinationEnabled(
+  projectRoot: string,
+): Promise<void> {
+  try {
+    const raw = await readFile(
+      join(coordDir(projectRoot), KILL_SWITCH_FILE),
+      "utf8",
+    );
+    let reason: string | undefined;
+    try {
+      const parsed = JSON.parse(raw) as { reason?: unknown };
+      if (typeof parsed.reason === "string") reason = parsed.reason;
+    } catch {
+      // The file itself is authoritative even if its explanatory JSON is damaged.
+    }
+    throw new CoordinationHaltedError(reason);
+  } catch (error) {
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      (error as { code?: unknown }).code === "ENOENT"
+    ) {
+      return;
+    }
+    throw error;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -186,13 +233,15 @@ async function appendLocked(
   options: EmitOptions,
   existingLog?: CoordLog,
 ): Promise<CoordinationEvent> {
+  await assertCoordinationEnabled(projectRoot);
   const checked = normalizedOptions(options);
   const log = existingLog ?? (await readCoordLog(projectRoot));
 
   if (checked.type === "ack") {
     const eventSeq = (checked.payload as { eventSeq: number }).eventSeq;
     if (eventSeq > log.highSeq) {
-      throw new Error(
+      throw new CoordinationConflictError(
+        "acknowledgement_conflict",
         `Cannot acknowledge seq ${eventSeq}; current watermark is ${log.highSeq}`,
       );
     }
@@ -208,7 +257,8 @@ async function appendLocked(
         : highest;
     }, 0);
     if (candidate.revision <= currentRevision) {
-      throw new Error(
+      throw new CoordinationConflictError(
+        "contract_revision_conflict",
         `Contract '${candidate.name}' revision ${candidate.revision} is stale; current revision is ${currentRevision}`,
       );
     }
@@ -240,8 +290,10 @@ async function appendLocked(
     `${JSON.stringify(parsed.data)}\n`,
     {
       flag: "a",
+      mode: 0o600,
     },
   );
+  await chmod(coordLogPath(projectRoot), 0o600);
   return parsed.data;
 }
 
@@ -301,6 +353,11 @@ function ownershipFromEvents(
     const payload = event.payload as { paths: string[]; mode: string };
     const paths = payload.paths.map(normalizeClaimPath);
     for (const path of paths) {
+      if (payload.mode === "release") {
+        const existing = ownership.get(path);
+        if (existing?.agent === event.from) ownership.delete(path);
+        continue;
+      }
       ownership.set(path, {
         agent: event.from,
         paths,
@@ -341,9 +398,9 @@ export async function checkOwnershipConflicts(
   return conflicts;
 }
 
-export class OwnershipConflictError extends Error {
+export class OwnershipConflictError extends CoordinationConflictError {
   constructor(readonly conflicts: OwnershipConflict[]) {
-    super(formatConflicts(conflicts));
+    super("ownership_conflict", formatConflicts(conflicts));
     this.name = "OwnershipConflictError";
   }
 }
@@ -353,6 +410,11 @@ export interface ClaimOwnershipOptions {
   paths: string[];
   mode: "exclusive" | "shared";
   reason?: string;
+}
+
+export interface ReleaseOwnershipOptions {
+  agent: string;
+  paths: string[];
 }
 
 /** Check and persist ownership as one atomic mutation. */
@@ -400,6 +462,41 @@ export async function claimOwnership(
   });
 }
 
+/** Release exact paths currently owned by the requesting agent. */
+export async function releaseOwnership(
+  projectRoot: string,
+  options: ReleaseOwnershipOptions,
+): Promise<CoordinationEvent> {
+  const dir = coordDir(projectRoot);
+  await mkdir(dir, { recursive: true });
+  return withCoordinationLock(dir, async () => {
+    const log = await readCoordLog(projectRoot);
+    const ownership = ownershipFromEvents(log.events);
+    const paths = options.paths.map(normalizeClaimPath);
+    for (const path of paths) {
+      const existing = ownership.get(path);
+      if (existing && existing.agent !== options.agent) {
+        throw new CoordinationConflictError(
+          "ownership_release_conflict",
+          `Cannot release '${path}'; it is owned by ${existing.agent}`,
+        );
+      }
+    }
+
+    return appendLocked(
+      projectRoot,
+      {
+        from: options.agent,
+        to: "*",
+        type: "ownership",
+        description: `${options.agent} releases: ${paths.join(", ")}`,
+        payload: { paths, mode: "release" },
+      },
+      log,
+    );
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Contract tracking
 // ---------------------------------------------------------------------------
@@ -412,6 +509,34 @@ export interface ActiveContract {
   publisher: string;
   eventId: string;
   seq: number;
+}
+
+function contractsFromEvents(
+  events: CoordinationEvent[],
+): Map<string, ActiveContract> {
+  const contracts = new Map<string, ActiveContract>();
+  for (const event of events) {
+    if (event.type !== "contract" || !event.payload) continue;
+    const payload = event.payload as {
+      name: string;
+      revision: number;
+      body: string;
+      format?: string;
+    };
+    const existing = contracts.get(payload.name);
+    if (!existing || payload.revision > existing.revision) {
+      contracts.set(payload.name, {
+        name: payload.name,
+        revision: payload.revision,
+        body: payload.body,
+        format: payload.format,
+        publisher: event.from,
+        eventId: event.id,
+        seq: event.seq,
+      });
+    }
+  }
+  return contracts;
 }
 
 export interface PublishContractOptions {
@@ -463,31 +588,7 @@ export async function getContracts(
   projectRoot: string,
 ): Promise<Map<string, ActiveContract>> {
   const log = await readCoordLog(projectRoot);
-  const contracts = new Map<string, ActiveContract>();
-
-  for (const event of log.events) {
-    if (event.type !== "contract" || !event.payload) continue;
-    const payload = event.payload as {
-      name: string;
-      revision: number;
-      body: string;
-      format?: string;
-    };
-    const existing = contracts.get(payload.name);
-    if (!existing || payload.revision > existing.revision) {
-      contracts.set(payload.name, {
-        name: payload.name,
-        revision: payload.revision,
-        body: payload.body,
-        format: payload.format,
-        publisher: event.from,
-        eventId: event.id,
-        seq: event.seq,
-      });
-    }
-  }
-
-  return contracts;
+  return contractsFromEvents(log.events);
 }
 
 // ---------------------------------------------------------------------------
@@ -501,32 +602,32 @@ export interface AckState {
   unacked: CoordinationEvent[];
 }
 
-export async function getAckState(projectRoot: string): Promise<AckState> {
-  const log = await readCoordLog(projectRoot);
+function ackStateFromEvents(events: CoordinationEvent[]): AckState {
   const cursors = new Map<string, number>();
 
-  for (const event of log.events) {
+  for (const event of events) {
     if (event.type !== "ack" || !event.payload) continue;
     const payload = event.payload as { eventSeq: number };
     const current = cursors.get(event.from) ?? -1;
-    if (payload.eventSeq > current) {
-      cursors.set(event.from, payload.eventSeq);
-    }
+    if (payload.eventSeq > current) cursors.set(event.from, payload.eventSeq);
   }
 
-  // Events not acked by anyone other than their sender
-  const agents = new Set(log.events.map((e) => e.from));
-  const unacked = log.events.filter((e) => {
-    if (e.type === "ack") return false;
+  const agents = new Set(events.map((event) => event.from));
+  const unacked = events.filter((event) => {
+    if (event.type === "ack") return false;
     for (const agent of agents) {
-      if (agent === e.from) continue;
+      if (agent === event.from) continue;
       const cursor = cursors.get(agent) ?? -1;
-      if (cursor >= e.seq) return false;
+      if (cursor >= event.seq) return false;
     }
     return true;
   });
-
   return { cursors, unacked };
+}
+
+export async function getAckState(projectRoot: string): Promise<AckState> {
+  const log = await readCoordLog(projectRoot);
+  return ackStateFromEvents(log.events);
 }
 
 // ---------------------------------------------------------------------------
@@ -540,6 +641,26 @@ export interface CoordinationSnapshot {
   ownership: OwnershipClaim[];
   recentDecisions: CoordinationEvent[];
   unackedForAgent: CoordinationEvent[];
+  /** Counts omitted from each bounded collection. */
+  truncated: {
+    pendingTasks: number;
+    activeContracts: number;
+    ownership: number;
+    recentDecisions: number;
+    unackedForAgent: number;
+  };
+}
+
+const SNAPSHOT_LIMITS = {
+  pendingTasks: 50,
+  activeContracts: 50,
+  ownership: 500,
+  recentDecisions: 10,
+  unackedForAgent: 100,
+} as const;
+
+function boundedTail<T>(values: T[], limit: number): T[] {
+  return values.slice(Math.max(0, values.length - limit));
 }
 
 export async function snapshot(
@@ -547,9 +668,13 @@ export async function snapshot(
   agent: string,
 ): Promise<CoordinationSnapshot> {
   const log = await readCoordLog(projectRoot);
-  const contracts = await getContracts(projectRoot);
-  const ownershipMap = await getOwnership(projectRoot);
-  const ackState = await getAckState(projectRoot);
+  const contracts = [...contractsFromEvents(log.events).values()].sort(
+    (left, right) => left.seq - right.seq,
+  );
+  const ownership = [...ownershipFromEvents(log.events).values()].sort(
+    (left, right) => left.seq - right.seq,
+  );
+  const ackState = ackStateFromEvents(log.events);
 
   // Pending tasks (not yet resolved)
   const terminalTypes = new Set(["done", "error", "cancel"]);
@@ -562,27 +687,51 @@ export async function snapshot(
         return match ? [match[1]] : [];
       }),
   );
-  const pendingTasks = log.events.filter(
+  const allPendingTasks = log.events.filter(
     (e) => e.type === "task" && !resolvedIds.has(e.id),
   );
 
   // Recent decisions (last 10)
   const decisions = log.events.filter((e) => e.type === "decision");
-  const recentDecisions = decisions.slice(-10);
+  const recentDecisions = boundedTail(
+    decisions,
+    SNAPSHOT_LIMITS.recentDecisions,
+  );
 
   // Events this agent hasn't acked
   const agentCursor = ackState.cursors.get(agent) ?? -1;
-  const unackedForAgent = log.events.filter(
+  const allUnackedForAgent = log.events.filter(
     (e) => e.seq > agentCursor && e.from !== agent && e.type !== "ack",
+  );
+
+  const pendingTasks = boundedTail(
+    allPendingTasks,
+    SNAPSHOT_LIMITS.pendingTasks,
+  );
+  const activeContracts = boundedTail(
+    contracts,
+    SNAPSHOT_LIMITS.activeContracts,
+  );
+  const boundedOwnership = boundedTail(ownership, SNAPSHOT_LIMITS.ownership);
+  const unackedForAgent = boundedTail(
+    allUnackedForAgent,
+    SNAPSHOT_LIMITS.unackedForAgent,
   );
 
   return {
     highSeq: log.highSeq,
     pendingTasks,
-    activeContracts: [...contracts.values()],
-    ownership: [...ownershipMap.values()],
+    activeContracts,
+    ownership: boundedOwnership,
     recentDecisions,
     unackedForAgent,
+    truncated: {
+      pendingTasks: allPendingTasks.length - pendingTasks.length,
+      activeContracts: contracts.length - activeContracts.length,
+      ownership: ownership.length - boundedOwnership.length,
+      recentDecisions: decisions.length - recentDecisions.length,
+      unackedForAgent: allUnackedForAgent.length - unackedForAgent.length,
+    },
   };
 }
 
@@ -652,6 +801,17 @@ export function formatSnapshot(snap: CoordinationSnapshot): string {
     !snap.unackedForAgent.length
   ) {
     lines.push("No active coordination state.");
+  }
+
+  const omitted = Object.values(snap.truncated).reduce(
+    (total, count) => total + count,
+    0,
+  );
+  if (omitted > 0) {
+    lines.push(
+      "",
+      `Snapshot is bounded; ${omitted} older item(s) omitted. Use subscribe/replay for history.`,
+    );
   }
 
   return lines.join("\n");

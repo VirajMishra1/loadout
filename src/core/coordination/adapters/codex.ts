@@ -30,6 +30,8 @@ export interface CodexThreadDriver {
 }
 
 export interface CodexSdkDriver {
+  /** Human-readable SDK/runtime version for capability detection. */
+  readonly runtimeVersion?: string;
   startThread(options: CodexThreadOptions): CodexThreadDriver;
   resumeThread(
     sessionId: string,
@@ -45,10 +47,23 @@ function requireThreadId(thread: CodexThreadDriver): string {
   return id;
 }
 
+function responseFromRun(result: unknown): string | undefined {
+  if (
+    typeof result === "object" &&
+    result !== null &&
+    "finalResponse" in result &&
+    typeof result.finalResponse === "string"
+  ) {
+    return result.finalResponse;
+  }
+  return undefined;
+}
+
 export class CodexAdapter implements AgentAdapter {
   readonly provider = PROVIDER;
   private readonly threads = new Map<string, CodexThreadDriver>();
   private readonly sessions = new Map<string, AgentSession>();
+  private readonly responses = new Map<string, string>();
 
   constructor(private readonly driver: CodexSdkDriver) {}
 
@@ -61,6 +76,7 @@ export class CodexAdapter implements AgentAdapter {
   };
 
   async detect(): Promise<string | null> {
+    if (this.driver.runtimeVersion) return this.driver.runtimeVersion;
     try {
       const { stdout } = await exec(CLI, ["--version"], { timeout: 5000 });
       return stdout.trim();
@@ -79,7 +95,7 @@ export class CodexAdapter implements AgentAdapter {
     const thread = this.driver.startThread({
       workingDirectory: options.cwd,
     });
-    await thread.run(options.prompt ?? "");
+    const result = await thread.run(options.prompt ?? "");
     const sessionId = requireThreadId(thread);
     const session: AgentSession = {
       sessionId,
@@ -93,6 +109,8 @@ export class CodexAdapter implements AgentAdapter {
     };
     this.threads.set(sessionId, thread);
     this.sessions.set(sessionId, session);
+    const response = responseFromRun(result);
+    if (response) this.responses.set(sessionId, response);
     return session;
   }
 
@@ -125,7 +143,9 @@ export class CodexAdapter implements AgentAdapter {
     if (!thread) return false;
     session.busy = true;
     try {
-      await thread.run(options.message);
+      const result = await thread.run(options.message);
+      const response = responseFromRun(result);
+      if (response) this.responses.set(session.sessionId, response);
       return true;
     } catch {
       return false;
@@ -143,5 +163,9 @@ export class CodexAdapter implements AgentAdapter {
     return [...this.sessions.values()]
       .filter((session) => session.cwd === cwd)
       .map((session) => ({ ...session }));
+  }
+
+  lastResponse(sessionId: string): string | undefined {
+    return this.responses.get(sessionId);
   }
 }

@@ -192,7 +192,104 @@ GitHub token; use `loadout mcp-recipe --credential-free` to exclude every servic
 credential too. Browser configuration and real connection testing remain explicit.
 Graphify is a separate runtime tool, not an MCP server.
 
-## 8. Preview complete cleanup
+## 8. Test handoff and live coordination in a disposable repository
+
+Create a temporary Git repository so the test does not add handoff files to a
+real project:
+
+```bash
+mkdir loadout-coordination-test
+cd loadout-coordination-test
+git init
+```
+
+First test the stable session-boundary inbox:
+
+```bash
+loadout handoff codex "Implement the frontend" --context "Claude owns src/api; consume checkout-api"
+loadout handoff codex
+loadout handoff
+```
+
+Copy the task ID printed by the inbox, then settle it:
+
+```bash
+loadout handoff --done <task-id>
+loadout handoff codex
+```
+
+Next test structured coordination without running either model:
+
+```bash
+loadout coord own claude-code src/api
+loadout coord own codex src/web
+loadout coord contract checkout-api --agent claude-code \
+  --body "POST /api/checkout -> 201 { id: string }"
+loadout coord snapshot codex
+loadout coord ack codex 2
+loadout coord status
+loadout coord replay
+```
+
+Sequence numbers are printed by each command; use the actual latest relevant
+sequence if it differs from `2`. Confirm that the first overlapping exclusive
+claim is refused, then release the original path and confirm the retry succeeds:
+
+```bash
+loadout coord own codex src/api/checkout.ts
+loadout coord release claude-code src/api
+loadout coord own codex src/api/checkout.ts
+```
+
+Test the authenticated live dashboard in one terminal:
+
+```bash
+loadout daemon start
+```
+
+Open the exact dashboard URL it prints. In a second terminal, run another
+`loadout coord update` and confirm it appears. A bare `/api/status` request
+without the bearer token should return `401`. Press Ctrl+C in the daemon
+terminal when finished.
+
+Test the packaged MCP transport without changing either agent's configuration:
+
+```bash
+loadout serve
+```
+
+The process waits for MCP JSON-RPC on stdin and should print no banners or prose
+to stdout. Press Ctrl+C. Host-specific configuration and the exact tool list are
+in [the live coordination guide](./LIVE_COLLABORATION.md).
+
+Finally, inspect the provider bridge surface:
+
+```bash
+loadout coord agents detect
+loadout coord agents list
+loadout coord agents bridge --help
+```
+
+The next commands run real provider turns and may consume Claude/Codex quota.
+Only run them when you intentionally want that test:
+
+```bash
+loadout coord agents start claude-code "Claim backend files and publish a test contract"
+loadout coord agents start codex "Read the shared snapshot and acknowledge the contract"
+loadout coord agents bridge claude-code:<session-id> codex:<thread-id> --max-turns 4
+```
+
+While the bridge runs, publish a new contract from another terminal. Confirm
+both provider sessions can proceed concurrently and that the bridge prints
+their responses. Progress-only `update` events remain passive by default. Use
+Ctrl+C to stop the bridge. Activate `loadout daemon kill "user test"` to verify
+that new coordination writes and provider turns stop, then run
+`loadout daemon resume`.
+
+Delete the disposable repository after inspection. Its `.handoff` directory
+contains the local task/event audit trail, token, and session IDs.
+
+## 9. Preview complete cleanup
 
 ```bash
 loadout uninstall
@@ -238,7 +335,7 @@ loadout-ai@0.9.0` completed, run `hash -r`, and confirm npm's global binary
   Unmanaged content is preserved, and modified managed files can make cleanup refuse
   until you explicitly review the command's force path.
 
-## 9. Advanced surface
+## 10. Advanced surface
 
 The first help screen deliberately focuses on daily use. Existing advanced
 commands have not been removed:

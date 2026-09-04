@@ -1,5 +1,13 @@
 import { execFile } from "node:child_process";
-import { chmod, mkdir, mkdtemp, rm, utimes, writeFile } from "node:fs/promises";
+import {
+  chmod,
+  mkdir,
+  mkdtemp,
+  rm,
+  stat,
+  utimes,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
@@ -10,6 +18,8 @@ import {
   emit,
   publishContract,
   readCoordLog,
+  releaseOwnership,
+  getOwnership,
 } from "../src/core/coordination/coordinator.js";
 import { withCoordinationLock } from "../src/core/coordination/lock.js";
 
@@ -55,6 +65,18 @@ describe("cross-process coordination", () => {
 });
 
 describe("coordination invariants", () => {
+  it("stores the project coordination log with owner-only permissions", async () => {
+    await emit(root, {
+      from: "codex",
+      to: "*",
+      type: "task",
+      description: "private project fact",
+    });
+
+    const info = await stat(join(root, ".handoff", "coordination.jsonl"));
+    expect(info.mode & 0o777).toBe(0o600);
+  });
+
   it("recovers a malformed lock after its stale threshold", async () => {
     const dir = join(root, ".handoff");
     const lock = join(dir, "coordination.lock");
@@ -88,6 +110,37 @@ describe("coordination invariants", () => {
     expect(
       attempts.filter((attempt) => attempt.status === "rejected"),
     ).toHaveLength(1);
+  });
+
+  it("lets the owner release paths so another agent can claim them", async () => {
+    await claimOwnership(root, {
+      agent: "claude-code",
+      paths: ["src/api"],
+      mode: "exclusive",
+    });
+    await releaseOwnership(root, {
+      agent: "claude-code",
+      paths: ["src/api"],
+    });
+    expect(await getOwnership(root)).toEqual(new Map());
+    await expect(
+      claimOwnership(root, {
+        agent: "codex",
+        paths: ["src/api"],
+        mode: "exclusive",
+      }),
+    ).resolves.toBeDefined();
+  });
+
+  it("does not let one agent release another agent's ownership", async () => {
+    await claimOwnership(root, {
+      agent: "claude-code",
+      paths: ["src/api"],
+      mode: "exclusive",
+    });
+    await expect(
+      releaseOwnership(root, { agent: "codex", paths: ["src/api"] }),
+    ).rejects.toThrow(/owned by claude-code/i);
   });
 
   it("rejects an acknowledgement beyond the current watermark", async () => {

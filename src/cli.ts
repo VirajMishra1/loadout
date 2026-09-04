@@ -49,10 +49,16 @@ registerLifecycle(program);
 registerCoordinate(program);
 
 registerCompletionCommands(
-  program.commands.map((command) => ({
-    name: command.name(),
-    subcommands: command.commands.map((sub) => sub.name()),
-  })),
+  program.commands.flatMap((command) => {
+    const subcommands = command.commands.flatMap((subcommand) => [
+      subcommand.name(),
+      ...subcommand.aliases(),
+    ]);
+    return [command.name(), ...command.aliases()].map((name) => ({
+      name,
+      subcommands,
+    }));
+  }),
 );
 
 for (const command of program.commands)

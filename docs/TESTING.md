@@ -71,6 +71,20 @@ Vitest suites, both CLI journeys, package smoke, and the performance gate.
 Run `npm run verify:full` before a release; it runs that gate and then enforces
 the global and security-sensitive per-file coverage floors.
 
+The coordination suites exercise the protocol separately from paid providers:
+
+```bash
+npx vitest run 'tests/coordination*.test.ts'
+npm run test:package
+```
+
+They cover cross-process ordering, ownership/revision conflicts, redaction,
+retention and recovery, daemon authentication, MCP framing, provider command/SDK
+shapes, automatic watcher delivery, passive interrupt policy, singleton bridge
+leases, and runaway-turn limits. Fake provider drivers are used for deterministic
+tests; the suite does not spend Claude or Codex quota. Follow the disposable
+manual flow in `docs/USER_TEST_GUIDE.md` for an intentional real-host test.
+
 Current npm publication, the current pinned Stable repositories, and GitHub repository
 settings are external state. Check them separately with:
 

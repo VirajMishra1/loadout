@@ -42,7 +42,7 @@ export const ownershipPayloadSchema = z.object({
   /** File or directory paths this agent claims. Relative to project root. */
   paths: z.array(z.string().trim().min(1).max(1_024)).min(1).max(256),
   /** "exclusive" blocks other agents; "shared" allows concurrent reads. */
-  mode: z.enum(["exclusive", "shared"]),
+  mode: z.enum(["exclusive", "shared", "release"]),
   /** Optional reason for the claim. */
   reason: z.string().max(500).optional(),
 });

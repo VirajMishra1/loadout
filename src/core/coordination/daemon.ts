@@ -26,6 +26,7 @@ import {
 import { readFile } from "node:fs/promises";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { z } from "zod";
 import {
   emit,
   readAfterCursor,
@@ -33,15 +34,23 @@ import {
   getContracts,
   getOwnership,
   getAckState,
+  claimOwnership,
+  releaseOwnership,
+  publishContract,
+  CoordinationConflictError,
 } from "./coordinator.js";
 import { watchCoordination, type CoordinationWatcher } from "./watcher.js";
-import { redactDescription, redactPayload } from "./redaction.js";
 import { compact, logSize } from "./retention.js";
-import { type CoordinationEvent, COORDINATION_EVENT_TYPES } from "./events.js";
+import {
+  type CoordinationEvent,
+  COORDINATION_EVENT_TYPES,
+  validatePayload,
+} from "./events.js";
 import {
   writePidFile,
   removePidFile,
   isKillSwitchActive,
+  getDaemonStatus,
 } from "./crash-recovery.js";
 import { ensureDaemonToken, hasValidBearerToken } from "./auth.js";
 import {
@@ -55,6 +64,35 @@ import {
 } from "./http-api.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+
+const agentNameSchema = z.string().trim().min(1).max(128);
+const cursorSchema = z.coerce.number().int().min(-1);
+const emitRequestSchema = z
+  .object({
+    from: agentNameSchema,
+    to: agentNameSchema.default("*"),
+    type: z.enum(COORDINATION_EVENT_TYPES),
+    description: z.string().trim().min(1).max(8_192),
+    context: z.string().max(65_536).optional(),
+    resolves: z.string().trim().min(1).max(128).optional(),
+    payload: z.record(z.string(), z.unknown()).optional(),
+  })
+  .strict();
+const ackRequestSchema = z
+  .object({
+    agent: agentNameSchema,
+    seq: z.number().int().nonnegative(),
+    note: z.string().max(1_000).optional(),
+  })
+  .strict();
+
+function validateInput<T>(schema: z.ZodType<T>, input: unknown): T {
+  const result = schema.safeParse(input);
+  if (!result.success) {
+    throw new HttpError(400, "invalid_request", "Request validation failed");
+  }
+  return result.data;
+}
 
 interface SSEClient {
   id: string;
@@ -161,16 +199,10 @@ async function handleRequest(
 
     // GET /api/snapshot/:agent
     if (route.startsWith("/snapshot/") && req.method === "GET") {
-      const agent = decodeURIComponent(route.slice(10));
-      if (!agent) {
-        return sendError(
-          req,
-          res,
-          "invalid_request",
-          "Agent name required",
-          400,
-        );
-      }
+      const agent = validateInput(
+        agentNameSchema,
+        decodeURIComponent(route.slice(10)),
+      );
       const snap = await snapshot(state.projectRoot, agent);
       return sendJson(req, res, snap);
     }
@@ -189,7 +221,10 @@ async function handleRequest(
 
     // GET /api/events?after=N
     if (route === "/events" && req.method === "GET") {
-      const after = parseInt(url.searchParams.get("after") ?? "-1");
+      const after = validateInput(
+        cursorSchema,
+        url.searchParams.get("after") ?? "-1",
+      );
       const { events, highSeq } = await readAfterCursor(
         state.projectRoot,
         after,
@@ -211,67 +246,61 @@ async function handleRequest(
         );
       }
 
-      const body = await readJsonBody<{
-        from: string;
-        to: string;
-        type: string;
-        description: string;
-        payload?: Record<string, unknown>;
-      }>(req);
+      const body = validateInput(
+        emitRequestSchema,
+        await readJsonBody<unknown>(req),
+      );
 
-      if (!body.from || !body.type || !body.description) {
-        return sendError(
-          req,
-          res,
+      const payloadResult = validatePayload(body.type, body.payload);
+      if (!payloadResult.success) {
+        throw new HttpError(
+          400,
           "invalid_request",
-          "from, type, and description required",
-          400,
+          "Request validation failed",
         );
       }
+      const payload = payloadResult.data as Record<string, unknown> | undefined;
 
-      const validTypes: readonly string[] = COORDINATION_EVENT_TYPES;
-      if (!validTypes.includes(body.type)) {
-        return sendError(
-          req,
-          res,
-          "invalid_event_type",
-          `Invalid event type: ${body.type}`,
-          400,
-        );
-      }
-
-      // Redact before storing
-      const description = redactDescription(body.description);
-      const payload = body.payload ? redactPayload(body.payload) : undefined;
-
-      const event = await emit(state.projectRoot, {
-        from: body.from,
-        to: body.to ?? "*",
-        type: body.type as (typeof COORDINATION_EVENT_TYPES)[number],
-        description,
-        payload,
-      });
+      const event =
+        body.type === "ownership" && payload
+          ? (payload as { mode: string }).mode === "release"
+            ? await releaseOwnership(state.projectRoot, {
+                agent: body.from,
+                paths: (payload as { paths: string[] }).paths,
+              })
+            : await claimOwnership(state.projectRoot, {
+                agent: body.from,
+                paths: (payload as { paths: string[] }).paths,
+                mode: (payload as { mode: "exclusive" | "shared" }).mode,
+                reason: (payload as { reason?: string }).reason,
+              })
+          : body.type === "contract" && payload
+            ? await publishContract(state.projectRoot, {
+                from: body.from,
+                name: (payload as { name: string }).name,
+                revision: (payload as { revision: number }).revision,
+                body: (payload as { body: string }).body,
+                format: (payload as { format?: string }).format,
+              })
+            : await emit(state.projectRoot, {
+                from: body.from,
+                to: body.to,
+                type: body.type,
+                description: body.description,
+                context: body.context,
+                resolves: body.resolves,
+                payload,
+              });
 
       return sendJson(req, res, event, 201);
     }
 
     // POST /api/ack
     if (route === "/ack" && req.method === "POST") {
-      const body = await readJsonBody<{
-        agent: string;
-        seq: number;
-        note?: string;
-      }>(req);
-
-      if (!body.agent || body.seq === undefined) {
-        return sendError(
-          req,
-          res,
-          "invalid_request",
-          "agent and seq required",
-          400,
-        );
-      }
+      const body = validateInput(
+        ackRequestSchema,
+        await readJsonBody<unknown>(req),
+      );
 
       const event = await emit(state.projectRoot, {
         from: body.agent,
@@ -291,7 +320,10 @@ async function handleRequest(
     if (route.startsWith("/subscribe") && req.method === "GET") {
       const agent =
         route.length > 10 ? decodeURIComponent(route.slice(11)) : undefined;
-      const cursor = parseInt(url.searchParams.get("cursor") ?? "-1");
+      const cursor = validateInput(
+        cursorSchema,
+        url.searchParams.get("cursor") ?? "-1",
+      );
 
       setEventStreamHeaders(req, res);
 
@@ -689,6 +721,13 @@ export async function startDaemon(
     );
   }
 
+  const existing = await getDaemonStatus(projectRoot);
+  if (existing.running && existing.info) {
+    throw new Error(
+      `Coordination daemon already running on port ${existing.info.port}; that project daemon is already in use`,
+    );
+  }
+
   const token = await ensureDaemonToken(projectRoot);
   const state: DaemonState = {
     projectRoot,
@@ -717,6 +756,8 @@ export async function startDaemon(
       if (!res.headersSent) {
         if (err instanceof HttpError) {
           sendError(req, res, err.code, err.message, err.status);
+        } else if (err instanceof CoordinationConflictError) {
+          sendError(req, res, err.code, err.message, 409);
         } else if (err instanceof URIError) {
           sendError(req, res, "invalid_request", "Invalid request URL", 400);
         } else {

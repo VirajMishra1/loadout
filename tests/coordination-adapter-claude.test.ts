@@ -27,7 +27,10 @@ function recordingDriver(outputs: string[]): {
 describe("ClaudeCodeAdapter", () => {
   it("starts with the supported print-mode positional prompt", async () => {
     const fake = recordingDriver([
-      JSON.stringify({ session_id: "claude-session-1" }),
+      JSON.stringify({
+        session_id: "claude-session-1",
+        result: "Implemented the contract.",
+      }),
     ]);
     const adapter = new ClaudeCodeAdapter(fake.driver);
 
@@ -48,6 +51,9 @@ describe("ClaudeCodeAdapter", () => {
       provider: "claude-code",
       busy: false,
     });
+    expect(adapter.lastResponse?.(session.sessionId)).toBe(
+      "Implemented the contract.",
+    );
   });
 
   it("submits a follow-up turn with --resume and a positional prompt", async () => {

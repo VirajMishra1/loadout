@@ -38,6 +38,82 @@ function run(command, args, options = {}) {
   });
 }
 
+function runMcpHandshake(cli, options) {
+  return new Promise((resolveHandshake, reject) => {
+    const child = spawn(process.execPath, [cli, "serve"], {
+      cwd: options.cwd,
+      env: options.env,
+      shell: false,
+      windowsHide: true,
+      stdio: ["pipe", "pipe", "pipe"],
+    });
+    let stdout = "";
+    let stderr = "";
+    let initialized = false;
+    const timeout = setTimeout(() => {
+      child.kill("SIGKILL");
+      reject(new Error(`Packaged MCP handshake timed out: ${stderr}`));
+    }, 5_000);
+    const finish = (error) => {
+      clearTimeout(timeout);
+      child.kill();
+      if (error) reject(error);
+      else resolveHandshake();
+    };
+    child.stderr.setEncoding("utf8");
+    child.stderr.on("data", (chunk) => (stderr += chunk));
+    child.stdout.setEncoding("utf8");
+    child.stdout.on("data", (chunk) => {
+      stdout += chunk;
+      while (stdout.includes("\n")) {
+        const newline = stdout.indexOf("\n");
+        const line = stdout.slice(0, newline);
+        stdout = stdout.slice(newline + 1);
+        if (!line.trim()) continue;
+        let message;
+        try {
+          message = JSON.parse(line);
+        } catch {
+          finish(new Error(`Packaged MCP emitted non-JSON stdout: ${line}`));
+          return;
+        }
+        if (message.id === 1 && !initialized) {
+          initialized = true;
+          child.stdin.write(
+            `${JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" })}\n`,
+          );
+          child.stdin.write(
+            `${JSON.stringify({ jsonrpc: "2.0", id: 2, method: "tools/list", params: {} })}\n`,
+          );
+        } else if (message.id === 2) {
+          const names = message.result?.tools?.map((tool) => tool.name) ?? [];
+          if (
+            !names.includes("snapshot") ||
+            !names.includes("release_ownership")
+          ) {
+            finish(new Error("Packaged MCP tool list is incomplete"));
+            return;
+          }
+          finish();
+        }
+      }
+    });
+    child.once("error", finish);
+    child.stdin.write(
+      `${JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "initialize",
+        params: {
+          protocolVersion: "2025-11-25",
+          capabilities: {},
+          clientInfo: { name: "package-smoke", version: "1.0.0" },
+        },
+      })}\n`,
+    );
+  });
+}
+
 try {
   const npmCli = process.env.npm_execpath;
   if (!npmCli)
@@ -111,6 +187,14 @@ try {
   });
   if (version.stdout.trim() !== expectedVersion)
     throw new Error(`Unexpected packaged version: ${version.stdout}`);
+  const coordinationHelp = await run(
+    process.execPath,
+    [cli, "coord", "agents", "--help"],
+    { cwd: consumer, env: environment },
+  );
+  if (!coordinationHelp.stdout.includes("bridge"))
+    throw new Error("Packaged provider bridge commands are unavailable");
+  await runMcpHandshake(cli, { cwd: consumer, env: environment });
   const coverage = await run(
     process.execPath,
     [cli, "catalog", "--coverage", "--json"],

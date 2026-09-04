@@ -20,6 +20,7 @@ import { z } from "zod";
 
 import {
   claimOwnership,
+  releaseOwnership,
   emit,
   publishContract,
   readAfterCursor,
@@ -45,9 +46,15 @@ const publishContractArgumentsSchema = z
   .object({
     agent: agentSchema,
     name: z.string().trim().min(1).max(200),
-    revision: z.number().int().positive(),
+    revision: z.number().int().positive().optional(),
     body: z.string().max(100_000),
     format: z.string().trim().min(1).max(50).optional(),
+  })
+  .strict();
+const releaseOwnershipArgumentsSchema = z
+  .object({
+    agent: agentSchema,
+    paths: z.array(pathSchema).min(1).max(256),
   })
   .strict();
 const publishUpdateArgumentsSchema = z
@@ -118,6 +125,23 @@ const TOOL_DEFINITIONS = [
     },
   },
   {
+    name: "release_ownership",
+    description:
+      "Release exact file or directory paths previously owned by this agent.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        agent: { type: "string", description: "Agent releasing ownership" },
+        paths: {
+          type: "array",
+          items: { type: "string" },
+          description: "Exact project-relative paths to release",
+        },
+      },
+      required: ["agent", "paths"],
+    },
+  },
+  {
     name: "publish_contract",
     description:
       "Publish a versioned API contract (endpoint, schema, types). Other agents are notified of the new revision.",
@@ -147,7 +171,7 @@ const TOOL_DEFINITIONS = [
             "Format hint: 'typescript', 'openapi-yaml', 'sql', 'json-schema'",
         },
       },
-      required: ["agent", "name", "revision", "body"],
+      required: ["agent", "name", "body"],
     },
   },
   {
@@ -306,11 +330,28 @@ export async function startMcpServer(projectRoot: string): Promise<void> {
             body: args.body,
             ...(args.format ? { format: args.format } : {}),
           });
+          const revision = (event.payload as { revision: number }).revision;
           return {
             content: [
               {
                 type: "text",
-                text: `Published contract '${args.name}' rev${args.revision} (seq ${event.seq})`,
+                text: `Published contract '${args.name}' rev${revision} (seq ${event.seq})`,
+              },
+            ],
+          };
+        }
+
+        case "release_ownership": {
+          const args = releaseOwnershipArgumentsSchema.parse(rawArguments);
+          const event = await releaseOwnership(projectRoot, {
+            agent: args.agent,
+            paths: args.paths,
+          });
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Released ownership: ${args.paths.join(", ")} (seq ${event.seq})`,
               },
             ],
           };

@@ -39,7 +39,10 @@ const defaultCommandDriver: ClaudeCommandDriver = async (
   return { stdout: String(stdout) };
 };
 
-function parseSessionId(stdout: string): string {
+function parseSessionOutput(stdout: string): {
+  sessionId: string;
+  response?: string;
+} {
   let parsed: unknown;
   try {
     parsed = JSON.parse(stdout);
@@ -57,12 +60,18 @@ function parseSessionId(stdout: string): string {
     throw new Error("Claude did not return JSON with a valid session_id");
   }
 
-  return parsed.session_id;
+  return {
+    sessionId: parsed.session_id,
+    ...("result" in parsed && typeof parsed.result === "string"
+      ? { response: parsed.result }
+      : {}),
+  };
 }
 
 export class ClaudeCodeAdapter implements AgentAdapter {
   readonly provider = PROVIDER;
   private readonly sessions = new Map<string, AgentSession>();
+  private readonly responses = new Map<string, string>();
 
   constructor(
     private readonly runCommand: ClaudeCommandDriver = defaultCommandDriver,
@@ -101,7 +110,8 @@ export class ClaudeCodeAdapter implements AgentAdapter {
       cwd: options.cwd,
       timeout: 30000,
     });
-    const sessionId = parseSessionId(stdout);
+    const output = parseSessionOutput(stdout);
+    const sessionId = output.sessionId;
     const session: AgentSession = {
       sessionId,
       agent: PROVIDER,
@@ -113,6 +123,7 @@ export class ClaudeCodeAdapter implements AgentAdapter {
       cwd: options.cwd,
     };
     this.sessions.set(sessionId, session);
+    if (output.response) this.responses.set(sessionId, output.response);
     return session;
   }
 
@@ -152,7 +163,11 @@ export class ClaudeCodeAdapter implements AgentAdapter {
         cwd: session.cwd,
         timeout: options.timeout ?? 30000,
       });
-      return parseSessionId(stdout) === session.sessionId;
+      const output = parseSessionOutput(stdout);
+      if (output.response) {
+        this.responses.set(session.sessionId, output.response);
+      }
+      return output.sessionId === session.sessionId;
     } catch {
       return false;
     } finally {
@@ -172,5 +187,9 @@ export class ClaudeCodeAdapter implements AgentAdapter {
     return [...this.sessions.values()]
       .filter((session) => session.cwd === cwd)
       .map((session) => ({ ...session }));
+  }
+
+  lastResponse(sessionId: string): string | undefined {
+    return this.responses.get(sessionId);
   }
 }

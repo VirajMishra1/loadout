@@ -74,6 +74,22 @@ describe("CLI contract", () => {
     expect(result.stdout).not.toContain("loadout-router");
   });
 
+  it("exposes the bounded two-agent design discussion workflow", async () => {
+    const group = await runCli("coord", "discuss", "--help");
+    expect(group.code).toBe(0);
+    expect(group.stdout).toContain("start");
+    expect(group.stdout).toContain("list");
+    expect(group.stdout).toContain("show");
+
+    const start = await runCli("coord", "discuss", "start", "--help");
+    expect(start.code).toBe(0);
+    expect(start.stdout).toContain("--agents <providers>");
+    expect(start.stdout).toContain("--sessions <references...>");
+    expect(start.stdout).toContain("--rounds <n>");
+    expect(start.stdout).toContain("--timeout <seconds>");
+    expect(start.stdout).toContain("paid provider turns");
+  });
+
   it("gives beginners one read-only guide while retaining advanced commands", async () => {
     const guide = await runCli("guide");
     expect(guide.code).toBe(0);

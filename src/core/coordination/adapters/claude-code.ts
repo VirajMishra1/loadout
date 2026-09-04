@@ -108,7 +108,7 @@ export class ClaudeCodeAdapter implements AgentAdapter {
 
     const { stdout } = await this.runCommand(CLI, args, {
       cwd: options.cwd,
-      timeout: 30000,
+      timeout: options.timeout ?? 30000,
     });
     const output = parseSessionOutput(stdout);
     const sessionId = output.sessionId;

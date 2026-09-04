@@ -1,6 +1,6 @@
 ---
 name: loadout-handoff
-description: Pass a coding task to another AI agent, and pick up tasks another agent left for you. Use when the user wants to delegate work to Codex or Claude Code, asks what the other agent is working on, or at the start of a session to check for pending handoffs. Also handles live coordination — automatically publish contracts, claim file ownership, and report progress when collaborating with another agent.
+description: Pass coding work between Claude Code and Codex, check the other agent's work, coordinate simultaneous implementation, or run a bounded two-agent design discussion. Use for delegation, pending handoffs, shared contracts and file ownership, or when the user wants both agents to debate an approach before coding.
 ---
 
 # Loadout Handoff
@@ -177,6 +177,29 @@ All write paths redact secret-like data at the shared storage boundary.
 
 ## Provider bridge mode (opt-in)
 
+### Debate one design before coding
+
+When the user explicitly asks Claude Code and Codex to compare approaches on
+the same feature before either agent writes code, offer a bounded discussion:
+
+```bash
+loadout coord discuss start "REST or GraphQL for checkout?" \
+  --agents claude-code,codex --rounds 2 --max-turns 5
+```
+
+Use `--proposer codex` to swap roles, or reuse explicit sessions with
+`--sessions claude-code:<session-id> codex:<thread-id>`. Each round gives both
+agents one turn and the final synthesis uses one more turn. Tell the user the
+exact number of paid provider turns. Do not start without an explicit user request.
+
+The design room records only responses produced for that public discussion.
+It tells both agents not to edit files, run commands, use tools, or reveal
+private reasoning. Review the final decision with the user before claiming
+ownership or beginning implementation. Inspect it later with
+`loadout coord discuss show <thread-id>`.
+
+### Route implementation events
+
 When the user explicitly wants automatic follow-up turns, they can run:
 
 ```bash
@@ -208,6 +231,7 @@ work now, tell them to open the other agent or explicitly start a bridge.
 | Finished a chunk of work                   | `loadout coord update <agent> --note "..." --files "..."`           |
 | Finished writing owned paths               | `loadout coord release <agent> <paths...>`                          |
 | Made a design decision                     | `loadout coord decide <agent> "<title>" --rationale "..."`          |
+| Both agents should compare a design        | `loadout coord discuss start "<topic>" --agents claude-code,codex`  |
 | After reading other agent's events         | `loadout coord ack <agent> <seq>`                                   |
 | User asks "what is the other agent doing?" | `loadout coord snapshot <agent>`                                    |
 | Delegating a task                          | `loadout handoff <other-agent> "<task>" --context "..."`            |

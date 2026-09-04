@@ -34,6 +34,12 @@ describe("evaluatePolicy", () => {
     expect(evaluatePolicy(makeEvent("contract", "codex"))).toBe("boundary");
   });
 
+  it("discussion events are delivered at safe turn boundaries", () => {
+    expect(evaluatePolicy(makeEvent("discussion", "claude-code"))).toBe(
+      "boundary",
+    );
+  });
+
   it("task events are boundary", () => {
     expect(evaluatePolicy(makeEvent("task", "claude-code"))).toBe("boundary");
   });

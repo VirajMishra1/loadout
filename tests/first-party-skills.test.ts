@@ -78,6 +78,18 @@ describe("first-party skills", () => {
     expect(skill).toMatch(/current agent|agent you are running/i);
   });
 
+  it("teaches agents to use bounded discussion only before implementation", async () => {
+    const skillsRoot = await bundledSkillsRoot();
+    const skill = await readFile(
+      join(skillsRoot, "loadout-handoff", "SKILL.md"),
+      "utf8",
+    );
+    expect(skill).toContain("loadout coord discuss start");
+    expect(skill).toMatch(/before either agent writes code/i);
+    expect(skill).toMatch(/paid provider turns/i);
+    expect(skill).toMatch(/do not start.*without.*explicit/i);
+  });
+
   it("rejects an unknown skill id with the available ids", () => {
     expect(() => findFirstPartySkill("nope")).toThrow(/loadout-handoff/);
   });

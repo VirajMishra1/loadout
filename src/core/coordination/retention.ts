@@ -8,8 +8,7 @@
 
 import { readFile, writeFile, rename, stat } from "node:fs/promises";
 import { join } from "node:path";
-import { readCoordLog, emit } from "./coordinator.js";
-import type { CoordinationEvent } from "./events.js";
+import { readCoordLog } from "./coordinator.js";
 
 const COORD_DIR = ".handoff";
 const COORD_LOG = "coordination.jsonl";

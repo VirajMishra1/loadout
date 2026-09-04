@@ -2,7 +2,7 @@
  * Session manager for coordinated agent sessions.
  *
  * Tracks active sessions across providers, handles reconnection with
- * snapshot replay, and routes coordination events to the right adapter.
+ * snapshot replay, and routes coordination events as follow-up turns.
  */
 
 import { readFile, writeFile, mkdir } from "node:fs/promises";
@@ -19,9 +19,9 @@ const SESSIONS_FILE = "sessions.json";
 export interface SessionManagerOptions {
   projectRoot: string;
   adapters: AgentAdapter[];
-  /** Auto-inject events into sessions that support it. Default true. */
-  autoInject?: boolean;
-  /** Callback when events can't be injected (adapter doesn't support it). */
+  /** Auto-submit events to sessions that support follow-up turns. Default true. */
+  autoSubmit?: boolean;
+  /** Callback when events are queued or can't be submitted. */
   onPendingEvents?: (
     session: AgentSession,
     events: CoordinationEvent[],
@@ -36,6 +36,7 @@ interface SessionStore {
 export class SessionManager {
   private sessions = new Map<string, AgentSession>();
   private adapters = new Map<string, AgentAdapter>();
+  private pendingEvents = new Map<string, CoordinationEvent[]>();
   private watcher: CoordinationWatcher | null = null;
   private options: SessionManagerOptions;
 
@@ -50,9 +51,15 @@ export class SessionManager {
   async start(): Promise<void> {
     await this.loadSessions();
 
-    if (this.options.autoInject !== false) {
+    if (this.options.autoSubmit !== false) {
       this.watcher = await watchCoordination(this.options.projectRoot, {
-        onEvents: (events) => this.routeEvents(events),
+        onEvents: (events) => {
+          void this.handleEvents(events).catch((error: unknown) => {
+            const message =
+              error instanceof Error ? error.message : String(error);
+            console.error(`Session manager routing error: ${message}`);
+          });
+        },
         onError: (err) =>
           console.error(`Session manager watcher error: ${err.message}`),
       });
@@ -92,13 +99,10 @@ export class SessionManager {
     this.sessions.set(session.sessionId, session);
     await this.saveSessions();
 
-    // If the session supports injection, send it the current snapshot
-    if (adapter.capabilities.canInject) {
+    // Submit the current snapshot as a follow-up turn once start() is idle.
+    if (adapter.capabilities.canSubmitTurn) {
       const snap = await snapshot(this.options.projectRoot, provider);
-      const summary = formatEventsForInjection(snap.unackedForAgent);
-      if (summary) {
-        await adapter.inject(session, { message: summary });
-      }
+      await this.submitEvents(session, snap.unackedForAgent);
     }
 
     return session;
@@ -117,11 +121,18 @@ export class SessionManager {
       throw new Error(`${provider} does not support session resumption`);
     }
 
+    const tracked = this.sessions.get(sessionId);
+    if (!tracked || tracked.provider !== provider) {
+      throw new Error(`Session ${sessionId} is not tracked by Loadout`);
+    }
+
     const session = await adapter.resume(sessionId, cwd);
+    session.cursor = tracked.cursor;
+    session.startedAt = tracked.startedAt;
     this.sessions.set(session.sessionId, session);
 
     // Replay missed events
-    if (adapter.capabilities.canInject && session.cursor >= 0) {
+    if (adapter.capabilities.canSubmitTurn && session.cursor >= 0) {
       const { events } = await readAfterCursor(
         this.options.projectRoot,
         session.cursor,
@@ -133,8 +144,7 @@ export class SessionManager {
           e.type !== "ack",
       );
       if (relevant.length > 0) {
-        await adapter.injectEvents(session, relevant);
-        session.cursor = events[events.length - 1]!.seq;
+        await this.submitEvents(session, relevant);
       }
     }
 
@@ -166,8 +176,26 @@ export class SessionManager {
     return [...this.sessions.values()].filter((s) => s.active);
   }
 
+  /** Submit a direct follow-up turn, denying it while the session is busy. */
+  async submitTurn(sessionId: string, message: string): Promise<boolean> {
+    const session = this.sessions.get(sessionId);
+    if (!session) {
+      throw new Error(`Session ${sessionId} is not tracked by Loadout`);
+    }
+    if (!session.active) return false;
+
+    const adapter = this.adapters.get(session.provider);
+    if (!adapter?.capabilities.canSubmitTurn) return false;
+    if (session.busy) return false;
+
+    const success = await adapter.submitTurn(session, { message });
+    if (success) await this.flushPendingEvents(session);
+    await this.saveSessions();
+    return success;
+  }
+
   /** Route coordination events to active sessions. */
-  private async routeEvents(events: CoordinationEvent[]): Promise<void> {
+  async handleEvents(events: CoordinationEvent[]): Promise<void> {
     for (const session of this.sessions.values()) {
       if (!session.active) continue;
 
@@ -184,19 +212,58 @@ export class SessionManager {
 
       if (relevant.length === 0) continue;
 
-      if (adapter.capabilities.canInject) {
-        const success = await adapter.injectEvents(session, relevant);
-        if (success) {
-          session.cursor = Math.max(
-            session.cursor,
-            relevant[relevant.length - 1]!.seq,
-          );
-        }
-      } else {
-        // Can't inject — notify via callback
-        this.options.onPendingEvents?.(session, relevant);
-      }
+      await this.submitEvents(session, relevant);
     }
+  }
+
+  private async submitEvents(
+    session: AgentSession,
+    events: CoordinationEvent[],
+  ): Promise<void> {
+    if (events.length === 0) return;
+    const adapter = this.adapters.get(session.provider);
+    if (!adapter?.capabilities.canSubmitTurn) {
+      this.options.onPendingEvents?.(session, events);
+      return;
+    }
+
+    if (session.busy) {
+      this.queueEvents(session, events);
+      return;
+    }
+
+    const message = formatEventsForInjection(events);
+    const success = await adapter.submitTurn(session, { message });
+    if (!success) {
+      if (session.busy) {
+        this.queueEvents(session, events);
+      } else {
+        this.options.onPendingEvents?.(session, events);
+      }
+      return;
+    }
+
+    session.cursor = Math.max(session.cursor, events[events.length - 1]!.seq);
+    await this.saveSessions();
+    await this.flushPendingEvents(session);
+  }
+
+  private queueEvents(
+    session: AgentSession,
+    events: CoordinationEvent[],
+  ): void {
+    const pending = this.pendingEvents.get(session.sessionId) ?? [];
+    pending.push(...events);
+    this.pendingEvents.set(session.sessionId, pending);
+    this.options.onPendingEvents?.(session, events);
+  }
+
+  private async flushPendingEvents(session: AgentSession): Promise<void> {
+    if (session.busy) return;
+    const pending = this.pendingEvents.get(session.sessionId);
+    if (!pending?.length) return;
+    this.pendingEvents.delete(session.sessionId);
+    await this.submitEvents(session, pending);
   }
 
   /** Load persisted session state. */
@@ -210,6 +277,7 @@ export class SessionManager {
       for (const s of store.sessions) {
         // Mark all persisted sessions as inactive until resumed
         s.active = false;
+        s.busy = false;
         this.sessions.set(s.sessionId, s);
       }
     } catch {

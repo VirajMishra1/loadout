@@ -4,7 +4,9 @@ import {
   readAfterCursor,
   readCoordLog,
   snapshot,
-  checkOwnershipConflicts,
+  claimOwnership,
+  OwnershipConflictError,
+  publishContract,
   getContracts,
   getOwnership,
   getAckState,
@@ -119,28 +121,16 @@ export function registerCoordinate(program: Command): void {
           return;
         }
 
-        // Publish
-        if (!options.revision) {
-          // Auto-increment
-          const contracts = await getContracts(cwd);
-          const existing = contracts.get(name);
-          options.revision = existing ? existing.revision + 1 : 1;
-        }
-
-        const event = await emit(cwd, {
+        const event = await publishContract(cwd, {
           from: options.agent,
-          to: "*",
-          type: "contract",
-          description: `Contract '${name}' rev${options.revision}`,
-          payload: {
-            name,
-            revision: options.revision,
-            body: options.body,
-            ...(options.format ? { format: options.format } : {}),
-          },
+          name,
+          body: options.body,
+          revision: options.revision,
+          format: options.format,
         });
+        const revision = (event.payload as { revision: number }).revision;
         console.log(
-          `Published '${name}' rev${options.revision} (seq ${event.seq})`,
+          `Published '${name}' rev${revision} (seq ${event.seq})`,
         );
       },
     );
@@ -161,25 +151,17 @@ export function registerCoordinate(program: Command): void {
         const cwd = process.cwd();
         const mode = options.shared ? "shared" : "exclusive";
 
-        const conflicts = await checkOwnershipConflicts(
-          cwd,
-          agent,
-          paths,
-          mode,
-        );
-        if (conflicts.length) {
-          console.error(formatConflicts(conflicts));
-          process.exitCode = 1;
-          return;
+        let event;
+        try {
+          event = await claimOwnership(cwd, { agent, paths, mode });
+        } catch (error) {
+          if (error instanceof OwnershipConflictError) {
+            console.error(formatConflicts(error.conflicts));
+            process.exitCode = 1;
+            return;
+          }
+          throw error;
         }
-
-        const event = await emit(cwd, {
-          from: agent,
-          to: "*",
-          type: "ownership",
-          description: `${agent} claims: ${paths.join(", ")}`,
-          payload: { paths, mode },
-        });
 
         if (options.json) {
           console.log(JSON.stringify(event, null, 2));

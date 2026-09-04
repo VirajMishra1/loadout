@@ -55,6 +55,11 @@ try {
   const packedFiles = new Set(
     (packResult[0].files ?? []).map((entry) => entry.path),
   );
+  const mcpServerArtifact = "dist/src/core/coordination/mcp-server.js";
+  if (!packedFiles.has(mcpServerArtifact))
+    throw new Error(
+      `Packaged coordination MCP server is missing: ${mcpServerArtifact}`,
+    );
   for (const removedArtifact of [
     "dist/src/dashboard.js",
     "dist/src/core/demo.js",

@@ -16,15 +16,75 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
+import { z } from "zod";
 
 import {
+  claimOwnership,
   emit,
+  publishContract,
   readAfterCursor,
   snapshot,
-  checkOwnershipConflicts,
   formatSnapshot,
-  formatConflicts,
 } from "./coordinator.js";
+
+const agentSchema = z.string().trim().min(1).max(128);
+const pathSchema = z.string().trim().min(1).max(1_024);
+const claimTaskArgumentsSchema = z
+  .object({
+    agent: agentSchema,
+    taskId: z.string().trim().min(1).max(128).optional(),
+    description: z.string().trim().min(1).max(8_192).optional(),
+    ownPaths: z.array(pathSchema).min(1).max(256).optional(),
+  })
+  .strict()
+  .refine((args) => args.taskId || args.description, {
+    message: "description is required when taskId is omitted",
+    path: ["description"],
+  });
+const publishContractArgumentsSchema = z
+  .object({
+    agent: agentSchema,
+    name: z.string().trim().min(1).max(200),
+    revision: z.number().int().positive(),
+    body: z.string().max(100_000),
+    format: z.string().trim().min(1).max(50).optional(),
+  })
+  .strict();
+const publishUpdateArgumentsSchema = z
+  .object({
+    agent: agentSchema,
+    files: z.array(pathSchema).max(256).optional(),
+    commands: z
+      .array(
+        z
+          .object({
+            command: z.string().max(500),
+            exitCode: z.number().int().optional(),
+            summary: z.string().max(1_000).optional(),
+          })
+          .strict(),
+      )
+      .max(20)
+      .optional(),
+    note: z.string().max(5_000).optional(),
+    blockers: z.array(z.string().max(500)).max(10).optional(),
+    next: z.string().max(1_000).optional(),
+  })
+  .strict();
+const subscribeArgumentsSchema = z
+  .object({
+    agent: agentSchema,
+    cursor: z.number().int().min(-1),
+  })
+  .strict();
+const ackArgumentsSchema = z
+  .object({
+    agent: agentSchema,
+    eventSeq: z.number().int().nonnegative(),
+    note: z.string().max(1_000).optional(),
+  })
+  .strict();
+const snapshotArgumentsSchema = z.object({ agent: agentSchema }).strict();
 
 const TOOL_DEFINITIONS = [
   {
@@ -205,55 +265,30 @@ export async function startMcpServer(projectRoot: string): Promise<void> {
 
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const { name } = request.params;
-    const args = (request.params.arguments ?? {}) as Record<string, unknown>;
+    const rawArguments = request.params.arguments ?? {};
 
     try {
       switch (name) {
         case "claim_task": {
-          const agent = args.agent as string;
+          const args = claimTaskArgumentsSchema.parse(rawArguments);
           const results: string[] = [];
 
-          // Check ownership conflicts if paths requested
           if (args.ownPaths) {
-            const paths = args.ownPaths as string[];
-            const conflicts = await checkOwnershipConflicts(
-              projectRoot,
-              agent,
-              paths,
-              "exclusive",
-            );
-            if (conflicts.length) {
-              return {
-                content: [
-                  {
-                    type: "text",
-                    text: `Cannot claim task: ${formatConflicts(conflicts)}`,
-                  },
-                ],
-                isError: true,
-              };
-            }
-
-            // Record ownership
-            await emit(projectRoot, {
-              from: agent,
-              to: "*",
-              type: "ownership",
-              description: `${agent} claims: ${paths.join(", ")}`,
-              payload: { paths, mode: "exclusive" },
+            await claimOwnership(projectRoot, {
+              agent: args.agent,
+              paths: args.ownPaths,
+              mode: "exclusive",
             });
-            results.push(`Claimed ownership: ${paths.join(", ")}`);
+            results.push(`Claimed ownership: ${args.ownPaths.join(", ")}`);
           }
 
-          // Create or claim task
-          const description =
-            (args.description as string) ?? "Claimed existing task";
+          const description = args.description ?? "Claimed existing task";
           const event = await emit(projectRoot, {
-            from: agent,
+            from: args.agent,
             to: "*",
             type: "task",
             description,
-            ...(args.taskId ? { resolves: args.taskId as string } : {}),
+            ...(args.taskId ? { resolves: args.taskId } : {}),
           });
           results.push(`Task ${event.id} (seq ${event.seq}): ${description}`);
 
@@ -263,17 +298,13 @@ export async function startMcpServer(projectRoot: string): Promise<void> {
         }
 
         case "publish_contract": {
-          const event = await emit(projectRoot, {
-            from: args.agent as string,
-            to: "*",
-            type: "contract",
-            description: `Contract '${args.name}' rev${args.revision}`,
-            payload: {
-              name: args.name,
-              revision: args.revision,
-              body: args.body,
-              ...(args.format ? { format: args.format } : {}),
-            },
+          const args = publishContractArgumentsSchema.parse(rawArguments);
+          const event = await publishContract(projectRoot, {
+            from: args.agent,
+            name: args.name,
+            revision: args.revision,
+            body: args.body,
+            ...(args.format ? { format: args.format } : {}),
           });
           return {
             content: [
@@ -286,6 +317,7 @@ export async function startMcpServer(projectRoot: string): Promise<void> {
         }
 
         case "publish_update": {
+          const args = publishUpdateArgumentsSchema.parse(rawArguments);
           const payload: Record<string, unknown> = {};
           if (args.files) payload.files = args.files;
           if (args.commands) payload.commands = args.commands;
@@ -301,7 +333,7 @@ export async function startMcpServer(projectRoot: string): Promise<void> {
             parts.push(`${(args.blockers as string[]).length} blocker(s)`);
 
           const event = await emit(projectRoot, {
-            from: args.agent as string,
+            from: args.agent,
             to: "*",
             type: "update",
             description: parts.join("; ") || "Progress update",
@@ -318,12 +350,13 @@ export async function startMcpServer(projectRoot: string): Promise<void> {
         }
 
         case "subscribe": {
+          const args = subscribeArgumentsSchema.parse(rawArguments);
           const { events, highSeq } = await readAfterCursor(
             projectRoot,
-            args.cursor as number,
+            args.cursor,
           );
           // Filter to events relevant to this agent
-          const agent = args.agent as string;
+          const agent = args.agent;
           const relevant = events.filter(
             (e) => e.to === agent || e.to === "*" || e.from === agent,
           );
@@ -342,8 +375,9 @@ export async function startMcpServer(projectRoot: string): Promise<void> {
         }
 
         case "ack": {
+          const args = ackArgumentsSchema.parse(rawArguments);
           const event = await emit(projectRoot, {
-            from: args.agent as string,
+            from: args.agent,
             to: "*",
             type: "ack",
             description: `Acknowledged through seq ${args.eventSeq}`,
@@ -363,7 +397,8 @@ export async function startMcpServer(projectRoot: string): Promise<void> {
         }
 
         case "snapshot": {
-          const snap = await snapshot(projectRoot, args.agent as string);
+          const args = snapshotArgumentsSchema.parse(rawArguments);
+          const snap = await snapshot(projectRoot, args.agent);
           return {
             content: [
               { type: "text", text: formatSnapshot(snap) },

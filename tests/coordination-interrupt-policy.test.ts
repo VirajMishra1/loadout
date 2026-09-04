@@ -2,7 +2,6 @@ import { describe, it, expect } from "vitest";
 import {
   evaluatePolicy,
   categorizeEvents,
-  DEFAULT_POLICY,
 } from "../src/core/coordination/interrupt-policy.js";
 import type { CoordinationEvent } from "../src/core/coordination/events.js";
 

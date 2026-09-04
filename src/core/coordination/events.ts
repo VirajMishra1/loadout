@@ -40,7 +40,7 @@ export const contractPayloadSchema = z.object({
 
 export const ownershipPayloadSchema = z.object({
   /** File or directory paths this agent claims. Relative to project root. */
-  paths: z.array(z.string().trim().min(1).max(500)).min(1).max(100),
+  paths: z.array(z.string().trim().min(1).max(1_024)).min(1).max(256),
   /** "exclusive" blocks other agents; "shared" allows concurrent reads. */
   mode: z.enum(["exclusive", "shared"]),
   /** Optional reason for the claim. */
@@ -53,12 +53,12 @@ export const decisionPayloadSchema = z.object({
   /** The rationale. */
   rationale: z.string().max(10_000),
   /** ID of the decision this supersedes, if any. */
-  supersedes: z.string().trim().min(1).optional(),
+  supersedes: z.string().trim().min(1).max(128).optional(),
 });
 
 export const updatePayloadSchema = z.object({
   /** Files touched since last update. */
-  files: z.array(z.string().max(500)).max(200).optional(),
+  files: z.array(z.string().max(1_024)).max(256).optional(),
   /** Commands run and their outcomes. */
   commands: z
     .array(
@@ -96,15 +96,15 @@ export type AckPayload = z.infer<typeof ackPayloadSchema>;
 // ---------------------------------------------------------------------------
 
 export const coordinationEventSchema = z.object({
-  id: z.string().trim().min(1),
+  id: z.string().trim().min(1).max(128),
   seq: z.number().int().nonnegative(),
   type: z.enum(COORDINATION_EVENT_TYPES),
-  from: z.string().trim().min(1),
-  to: z.string().trim().min(1),
-  description: z.string().trim().min(1),
-  context: z.string().optional(),
+  from: z.string().trim().min(1).max(128),
+  to: z.string().trim().min(1).max(128),
+  description: z.string().trim().min(1).max(8_192),
+  context: z.string().max(65_536).optional(),
   timestamp: z.iso.datetime({ offset: true }),
-  resolves: z.string().trim().min(1).optional(),
+  resolves: z.string().trim().min(1).max(128).optional(),
   /** Typed payload — shape depends on `type`. */
   payload: z.record(z.string(), z.unknown()).optional(),
 });

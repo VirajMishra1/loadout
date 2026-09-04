@@ -33,17 +33,26 @@ import {
   getContracts,
   getOwnership,
   getAckState,
-  readCoordLog,
 } from "./coordinator.js";
 import { watchCoordination, type CoordinationWatcher } from "./watcher.js";
 import { redactDescription, redactPayload } from "./redaction.js";
-import { compact, logSize, DEFAULT_RETENTION } from "./retention.js";
+import { compact, logSize } from "./retention.js";
 import { type CoordinationEvent, COORDINATION_EVENT_TYPES } from "./events.js";
 import {
   writePidFile,
   removePidFile,
   isKillSwitchActive,
 } from "./crash-recovery.js";
+import { ensureDaemonToken, hasValidBearerToken } from "./auth.js";
+import {
+  HttpError,
+  readJsonBody,
+  sendError,
+  sendJson,
+  setEventStreamHeaders,
+  setResponseHeaders,
+  validateRequestSource,
+} from "./http-api.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -56,37 +65,10 @@ interface SSEClient {
 
 interface DaemonState {
   projectRoot: string;
+  token: string;
   clients: Map<string, SSEClient>;
   watcher: CoordinationWatcher | null;
   startedAt: string;
-}
-
-function cors(res: ServerResponse): void {
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-}
-
-function json(res: ServerResponse, data: unknown, status = 200): void {
-  cors(res);
-  res.writeHead(status, { "Content-Type": "application/json" });
-  res.end(JSON.stringify(data));
-}
-
-function error(res: ServerResponse, message: string, status = 400): void {
-  json(res, { error: message }, status);
-}
-
-async function readBody(req: IncomingMessage): Promise<string> {
-  const chunks: Buffer[] = [];
-  let size = 0;
-  const MAX_BODY = 1024 * 1024; // 1MB
-  for await (const chunk of req) {
-    size += (chunk as Buffer).length;
-    if (size > MAX_BODY) throw new Error("Request body too large");
-    chunks.push(chunk as Buffer);
-  }
-  return Buffer.concat(chunks).toString("utf-8");
 }
 
 function sendSSE(client: SSEClient, events: CoordinationEvent[]): void {
@@ -124,29 +106,32 @@ async function handleRequest(
   res: ServerResponse,
   state: DaemonState,
 ): Promise<void> {
+  validateRequestSource(req);
+
   const url = new URL(
     req.url ?? "/",
     `http://${req.headers.host ?? "localhost"}`,
   );
   const path = url.pathname;
 
-  // CORS preflight
-  if (req.method === "OPTIONS") {
-    cors(res);
-    res.writeHead(204);
-    res.end();
-    return;
-  }
-
   // Dashboard
   if (path === "/" && req.method === "GET") {
-    cors(res);
     try {
       const html = await readFile(join(__dirname, "dashboard.html"), "utf-8");
-      res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+      res.writeHead(200, {
+        "Content-Type": "text/html; charset=utf-8",
+        "Cache-Control": "no-store",
+        "Referrer-Policy": "no-referrer",
+        "X-Content-Type-Options": "nosniff",
+      });
       res.end(html);
     } catch {
-      res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+      res.writeHead(200, {
+        "Content-Type": "text/html; charset=utf-8",
+        "Cache-Control": "no-store",
+        "Referrer-Policy": "no-referrer",
+        "X-Content-Type-Options": "nosniff",
+      });
       res.end(generateDashboardHTML());
     }
     return;
@@ -154,26 +139,52 @@ async function handleRequest(
 
   // API routes
   if (path.startsWith("/api/")) {
+    if (!hasValidBearerToken(req.headers, state.token)) {
+      res.setHeader("WWW-Authenticate", 'Bearer realm="loadout-coordination"');
+      return sendError(
+        req,
+        res,
+        "unauthorized",
+        "Bearer authentication required",
+        401,
+      );
+    }
+
+    if (req.method === "OPTIONS") {
+      setResponseHeaders(req, res);
+      res.writeHead(204);
+      res.end();
+      return;
+    }
+
     const route = path.slice(4); // strip /api
 
     // GET /api/snapshot/:agent
     if (route.startsWith("/snapshot/") && req.method === "GET") {
       const agent = decodeURIComponent(route.slice(10));
-      if (!agent) return error(res, "Agent name required");
+      if (!agent) {
+        return sendError(
+          req,
+          res,
+          "invalid_request",
+          "Agent name required",
+          400,
+        );
+      }
       const snap = await snapshot(state.projectRoot, agent);
-      return json(res, snap);
+      return sendJson(req, res, snap);
     }
 
     // GET /api/contracts
     if (route === "/contracts" && req.method === "GET") {
       const contracts = await getContracts(state.projectRoot);
-      return json(res, [...contracts.values()]);
+      return sendJson(req, res, [...contracts.values()]);
     }
 
     // GET /api/ownership
     if (route === "/ownership" && req.method === "GET") {
       const ownership = await getOwnership(state.projectRoot);
-      return json(res, [...ownership.values()]);
+      return sendJson(req, res, [...ownership.values()]);
     }
 
     // GET /api/events?after=N
@@ -183,7 +194,7 @@ async function handleRequest(
         state.projectRoot,
         after,
       );
-      return json(res, { events, highSeq });
+      return sendJson(req, res, { events, highSeq });
     }
 
     // POST /api/emit
@@ -191,24 +202,42 @@ async function handleRequest(
       // Kill switch check
       const ks = await isKillSwitchActive(state.projectRoot);
       if (ks.active) {
-        return error(res, `Kill switch active: ${ks.reason}`, 503);
+        return sendError(
+          req,
+          res,
+          "kill_switch_active",
+          `Kill switch active: ${ks.reason}`,
+          503,
+        );
       }
 
-      const body = JSON.parse(await readBody(req)) as {
+      const body = await readJsonBody<{
         from: string;
         to: string;
         type: string;
         description: string;
         payload?: Record<string, unknown>;
-      };
+      }>(req);
 
       if (!body.from || !body.type || !body.description) {
-        return error(res, "from, type, and description required");
+        return sendError(
+          req,
+          res,
+          "invalid_request",
+          "from, type, and description required",
+          400,
+        );
       }
 
       const validTypes: readonly string[] = COORDINATION_EVENT_TYPES;
       if (!validTypes.includes(body.type)) {
-        return error(res, `Invalid event type: ${body.type}`);
+        return sendError(
+          req,
+          res,
+          "invalid_event_type",
+          `Invalid event type: ${body.type}`,
+          400,
+        );
       }
 
       // Redact before storing
@@ -223,19 +252,25 @@ async function handleRequest(
         payload,
       });
 
-      return json(res, event, 201);
+      return sendJson(req, res, event, 201);
     }
 
     // POST /api/ack
     if (route === "/ack" && req.method === "POST") {
-      const body = JSON.parse(await readBody(req)) as {
+      const body = await readJsonBody<{
         agent: string;
         seq: number;
         note?: string;
-      };
+      }>(req);
 
       if (!body.agent || body.seq === undefined) {
-        return error(res, "agent and seq required");
+        return sendError(
+          req,
+          res,
+          "invalid_request",
+          "agent and seq required",
+          400,
+        );
       }
 
       const event = await emit(state.projectRoot, {
@@ -249,7 +284,7 @@ async function handleRequest(
         },
       });
 
-      return json(res, event, 201);
+      return sendJson(req, res, event, 201);
     }
 
     // GET /api/subscribe/:agent or /api/subscribe
@@ -258,13 +293,7 @@ async function handleRequest(
         route.length > 10 ? decodeURIComponent(route.slice(11)) : undefined;
       const cursor = parseInt(url.searchParams.get("cursor") ?? "-1");
 
-      cors(res);
-      res.writeHead(200, {
-        "Content-Type": "text/event-stream",
-        "Cache-Control": "no-cache",
-        Connection: "keep-alive",
-        "X-Accel-Buffering": "no",
-      });
+      setEventStreamHeaders(req, res);
 
       // Send initial keepalive
       res.write(": connected\n\n");
@@ -308,10 +337,9 @@ async function handleRequest(
     if (route === "/status" && req.method === "GET") {
       const size = await logSize(state.projectRoot);
       const ackState = await getAckState(state.projectRoot);
-      return json(res, {
+      return sendJson(req, res, {
         daemon: "running",
         startedAt: state.startedAt,
-        projectRoot: state.projectRoot,
         connectedClients: state.clients.size,
         clients: [...state.clients.values()].map((c) => ({
           id: c.id,
@@ -327,13 +355,13 @@ async function handleRequest(
     // POST /api/compact
     if (route === "/compact" && req.method === "POST") {
       const result = await compact(state.projectRoot);
-      return json(res, result);
+      return sendJson(req, res, result);
     }
 
-    return error(res, "Not found", 404);
+    return sendError(req, res, "not_found", "Not found", 404);
   }
 
-  error(res, "Not found", 404);
+  sendError(req, res, "not_found", "Not found", 404);
 }
 
 export function generateDashboardHTML(): string {
@@ -467,12 +495,23 @@ export function generateDashboardHTML(): string {
 
 <script>
 const API = window.location.origin;
-let eventSource = null;
+const TOKEN_KEY = 'loadout-coordination-token';
+const fragmentToken = new URLSearchParams(window.location.hash.slice(1)).get('token');
+if (fragmentToken) {
+  sessionStorage.setItem(TOKEN_KEY, fragmentToken);
+  history.replaceState(null, '', window.location.pathname + window.location.search);
+}
+const daemonToken = sessionStorage.getItem(TOKEN_KEY) || window.prompt('Enter the Loadout daemon token:') || '';
+if (daemonToken) sessionStorage.setItem(TOKEN_KEY, daemonToken);
+let eventController = null;
 const maxEvents = 200;
 const eventBuffer = [];
 
 async function fetchJSON(path) {
-  const res = await fetch(API + path);
+  const res = await fetch(API + path, {
+    headers: { Authorization: 'Bearer ' + daemonToken },
+  });
+  if (!res.ok) throw new Error('HTTP ' + res.status);
   return res.json();
 }
 
@@ -572,28 +611,41 @@ function addEvent(event) {
   el.innerHTML = eventBuffer.map(renderEvent).join('');
 }
 
-function connectSSE() {
-  if (eventSource) eventSource.close();
-  eventSource = new EventSource(API + '/api/subscribe');
-
-  eventSource.onopen = () => {
+async function connectSSE() {
+  if (eventController) eventController.abort();
+  eventController = new AbortController();
+  try {
+    const response = await fetch(API + '/api/subscribe', {
+      headers: { Authorization: 'Bearer ' + daemonToken },
+      signal: eventController.signal,
+    });
+    if (!response.ok || !response.body) throw new Error('HTTP ' + response.status);
     document.getElementById('connection-status').textContent = 'connected';
     document.getElementById('status-dot').style.background = 'var(--green)';
-  };
-
-  eventSource.onmessage = (e) => {
-    try {
-      const event = JSON.parse(e.data);
-      addEvent(event);
-      refreshState();
-    } catch {}
-  };
-
-  eventSource.onerror = () => {
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let pending = '';
+    while (true) {
+      const chunk = await reader.read();
+      if (chunk.done) break;
+      pending += decoder.decode(chunk.value, { stream: true });
+      const messages = pending.split('\\n\\n');
+      pending = messages.pop() || '';
+      for (const message of messages) {
+        const data = message.split('\\n').find(line => line.startsWith('data: '));
+        if (!data) continue;
+        const event = JSON.parse(data.slice(6));
+        addEvent(event);
+        refreshState();
+      }
+    }
+    throw new Error('SSE stream ended');
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') return;
     document.getElementById('connection-status').textContent = 'reconnecting...';
     document.getElementById('status-dot').style.background = 'var(--red)';
     setTimeout(connectSSE, 3000);
-  };
+  }
 }
 
 // Initial load
@@ -622,7 +674,12 @@ function connectSSE() {
 export async function startDaemon(
   projectRoot: string,
   port = 4510,
-): Promise<{ port: number; close: () => void }> {
+): Promise<{
+  port: number;
+  token: string;
+  dashboardUrl: string;
+  close: () => void;
+}> {
   // Check kill switch
   const killSwitch = await isKillSwitchActive(projectRoot);
   if (killSwitch.active) {
@@ -632,8 +689,10 @@ export async function startDaemon(
     );
   }
 
+  const token = await ensureDaemonToken(projectRoot);
   const state: DaemonState = {
     projectRoot,
+    token,
     clients: new Map(),
     watcher: null,
     startedAt: new Date().toISOString(),
@@ -655,9 +714,15 @@ export async function startDaemon(
 
   const server = createServer((req, res) => {
     handleRequest(req, res, state).catch((err) => {
-      console.error("Request error:", err);
       if (!res.headersSent) {
-        error(res, "Internal server error", 500);
+        if (err instanceof HttpError) {
+          sendError(req, res, err.code, err.message, err.status);
+        } else if (err instanceof URIError) {
+          sendError(req, res, "invalid_request", "Invalid request URL", 400);
+        } else {
+          console.error("Request error:", err);
+          sendError(req, res, "internal_error", "Internal server error", 500);
+        }
       }
     });
   });
@@ -690,6 +755,8 @@ export async function startDaemon(
 
       resolve({
         port,
+        token,
+        dashboardUrl: `http://127.0.0.1:${port}/#token=${encodeURIComponent(token)}`,
         close() {
           process.removeListener("exit", onExit);
           process.removeListener("SIGTERM", onTerm);

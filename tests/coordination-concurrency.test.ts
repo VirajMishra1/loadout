@@ -19,7 +19,7 @@ afterEach(async () => {
 });
 
 describe("concurrent writes", () => {
-  it("handles rapid sequential writes without data loss", async () => {
+  it("assigns a unique monotonic sequence to every concurrent write", async () => {
     // Simulate two agents writing events rapidly
     const count = 50;
     const promises: Promise<unknown>[] = [];
@@ -40,6 +40,9 @@ describe("concurrent writes", () => {
     const log = await readCoordLog(root);
     expect(log.events.length).toBe(count);
     expect(log.corrupt.length).toBe(0);
+    const sequences = log.events.map((event) => event.seq);
+    expect(new Set(sequences).size).toBe(count);
+    expect(sequences).toEqual(Array.from({ length: count }, (_, i) => i));
   });
 
   it("maintains monotonic sequence numbers under sequential writes", async () => {
@@ -157,26 +160,25 @@ describe("prompt injection in events", () => {
     ).rejects.toThrow("Invalid payload");
   });
 
-  it("handles oversized descriptions without crash", async () => {
-    const huge = "x".repeat(100000);
-    const event = await emit(root, {
-      from: "agent",
-      to: "*",
-      type: "task",
-      description: huge,
-    });
+  it("rejects oversized descriptions without corrupting the log", async () => {
+    const huge = "x".repeat(8_193);
+    await expect(
+      emit(root, {
+        from: "agent",
+        to: "*",
+        type: "task",
+        description: huge,
+      }),
+    ).rejects.toThrow(/description/i);
 
-    expect(event.description).toBe(huge);
-    expect(event.seq).toBe(0);
-
-    // Can still read back
     const log = await readCoordLog(root);
-    expect(log.events.length).toBe(1);
+    expect(log.events.length).toBe(0);
+    expect(log.corrupt.length).toBe(0);
   });
 
   it("handles special characters in JSON without corruption", async () => {
     const special = 'line1\nline2\ttab\r\nwindows\0null"quotes\\backslash';
-    const event = await emit(root, {
+    await emit(root, {
       from: "agent",
       to: "*",
       type: "task",

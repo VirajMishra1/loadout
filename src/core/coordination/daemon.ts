@@ -782,8 +782,12 @@ export async function startDaemon(
     });
 
     server.listen(port, "127.0.0.1", async () => {
+      // Resolve the actual port (differs from `port` when port === 0)
+      const addr = server.address();
+      const actualPort = typeof addr === "object" && addr ? addr.port : port;
+
       // Write PID file after successful bind
-      await writePidFile(projectRoot, port);
+      await writePidFile(projectRoot, actualPort);
 
       // Clean up PID file on exit — only register once per process
       const onExit = () => removePidFile(projectRoot);
@@ -795,9 +799,9 @@ export async function startDaemon(
       process.once("SIGTERM", onTerm);
 
       resolve({
-        port,
+        port: actualPort,
         token,
-        dashboardUrl: `http://127.0.0.1:${port}/#token=${encodeURIComponent(token)}`,
+        dashboardUrl: `http://127.0.0.1:${actualPort}/#token=${encodeURIComponent(token)}`,
         close() {
           process.removeListener("exit", onExit);
           process.removeListener("SIGTERM", onTerm);

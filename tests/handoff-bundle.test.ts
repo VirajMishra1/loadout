@@ -61,9 +61,12 @@ describe("handoff context bundles", () => {
 
     const raw = await readFile(join(projectRoot, reference.path), "utf8");
     expect(raw).not.toContain("supersecretvalue");
-    expect((await stat(join(projectRoot, reference.path))).mode & 0o777).toBe(
-      0o600,
-    );
+    // Windows doesn't enforce Unix file permissions — skip on win32
+    if (process.platform !== "win32") {
+      expect((await stat(join(projectRoot, reference.path))).mode & 0o777).toBe(
+        0o600,
+      );
+    }
   });
 
   it("rejects paths outside source territory and never follows symlinks", async () => {

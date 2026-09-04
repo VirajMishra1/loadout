@@ -8,13 +8,10 @@ import { startDaemon } from "../src/core/coordination/daemon.js";
 let root: string;
 let daemon: Awaited<ReturnType<typeof startDaemon>> | null = null;
 
-function randomPort(): number {
-  return 10000 + Math.floor(Math.random() * 50000);
-}
-
 beforeEach(async () => {
   root = await mkdtemp(join(tmpdir(), "loadout-daemon-security-"));
-  daemon = await startDaemon(root, randomPort());
+  // Port 0 lets the OS pick a free port, avoiding EACCES on Windows CI
+  daemon = await startDaemon(root, 0);
 });
 
 afterEach(async () => {

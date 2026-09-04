@@ -2,15 +2,101 @@ import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import { writeFileAtomically } from "../install/atomic-file.js";
+import { withFileLock } from "../install/file-lock.js";
 import { z } from "zod";
 import {
   handoffBundleReferenceSchema,
   type HandoffBundleReference,
   readHandoffBundle,
 } from "./handoff-bundle.js";
+import { redactString } from "../coordination/redaction.js";
 
 export type HandoffMessageType =
   "task" | "handoff" | "question" | "done" | "status" | "error" | "cancel";
+
+export const HANDOFF_VERIFICATION_MAX_TEXT = 2_000;
+export const HANDOFF_VERIFICATION_MAX_ARGS = 64;
+export const HANDOFF_VERIFICATION_MAX_ARG_LENGTH = 4_096;
+export const HANDOFF_VERIFICATION_MAX_OUTPUT_BYTES = 8 * 1024;
+
+export interface HandoffVerification {
+  criteria: string;
+  command?: {
+    executable: string;
+    args: string[];
+    timeoutMs: number;
+  };
+}
+
+export interface HandoffVerificationEvidence {
+  mode: "command" | "manual";
+  status: "passed" | "failed";
+  summary?: string;
+  command?: string[];
+  exitCode?: number;
+  durationMs?: number;
+  stdout?: string;
+  stderr?: string;
+  timedOut?: boolean;
+  isTruncated: boolean;
+}
+
+const handoffVerificationCommandSchema = z
+  .object({
+    executable: z
+      .string()
+      .trim()
+      .min(1)
+      .max(1_024)
+      .refine((value) => !value.includes("\0"), "cannot contain a null byte"),
+    args: z
+      .array(
+        z
+          .string()
+          .max(HANDOFF_VERIFICATION_MAX_ARG_LENGTH)
+          .refine(
+            (value) => !value.includes("\0"),
+            "cannot contain a null byte",
+          ),
+      )
+      .max(HANDOFF_VERIFICATION_MAX_ARGS),
+    timeoutMs: z.number().int().min(1_000).max(900_000),
+  })
+  .strict();
+
+export const handoffVerificationSchema = z
+  .object({
+    criteria: z.string().trim().min(1).max(HANDOFF_VERIFICATION_MAX_TEXT),
+    command: handoffVerificationCommandSchema.optional(),
+  })
+  .strict();
+
+const handoffVerificationOutputSchema = z
+  .string()
+  .max(HANDOFF_VERIFICATION_MAX_OUTPUT_BYTES)
+  .refine(
+    (value) =>
+      Buffer.byteLength(value) <= HANDOFF_VERIFICATION_MAX_OUTPUT_BYTES,
+    `must be at most ${HANDOFF_VERIFICATION_MAX_OUTPUT_BYTES} UTF-8 bytes`,
+  );
+
+export const handoffVerificationEvidenceSchema = z
+  .object({
+    mode: z.enum(["command", "manual"]),
+    status: z.enum(["passed", "failed"]),
+    summary: z.string().max(HANDOFF_VERIFICATION_MAX_TEXT).optional(),
+    command: z
+      .array(z.string().max(HANDOFF_VERIFICATION_MAX_ARG_LENGTH))
+      .max(HANDOFF_VERIFICATION_MAX_ARGS + 1)
+      .optional(),
+    exitCode: z.number().int().nonnegative().optional(),
+    durationMs: z.number().int().nonnegative().max(900_000).optional(),
+    stdout: handoffVerificationOutputSchema.optional(),
+    stderr: handoffVerificationOutputSchema.optional(),
+    timedOut: z.boolean().optional(),
+    isTruncated: z.boolean(),
+  })
+  .strict();
 
 export interface HandoffMessage {
   id: string;
@@ -20,6 +106,8 @@ export interface HandoffMessage {
   description: string;
   context?: string;
   bundle?: HandoffBundleReference;
+  verification?: HandoffVerification;
+  evidence?: HandoffVerificationEvidence;
   timestamp: string;
   /** The task this message closes. Older logs encode it in `context`. */
   resolves?: string;
@@ -40,6 +128,8 @@ const handoffMessageSchema = z.object({
   description: z.string().trim().min(1),
   context: z.string().optional(),
   bundle: handoffBundleReferenceSchema.optional(),
+  verification: handoffVerificationSchema.optional(),
+  evidence: handoffVerificationEvidenceSchema.optional(),
   timestamp: z.iso.datetime({ offset: true }),
   resolves: z.string().trim().min(1).optional(),
 });
@@ -71,6 +161,7 @@ const TERMINAL_TYPES = new Set<HandoffMessageType>(["done", "error", "cancel"]);
 const HANDOFF_DIR = ".handoff";
 const MESSAGES_FILE = "messages.jsonl";
 const PROTOCOL_FILE = "PROTOCOL.md";
+const LOCK_FILE = "messages.lock";
 
 function handoffDir(projectRoot: string): string {
   return join(projectRoot, HANDOFF_DIR);
@@ -78,6 +169,23 @@ function handoffDir(projectRoot: string): string {
 
 function messagesPath(projectRoot: string): string {
   return join(handoffDir(projectRoot), MESSAGES_FILE);
+}
+
+function lockPath(projectRoot: string): string {
+  return join(handoffDir(projectRoot), LOCK_FILE);
+}
+
+export function withHandoffLock<T>(
+  projectRoot: string,
+  operation: () => Promise<T>,
+): Promise<T> {
+  return withFileLock(lockPath(projectRoot), operation);
+}
+
+function errorCode(error: unknown): string | undefined {
+  return typeof error === "object" && error !== null && "code" in error
+    ? String((error as { code?: unknown }).code)
+    : undefined;
 }
 
 export async function isHandoffInitialized(
@@ -106,6 +214,7 @@ export async function initHandoff(projectRoot: string): Promise<string> {
     "```",
     "loadout handoff codex 'write unit tests for auth' --context 'see src/auth.ts'",
     "loadout handoff codex 'write auth tests' --bundle src/auth.ts src/types.ts",
+    "loadout handoff codex 'write tests' --verify 'tests pass' --verify-command npm --verify-args '[\"test\"]'",
     "loadout handoff codex          # what is waiting for codex",
     "loadout handoff                # everything pending, both directions",
     "loadout handoff --done <id>    # finished",
@@ -129,46 +238,75 @@ export async function initHandoff(projectRoot: string): Promise<string> {
     "redaction is heuristic: never bundle credential files. Review bundle content",
     "before committing `.handoff/` to share it across machines.",
     "",
+    "Verification criteria are stored with the task. An optional executable and",
+    "JSON argv run without a shell only with `--done --run-verification`. Passing",
+    "checks record bounded, redacted evidence and settle the task; failures record",
+    "evidence and the task remains pending. Manual criteria require `--evidence`.",
+    "",
   ].join("\n");
 
   await writeFileAtomically(join(dir, PROTOCOL_FILE), protocol);
 
-  // Create empty messages file if it doesn't exist
+  // Exclusive creation cannot truncate a task appended by a concurrent init.
   try {
-    await readFile(messagesPath(projectRoot));
-  } catch {
-    await writeFile(messagesPath(projectRoot), "", "utf8");
+    await writeFile(messagesPath(projectRoot), "", { flag: "wx", mode: 0o600 });
+  } catch (error) {
+    if (errorCode(error) !== "EEXIST") throw error;
   }
 
   return dir;
 }
 
-export async function sendHandoff(
-  projectRoot: string,
+type SendHandoffOptions = {
+  from?: string;
+  type?: HandoffMessageType;
+  context?: string;
+  bundle?: HandoffBundleReference;
+  verification?: HandoffVerification;
+  evidence?: HandoffVerificationEvidence;
+  resolves?: string;
+};
+
+function createHandoffMessage(
   to: string,
   description: string,
-  options: {
-    from?: string;
-    type?: HandoffMessageType;
-    context?: string;
-    bundle?: HandoffBundleReference;
-    resolves?: string;
-  } = {},
-): Promise<HandoffMessage> {
-  if (!(await isHandoffInitialized(projectRoot))) {
-    throw new Error(
-      "Handoff is not set up here. Send a task and it will create itself: loadout handoff <agent> '<task>'",
-    );
-  }
-
+  options: SendHandoffOptions,
+): HandoffMessage {
   const candidate: HandoffMessage = {
     id: randomUUID().slice(0, 8),
     type: options.type ?? "task",
     from: options.from ?? "user",
     to,
-    description,
-    ...(options.context ? { context: options.context } : {}),
+    description: redactString(description),
+    ...(options.context ? { context: redactString(options.context) } : {}),
     ...(options.bundle ? { bundle: options.bundle } : {}),
+    ...(options.verification
+      ? {
+          verification: {
+            ...options.verification,
+            criteria: redactString(options.verification.criteria),
+          },
+        }
+      : {}),
+    ...(options.evidence
+      ? {
+          evidence: {
+            ...options.evidence,
+            ...(options.evidence.summary
+              ? { summary: redactString(options.evidence.summary) }
+              : {}),
+            ...(options.evidence.command
+              ? { command: options.evidence.command.map(redactString) }
+              : {}),
+            ...(options.evidence.stdout
+              ? { stdout: redactString(options.evidence.stdout) }
+              : {}),
+            ...(options.evidence.stderr
+              ? { stderr: redactString(options.evidence.stderr) }
+              : {}),
+          },
+        }
+      : {}),
     ...(options.resolves ? { resolves: options.resolves } : {}),
     timestamp: new Date().toISOString(),
   };
@@ -177,37 +315,74 @@ export async function sendHandoff(
     throw new Error(
       `Invalid handoff message: ${handoffValidationReason(parsed.error)}`,
     );
-  const message = parsed.data;
+  return parsed.data;
+}
 
+async function appendHandoffMessage(
+  projectRoot: string,
+  message: HandoffMessage,
+): Promise<void> {
   const path = messagesPath(projectRoot);
   const line = JSON.stringify(message) + "\n";
   await writeFile(path, line, { flag: "a" });
+}
 
+export async function sendHandoffUnlocked(
+  projectRoot: string,
+  to: string,
+  description: string,
+  options: SendHandoffOptions = {},
+): Promise<HandoffMessage> {
+  const message = createHandoffMessage(to, description, options);
+  await appendHandoffMessage(projectRoot, message);
   return message;
+}
+
+export async function sendHandoff(
+  projectRoot: string,
+  to: string,
+  description: string,
+  options: SendHandoffOptions = {},
+): Promise<HandoffMessage> {
+  if (!(await isHandoffInitialized(projectRoot))) {
+    throw new Error(
+      "Handoff is not set up here. Send a task and it will create itself: loadout handoff <agent> '<task>'",
+    );
+  }
+
+  return withFileLock(lockPath(projectRoot), () =>
+    sendHandoffUnlocked(projectRoot, to, description, options),
+  );
 }
 
 export async function markDone(
   projectRoot: string,
   messageId: string,
 ): Promise<HandoffMessage> {
-  const state = await getHandoffState(projectRoot);
-  const original = state.messages.find((m) => m.id === messageId);
-  if (!original) throw new Error(`Message '${messageId}' not found`);
-  if (original.type !== "task")
-    throw new Error(`Message '${messageId}' is not a task`);
-  if (state.done.some((message) => message.id === messageId))
-    throw new Error(`Message '${messageId}' is already settled`);
+  return withFileLock(lockPath(projectRoot), async () => {
+    const state = await getHandoffState(projectRoot);
+    const original = state.messages.find((m) => m.id === messageId);
+    if (!original) throw new Error(`Message '${messageId}' not found`);
+    if (original.type !== "task")
+      throw new Error(`Message '${messageId}' is not a task`);
+    if (state.done.some((message) => message.id === messageId))
+      throw new Error(`Message '${messageId}' is already settled`);
+    if (original.verification)
+      throw new Error(
+        `Task '${messageId}' requires verification before it can be marked done`,
+      );
 
-  return sendHandoff(
-    projectRoot,
-    original.from,
-    `Completed: ${original.description}`,
-    {
-      from: original.to,
-      type: "done",
-      resolves: messageId,
-    },
-  );
+    return sendHandoffUnlocked(
+      projectRoot,
+      original.from,
+      `Completed: ${original.description}`,
+      {
+        from: original.to,
+        type: "done",
+        resolves: messageId,
+      },
+    );
+  });
 }
 
 /**
@@ -327,8 +502,23 @@ function formatInboxWithDetails(
     );
     lines.push(`  ${m.description}`);
     if (m.context) lines.push(`  context: ${m.context}`);
+    if (m.verification) {
+      lines.push(`  verify: ${m.verification.criteria}`);
+      if (m.verification.command) {
+        lines.push(
+          `  check on completion: ${[m.verification.command.executable, ...m.verification.command.args].join(" ")}`,
+        );
+        lines.push(
+          `  timeout: ${Math.round(m.verification.command.timeoutMs / 1_000)}s`,
+        );
+      } else {
+        lines.push("  manual evidence is required on completion");
+      }
+    }
     lines.push(...(bundleDetails.get(m.id) ?? []));
-    lines.push(`  when finished: loadout handoff --done ${m.id}`);
+    lines.push(
+      `  when finished: loadout handoff --done ${m.id}${m.verification?.command ? " --run-verification" : m.verification ? ' --evidence "what you checked"' : ""}`,
+    );
     lines.push("");
   }
   lines.push(
@@ -372,6 +562,40 @@ export async function formatInboxWithBundles(
       }
     }),
   );
+  const allMessages = await readMessages(projectRoot);
+  for (const message of messages) {
+    let latestFailure: HandoffMessage | undefined;
+    for (let index = allMessages.length - 1; index >= 0; index -= 1) {
+      const candidate = allMessages[index];
+      if (
+        candidate.type === "status" &&
+        candidate.resolves === message.id &&
+        candidate.evidence?.status === "failed"
+      ) {
+        latestFailure = candidate;
+        break;
+      }
+    }
+    if (!latestFailure?.evidence) continue;
+    const evidence = latestFailure.evidence;
+    const lines = details.get(message.id) ?? [];
+    const resultParts = [
+      evidence.exitCode === undefined ? undefined : `exit ${evidence.exitCode}`,
+      evidence.timedOut ? "timed out" : undefined,
+      evidence.durationMs === undefined
+        ? undefined
+        : `${evidence.durationMs}ms`,
+    ].filter(Boolean);
+    lines.push(
+      `  last verification: failed${resultParts.length ? ` (${resultParts.join(", ")})` : ""}`,
+    );
+    const output = evidence.stderr || evidence.stdout;
+    if (output)
+      lines.push(
+        `  last output: ${output.replace(/\s+/g, " ").trim().slice(0, 1_000)}`,
+      );
+    details.set(message.id, lines);
+  }
   return formatInboxWithDetails(agent, messages, details);
 }
 

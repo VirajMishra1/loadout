@@ -230,6 +230,21 @@ loadout handoff --done <task-id>
 loadout handoff codex
 ```
 
+Test the closed completion loop with a harmless command:
+
+```bash
+loadout handoff codex "Verify Node" --verify "Node prints verified" \
+  --verify-command node --verify-args '["-e","console.log(\"verified\")"]'
+loadout handoff codex
+loadout handoff --done <new-task-id> --run-verification
+```
+
+Confirm the task closes with command evidence. Repeat with
+`--verify-args '["-e","process.exit(3)"]'`; approved `--done` must exit nonzero, record
+the failed attempt, and leave the task pending. No shell is used and no retry
+happens automatically. For a human-only check, omit the command and complete
+with `--evidence "what you inspected"`.
+
 Next test structured coordination without running either model:
 
 ```bash

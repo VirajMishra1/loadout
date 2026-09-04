@@ -1,16 +1,16 @@
-# Safe handoff context bundles plan
+# Handoff reliability plan
 
-The specification is
-[`docs/specs/HANDOFF_CONTEXT_BUNDLES.md`](../docs/specs/HANDOFF_CONTEXT_BUNDLES.md)
-and the executable implementation plan is
-[`docs/superpowers/plans/2026-09-04-handoff-context-bundles.md`](../docs/superpowers/plans/2026-09-04-handoff-context-bundles.md).
+Safe bundles are complete in commit `caa2019`. The active specification is
+[`docs/specs/HANDOFF_VERIFICATION.md`](../docs/specs/HANDOFF_VERIFICATION.md)
+and its implementation plan is
+[`docs/superpowers/plans/2026-09-04-handoff-verification.md`](../docs/superpowers/plans/2026-09-04-handoff-verification.md).
 
 Work order:
 
-1. Establish safe, versioned bundle persistence with hard limits.
-2. Extend the handoff protocol additively and improve receiver output.
-3. Add the public `--bundle` command boundary and transactional cleanup.
-4. Update user, agent, and generated protocol documentation.
-5. Run full verification and a five-axis review before any release decision.
+1. Extend the durable task contract with bounded criteria and evidence.
+2. Add explicit, shell-free completion checks and nonterminal failures.
+3. Wire safe CLI options and receiver-visible feedback.
+4. Update user and agent documentation.
+5. Run release-level verification and review before another commit.
 
 This branch does not tag, publish, or merge itself.

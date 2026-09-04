@@ -89,4 +89,152 @@ describe("handoff CLI", () => {
     ).toBe("");
     expect(await readdir(join(projectRoot, ".handoff", "bundles"))).toEqual([]);
   });
+
+  it("runs an explicit verification argv and records completion evidence", async () => {
+    const sent = await runCli(
+      projectRoot,
+      "handoff",
+      "codex",
+      "prove completion",
+      "--verify",
+      "the command prints verified",
+      "--verify-command",
+      process.execPath,
+      "--verify-args",
+      JSON.stringify(["-e", 'console.log("verified")']),
+      "--verify-timeout",
+      "30",
+      "--json",
+    );
+    const task = JSON.parse(sent.stdout).message;
+    expect(task.verification).toEqual({
+      criteria: "the command prints verified",
+      command: {
+        executable: process.execPath,
+        args: ["-e", 'console.log("verified")'],
+        timeoutMs: 30_000,
+      },
+    });
+
+    const completed = await runCli(
+      projectRoot,
+      "handoff",
+      "--done",
+      task.id,
+      "--run-verification",
+      "--json",
+    );
+    const outcome = JSON.parse(completed.stdout);
+    expect(outcome.completed).toBe(true);
+    expect(outcome.message.evidence).toMatchObject({
+      mode: "command",
+      status: "passed",
+      exitCode: 0,
+      stdout: "verified\n",
+    });
+  });
+
+  it("returns failed evidence and keeps the task pending when the check fails", async () => {
+    const sent = await runCli(
+      projectRoot,
+      "handoff",
+      "codex",
+      "prove failure",
+      "--verify",
+      "the command exits successfully",
+      "--verify-command",
+      process.execPath,
+      "--verify-args",
+      JSON.stringify(["-e", "process.exit(3)"]),
+      "--json",
+    );
+    const task = JSON.parse(sent.stdout).message;
+
+    let failure:
+      (Error & { stdout?: string; stderr?: string; code?: number }) | undefined;
+    try {
+      await runCli(
+        projectRoot,
+        "handoff",
+        "--done",
+        task.id,
+        "--run-verification",
+        "--json",
+      );
+    } catch (error) {
+      failure = error as typeof failure;
+    }
+    expect(failure?.code).toBe(1);
+    const outcome = JSON.parse(failure?.stdout ?? "{}");
+    expect(outcome.completed).toBe(false);
+    expect(outcome.message.evidence).toMatchObject({
+      status: "failed",
+      exitCode: 3,
+    });
+
+    const inbox = await runCli(projectRoot, "handoff", "codex");
+    expect(inbox.stdout).toContain(task.id);
+    expect(inbox.stdout).toContain("last verification: failed");
+  });
+
+  it("requires and records manual evidence for human-only criteria", async () => {
+    const sent = await runCli(
+      projectRoot,
+      "handoff",
+      "codex",
+      "review UI",
+      "--verify",
+      "empty state is readable",
+      "--json",
+    );
+    const task = JSON.parse(sent.stdout).message;
+
+    await expect(
+      runCli(projectRoot, "handoff", "--done", task.id),
+    ).rejects.toThrow(/requires manual evidence/i);
+    const completed = await runCli(
+      projectRoot,
+      "handoff",
+      "--done",
+      task.id,
+      "--evidence",
+      "reviewed mobile and desktop",
+      "--json",
+    );
+    expect(JSON.parse(completed.stdout).message.evidence).toMatchObject({
+      mode: "manual",
+      status: "passed",
+      summary: "reviewed mobile and desktop",
+    });
+  });
+
+  it("rejects a verification executable without acceptance criteria before setup", async () => {
+    await expect(
+      runCli(
+        projectRoot,
+        "handoff",
+        "codex",
+        "bad task",
+        "--verify-command",
+        "true",
+      ),
+    ).rejects.toThrow(/requires --verify/i);
+    await expect(
+      readFile(join(projectRoot, ".handoff", "messages.jsonl"), "utf8"),
+    ).rejects.toThrow();
+  });
+
+  it("preserves the existing completion output for tasks without verification", async () => {
+    const sent = await runCli(
+      projectRoot,
+      "handoff",
+      "codex",
+      "legacy task",
+      "--json",
+    );
+    const task = JSON.parse(sent.stdout).message;
+
+    const completed = await runCli(projectRoot, "handoff", "--done", task.id);
+    expect(completed.stdout.trim()).toBe(`Marked ${task.id} done.`);
+  });
 });

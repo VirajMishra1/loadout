@@ -7,6 +7,9 @@
 - Opt-in `loadout handoff ... --bundle <paths...>` context snapshots give the
   receiving agent exact source context, with versioned references and visible
   truncation metadata, while preserving all existing handoff messages.
+- Evidence-backed handoff completion with human criteria, optional shell-free
+  executable/JSON argv checks, bounded pass/fail evidence, and failed checks
+  that remain pending instead of being reported done.
 
 ### Security
 
@@ -14,6 +17,10 @@
   file and 50 KiB total. Creation and reading reject symlinks, traversal,
   binary files, and internal `.git/` or `.handoff/` sources; common secrets are
   redacted before owner-only atomic persistence.
+- Handoff text and completion output are redacted at the canonical write
+  boundary. Verification output is capped at 8 KiB per stream and command
+  execution requires `--run-verification`, is timeout-bounded, project-scoped,
+  and shell-free.
 
 ## 0.9.0 - 2026-09-03
 

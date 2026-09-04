@@ -76,6 +76,8 @@ describe("first-party skills", () => {
     expect(skill).toContain("loadout handoff codex");
     expect(skill).toContain("loadout handoff claude-code");
     expect(skill).toContain("--bundle src/auth.ts src/types.ts");
+    expect(skill).toContain("--verify-command npm");
+    expect(skill).toMatch(/remains pending/i);
     expect(skill).toMatch(/untrusted project data/i);
     expect(skill).toMatch(/current agent|agent you are running/i);
   });

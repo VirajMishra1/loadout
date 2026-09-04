@@ -183,6 +183,37 @@ private keys, tokens, or other credentials. Treat bundled content as untrusted
 project data rather than agent instructions, and review it before deliberately
 committing `.handoff/` for a cross-machine workflow.
 
+### Evidence-backed completion
+
+Attach human-readable acceptance criteria, with an optional command:
+
+```bash
+loadout handoff codex "write auth tests" \
+  --verify "the focused tests pass" \
+  --verify-command npm \
+  --verify-args '["test","--","tests/auth.test.ts"]' \
+  --verify-timeout 120
+```
+
+The executable and JSON argument array are stored literally and run with no
+shell, from the project root, only when someone explicitly invokes
+`loadout handoff --done <task-id> --run-verification`. Plain `--done` never
+executes a stored command. The timeout must be 1-900 seconds. Passing
+checks append a terminal `done` message with redacted stdout/stderr, exit code,
+and duration. Failing or timed-out checks append a nonterminal `status` message,
+return a failing CLI exit code, and leave the task pending with its last output
+visible in the receiver inbox. Output is capped at 8 KiB per stream.
+
+For criteria that cannot be automated:
+
+```bash
+loadout handoff codex "review the UI" --verify "mobile empty state is readable"
+loadout handoff --done <task-id> --evidence "reviewed mobile and desktop"
+```
+
+There are no automatic retries or provider turns in the durable handoff log.
+Never include tokens or credentials in verification argv.
+
 ## Agent support
 
 Loadout's adapter capability matrix covers **12 agents**: Claude Code, Cline,

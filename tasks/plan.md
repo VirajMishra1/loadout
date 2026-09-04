@@ -1,15 +1,16 @@
-# Bounded-agent-discussions plan
+# Handoff reliability plan
 
-The canonical implementation plan is
-[`docs/superpowers/plans/2026-09-04-bounded-agent-discussions.md`](../docs/superpowers/plans/2026-09-04-bounded-agent-discussions.md).
+Safe bundles are complete in commit `caa2019`. The active specification is
+[`docs/specs/HANDOFF_VERIFICATION.md`](../docs/specs/HANDOFF_VERIFICATION.md)
+and its implementation plan is
+[`docs/superpowers/plans/2026-09-04-handoff-verification.md`](../docs/superpowers/plans/2026-09-04-handoff-verification.md).
 
-Work order follows this dependency graph:
+Work order:
 
-1. Typed discussion events establish the durable public protocol.
-2. The provider-neutral orchestrator establishes bounded alternating turns.
-3. CLI provider composition adds fresh and resumed Claude/Codex sessions.
-4. Replay, policy, and documentation make the behavior visible and usable.
-5. Full verification and review gate the user's live provider test.
+1. Extend the durable task contract with bounded criteria and evidence.
+2. Add explicit, shell-free completion checks and nonterminal failures.
+3. Wire safe CLI options and receiver-visible feedback.
+4. Update user and agent documentation.
+5. Run release-level verification and review before another commit.
 
-Pushing the feature branch is in scope. Tagging, a GitHub Release, and npm
-publication remain out of scope until the live provider test passes.
+This branch does not tag, publish, or merge itself.

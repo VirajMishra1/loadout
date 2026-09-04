@@ -1,9 +1,9 @@
-# Bounded-agent-discussions checklist
+# Handoff verification checklist
 
-- [ ] Define strict discussion event payloads and bounded state reconstruction.
-- [ ] Implement sequential proposer/reviewer rounds and final synthesis test-first.
-- [ ] Add fresh-session and resumed-session CLI flows with preflight validation.
-- [ ] Integrate discussion events with replay, injection, and interrupt policy.
-- [ ] Document the architecture, safety contract, and live test workflow.
-- [ ] Run full verification and a five-axis code review.
-- [ ] Push the feature branch for review without publishing 0.9.0.
+- [ ] Add bounded verification and evidence fields without breaking old logs.
+- [ ] Implement explicit shell-free completion checks test-first.
+- [ ] Keep failed checks pending and surface their last evidence in the inbox.
+- [ ] Add CLI validation and text/JSON output.
+- [ ] Update README, reference, user guide, generated protocol, and agent skill.
+- [ ] Run full verification, coverage, and review.
+- [ ] Commit and push without merging, tagging, or publishing.

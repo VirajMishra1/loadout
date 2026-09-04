@@ -7,6 +7,7 @@ import {
   applyPickup,
   formatHandoffStatus,
   formatInbox,
+  formatInboxWithBundles,
   getHandoffState,
   initHandoff,
   isHandoffInitialized,
@@ -17,6 +18,7 @@ import {
   readMessagesDetailed,
   sendHandoff,
 } from "../src/core/delegation/handoff.js";
+import { createHandoffBundle } from "../src/core/delegation/handoff-bundle.js";
 
 describe("handoff", () => {
   let projectRoot: string;
@@ -32,6 +34,15 @@ describe("handoff", () => {
   it("initializes the handoff directory", async () => {
     await initHandoff(projectRoot);
     expect(await isHandoffInitialized(projectRoot)).toBe(true);
+    const protocol = await readFile(
+      join(projectRoot, ".handoff", "PROTOCOL.md"),
+      "utf8",
+    );
+    expect(protocol).toContain("--bundle src/auth.ts src/types.ts");
+    expect(protocol).toMatch(/untrusted project data/i);
+    expect(protocol).toContain("50 KiB");
+    expect(protocol).toContain("--verify-command");
+    expect(protocol).toMatch(/remains pending/i);
   });
 
   it("sends and reads messages", async () => {
@@ -48,6 +59,67 @@ describe("handoff", () => {
     const messages = await readMessages(projectRoot);
     expect(messages).toHaveLength(1);
     expect(messages[0].description).toBe("write tests");
+  });
+
+  it("round-trips an optional context-bundle reference without changing legacy tasks", async () => {
+    await initHandoff(projectRoot);
+    await writeFile(
+      join(projectRoot, "auth.ts"),
+      "export const auth = true;\n",
+    );
+    const bundle = await createHandoffBundle(projectRoot, ["auth.ts"]);
+    const bundled = await sendHandoff(projectRoot, "codex", "write tests", {
+      bundle,
+    });
+    await sendHandoff(projectRoot, "codex", "legacy task");
+
+    const messages = await readMessages(projectRoot);
+    expect(bundled.bundle).toEqual(bundle);
+    expect(messages[0].bundle).toEqual(bundle);
+    expect(messages[1]).not.toHaveProperty("bundle");
+  });
+
+  it("round-trips bounded verification criteria and completion evidence", async () => {
+    await initHandoff(projectRoot);
+    const task = await sendHandoff(projectRoot, "codex", "write tests", {
+      verification: {
+        criteria: "the focused tests pass",
+        command: {
+          executable: "npm",
+          args: ["test", "--", "tests/auth.test.ts"],
+          timeoutMs: 120_000,
+        },
+      },
+    });
+    await sendHandoff(projectRoot, "user", "Verification passed", {
+      from: "codex",
+      type: "done",
+      resolves: task.id,
+      evidence: {
+        mode: "command",
+        status: "passed",
+        command: ["npm", "test", "--", "tests/auth.test.ts"],
+        exitCode: 0,
+        durationMs: 42,
+        stdout: "1 test passed",
+        stderr: "",
+        timedOut: false,
+        isTruncated: false,
+      },
+    });
+
+    const messages = await readMessages(projectRoot);
+    expect(messages[0].verification?.criteria).toBe("the focused tests pass");
+    expect(messages[0].verification?.command?.args).toEqual([
+      "test",
+      "--",
+      "tests/auth.test.ts",
+    ]);
+    expect(messages[1].evidence).toMatchObject({
+      mode: "command",
+      status: "passed",
+      exitCode: 0,
+    });
   });
 
   it("marks a task as done", async () => {
@@ -71,6 +143,24 @@ describe("handoff", () => {
     );
   });
 
+  it("allows only one winner when completion races", async () => {
+    await initHandoff(projectRoot);
+    const msg = await sendHandoff(projectRoot, "codex", "review PR");
+
+    const attempts = await Promise.allSettled(
+      Array.from({ length: 10 }, () => markDone(projectRoot, msg.id)),
+    );
+    expect(
+      attempts.filter((attempt) => attempt.status === "fulfilled"),
+    ).toHaveLength(1);
+    const state = await getHandoffState(projectRoot);
+    expect(
+      state.messages.filter(
+        (message) => message.type === "done" && message.resolves === msg.id,
+      ),
+    ).toHaveLength(1);
+  });
+
   it("rejects invalid outbound messages before appending them", async () => {
     await initHandoff(projectRoot);
 
@@ -78,6 +168,45 @@ describe("handoff", () => {
       /invalid handoff message/i,
     );
     expect(await readMessages(projectRoot)).toEqual([]);
+  });
+
+  it("redacts handoff text and verification evidence at the storage boundary", async () => {
+    await initHandoff(projectRoot);
+    const secret = "sk-ant-supersecretvalue123456789";
+    await sendHandoff(projectRoot, "codex", `review ${secret}`, {
+      context: `token=${secret}`,
+      verification: { criteria: `output excludes ${secret}` },
+      evidence: {
+        mode: "manual",
+        status: "passed",
+        summary: `checked ${secret}`,
+        stdout: secret,
+        isTruncated: false,
+      },
+    });
+
+    const raw = await readFile(
+      join(projectRoot, ".handoff", "messages.jsonl"),
+      "utf8",
+    );
+    expect(raw).toContain("[REDACTED]");
+    expect(raw).not.toContain("supersecretvalue");
+  });
+
+  it("validates verification output limits in UTF-8 bytes", async () => {
+    await initHandoff(projectRoot);
+
+    await expect(
+      sendHandoff(projectRoot, "user", "oversized evidence", {
+        type: "status",
+        evidence: {
+          mode: "command",
+          status: "failed",
+          stdout: "💚".repeat(3_000),
+          isTruncated: false,
+        },
+      }),
+    ).rejects.toThrow(/invalid handoff message/i);
   });
 
   it("throws when sending without init", async () => {
@@ -135,8 +264,60 @@ describe("handoff", () => {
       expect(output).toContain(`loadout handoff --done ${msg.id}`);
     });
 
+    it("renders acceptance criteria and literal command argv", async () => {
+      await initHandoff(projectRoot);
+      await sendHandoff(projectRoot, "codex", "write tests", {
+        verification: {
+          criteria: "the focused test passes",
+          command: {
+            executable: "npm",
+            args: ["test", "--", "tests/auth.test.ts"],
+            timeoutMs: 30_000,
+          },
+        },
+      });
+      const output = formatInbox(
+        "codex",
+        await readInbox(projectRoot, "codex"),
+      );
+      expect(output).toContain("verify: the focused test passes");
+      expect(output).toContain(
+        "check on completion: npm test -- tests/auth.test.ts",
+      );
+      expect(output).toContain("timeout: 30s");
+      expect(output).toMatch(/--done \w+ --run-verification/);
+    });
+
     it("reports an empty inbox plainly", () => {
       expect(formatInbox("codex", [])).toContain("No pending handoff tasks");
+    });
+
+    it("shows bundled filenames and the trust boundary in the receiver inbox", async () => {
+      await initHandoff(projectRoot);
+      await writeFile(
+        join(projectRoot, "auth.ts"),
+        "export const auth = true;\n",
+      );
+      await writeFile(
+        join(projectRoot, "types.ts"),
+        "export type Id = string;\n",
+      );
+      const bundle = await createHandoffBundle(projectRoot, [
+        "auth.ts",
+        "types.ts",
+      ]);
+      await sendHandoff(projectRoot, "codex", "write tests", { bundle });
+
+      const output = await formatInboxWithBundles(
+        projectRoot,
+        "codex",
+        await readInbox(projectRoot, "codex"),
+      );
+      expect(output).toContain(bundle.path);
+      expect(output).toContain("auth.ts");
+      expect(output).toContain("types.ts");
+      expect(output).toMatch(/untrusted project data/i);
+      expect(output).toContain("read this bundle before starting");
     });
   });
 

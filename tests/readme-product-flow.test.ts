@@ -142,6 +142,7 @@ describe("README product flow", () => {
     expect(readme).toMatch(/abridged terminal transcript/i);
     expect(readme).toContain("npm install --global loadout-ai");
     expect(readme).toContain("loadout coord discuss start");
+    expect(readme).toContain("--verify-command npm");
     expect(readme).toMatch(/bounded design discussion/i);
     expect(readme.split(/\r?\n/).length).toBeLessThanOrEqual(425);
     expect(readme.indexOf("### Demo")).toBeLessThan(

@@ -12,16 +12,20 @@ import {
 import {
   applyPickup,
   formatHandoffStatus,
-  formatInbox,
+  formatInboxWithBundles,
   getHandoffState,
   initHandoff,
   isHandoffInitialized,
   isPickupTarget,
-  markDone,
   planPickup,
   readInbox,
   sendHandoff,
 } from "../core/delegation/handoff.js";
+import {
+  createHandoffBundle,
+  removeHandoffBundle,
+} from "../core/delegation/handoff-bundle.js";
+import { completeHandoff } from "../core/delegation/handoff-verification.js";
 import {
   completionCommandPaths,
   parseCompletionShell,
@@ -126,8 +130,30 @@ export function registerWorkflowCommands(program: Command): void {
     .argument("[agent]", "who should do it, for example codex")
     .argument("[task...]", "what they should do")
     .option("--context <text>", "anything they need that is not in the task")
+    .option(
+      "--bundle <paths...>",
+      "attach bounded snapshots of project-relative text files",
+    )
     .option("--from <agent>", "who is sending", "user")
+    .option("--verify <criteria>", "acceptance criteria for this task")
+    .option(
+      "--verify-command <executable>",
+      "executable to run on --done (never uses a shell)",
+    )
+    .option(
+      "--verify-args <json>",
+      "JSON array of literal arguments for --verify-command",
+    )
+    .option(
+      "--verify-timeout <seconds>",
+      "verification timeout in seconds (1-900; default 120)",
+    )
     .option("--done <id>", "mark a task finished")
+    .option(
+      "--run-verification",
+      "explicitly approve the stored no-shell verification command",
+    )
+    .option("--evidence <text>", "manual evidence for human-only criteria")
     .option("--json", "emit machine-readable JSON")
     .action(
       async (
@@ -135,20 +161,73 @@ export function registerWorkflowCommands(program: Command): void {
         taskWords: string[],
         options: {
           context?: string;
+          bundle?: string[];
           from: string;
+          verify?: string;
+          verifyCommand?: string;
+          verifyArgs?: string;
+          verifyTimeout?: string;
           done?: string;
+          runVerification?: boolean;
+          evidence?: string;
           json?: boolean;
         },
       ) => {
         const cwd = process.cwd();
 
+        if (options.verifyCommand && !options.verify)
+          throw new Error("--verify-command requires --verify");
+        if (options.verifyArgs && !options.verifyCommand)
+          throw new Error("--verify-args requires --verify-command");
+        if (options.verifyTimeout && !options.verifyCommand)
+          throw new Error("--verify-timeout requires --verify-command");
+        if (options.evidence && !options.done)
+          throw new Error("--evidence requires --done");
+        if (options.runVerification && !options.done)
+          throw new Error("--run-verification requires --done");
+
+        let verifyArgs: string[] = [];
+        if (options.verifyArgs) {
+          let parsed: unknown;
+          try {
+            parsed = JSON.parse(options.verifyArgs);
+          } catch {
+            throw new Error("--verify-args must be a JSON array of strings");
+          }
+          if (
+            !Array.isArray(parsed) ||
+            parsed.some((value) => typeof value !== "string")
+          )
+            throw new Error("--verify-args must be a JSON array of strings");
+          verifyArgs = parsed;
+        }
+
+        const timeoutSeconds = options.verifyTimeout
+          ? Number(options.verifyTimeout)
+          : 120;
+        if (
+          options.verifyCommand &&
+          (!Number.isInteger(timeoutSeconds) ||
+            timeoutSeconds < 1 ||
+            timeoutSeconds > 900)
+        )
+          throw new Error("--verify-timeout must be an integer from 1 to 900");
+
         if (options.done) {
-          const message = await markDone(cwd, options.done);
+          const outcome = await completeHandoff(cwd, options.done, {
+            ...(options.runVerification ? { approveCommand: true } : {}),
+            ...(options.evidence ? { manualEvidence: options.evidence } : {}),
+          });
           console.log(
             options.json
-              ? JSON.stringify(message, null, 2)
-              : `Marked ${options.done} done.`,
+              ? JSON.stringify(outcome, null, 2)
+              : outcome.completed
+                ? outcome.message.evidence
+                  ? `Marked ${options.done} done with verification evidence.`
+                  : `Marked ${options.done} done.`
+                : `Verification failed for ${options.done}; the task remains pending.\n${outcome.message.evidence?.stderr || outcome.message.evidence?.stdout || "No command output."}`,
           );
+          if (!outcome.completed) process.exitCode = 1;
           return;
         }
 
@@ -170,7 +249,7 @@ export function registerWorkflowCommands(program: Command): void {
           console.log(
             options.json
               ? JSON.stringify(messages, null, 2)
-              : formatInbox(agent, messages),
+              : await formatInboxWithBundles(cwd, agent, messages),
           );
           return;
         }
@@ -191,10 +270,36 @@ export function registerWorkflowCommands(program: Command): void {
           }
         }
 
-        const message = await sendHandoff(cwd, agent, task, {
-          from: options.from,
-          ...(options.context ? { context: options.context } : {}),
-        });
+        const bundle = options.bundle
+          ? await createHandoffBundle(cwd, options.bundle)
+          : undefined;
+        let message;
+        try {
+          message = await sendHandoff(cwd, agent, task, {
+            from: options.from,
+            ...(options.context ? { context: options.context } : {}),
+            ...(bundle ? { bundle } : {}),
+            ...(options.verify
+              ? {
+                  verification: {
+                    criteria: options.verify,
+                    ...(options.verifyCommand
+                      ? {
+                          command: {
+                            executable: options.verifyCommand,
+                            args: verifyArgs,
+                            timeoutMs: timeoutSeconds * 1_000,
+                          },
+                        }
+                      : {}),
+                  },
+                }
+              : {}),
+          });
+        } catch (error) {
+          if (bundle) await removeHandoffBundle(cwd, bundle);
+          throw error;
+        }
 
         if (options.json) {
           console.log(JSON.stringify({ message, setup }, null, 2));
@@ -202,6 +307,16 @@ export function registerWorkflowCommands(program: Command): void {
         }
         for (const line of setup) console.log(`  ${line}`);
         console.log(`Sent to ${agent}: ${task}`);
+        if (bundle)
+          console.log(
+            `Bundled ${bundle.fileCount} file(s) at ${bundle.path}${bundle.isTruncated ? " (truncated to safety limits)" : ""}.`,
+          );
+        if (options.verify)
+          console.log(
+            options.verifyCommand
+              ? `Verification runs only with: loadout handoff --done ${message.id} --run-verification`
+              : `Completion requires evidence: loadout handoff --done ${message.id} --evidence "what you checked"`,
+          );
         console.log(
           `It will pick this up next session, or now with: loadout handoff ${agent}`,
         );

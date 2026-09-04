@@ -206,10 +206,22 @@ git init
 First test the stable session-boundary inbox:
 
 ```bash
-loadout handoff codex "Implement the frontend" --context "Claude owns src/api; consume checkout-api"
+mkdir -p src
+printf 'export const checkout = true;\n' > src/checkout.ts
+printf 'export type CheckoutId = string;\n' > src/types.ts
+loadout handoff codex "Implement the frontend" \
+  --context "Claude owns src/api; consume checkout-api" \
+  --bundle src/checkout.ts src/types.ts
 loadout handoff codex
 loadout handoff
 ```
+
+Confirm the inbox lists both bundled files and calls them untrusted project
+data. Inspect `.handoff/bundles/*.json`: the schema version is `1`, the task log
+contains only its bounded reference, and the bundle contains the source
+snapshots. For a redaction check, put a fake `sk-ant-` token longer than 20
+characters in a disposable file, bundle it, and confirm only `[REDACTED]` is
+stored. Never use a real credential.
 
 Copy the task ID printed by the inbox, then settle it:
 
@@ -217,6 +229,21 @@ Copy the task ID printed by the inbox, then settle it:
 loadout handoff --done <task-id>
 loadout handoff codex
 ```
+
+Test the closed completion loop with a harmless command:
+
+```bash
+loadout handoff codex "Verify Node" --verify "Node prints verified" \
+  --verify-command node --verify-args '["-e","console.log(\"verified\")"]'
+loadout handoff codex
+loadout handoff --done <new-task-id> --run-verification
+```
+
+Confirm the task closes with command evidence. Repeat with
+`--verify-args '["-e","process.exit(3)"]'`; approved `--done` must exit nonzero, record
+the failed attempt, and leave the task pending. No shell is used and no retry
+happens automatically. For a human-only check, omit the command and complete
+with `--evidence "what you inspected"`.
 
 Next test structured coordination without running either model:
 

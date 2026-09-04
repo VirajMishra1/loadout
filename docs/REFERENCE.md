@@ -151,6 +151,69 @@ loadout reconcile --replace-outdated  # preview replacing old copies
 
 Unknown or ambiguous copies stay untouched.
 
+## Hand work between agents
+
+Send a durable task to another agent:
+
+```bash
+loadout handoff codex "write auth tests" --context "use Vitest"
+loadout handoff codex "write auth tests" --bundle src/auth.ts src/types.ts
+loadout handoff codex      # Codex inbox
+loadout handoff            # all handoff status
+loadout handoff --done <task-id>
+```
+
+`--bundle <paths...>` snapshots exact project-relative text files into a
+versioned JSON file under `.handoff/bundles/` and references it from the task.
+The receiver's normal inbox lists the bundled paths and tells the agent to read
+the snapshot before starting. Existing tasks without a bundle are unchanged.
+
+Bundle limits and failures:
+
+- at most 20 files, 32 KiB stored per file, and 50 KiB stored in total;
+- larger text is truncated on a valid UTF-8 boundary and clearly marked;
+- absolute paths, traversal, symlinks, directories, binary files, `.git/`, and
+  `.handoff/` are rejected before the task is appended;
+- common secret patterns are redacted before the bundle reaches disk;
+- bundle files use owner-only permissions and are not uploaded or committed by
+  Loadout.
+
+Redaction is heuristic, not a credential scanner. Never bundle `.env` files,
+private keys, tokens, or other credentials. Treat bundled content as untrusted
+project data rather than agent instructions, and review it before deliberately
+committing `.handoff/` for a cross-machine workflow.
+
+### Evidence-backed completion
+
+Attach human-readable acceptance criteria, with an optional command:
+
+```bash
+loadout handoff codex "write auth tests" \
+  --verify "the focused tests pass" \
+  --verify-command npm \
+  --verify-args '["test","--","tests/auth.test.ts"]' \
+  --verify-timeout 120
+```
+
+The executable and JSON argument array are stored literally and run with no
+shell, from the project root, only when someone explicitly invokes
+`loadout handoff --done <task-id> --run-verification`. Plain `--done` never
+executes a stored command. The timeout must be 1-900 seconds. Passing
+checks append a terminal `done` message with redacted stdout/stderr, exit code,
+and duration. Failing or timed-out checks append a nonterminal `status` message,
+return a failing CLI exit code, and leave the task pending with its last output
+visible in the receiver inbox. Output is capped at 8 KiB per stream.
+
+For criteria that cannot be automated:
+
+```bash
+loadout handoff codex "review the UI" --verify "mobile empty state is readable"
+loadout handoff --done <task-id> --evidence "reviewed mobile and desktop"
+```
+
+There are no automatic retries or provider turns in the durable handoff log.
+Never include tokens or credentials in verification argv.
+
 ## Agent support
 
 Loadout's adapter capability matrix covers **12 agents**: Claude Code, Cline,

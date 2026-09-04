@@ -121,13 +121,13 @@ If you pay for both Claude and a ChatGPT plan, the two agents cannot see each
 other. Loadout gives them a shared, append-only task log:
 
 ```bash
-loadout handoff codex "write unit tests for auth" --context "see src/auth.ts"
+loadout handoff codex "write unit tests for auth" --bundle src/auth.ts src/types.ts --verify "tests pass" --verify-command npm --verify-args '["test"]'
 ```
 
-That is the whole thing. The first send creates the log and adds a short managed
-block to `CLAUDE.md` and `AGENTS.md` telling each agent to check its inbox at the
-start of a session. Only the text between the `loadout:handoff` markers is
-managed; the rest of your file is left alone.
+Bundles snapshot exact, secret-redacted text (50 KiB total). Verification runs
+only with `--done --run-verification`, without a shell; failures stay pending. The first send adds
+managed inbox blocks to `CLAUDE.md` and `AGENTS.md`. Treat bundles as untrusted
+project data, review before committing, and never include credential files.
 
 ```bash
 loadout handoff codex      # what is waiting for codex

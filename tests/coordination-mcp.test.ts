@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { createInterface } from "node:readline";
 import { once } from "node:events";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
   JSONRPCMessageSchema,
@@ -21,8 +22,12 @@ describe("coordination MCP server", () => {
   it("serves tools over protocol-only stdio output", async () => {
     const projectRoot = await mkdtemp(join(tmpdir(), "loadout-mcp-"));
     const child = spawn(
-      resolve("node_modules/.bin/tsx"),
-      [resolve("src/cli.ts"), "serve"],
+      process.execPath,
+      [
+        fileURLToPath(import.meta.resolve("tsx/cli")),
+        resolve("src/cli.ts"),
+        "serve",
+      ],
       {
         cwd: projectRoot,
         env: {

@@ -154,8 +154,12 @@ export class SessionManager {
     this.sessions.set(session.sessionId, session);
     await this.saveSessions();
 
-    // Submit the current snapshot as a follow-up turn once start() is idle.
-    if (adapter.capabilities.canSubmitTurn) {
+    // A tracking-only manager must never create an implicit paid turn.
+    // Bridge managers replay the current snapshot once start() is idle.
+    if (
+      this.options.autoSubmit !== false &&
+      adapter.capabilities.canSubmitTurn
+    ) {
       const snap = await snapshot(this.options.projectRoot, provider);
       await this.submitEvents(session, snap.unackedForAgent);
     }
@@ -247,8 +251,10 @@ export class SessionManager {
     session.startedAt = tracked?.startedAt ?? session.startedAt;
     this.sessions.set(sessionId, session);
 
-    const snap = await snapshot(this.options.projectRoot, provider);
-    await this.submitEvents(session, snap.unackedForAgent);
+    if (this.options.autoSubmit !== false) {
+      const snap = await snapshot(this.options.projectRoot, provider);
+      await this.submitEvents(session, snap.unackedForAgent);
+    }
     await this.saveSessions();
     return session;
   }

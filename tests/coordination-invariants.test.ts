@@ -74,7 +74,9 @@ describe("coordination invariants", () => {
     });
 
     const info = await stat(join(root, ".handoff", "coordination.jsonl"));
-    expect(info.mode & 0o777).toBe(0o600);
+    if (process.platform !== "win32") {
+      expect(info.mode & 0o777).toBe(0o600);
+    }
   });
 
   it("recovers a malformed lock after its stale threshold", async () => {
@@ -203,12 +205,15 @@ describe("coordination invariants", () => {
     ).rejects.toThrow(/description/i);
   });
 
-  it("propagates non-missing log read failures", async () => {
-    const dir = join(root, ".handoff");
-    await mkdir(dir, { recursive: true });
-    await writeFile(join(dir, "coordination.jsonl"), "", "utf8");
-    await chmod(join(dir, "coordination.jsonl"), 0o000);
+  it.skipIf(process.platform === "win32")(
+    "propagates non-missing log read failures",
+    async () => {
+      const dir = join(root, ".handoff");
+      await mkdir(dir, { recursive: true });
+      await writeFile(join(dir, "coordination.jsonl"), "", "utf8");
+      await chmod(join(dir, "coordination.jsonl"), 0o000);
 
-    await expect(readCoordLog(root)).rejects.toBeDefined();
-  });
+      await expect(readCoordLog(root)).rejects.toBeDefined();
+    },
+  );
 });

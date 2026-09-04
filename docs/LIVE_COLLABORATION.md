@@ -107,10 +107,11 @@ loadout coord agents bridge \
   codex:<thread-id>
 ```
 
-You can instead validate an existing known host session with
-`loadout coord agents attach provider:session-id`. `loadout coord agents list`
-shows project-tracked sessions, and `loadout coord agents send` performs one
-explicit follow-up turn.
+You can instead track an existing known host session without running a provider
+turn with `loadout coord agents attach provider:session-id`. The provider validates
+the ID when a later `send` or `bridge` operation submits a turn. `loadout coord
+agents list` shows project-tracked sessions, and `loadout coord agents send`
+performs one explicit follow-up turn.
 
 Bridge safeguards:
 

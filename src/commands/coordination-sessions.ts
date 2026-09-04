@@ -168,7 +168,7 @@ export function registerCoordinationSessions(coord: Command): void {
 
   agents
     .command("attach")
-    .description("Validate and track an existing provider session")
+    .description("Track an existing provider session without running a turn")
     .argument("<session>", "provider:session-id")
     .option("--json", "machine-readable JSON output")
     .action(async (reference: string, options: { json?: boolean }) => {

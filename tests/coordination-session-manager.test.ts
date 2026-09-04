@@ -306,9 +306,12 @@ describe("SessionManager turn scheduling", () => {
     });
     expect(firstAdapter.resumed).toEqual(["host-owned"]);
     await firstManager.stop();
-    expect(
-      (await stat(join(projectRoot, ".handoff", "sessions.json"))).mode & 0o777,
-    ).toBe(0o600);
+    if (process.platform !== "win32") {
+      expect(
+        (await stat(join(projectRoot, ".handoff", "sessions.json"))).mode &
+          0o777,
+      ).toBe(0o600);
+    }
 
     const secondAdapter = new FakeAdapter();
     const secondManager = new SessionManager({
@@ -325,6 +328,35 @@ describe("SessionManager turn scheduling", () => {
       }),
     ]);
     await secondManager.stop();
+  });
+
+  it("does not spend a provider turn while attaching with automatic submission disabled", async () => {
+    projectRoot = await mkdtemp(join(tmpdir(), "loadout-sessions-"));
+    await emit(projectRoot, {
+      from: "backend",
+      to: "fake",
+      type: "contract",
+      description: "Published checkout endpoint",
+      payload: {
+        name: "checkout-api",
+        revision: 1,
+        body: "POST /api/checkout -> 201",
+      },
+    });
+    const adapter = new FakeAdapter();
+    const manager = new SessionManager({
+      projectRoot,
+      adapters: [adapter],
+      autoSubmit: false,
+    });
+    await manager.start();
+
+    await manager.attachSession("fake", "tracking-only", projectRoot);
+
+    expect(adapter.resumed).toEqual(["tracking-only"]);
+    expect(adapter.prompts).toEqual([]);
+    expect(manager.getSessions()[0]?.cursor).toBe(-1);
+    await manager.stop();
   });
 
   it("delivers a new coordination event to an attached session automatically", async () => {

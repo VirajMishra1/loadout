@@ -25,6 +25,12 @@
 
 - Validated every handoff log entry against a strict Zod schema at parse time.
   Schema-invalid lines are reported as corrupt without hiding valid neighbors.
+- Tracking an existing provider session no longer submits an implicit snapshot
+  turn when automatic delivery is disabled. Provider quota is now spent only by
+  an explicit start/send operation or the opt-in bridge.
+- Coordination tests now exercise Windows with platform-appropriate permission
+  assertions and launch the MCP test process through Node rather than a POSIX
+  package shim.
 
 ### Added
 

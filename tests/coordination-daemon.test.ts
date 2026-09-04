@@ -72,7 +72,9 @@ describe("coordination daemon", () => {
 
     expect(running.token).toMatch(/^[a-f0-9]{64}$/);
     const tokenStat = await stat(join(root, ".handoff", "daemon.token"));
-    expect(tokenStat.mode & 0o777).toBe(0o600);
+    if (process.platform !== "win32") {
+      expect(tokenStat.mode & 0o777).toBe(0o600);
+    }
   });
 
   it("serves the dashboard at /", async () => {

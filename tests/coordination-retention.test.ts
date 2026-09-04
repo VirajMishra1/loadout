@@ -158,19 +158,22 @@ describe("logSize", () => {
     expect(size.bytes).toBeGreaterThan(0);
   });
 
-  it("propagates I/O failures instead of reporting an empty log", async () => {
-    await emit(root, {
-      from: "a",
-      to: "*",
-      type: "task",
-      description: "hello",
-    });
-    const path = join(root, ".handoff", "coordination.jsonl");
-    await chmod(path, 0o000);
-    try {
-      await expect(logSize(root)).rejects.toThrow();
-    } finally {
-      await chmod(path, 0o600);
-    }
-  });
+  it.skipIf(process.platform === "win32")(
+    "propagates I/O failures instead of reporting an empty log",
+    async () => {
+      await emit(root, {
+        from: "a",
+        to: "*",
+        type: "task",
+        description: "hello",
+      });
+      const path = join(root, ".handoff", "coordination.jsonl");
+      await chmod(path, 0o000);
+      try {
+        await expect(logSize(root)).rejects.toThrow();
+      } finally {
+        await chmod(path, 0o600);
+      }
+    },
+  );
 });

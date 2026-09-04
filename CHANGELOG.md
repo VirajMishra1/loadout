@@ -1,5 +1,20 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Opt-in `loadout handoff ... --bundle <paths...>` context snapshots give the
+  receiving agent exact source context, with versioned references and visible
+  truncation metadata, while preserving all existing handoff messages.
+
+### Security
+
+- Handoff bundles are limited to 20 project-relative text files, 32 KiB per
+  file and 50 KiB total. Creation and reading reject symlinks, traversal,
+  binary files, and internal `.git/` or `.handoff/` sources; common secrets are
+  redacted before owner-only atomic persistence.
+
 ## 0.9.0 - 2026-09-03
 
 ### Removed

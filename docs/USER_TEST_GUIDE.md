@@ -206,10 +206,22 @@ git init
 First test the stable session-boundary inbox:
 
 ```bash
-loadout handoff codex "Implement the frontend" --context "Claude owns src/api; consume checkout-api"
+mkdir -p src
+printf 'export const checkout = true;\n' > src/checkout.ts
+printf 'export type CheckoutId = string;\n' > src/types.ts
+loadout handoff codex "Implement the frontend" \
+  --context "Claude owns src/api; consume checkout-api" \
+  --bundle src/checkout.ts src/types.ts
 loadout handoff codex
 loadout handoff
 ```
+
+Confirm the inbox lists both bundled files and calls them untrusted project
+data. Inspect `.handoff/bundles/*.json`: the schema version is `1`, the task log
+contains only its bounded reference, and the bundle contains the source
+snapshots. For a redaction check, put a fake `sk-ant-` token longer than 20
+characters in a disposable file, bundle it, and confirm only `[REDACTED]` is
+stored. Never use a real credential.
 
 Copy the task ID printed by the inbox, then settle it:
 

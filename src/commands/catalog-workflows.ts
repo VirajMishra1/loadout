@@ -12,7 +12,7 @@ import {
 import {
   applyPickup,
   formatHandoffStatus,
-  formatInbox,
+  formatInboxWithBundles,
   getHandoffState,
   initHandoff,
   isHandoffInitialized,
@@ -22,6 +22,10 @@ import {
   readInbox,
   sendHandoff,
 } from "../core/delegation/handoff.js";
+import {
+  createHandoffBundle,
+  removeHandoffBundle,
+} from "../core/delegation/handoff-bundle.js";
 import {
   completionCommandPaths,
   parseCompletionShell,
@@ -126,6 +130,10 @@ export function registerWorkflowCommands(program: Command): void {
     .argument("[agent]", "who should do it, for example codex")
     .argument("[task...]", "what they should do")
     .option("--context <text>", "anything they need that is not in the task")
+    .option(
+      "--bundle <paths...>",
+      "attach bounded snapshots of project-relative text files",
+    )
     .option("--from <agent>", "who is sending", "user")
     .option("--done <id>", "mark a task finished")
     .option("--json", "emit machine-readable JSON")
@@ -135,6 +143,7 @@ export function registerWorkflowCommands(program: Command): void {
         taskWords: string[],
         options: {
           context?: string;
+          bundle?: string[];
           from: string;
           done?: string;
           json?: boolean;
@@ -170,7 +179,7 @@ export function registerWorkflowCommands(program: Command): void {
           console.log(
             options.json
               ? JSON.stringify(messages, null, 2)
-              : formatInbox(agent, messages),
+              : await formatInboxWithBundles(cwd, agent, messages),
           );
           return;
         }
@@ -191,10 +200,20 @@ export function registerWorkflowCommands(program: Command): void {
           }
         }
 
-        const message = await sendHandoff(cwd, agent, task, {
-          from: options.from,
-          ...(options.context ? { context: options.context } : {}),
-        });
+        const bundle = options.bundle
+          ? await createHandoffBundle(cwd, options.bundle)
+          : undefined;
+        let message;
+        try {
+          message = await sendHandoff(cwd, agent, task, {
+            from: options.from,
+            ...(options.context ? { context: options.context } : {}),
+            ...(bundle ? { bundle } : {}),
+          });
+        } catch (error) {
+          if (bundle) await removeHandoffBundle(cwd, bundle);
+          throw error;
+        }
 
         if (options.json) {
           console.log(JSON.stringify({ message, setup }, null, 2));
@@ -202,6 +221,10 @@ export function registerWorkflowCommands(program: Command): void {
         }
         for (const line of setup) console.log(`  ${line}`);
         console.log(`Sent to ${agent}: ${task}`);
+        if (bundle)
+          console.log(
+            `Bundled ${bundle.fileCount} file(s) at ${bundle.path}${bundle.isTruncated ? " (truncated to safety limits)" : ""}.`,
+          );
         console.log(
           `It will pick this up next session, or now with: loadout handoff ${agent}`,
         );

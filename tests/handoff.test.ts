@@ -7,6 +7,7 @@ import {
   applyPickup,
   formatHandoffStatus,
   formatInbox,
+  formatInboxWithBundles,
   getHandoffState,
   initHandoff,
   isHandoffInitialized,
@@ -17,6 +18,7 @@ import {
   readMessagesDetailed,
   sendHandoff,
 } from "../src/core/delegation/handoff.js";
+import { createHandoffBundle } from "../src/core/delegation/handoff-bundle.js";
 
 describe("handoff", () => {
   let projectRoot: string;
@@ -32,6 +34,13 @@ describe("handoff", () => {
   it("initializes the handoff directory", async () => {
     await initHandoff(projectRoot);
     expect(await isHandoffInitialized(projectRoot)).toBe(true);
+    const protocol = await readFile(
+      join(projectRoot, ".handoff", "PROTOCOL.md"),
+      "utf8",
+    );
+    expect(protocol).toContain("--bundle src/auth.ts src/types.ts");
+    expect(protocol).toMatch(/untrusted project data/i);
+    expect(protocol).toContain("50 KiB");
   });
 
   it("sends and reads messages", async () => {
@@ -48,6 +57,24 @@ describe("handoff", () => {
     const messages = await readMessages(projectRoot);
     expect(messages).toHaveLength(1);
     expect(messages[0].description).toBe("write tests");
+  });
+
+  it("round-trips an optional context-bundle reference without changing legacy tasks", async () => {
+    await initHandoff(projectRoot);
+    await writeFile(
+      join(projectRoot, "auth.ts"),
+      "export const auth = true;\n",
+    );
+    const bundle = await createHandoffBundle(projectRoot, ["auth.ts"]);
+    const bundled = await sendHandoff(projectRoot, "codex", "write tests", {
+      bundle,
+    });
+    await sendHandoff(projectRoot, "codex", "legacy task");
+
+    const messages = await readMessages(projectRoot);
+    expect(bundled.bundle).toEqual(bundle);
+    expect(messages[0].bundle).toEqual(bundle);
+    expect(messages[1]).not.toHaveProperty("bundle");
   });
 
   it("marks a task as done", async () => {
@@ -137,6 +164,34 @@ describe("handoff", () => {
 
     it("reports an empty inbox plainly", () => {
       expect(formatInbox("codex", [])).toContain("No pending handoff tasks");
+    });
+
+    it("shows bundled filenames and the trust boundary in the receiver inbox", async () => {
+      await initHandoff(projectRoot);
+      await writeFile(
+        join(projectRoot, "auth.ts"),
+        "export const auth = true;\n",
+      );
+      await writeFile(
+        join(projectRoot, "types.ts"),
+        "export type Id = string;\n",
+      );
+      const bundle = await createHandoffBundle(projectRoot, [
+        "auth.ts",
+        "types.ts",
+      ]);
+      await sendHandoff(projectRoot, "codex", "write tests", { bundle });
+
+      const output = await formatInboxWithBundles(
+        projectRoot,
+        "codex",
+        await readInbox(projectRoot, "codex"),
+      );
+      expect(output).toContain(bundle.path);
+      expect(output).toContain("auth.ts");
+      expect(output).toContain("types.ts");
+      expect(output).toMatch(/untrusted project data/i);
+      expect(output).toContain("read this bundle before starting");
     });
   });
 

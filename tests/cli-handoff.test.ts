@@ -4,11 +4,14 @@ import { promisify } from "node:util";
 import { mkdtemp, readdir, readFile, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
-import { fileURLToPath } from "node:url";
+import { pathToFileURL } from "node:url";
 
 const execFileAsync = promisify(execFile);
+// Convert to file:// URL so --import works on Windows (D: paths fail as ESM URLs)
+const tsxLoader = pathToFileURL(
+  resolve("node_modules/tsx/dist/loader.mjs"),
+).href;
 const entry = resolve("src/cli.ts");
-const tsxLoader = fileURLToPath(import.meta.resolve("tsx"));
 
 async function runCli(projectRoot: string, ...args: string[]) {
   return execFileAsync(

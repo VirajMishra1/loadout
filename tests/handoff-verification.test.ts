@@ -35,7 +35,10 @@ describe("handoff verification", () => {
 
     expect(result.exitCode).toBe(0);
     expect(result.timedOut).toBe(false);
-    expect(result.stdout.trim()).toBe(await realpath(projectRoot));
+    // Windows can return 8.3 short paths (RUNNER~1 vs runneradmin)
+    const actual = result.stdout.trim().toLowerCase();
+    const expected = (await realpath(projectRoot)).toLowerCase();
+    expect(actual).toBe(expected);
   });
 
   it("bounds a real verification process by its configured timeout", async () => {

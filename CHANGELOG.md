@@ -34,6 +34,15 @@
 
 ### Added
 
+- Bounded Claude Code ↔ Codex design rooms via `loadout coord discuss`. The two
+  providers alternate proposal and critique turns on one technical question,
+  then record a linked public transcript, final decision, alternatives, and
+  unresolved disagreement. Fresh and explicit existing sessions are supported.
+- Discussion safety controls: exact preflight turn accounting, 1-8 rounds, a
+  hard paid-turn budget, a bounded per-turn timeout, sequential reply IDs,
+  no-edit/no-tool prompts, singleton bridge ownership, kill-switch checks, and
+  visible failure without silent provider retries.
+
 - Live coordination module (`loadout coordinate`) with typed events for
   contracts, file ownership, decisions, progress updates, and acknowledgements.
   Events use monotonic sequence numbers and cursor-based reads so reconnecting

@@ -43,6 +43,7 @@ const TYPE_EMOJI: Record<string, string> = {
   decision: "⚖️",
   update: "📝",
   ack: "👍",
+  discussion: "💬",
 };
 
 function eventHeadline(event: CoordinationEvent): string {
@@ -73,6 +74,12 @@ function eventHeadline(event: CoordinationEvent): string {
       const ackSeq = payload?.eventSeq ?? "?";
       return `Acknowledged through seq ${ackSeq}`;
     }
+    case "discussion": {
+      const threadId = payload?.threadId ?? "unknown";
+      const round = payload?.round ?? "?";
+      const kind = payload?.kind ?? "message";
+      return `Discussion ${threadId} · round ${round} · ${kind}`;
+    }
     case "task":
       return `Task: ${event.description}`;
     case "handoff":
@@ -84,6 +91,16 @@ function eventHeadline(event: CoordinationEvent): string {
     default:
       return event.description;
   }
+}
+
+function eventDetail(event: CoordinationEvent): string | undefined {
+  if (event.type !== "discussion" || !event.payload) return event.context;
+  const payload = event.payload as {
+    content?: string;
+    replyTo?: string;
+  };
+  if (!payload.content) return event.context;
+  return `${payload.content}${payload.replyTo ? ` (reply to ${payload.replyTo})` : ""}`;
 }
 
 function formatDuration(ms: number): string {
@@ -145,7 +162,7 @@ export async function buildReplay(
     type: event.type,
     emoji: TYPE_EMOJI[event.type] ?? "•",
     headline: eventHeadline(event),
-    detail: event.context,
+    detail: eventDetail(event),
     relativeTime: relativeTimestamp(new Date(event.timestamp), startTime),
   }));
 

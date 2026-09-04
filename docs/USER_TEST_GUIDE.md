@@ -286,6 +286,44 @@ Ctrl+C to stop the bridge. Activate `loadout daemon kill "user test"` to verify
 that new coordination writes and provider turns stop, then run
 `loadout daemon resume`.
 
+Now test an actual back-and-forth design discussion. This spends exactly three
+provider turns: one Claude proposal, one Codex critique, and one Claude
+synthesis. Neither agent should edit the disposable repository.
+
+```bash
+loadout coord discuss start "Should this test service expose REST or GraphQL?" \
+  --agents claude-code,codex \
+  --rounds 1 \
+  --max-turns 3 \
+  --timeout 120
+```
+
+Confirm all of the following before publishing:
+
+1. stderr announces exactly three paid provider turns before either provider
+   runs;
+2. Claude Code proposes a design and Codex directly critiques that proposal;
+3. Claude's synthesis names a decision, rationale, alternatives, and any
+   unresolved disagreement;
+4. `loadout coord discuss list` reports the thread as `closed`;
+5. `loadout coord discuss show <thread-id>` shows the linked public transcript;
+6. `loadout coord replay` includes the discussion and the resulting decision;
+7. `git status --short` shows that neither agent edited a project file.
+
+Repeat with known real session IDs to validate resumption:
+
+```bash
+loadout coord discuss start "What validation boundary should this service use?" \
+  --sessions claude-code:<session-id> codex:<thread-id> \
+  --rounds 1 --max-turns 3
+```
+
+For the kill-switch check, start a two-round discussion in one terminal and run
+`loadout daemon kill "stop design room"` in another while the first provider
+turn is active. The in-flight provider may finish, but its response must not be
+persisted and Codex must not receive the next turn. Run `loadout daemon resume`
+after confirming the halt.
+
 Delete the disposable repository after inspection. Its `.handoff` directory
 contains the local task/event audit trail, token, and session IDs.
 

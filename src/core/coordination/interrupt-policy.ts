@@ -40,6 +40,8 @@ const DEFAULT_POLICY: InterruptPolicy = {
     { type: "contract", from: "*", level: "boundary" },
     // Decisions interrupt at boundary
     { type: "decision", from: "*", level: "boundary" },
+    // Public design-room turns route sequentially at safe boundaries
+    { type: "discussion", from: "*", level: "boundary" },
     // Progress updates are passive
     { type: "update", from: "*", level: "passive" },
     // Acks are always passive

@@ -40,6 +40,7 @@ import {
 } from "../core/coordination/contract-diff.js";
 import { buildReplay, formatReplay } from "../core/coordination/replay.js";
 import { registerCoordinationSessions } from "./coordination-sessions.js";
+import { registerCoordinationDiscussions } from "./coordination-discussions.js";
 
 export function registerCoordinate(program: Command): void {
   const coord = program
@@ -50,6 +51,7 @@ export function registerCoordinate(program: Command): void {
     );
 
   registerCoordinationSessions(coord);
+  registerCoordinationDiscussions(coord);
 
   coord
     .command("snapshot")

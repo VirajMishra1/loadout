@@ -75,6 +75,33 @@ describe("formatEventsForInjection", () => {
     const result = formatEventsForInjection(events);
     expect(result).toContain("ack <your-agent> 10");
   });
+
+  it("labels public discussion turns with their thread and reply metadata", () => {
+    const result = formatEventsForInjection([
+      {
+        id: "proposal-1",
+        seq: 11,
+        type: "discussion",
+        from: "claude-code",
+        to: "codex",
+        description: "Prefer REST",
+        timestamp: "2026-09-03T10:04:00Z",
+        payload: {
+          threadId: "checkout-design",
+          kind: "proposal",
+          round: 1,
+          role: "proposer",
+          content: "Prefer REST because retries are explicit.",
+          replyTo: "started-1",
+        },
+      },
+    ]);
+
+    expect(result).toContain("💬 [discussion]");
+    expect(result).toContain("checkout-design · round 1 · proposal");
+    expect(result).toContain("Prefer REST because retries are explicit.");
+    expect(result).toContain("reply to started-1");
+  });
 });
 
 describe("ClaudeCodeAdapter", () => {

@@ -153,6 +153,19 @@ loadout coord replay                    # full timeline as a story
 The optional provider bridge (`loadout coord agents bridge`) resumes sessions
 and delivers events at safe turn boundaries — never mid-turn.
 
+Start a bounded design discussion to have both agents challenge an approach
+before either writes code. Two rounds plus synthesis = five provider turns:
+
+```bash
+loadout coord discuss start "REST or GraphQL for checkout?" \
+  --agents claude-code,codex --rounds 2 --max-turns 5
+```
+
+Each response is explicitly public, linked to the previous response, and saved
+in the project audit trail. The discussion prompt forbids edits and tool use;
+review the final decision, then choose whether to implement it. Existing
+sessions work with `--sessions claude-code:<id> codex:<id>`.
+
 ## How it works
 
 **Choose -> Inspect -> Preview -> Apply -> Undo**
@@ -355,6 +368,7 @@ Configured CI platforms describe a manually triggered workflow, not evidence tha
 | Send a task to another agent            | `loadout handoff codex "write tests"`          |
 | Inspect shared agent state              | `loadout coord snapshot codex`                 |
 | Detect live provider runtimes           | `loadout coord agents detect`                  |
+| Debate one design with both providers   | `loadout coord discuss start "<topic>" ...`    |
 | Start the coordination MCP server       | `loadout serve`                                |
 | Agent health check                      | `loadout doctor`                               |
 | Rollback the latest managed change      | `loadout rollback`                             |
@@ -367,8 +381,10 @@ Most mutating commands are dry runs first. Add `--yes` to apply.
 
 Loadout was designed and built by [Viraj Mishra](https://github.com/VirajMishra1) with Claude Code and Codex.
 
-Loadout itself does **not** call any LLM API and does not require an LLM API key
-to manage skills. The coding agents helped build the tool; neither is a hidden runtime dependency.
+Loadout's core skill management does **not** call an LLM API or require an LLM API
+key. The opt-in provider bridge and design room do invoke your configured
+Claude/Codex sessions and spend their quota; neither is a hidden requirement for
+discovering, installing, or rolling back extensions.
 
 ## Development
 

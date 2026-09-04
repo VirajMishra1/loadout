@@ -60,6 +60,8 @@ export interface StartOptions {
   resumeSessionId?: string;
   /** Additional CLI flags. */
   flags?: string[];
+  /** Timeout for the initial provider turn in milliseconds. */
+  timeout?: number;
 }
 
 export interface AgentAdapter {
@@ -122,19 +124,21 @@ export function formatEventsForInjection(events: CoordinationEvent[]): string {
     const prefix =
       e.type === "contract"
         ? "📋"
-        : e.type === "ownership"
-          ? "🔒"
-          : e.type === "decision"
-            ? "📌"
-            : e.type === "update"
-              ? "📝"
-              : e.type === "task"
-                ? "📋"
-                : e.type === "done"
-                  ? "✅"
-                  : e.type === "error"
-                    ? "❌"
-                    : "•";
+        : e.type === "discussion"
+          ? "💬"
+          : e.type === "ownership"
+            ? "🔒"
+            : e.type === "decision"
+              ? "📌"
+              : e.type === "update"
+                ? "📝"
+                : e.type === "task"
+                  ? "📋"
+                  : e.type === "done"
+                    ? "✅"
+                    : e.type === "error"
+                      ? "❌"
+                      : "•";
 
     lines.push(`${prefix} [${e.type}] ${e.from}: ${e.description}`);
 
@@ -146,6 +150,18 @@ export function formatEventsForInjection(events: CoordinationEvent[]): string {
     if (e.type === "ownership" && e.payload) {
       const p = e.payload as { paths: string[]; mode: string };
       lines.push(`  ${p.mode}: ${p.paths.join(", ")}`);
+    }
+    if (e.type === "discussion" && e.payload) {
+      const p = e.payload as {
+        threadId: string;
+        kind: string;
+        round: number;
+        content: string;
+        replyTo?: string;
+      };
+      lines.push(`  ${p.threadId} · round ${p.round} · ${p.kind}`);
+      lines.push(`  ${p.content}`);
+      if (p.replyTo) lines.push(`  reply to ${p.replyTo}`);
     }
   }
 

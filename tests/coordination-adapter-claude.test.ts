@@ -83,6 +83,21 @@ describe("ClaudeCodeAdapter", () => {
     expect(fake.calls.flatMap((call) => call.args)).not.toContain("--message");
   });
 
+  it("honors a caller-supplied timeout for a fresh session", async () => {
+    const fake = recordingDriver([
+      JSON.stringify({ session_id: "claude-session-1" }),
+    ]);
+    const adapter = new ClaudeCodeAdapter(fake.driver);
+
+    await adapter.start({
+      cwd: "/work",
+      prompt: "Discuss the design",
+      timeout: 120_000,
+    });
+
+    expect(fake.calls[0]?.options.timeout).toBe(120_000);
+  });
+
   it("rejects output without a valid session_id", async () => {
     const fake = recordingDriver([JSON.stringify({ session_id: "   " })]);
     const adapter = new ClaudeCodeAdapter(fake.driver);

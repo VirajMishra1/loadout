@@ -1,14 +1,15 @@
-# Release-readiness plan
+# Bounded-agent-discussions plan
 
 The canonical implementation plan is
-[`docs/superpowers/plans/2026-09-03-release-readiness.md`](../docs/superpowers/plans/2026-09-03-release-readiness.md).
+[`docs/superpowers/plans/2026-09-04-bounded-agent-discussions.md`](../docs/superpowers/plans/2026-09-04-bounded-agent-discussions.md).
 
 Work order follows this dependency graph:
 
-1. Network bounds and handoff validation establish safe external boundaries.
-2. Derived CLI metadata and release gates establish trustworthy automation.
-3. Metadata, community files, README conversion, and social preview establish the launch surface.
-4. Module extraction occurs behind existing behavioral tests.
-5. Full verification and a local package rehearsal gate the user's manual test.
+1. Typed discussion events establish the durable public protocol.
+2. The provider-neutral orchestrator establishes bounded alternating turns.
+3. CLI provider composition adds fresh and resumed Claude/Codex sessions.
+4. Replay, policy, and documentation make the behavior visible and usable.
+5. Full verification and review gate the user's live provider test.
 
-No remote push, tag, release, or npm publication is part of this plan.
+Pushing the feature branch is in scope. Tagging, a GitHub Release, and npm
+publication remain out of scope until the live provider test passes.

@@ -81,7 +81,8 @@ npm run test:package
 They cover cross-process ordering, ownership/revision conflicts, redaction,
 retention and recovery, daemon authentication, MCP framing, provider command/SDK
 shapes, automatic watcher delivery, passive interrupt policy, singleton bridge
-leases, and runaway-turn limits. Fake provider drivers are used for deterministic
+ownership, bounded two-agent discussion turns and reply chains, leases, and
+runaway-turn limits. Fake provider drivers are used for deterministic
 tests; the suite does not spend Claude or Codex quota. Follow the disposable
 manual flow in `docs/USER_TEST_GUIDE.md` for an intentional real-host test.
 

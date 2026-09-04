@@ -140,6 +140,7 @@ export class SessionManager {
     provider: string,
     cwd: string,
     prompt?: string,
+    timeout?: number,
   ): Promise<AgentSession> {
     const killSwitch = await isKillSwitchActive(this.options.projectRoot);
     if (killSwitch.active) {
@@ -150,7 +151,11 @@ export class SessionManager {
     const adapter = this.adapters.get(provider);
     if (!adapter) throw new Error(`No adapter for provider: ${provider}`);
 
-    const session = await adapter.start({ cwd, prompt });
+    const session = await adapter.start({
+      cwd,
+      prompt,
+      ...(timeout === undefined ? {} : { timeout }),
+    });
     this.sessions.set(session.sessionId, session);
     await this.saveSessions();
 
@@ -291,7 +296,11 @@ export class SessionManager {
   }
 
   /** Submit a direct follow-up turn, denying it while the session is busy. */
-  async submitTurn(sessionId: string, message: string): Promise<boolean> {
+  async submitTurn(
+    sessionId: string,
+    message: string,
+    timeout?: number,
+  ): Promise<boolean> {
     if ((await isKillSwitchActive(this.options.projectRoot)).active) {
       return false;
     }
@@ -305,7 +314,10 @@ export class SessionManager {
     if (!adapter?.capabilities.canSubmitTurn) return false;
     if (session.busy) return false;
 
-    const success = await adapter.submitTurn(session, { message });
+    const success = await adapter.submitTurn(session, {
+      message,
+      ...(timeout === undefined ? {} : { timeout }),
+    });
     if (success) {
       this.options.onTurnCompleted?.(
         session,

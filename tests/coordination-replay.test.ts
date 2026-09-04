@@ -75,6 +75,35 @@ describe("replay", () => {
     }
   });
 
+  it("renders discussion thread, round, and reply details", async () => {
+    const root = await makeTmpProject();
+    try {
+      await emit(root, {
+        from: "claude-code",
+        to: "codex",
+        type: "discussion",
+        description: "Prefer REST",
+        payload: {
+          threadId: "checkout-design",
+          kind: "proposal",
+          round: 1,
+          role: "proposer",
+          content: "Prefer REST because retries are explicit.",
+          replyTo: "start-1",
+        },
+      });
+
+      const timeline = await buildReplay(root);
+      expect(timeline.entries[0]).toMatchObject({
+        emoji: "💬",
+        headline: "Discussion checkout-design · round 1 · proposal",
+        detail: "Prefer REST because retries are explicit. (reply to start-1)",
+      });
+    } finally {
+      await rm(root, { recursive: true });
+    }
+  });
+
   it("formats empty replay", () => {
     const output = formatReplay({
       entries: [],

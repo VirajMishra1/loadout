@@ -34,6 +34,8 @@ Sequence numbers, acknowledgements, and snapshots make reconnects deterministic.
    while the local daemon and dashboard can observe changes immediately.
 3. **Provider bridge (beta, opt-in):** a long-running local process resumes
    provider sessions and submits relevant events as new follow-up turns.
+4. **Bounded design discussion (beta, opt-in):** Claude Code and Codex
+   alternate proposals and critiques on one question, then record a decision.
 
 The bridge does not inject into an already-running turn. Delivery happens at a
 safe turn boundary because that is what the supported Claude Code CLI and Codex
@@ -132,6 +134,51 @@ Bridge safeguards:
 Use `loadout daemon kill "reason"` to stop coordination and
 `loadout daemon resume` to re-enable it.
 
+## Let Claude Code and Codex debate one feature
+
+Use a design room when both agents should compare approaches before either one
+claims files or writes code:
+
+```bash
+loadout coord discuss start "REST or GraphQL for checkout?" \
+  --agents claude-code,codex \
+  --rounds 2 \
+  --max-turns 5 \
+  --timeout 120
+```
+
+`--agents` starts fresh sessions lazily. To continue existing conversations,
+replace it with explicit IDs:
+
+```bash
+loadout coord discuss start "REST or GraphQL for checkout?" \
+  --sessions claude-code:<session-id> codex:<thread-id> \
+  --rounds 2 --max-turns 5
+```
+
+The first participant is the proposer; use `--proposer codex` to swap roles.
+One round means one proposer turn and one reviewer turn. Synthesis costs one
+additional turn, so the exact required count is `rounds * 2 + 1`. Loadout
+rejects an insufficient budget, invalid provider set, invalid timeout, or mixed
+fresh/existing mode before it starts a paid turn.
+
+Every prompt says that the response is public, will be persisted, and must not
+edit files, run commands, use tools, or reveal private reasoning. Every public
+statement has a thread ID and reply ID. The final synthesis records the selected
+decision, rationale, credible alternatives, and unresolved disagreement. Review
+it later without spending quota:
+
+```bash
+loadout coord discuss list
+loadout coord discuss show <thread-id>
+loadout coord replay
+```
+
+The discussion holds the same singleton lease as the provider bridge, checks
+the kill switch before every provider turn, never retries a rejected or invalid
+response silently, and defaults to a 120-second per-turn timeout. It does not
+begin implementation automatically.
+
 ## Optional daemon and dashboard
 
 ```bash
@@ -169,6 +216,8 @@ provider bridge for agent-to-agent delivery.
 - Claude Code and Codex authentication, quotas, billing, and host session IDs
   remain provider concerns.
 - The bridge cannot steer a turn already in progress.
+- The design-room kill switch cannot cancel a provider call already in flight;
+  it prevents persistence and the next provider turn.
 - A provider may fail, time out, reject a resume ID, or return output Loadout
   cannot parse. The event stays durable and can still be consumed manually.
 - The bridge is local to one machine and one repository. Remote teams need a

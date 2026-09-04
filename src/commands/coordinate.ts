@@ -39,6 +39,10 @@ import {
   formatContractDelta,
 } from "../core/coordination/contract-diff.js";
 import { buildReplay, formatReplay } from "../core/coordination/replay.js";
+import {
+  quickStart,
+  formatQuickStart,
+} from "../core/coordination/quick-start.js";
 import { registerCoordinationSessions } from "./coordination-sessions.js";
 import { registerCoordinationDiscussions } from "./coordination-discussions.js";
 
@@ -52,6 +56,57 @@ export function registerCoordinate(program: Command): void {
 
   registerCoordinationSessions(coord);
   registerCoordinationDiscussions(coord);
+
+  coord
+    .command("start")
+    .description(
+      "Set up coordination in one command — detect project structure, assign ownership, ready to go",
+    )
+    .requiredOption(
+      "--agents <agents>",
+      "two agents, comma-separated (e.g. claude-code,codex)",
+    )
+    .option(
+      "--split <pattern>",
+      "split strategy: backend/frontend or core/tests",
+    )
+    .option("--yes", "apply ownership (default is dry run)")
+    .option("--json", "machine-readable output")
+    .action(async (opts) => {
+      const agents = opts.agents.split(",").map((a: string) => a.trim());
+      if (agents.length !== 2) {
+        console.error("Error: --agents requires exactly two agents.");
+        process.exitCode = 1;
+        return;
+      }
+      try {
+        const result = await quickStart(
+          process.cwd(),
+          agents as [string, string],
+          {
+            split: opts.split,
+            dryRun: !opts.yes,
+          },
+        );
+        if (opts.json) {
+          const jsonResult = {
+            strategy: result.split.strategy,
+            assignments: Object.fromEntries(result.split.assignments),
+            unassigned: result.split.unassigned,
+            ownershipClaimed: result.ownershipClaimed,
+            existingOwnership: result.existingOwnership,
+          };
+          console.log(JSON.stringify(jsonResult, null, 2));
+        } else {
+          console.log(formatQuickStart(result));
+        }
+      } catch (error) {
+        console.error(
+          `Error: ${error instanceof Error ? error.message : error}`,
+        );
+        process.exitCode = 1;
+      }
+    });
 
   coord
     .command("snapshot")

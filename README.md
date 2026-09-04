@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./docs/assets/loadout-workflow-v2.png" alt="Loadout discovers, screens, and activates agent extensions, passes work between Claude Code and Codex, and previews every change with rollback." width="960">
+  <img src="./docs/assets/loadout-discover-activate.webp" alt="Loadout discovers agent skills, tools, and MCP servers; screens and pins them; activates the right set for a repository; and lets users preview or roll back every change." width="960">
 </p>
 
 <h1 align="center">Loadout</h1>
@@ -9,7 +9,8 @@
 <p align="center">
   <strong>The package manager for your AI coding setup.</strong><br>
   Find skills worth having, activate the right ones per project,<br>
-  install them across 12 agents, and undo any of it.
+  install them across 12 agents, hand work from Claude Code to Codex,<br>
+  and undo any of it.
 </p>
 
 <p align="center">
@@ -112,6 +113,10 @@ agent without you relaying it by hand.
 
 ## Passing work between two agents
 
+<p align="center">
+  <img src="./docs/assets/loadout-handoff-coordinate.webp" alt="Claude Code and Codex use Loadout in two ways: durable task handoffs between sessions, and structured coordination for contracts, file ownership, decisions, acknowledgements, and an audit trail." width="960">
+</p>
+
 If you pay for both Claude and a ChatGPT plan, the two agents cannot see each
 other. Loadout gives them a shared, append-only task log:
 
@@ -208,6 +213,11 @@ coding agents without making you rebuild the setup for every agent and every pro
 
 Most extension tools begin with a repo you already know. Loadout begins one step
 earlier: **what is actually worth knowing?** It stays with you after installation.
+
+Some tools distribute agent configuration. Others share memory or coordinate
+running agents. Loadout connects the whole lifecycle: discover and inspect what is
+worth using, activate it reversibly across agents, then hand work off or coordinate
+structured project facts when Claude Code and Codex work together.
 
 Everything on this page is enforced. `docs/evidence/readme-claims.json` records
 each material claim with the code or command that proves it, and CI fails the

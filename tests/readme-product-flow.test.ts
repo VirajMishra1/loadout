@@ -7,6 +7,21 @@ import { describe, expect, it } from "vitest";
 const execFileAsync = promisify(execFile);
 const repositoryRoot = resolve(import.meta.dirname, "..");
 
+function webpDimensions(image: Buffer): { width: number; height: number } {
+  if (
+    image.toString("ascii", 0, 4) !== "RIFF" ||
+    image.toString("ascii", 8, 12) !== "WEBP" ||
+    image.toString("ascii", 12, 16) !== "VP8 " ||
+    image.readUIntLE(23, 3) !== 0x2a019d
+  ) {
+    throw new Error("Expected a lossy VP8 WebP image");
+  }
+  return {
+    width: image.readUInt16LE(26) & 0x3fff,
+    height: image.readUInt16LE(28) & 0x3fff,
+  };
+}
+
 function expectOrderedReadmeStructure(
   readme: string,
   sections: readonly string[],
@@ -91,34 +106,42 @@ describe("README product flow", () => {
   it("presents the approved proof-first product journey", async () => {
     const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
 
-    const heroImages =
-      readme
-        .match(/<img\b[^>]*>/gi)
-        ?.filter((element) =>
-          /\ssrc="\.\/docs\/assets\/loadout-workflow-v2\.png"/i.test(element),
-        ) ?? [];
-    expect(heroImages).toHaveLength(1);
-    expect(heroImages[0]).toContain(
-      'alt="Loadout discovers, screens, and activates agent extensions, passes work between Claude Code and Codex, and previews every change with rollback."',
+    const productImages = readme.match(/<img\b[^>]*>/gi) ?? [];
+    const discoverImage = productImages.filter((element) =>
+      /\ssrc="\.\/docs\/assets\/loadout-discover-activate\.webp"/i.test(
+        element,
+      ),
+    );
+    const coordinationImage = productImages.filter((element) =>
+      /\ssrc="\.\/docs\/assets\/loadout-handoff-coordinate\.webp"/i.test(
+        element,
+      ),
+    );
+    expect(discoverImage).toHaveLength(1);
+    expect(coordinationImage).toHaveLength(1);
+    expect(discoverImage[0]).toContain("discovers agent skills");
+    expect(coordinationImage[0]).toContain(
+      "durable task handoffs between sessions",
     );
 
-    const hero = await readFile(
-      resolve(repositoryRoot, "docs/assets/loadout-workflow-v2.png"),
-    );
-    expect(hero.subarray(0, 8)).toEqual(
-      Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
-    );
-    const width = hero.readUInt32BE(16);
-    const height = hero.readUInt32BE(20);
-    expect(width / height).toBeGreaterThan(1.7);
-    expect(width / height).toBeLessThan(1.9);
-    expect(hero.byteLength).toBeLessThan(1_500_000);
+    for (const name of [
+      "loadout-discover-activate.webp",
+      "loadout-handoff-coordinate.webp",
+    ]) {
+      const image = await readFile(
+        resolve(repositoryRoot, "docs/assets", name),
+      );
+      const { width, height } = webpDimensions(image);
+      expect(width / height).toBeGreaterThan(1.7);
+      expect(width / height).toBeLessThan(1.9);
+      expect(image.byteLength).toBeLessThan(300_000);
+    }
     expect(readme).not.toMatch(/founder|revolutionary|game-changing/i);
     expect(readme).toContain("Agent extensions, under control.");
     expect(readme).toContain("Choose -> Inspect -> Preview -> Apply -> Undo");
     expect(readme).toMatch(/abridged terminal transcript/i);
     expect(readme).toContain("npm install --global loadout-ai");
-    expect(readme.split(/\r?\n/).length).toBeLessThanOrEqual(400);
+    expect(readme.split(/\r?\n/).length).toBeLessThanOrEqual(425);
     expect(readme.indexOf("### Demo")).toBeLessThan(
       readme.indexOf("## Install"),
     );

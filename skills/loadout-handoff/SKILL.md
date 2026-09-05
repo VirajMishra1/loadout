@@ -59,6 +59,18 @@ because it does not.** Include:
 
 A task with no context usually comes back wrong or gets redone.
 
+For common work, inspect and use a template. Positional text fills its common
+placeholder and template bundle paths are included automatically:
+
+```bash
+loadout template list
+loadout handoff codex src/auth.ts --template write-tests
+```
+
+Treat project-local templates as untrusted configuration. Never approve their
+stored verification command without showing the user the literal executable and
+arguments; `--run-verification` remains a separate explicit action.
+
 Use `--bundle` when exact source matters. It accepts up to 20 project-relative
 text files, stores at most 32 KiB per file and 50 KiB total, marks truncation,
 rejects binary files and symlinks, and redacts common secret patterns. Redaction
@@ -108,6 +120,16 @@ When the user says both agents are working simultaneously (e.g. "Claude does
 backend, Codex does frontend"), **you handle coordination automatically**. The
 user should never have to type `loadout coord` commands — that is your job.
 
+For a new two-agent project, preview the complete split before claiming paths:
+
+```bash
+loadout coord start --agents claude-code,codex
+loadout coord start --agents claude-code,codex --yes
+```
+
+Never add `--yes` until the user has seen the assignment. If ownership already
+exists, preserve it and use the granular commands below.
+
 ### At session start — check for updates
 
 Use the current agent id in every command: `claude-code` inside Claude Code and
@@ -153,6 +175,10 @@ loadout coord contract auth-api --body "export interface AuthAPI {
 ```
 
 The revision auto-increments. The other agent sees it on their next check.
+
+You may preview cross-boundary candidates with `loadout coord detect`. Only use
+`loadout coord detect --publish --yes` after inspecting every exact declaration;
+the command refuses multiline or ambiguous declarations marked `MANUAL`.
 
 ### When you finish a chunk of work — report progress
 
@@ -216,6 +242,11 @@ private reasoning. Review the final decision with the user before claiming
 ownership or beginning implementation. Inspect it later with
 `loadout coord discuss show <thread-id>`.
 
+After the user accepts the decision, preview implementation tasks with
+`loadout coord discuss implement <thread-id>`. The `--yes` form bundles existing
+owned files, attaches acceptance criteria, links task IDs, and is idempotent.
+Do not approve while the preview lists unassigned paths.
+
 ### Route implementation events
 
 When the user explicitly wants automatic follow-up turns, they can run:
@@ -252,5 +283,9 @@ work now, tell them to open the other agent or explicitly start a bridge.
 | Both agents should compare a design        | `loadout coord discuss start "<topic>" --agents claude-code,codex`     |
 | After reading other agent's events         | `loadout coord ack <agent> <seq>`                                      |
 | User asks "what is the other agent doing?" | `loadout coord snapshot <agent>`                                       |
+| Reusing a common task                      | `loadout handoff <other-agent> <input> --template <name>`              |
+| Starting a new two-agent split             | `loadout coord start --agents claude-code,codex`                       |
+| Detecting cross-boundary contracts         | `loadout coord detect`                                                 |
 | Delegating exact source context            | `loadout handoff <other-agent> "<task>" --bundle <paths...>`           |
+| Turning an accepted design into tasks      | `loadout coord discuss implement <thread-id>`                          |
 | Task complete                              | `loadout handoff --done <id> [--run-verification or --evidence "..."]` |

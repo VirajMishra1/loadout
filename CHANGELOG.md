@@ -10,6 +10,28 @@
 - Evidence-backed handoff completion with human criteria, optional shell-free
   executable/JSON argv checks, bounded pass/fail evidence, and failed checks
   that remain pending instead of being reported done.
+- Reusable built-in and project-local handoff templates with positional
+  placeholder expansion, bounded context bundles, and verification defaults.
+- Preview-first coordination setup, exact cross-boundary contract detection,
+  Git-author ownership mappings, and idempotent discussion-to-implementation
+  plans linked to their generated handoff tasks.
+
+### Changed
+
+- Auto-detected contracts preserve exact supported declarations, expose a
+  source hash, distinguish current from stale revisions, and require both
+  `--publish` and `--yes`. Unsupported declarations require manual completion.
+- Git ownership confidence includes every author touching a directory and maps
+  agent identities explicitly with `agent=Git Author`.
+- Verification processes run outside the handoff log lock, so other agents can
+  continue sending tasks while a long check runs; completion remains atomic.
+
+### Fixed
+
+- Normalized contract-scanner paths across Windows and POSIX platforms and made
+  the verification cwd test independent of Windows short-path spelling.
+- Removed generated directories and redundant parent/child claims from
+  one-command coordination setup.
 
 ### Security
 
@@ -21,6 +43,8 @@
   boundary. Verification output is capped at 8 KiB per stream and command
   execution requires `--run-verification`, is timeout-bounded, project-scoped,
   and shell-free.
+- Template names are validated before every read or delete so traversal cannot
+  escape `.handoff/templates/`.
 
 ## 0.9.0 - 2026-09-03
 

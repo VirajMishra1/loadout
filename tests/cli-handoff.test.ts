@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { mkdtemp, readdir, readFile, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { pathToFileURL } from "node:url";
@@ -239,5 +239,53 @@ describe("handoff CLI", () => {
 
     const completed = await runCli(projectRoot, "handoff", "--done", task.id);
     expect(completed.stdout.trim()).toBe(`Marked ${task.id} done.`);
+  });
+
+  it("expands positional template input instead of replacing the template task", async () => {
+    const sent = await runCli(
+      projectRoot,
+      "handoff",
+      "codex",
+      "src/auth.ts",
+      "--template",
+      "write-tests",
+      "--json",
+    );
+    expect(JSON.parse(sent.stdout).message.description).toBe(
+      "Write tests for src/auth.ts",
+    );
+  });
+
+  it("applies custom template bundle paths to the handoff", async () => {
+    await writeFile(
+      join(projectRoot, "auth.ts"),
+      "export const auth = true;\n",
+    );
+    await mkdir(join(projectRoot, ".handoff", "templates"), {
+      recursive: true,
+    });
+    await writeFile(
+      join(projectRoot, ".handoff", "templates", "auth-review.json"),
+      JSON.stringify({
+        name: "auth-review",
+        description: "Review auth",
+        taskTemplate: "Review {{files}}",
+        bundleGlobs: ["auth.ts"],
+      }),
+    );
+
+    const sent = await runCli(
+      projectRoot,
+      "handoff",
+      "codex",
+      "auth.ts",
+      "--template",
+      "auth-review",
+      "--json",
+    );
+    expect(JSON.parse(sent.stdout).message).toMatchObject({
+      description: "Review auth.ts",
+      bundle: { fileCount: 1 },
+    });
   });
 });

@@ -60,6 +60,7 @@
     "pretest:e2e:cli": "npm run build",
     "test:e2e:cli": "node scripts/cli-product-flow.mjs",
     "test:e2e:readme": "node scripts/readme-product-flow.mjs",
+    "test:e2e:coordination": "npm run build && node scripts/coordination-product-flow.mjs",
     "test:package": "node scripts/package-smoke.mjs",
     "pretest:performance": "npm run build",
     "test:coverage": "vitest run --coverage",
@@ -73,7 +74,7 @@
     "check:catalog-freshness": "npm run build && node scripts/check-catalog-freshness.mjs",
     "check:audit": "npm audit --audit-level=high",
     "check:evidence": "node scripts/check-catalog-attribution.mjs && node scripts/check-discovery-artifacts.mjs && node scripts/check-documented-commands.mjs && npm run check:readme-claims",
-    "verify": "npm run format:check && npm run lint && npm run typecheck && npm run check:audit && npm run check:evidence && npm test -- --run && npm run test:e2e:cli && npm run test:e2e:readme && npm run test:package && npm run test:performance",
+    "verify": "npm run format:check && npm run lint && npm run typecheck && npm run check:audit && npm run check:evidence && npm test -- --run && npm run test:e2e:cli && npm run test:e2e:readme && npm run test:e2e:coordination && npm run test:package && npm run test:performance",
     "verify:full": "npm run verify && npm run test:coverage"
   },
   "dependencies": {

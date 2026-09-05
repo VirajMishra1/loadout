@@ -245,7 +245,50 @@ the failed attempt, and leave the task pending. No shell is used and no retry
 happens automatically. For a human-only check, omit the command and complete
 with `--evidence "what you inspected"`.
 
+To exercise a real Claude Code pickup in non-interactive print mode, grant only
+the handoff command and read access inside this disposable repository:
+
+```bash
+claude -p --allowedTools='Bash(loadout handoff *),Read' \
+  'Check loadout handoff claude-code, inspect its bundle, and complete the task with matching evidence. Do not edit files.'
+```
+
+Without that allowlist, Claude Code may read and report the task but its
+non-interactive permission gate will correctly refuse the completion command.
+Do not use a blanket permission bypass for this test. Confirm `loadout handoff`
+shows no pending task and that the fixture files remain unchanged.
+
 Next test structured coordination without running either model:
+
+```bash
+mkdir -p src/api src/web
+printf 'export interface Checkout { id: string; }\n' > src/api/types.ts
+printf 'import { Checkout } from "../api/types.js";\n' > src/web/page.ts
+loadout coord start --agents claude-code,codex
+loadout coord start --agents claude-code,codex --yes
+loadout coord detect
+loadout coord detect --publish
+loadout coord detect --publish --yes
+```
+
+The first `start` and `detect --publish` calls are previews. Confirm ownership
+contains no generated directories or redundant child paths, the candidate body
+contains the exact `Checkout` declaration, and the second detection reports the
+published contract as current. Change the declaration and confirm it becomes
+stale. Multiline declarations must be marked manual and refused by publication.
+
+Template behavior is also project-local and disposable:
+
+```bash
+loadout template list
+loadout handoff codex src/api/types.ts --template write-tests
+loadout handoff codex
+```
+
+Confirm the task says `Write tests for src/api/types.ts`, includes its template
+verification criteria, and can include bundle defaults from a custom template.
+
+The granular protocol remains available:
 
 ```bash
 loadout coord own claude-code src/api
@@ -336,6 +379,9 @@ Confirm all of the following before publishing:
 5. `loadout coord discuss show <thread-id>` shows the linked public transcript;
 6. `loadout coord replay` includes the discussion and the resulting decision;
 7. `git status --short` shows that neither agent edited a project file.
+
+A bounded real-provider record from the maintained release check is stored in
+[`docs/evidence/coordination-provider-check-2026-09-05.md`](./evidence/coordination-provider-check-2026-09-05.md).
 
 Repeat with known real session IDs to validate resumption:
 

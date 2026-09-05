@@ -43,6 +43,16 @@ SDK interfaces provide.
 
 ## Quick protocol test (no paid agent turn)
 
+For the beginner path, preview and approve a normalized ownership split:
+
+```bash
+loadout coord start --agents claude-code,codex
+loadout coord start --agents claude-code,codex --yes
+```
+
+The command ignores generated directories and collapses redundant child paths.
+Any existing ownership makes it stop rather than overwrite active work.
+
 Run these commands in a disposable Git repository:
 
 ```bash
@@ -59,6 +69,19 @@ loadout coord replay
 The contract revision is allocated atomically when `--revision` is omitted.
 Overlapping exclusive ownership is rejected. A future acknowledgement or stale
 explicit contract revision is rejected as a conflict.
+
+After ownership exists, detect imports that cross agent boundaries:
+
+```bash
+loadout coord detect
+loadout coord detect --publish
+loadout coord detect --publish --yes
+```
+
+Detection is conservative. Exact supported one-line declarations may be
+published after the second approval; multiline or ambiguous declarations are
+marked `MANUAL` and refused. Existing generated bodies are reported as current
+or stale. This is an on-demand scan, not a background compiler or watcher.
 
 ## Connect the MCP server
 
@@ -179,6 +202,29 @@ the kill switch before every provider turn, never retries a rejected or invalid
 response silently, and defaults to a 120-second per-turn timeout. It does not
 begin implementation automatically.
 
+Turn an accepted decision into implementation only after reviewing the dry run:
+
+```bash
+loadout coord discuss implement <thread-id>
+loadout coord discuss implement <thread-id> --yes
+```
+
+The approved command refuses mentioned paths without ownership, bundles files
+that already exist, attaches acceptance criteria, records generated handoff
+IDs, and uses a deterministic plan ID so retries do not duplicate tasks.
+Extracted paths are normalized inside the project and the plan fails before
+sending anything if it exceeds the 256-file coordination event limit.
+
+Git history can suggest ownership when commits carry distinguishable authors:
+
+```bash
+loadout coord git-ownership \
+  --agents "claude-code=Claude Opus 4.6,codex=Viraj Mishra"
+```
+
+Confidence includes commits by unmapped human authors. Add `--yes` only after
+reviewing the suggestions; Git history is evidence, not proof of current intent.
+
 ## Optional daemon and dashboard
 
 ```bash
@@ -223,6 +269,9 @@ provider bridge for agent-to-agent delivery.
 - The bridge is local to one machine and one repository. Remote teams need a
   separately designed authenticated transport; this release intentionally does
   not expose the daemon to a network.
+- Contract detection supports relative TypeScript/JavaScript imports and exact
+  one-line declarations; aliases, generated clients, path mappings, and complex
+  multiline declarations may require a manual contract.
 
 ## Evidence
 

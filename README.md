@@ -142,29 +142,20 @@ acknowledgements over a shared project event stream — not a merged context
 window. See the [live coordination guide](./docs/LIVE_COLLABORATION.md).
 
 ```bash
-loadout coord own claude-code src/api
-loadout coord contract checkout-api --agent claude-code \
-  --body "POST /api/checkout -> 201 { id: string }"
-loadout coord snapshot codex            # what codex needs to know
-loadout coord replay                    # full timeline as a story
+loadout coord start --agents claude-code,codex          # preview ownership
+loadout coord start --agents claude-code,codex --yes    # apply it
+loadout coord detect                                    # shared interfaces
+loadout handoff codex src/auth.ts --template write-tests
+loadout coord discuss start "REST or GraphQL?" --agents claude-code,codex --rounds 2 --max-turns 5
+loadout coord discuss implement <thread-id>             # preview linked tasks
 ```
 
-`loadout serve` exposes the same operations as MCP tools for both hosts.
-The optional provider bridge (`loadout coord agents bridge`) resumes sessions
-and delivers events at safe turn boundaries — never mid-turn.
-
-Start a bounded design discussion to have both agents challenge an approach
-before either writes code. Two rounds plus synthesis = five provider turns:
-
-```bash
-loadout coord discuss start "REST or GraphQL for checkout?" \
-  --agents claude-code,codex --rounds 2 --max-turns 5
-```
-
-Each response is explicitly public, linked to the previous response, and saved
-in the project audit trail. The discussion prompt forbids edits and tool use;
-review the final decision, then choose whether to implement it. Existing
-sessions work with `--sessions claude-code:<id> codex:<id>`.
+Contract publication and bounded design discussion implementation require a second `--yes`
+approval. Exact supported declarations are marked current or stale; ambiguous
+ones require manual review. The optional MCP server and provider bridge deliver
+events at safe turn boundaries, never during an active turn. The
+[coordination guide](./docs/LIVE_COLLABORATION.md) covers templates, Git-author
+mappings, the local dashboard, limitations, and the complete workflow.
 
 ## How it works
 
@@ -353,27 +344,31 @@ Configured CI platforms describe a manually triggered workflow, not evidence tha
 
 ## Command reference
 
-| What it does                            | Command                                        |
-| --------------------------------------- | ---------------------------------------------- |
-| Beginner-friendly guided path           | `loadout guide`                                |
-| Preview the 30-skill Stable setup       | `loadout setup --mode stable`                  |
-| Apply after reviewing the preview       | `loadout setup --mode stable --yes`            |
-| Show managed packages and active skills | `loadout status` · `loadout library`           |
-| What fits this repository               | `loadout recommend --project .`                |
-| Project-specific active set             | `loadout optimize --project . --limit 30`      |
-| Scan existing skills across agents      | `loadout scan`                                 |
-| Check for source updates                | `loadout update`                               |
-| Find newly launched candidates          | `loadout discover --source all --queue`        |
-| Install Loadout's own skill             | `loadout skills install loadout-handoff --yes` |
-| Send a task to another agent            | `loadout handoff codex "write tests"`          |
-| Inspect shared agent state              | `loadout coord snapshot codex`                 |
-| Detect live provider runtimes           | `loadout coord agents detect`                  |
-| Debate one design with both providers   | `loadout coord discuss start "<topic>" ...`    |
-| Start the coordination MCP server       | `loadout serve`                                |
-| Agent health check                      | `loadout doctor`                               |
-| Rollback the latest managed change      | `loadout rollback`                             |
-| Preview complete removal                | `loadout uninstall`                            |
-| Full CLI reference                      | `loadout --help` · `loadout advanced`          |
+| What it does                            | Command                                                    |
+| --------------------------------------- | ---------------------------------------------------------- |
+| Beginner-friendly guided path           | `loadout guide`                                            |
+| Preview the 30-skill Stable setup       | `loadout setup --mode stable`                              |
+| Apply after reviewing the preview       | `loadout setup --mode stable --yes`                        |
+| Show managed packages and active skills | `loadout status` · `loadout library`                       |
+| What fits this repository               | `loadout recommend --project .`                            |
+| Project-specific active set             | `loadout optimize --project . --limit 30`                  |
+| Scan existing skills across agents      | `loadout scan`                                             |
+| Check for source updates                | `loadout update`                                           |
+| Find newly launched candidates          | `loadout discover --source all --queue`                    |
+| Install Loadout's own skill             | `loadout skills install loadout-handoff --yes`             |
+| Send a task to another agent            | `loadout handoff codex "write tests"`                      |
+| Use a reusable handoff template         | `loadout handoff codex src/auth.ts --template write-tests` |
+| Preview two-agent ownership setup       | `loadout coord start --agents claude-code,codex`           |
+| Detect shared contract candidates       | `loadout coord detect`                                     |
+| Inspect shared agent state              | `loadout coord snapshot codex`                             |
+| Detect live provider runtimes           | `loadout coord agents detect`                              |
+| Debate one design with both providers   | `loadout coord discuss start "<topic>" ...`                |
+| Turn a decision into linked tasks       | `loadout coord discuss implement <thread-id>`              |
+| Start the coordination MCP server       | `loadout serve`                                            |
+| Agent health check                      | `loadout doctor`                                           |
+| Rollback the latest managed change      | `loadout rollback`                                         |
+| Preview complete removal                | `loadout uninstall`                                        |
+| Full CLI reference                      | `loadout --help` · `loadout advanced`                      |
 
 Most mutating commands are dry runs first. Add `--yes` to apply.
 
@@ -396,7 +391,7 @@ npm run verify:full
 
 <!-- loadout:verification-summary:start -->
 
-`verify` invokes `format:check`, `lint`, `typecheck`, `check:audit`, `check:evidence`, `test`, `test:e2e:cli`, `test:e2e:readme`, `test:package`, `test:performance` in that order. `verify:full` runs that gate and the coverage suite.
+`verify` invokes `format:check`, `lint`, `typecheck`, `check:audit`, `check:evidence`, `test`, `test:e2e:cli`, `test:e2e:readme`, `test:e2e:coordination`, `test:package`, `test:performance` in that order. `verify:full` runs that gate and the coverage suite.
 
 <!-- loadout:verification-summary:end -->
 

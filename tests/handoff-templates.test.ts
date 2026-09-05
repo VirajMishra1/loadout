@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeEach } from "vitest";
-import { mkdtemp, readdir, readFile } from "node:fs/promises";
+import { mkdtemp, readdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import {
@@ -93,6 +93,16 @@ describe("handoff templates", () => {
     expect(deleted).toBe(false);
   });
 
+  it("rejects traversal names before deleting template files", async () => {
+    const packagePath = join(projectRoot, "package.json");
+    await writeFile(packagePath, '{"private":true}\n');
+
+    await expect(deleteTemplate(projectRoot, "../../package")).rejects.toThrow(
+      /template name/i,
+    );
+    expect(await readFile(packagePath, "utf8")).toBe('{"private":true}\n');
+  });
+
   it("applies template with placeholder substitution", () => {
     const tmpl: HandoffTemplate = {
       name: "write-tests",
@@ -133,6 +143,13 @@ describe("handoff templates", () => {
     });
 
     expect(applied.description).toBe("Write integration tests for the API");
+  });
+
+  it("binds positional input to common template placeholders", () => {
+    const tmpl = BUILTIN_TEMPLATES.find((item) => item.name === "write-tests")!;
+    expect(applyTemplate(tmpl, { input: "src/auth.ts" }).description).toBe(
+      "Write tests for src/auth.ts",
+    );
   });
 
   it("agent override takes precedence over template default", () => {

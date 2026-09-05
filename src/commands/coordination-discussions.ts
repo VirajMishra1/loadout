@@ -244,7 +244,14 @@ export function registerCoordinationDiscussions(coord: Command): void {
           if (options.json) {
             console.log(JSON.stringify(result, null, 2));
           } else {
-            console.log(formatPlan(result.plan, !options.yes));
+            console.log(
+              formatPlan(
+                result.plan,
+                !options.yes,
+                result.handoffsSent,
+                result.reused,
+              ),
+            );
           }
         } catch (error) {
           console.error(

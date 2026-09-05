@@ -1,16 +1,14 @@
-# Handoff reliability plan
+# Pre-release coordination hardening
 
-Safe bundles are complete in commit `caa2019`. The active specification is
-[`docs/specs/HANDOFF_VERIFICATION.md`](../docs/specs/HANDOFF_VERIFICATION.md)
-and its implementation plan is
-[`docs/superpowers/plans/2026-09-04-handoff-verification.md`](../docs/superpowers/plans/2026-09-04-handoff-verification.md).
+The active implementation plan is
+[`docs/superpowers/plans/2026-09-05-pre-release-hardening.md`](../docs/superpowers/plans/2026-09-05-pre-release-hardening.md).
 
 Work order:
 
-1. Extend the durable task contract with bounded criteria and evidence.
-2. Add explicit, shell-free completion checks and nonterminal failures.
-3. Wire safe CLI options and receiver-visible feedback.
-4. Update user and agent documentation.
-5. Run release-level verification and review before another commit.
+1. Close security and Windows portability gaps.
+2. Make convenience workflows exact, idempotent, and preview-first.
+3. Update user and installed-agent documentation.
+4. Run disposable and real-provider coordination exercises.
+5. Require the full local gate and green GitHub Actions before release.
 
-This branch does not tag, publish, or merge itself.
+No tag or npm publication occurs until the release gate is green.

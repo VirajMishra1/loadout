@@ -214,6 +214,43 @@ loadout handoff --done <task-id> --evidence "reviewed mobile and desktop"
 There are no automatic retries or provider turns in the durable handoff log.
 Never include tokens or credentials in verification argv.
 
+### Handoff templates
+
+```bash
+loadout template list
+loadout template show write-tests
+loadout handoff codex src/auth.ts --template write-tests
+loadout template create auth-review --description "Review auth" \
+  --task "Review {{files}}" --bundle src/auth.ts
+loadout template delete auth-review
+```
+
+Built-ins are `write-tests`, `review-code`, `fix-bug`, `implement-feature`, and
+`refactor`. Positional task text fills `{{files}}`, `{{description}}`, and
+`{{task}}`. Custom templates live under `.handoff/templates/`; names are
+kebab-case and validated before all filesystem access. Template verification
+commands still run only after explicit `--done --run-verification` approval.
+
+## Coordinate simultaneous agents
+
+```bash
+loadout coord start --agents claude-code,codex       # preview ownership
+loadout coord start --agents claude-code,codex --yes # apply
+loadout coord detect                                 # contract candidates
+loadout coord detect --publish --yes                 # exact candidates only
+loadout coord discuss implement <thread-id>          # preview linked tasks
+loadout coord discuss implement <thread-id> --yes    # dispatch once
+loadout coord git-ownership --agents "codex=Git Author"
+```
+
+Every convenience mutation is preview-first. Contract detection is conservative
+and refuses manual placeholders. Discussion implementation refuses unowned
+mentioned paths and is idempotent by deterministic plan ID. Git history
+percentages include unmapped authors; use explicit agent/author mappings when
+the Git identity is not literally the agent name. See
+[`LIVE_COLLABORATION.md`](./LIVE_COLLABORATION.md) for the protocol, MCP server,
+provider bridge, daemon, and honest limitations.
+
 ## Agent support
 
 Loadout's adapter capability matrix covers **12 agents**: Claude Code, Cline,

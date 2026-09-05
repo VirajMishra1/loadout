@@ -196,14 +196,18 @@ export function registerWorkflowCommands(program: Command): void {
             );
           }
           const applied = applyTemplate(tmpl, {
-            task: taskWords.join(" ").trim() || undefined,
+            input: taskWords.join(" ").trim() || undefined,
             agent: agent || undefined,
           });
           if (applied.agent && !agent) agent = applied.agent;
-          if (!taskWords.length && applied.description)
-            taskWords = [applied.description];
+          if (applied.description) taskWords = [applied.description];
           if (applied.context && !options.context)
             options.context = applied.context;
+          if (applied.bundleGlobs?.length) {
+            options.bundle = [
+              ...new Set([...(options.bundle ?? []), ...applied.bundleGlobs]),
+            ];
+          }
           if (applied.verifyCriteria && !options.verify)
             options.verify = applied.verifyCriteria;
           if (applied.verifyCommand && !options.verifyCommand) {
@@ -417,6 +421,7 @@ export function registerWorkflowCommands(program: Command): void {
     .option("--agent <agent>", "default receiver agent")
     .option("--task <text>", "task template (use {{placeholders}})")
     .option("--context <text>", "default context")
+    .option("--bundle <paths...>", "default project-relative bundle paths")
     .option("--verify <criteria>", "default verification criteria")
     .option("--verify-command <executable>", "verification command")
     .option("--verify-args <json>", "JSON array of args for verify command")
@@ -430,6 +435,7 @@ export function registerWorkflowCommands(program: Command): void {
           agent?: string;
           task?: string;
           context?: string;
+          bundle?: string[];
           verify?: string;
           verifyCommand?: string;
           verifyArgs?: string;
@@ -443,6 +449,7 @@ export function registerWorkflowCommands(program: Command): void {
           ...(opts.agent ? { defaultAgent: opts.agent } : {}),
           ...(opts.task ? { taskTemplate: opts.task } : {}),
           ...(opts.context ? { context: opts.context } : {}),
+          ...(opts.bundle ? { bundleGlobs: opts.bundle } : {}),
           ...(opts.verify ? { verifyCriteria: opts.verify } : {}),
         };
 

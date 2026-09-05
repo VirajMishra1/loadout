@@ -114,17 +114,32 @@ npm run verify:full
 This is the release gate. It runs the normal verification path plus coverage.
 The individual stages are listed below for focused reruns and diagnosis.
 
-| Command                    | Coverage                                                                | Expected result                                    |
-| -------------------------- | ----------------------------------------------------------------------- | -------------------------------------------------- |
-| `npm run format:check`     | Repository formatting                                                   | Exit 0; no files changed.                          |
-| `npm run lint`             | TypeScript lint rules                                                   | Exit 0.                                            |
-| `npm run typecheck`        | TypeScript contract                                                     | Exit 0.                                            |
-| `npm run check:evidence`   | Catalog/discovery attribution, README claims, and release boundaries    | Exit 0; no claim is silently promoted.             |
-| `npm test`                 | Unit, integration, native filesystem, safety, and regression suites     | All tests pass.                                    |
-| `npm run test:e2e:cli`     | Disposable scan → compare → optimize → apply → rollback journey         | Prints a successful CLI product flow.              |
-| `npm run test:e2e:readme`  | Isolated library/activation/manifest/card/rollback journey              | Prints README product flow success.                |
-| `npm run test:package`     | `npm pack`, install outside the checkout, packaged CLI install/rollback | Prints package smoke success.                      |
-| `npm run test:performance` | Seven scans of 1,000 real on-disk skill directories                     | p95 remains below the enforced five-second budget. |
+| Command                         | Coverage                                                                | Expected result                                    |
+| ------------------------------- | ----------------------------------------------------------------------- | -------------------------------------------------- |
+| `npm run format:check`          | Repository formatting                                                   | Exit 0; no files changed.                          |
+| `npm run lint`                  | TypeScript lint rules                                                   | Exit 0.                                            |
+| `npm run typecheck`             | TypeScript contract                                                     | Exit 0.                                            |
+| `npm run check:evidence`        | Catalog/discovery attribution, README claims, and release boundaries    | Exit 0; no claim is silently promoted.             |
+| `npm test`                      | Unit, integration, native filesystem, safety, and regression suites     | All tests pass.                                    |
+| `npm run test:e2e:cli`          | Disposable scan → compare → optimize → apply → rollback journey         | Prints a successful CLI product flow.              |
+| `npm run test:e2e:readme`       | Isolated library/activation/manifest/card/rollback journey              | Prints README product flow success.                |
+| `npm run test:e2e:coordination` | Disposable ownership/contract/template/verified-handoff journey         | Prints coordination product flow success.          |
+| `npm run test:package`          | `npm pack`, install outside the checkout, packaged CLI install/rollback | Prints package smoke success.                      |
+| `npm run test:performance`      | Seven scans of 1,000 real on-disk skill directories                     | p95 remains below the enforced five-second budget. |
+
+Coordination convenience regressions are covered by:
+
+```bash
+npx vitest run tests/handoff-templates.test.ts tests/cli-handoff.test.ts \
+  tests/handoff-verification.test.ts tests/coordination-quick-start.test.ts \
+  tests/auto-contract.test.ts tests/git-ownership.test.ts \
+  tests/discussion-pipeline.test.ts
+```
+
+These tests cover traversal rejection, template interpolation and bundles,
+non-blocking verified completion, normalized ownership splits, exact/current/
+stale contract candidates, Git author mappings, and idempotent linked handoffs.
+Windows CI is authoritative for native path behavior and must be green.
 
 The focused regression contract for the v0.3.x profile lifecycle is:
 

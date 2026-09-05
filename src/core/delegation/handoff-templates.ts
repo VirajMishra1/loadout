@@ -35,12 +35,14 @@ export interface HandoffTemplate {
   };
 }
 
+const templateNameSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .regex(/^[a-z0-9][a-z0-9-]*$/, "template name must be kebab-case");
+
 const templateSchema = z.object({
-  name: z
-    .string()
-    .trim()
-    .min(1)
-    .regex(/^[a-z0-9][a-z0-9-]*$/, "name must be kebab-case"),
+  name: templateNameSchema,
   description: z.string().trim().min(1),
   defaultAgent: z.string().trim().min(1).optional(),
   taskTemplate: z.string().trim().min(1).optional(),
@@ -121,7 +123,8 @@ function templatesDir(projectRoot: string): string {
 }
 
 function templatePath(projectRoot: string, name: string): string {
-  return join(templatesDir(projectRoot), `${name}.json`);
+  const safeName = templateNameSchema.parse(name);
+  return join(templatesDir(projectRoot), `${safeName}.json`);
 }
 
 export async function ensureTemplatesDir(projectRoot: string): Promise<void> {
@@ -145,8 +148,9 @@ export async function deleteTemplate(
   projectRoot: string,
   name: string,
 ): Promise<boolean> {
+  const path = templatePath(projectRoot, name);
   try {
-    await unlink(templatePath(projectRoot, name));
+    await unlink(path);
     return true;
   } catch {
     return false;
@@ -203,6 +207,8 @@ export async function listTemplates(
 export interface ApplyTemplateOptions {
   /** Override the task description. */
   task?: string;
+  /** Positional input bound to common placeholders such as {{files}}. */
+  input?: string;
   /** Variables to fill into taskTemplate placeholders. */
   vars?: Record<string, string>;
   /** Override the default agent. */
@@ -230,7 +236,15 @@ export function applyTemplate(
 
   // Resolve task description
   let description = options.task ?? template.taskTemplate ?? template.name;
-  for (const [key, value] of Object.entries(vars)) {
+  const resolvedVars = options.input
+    ? {
+        files: options.input,
+        description: options.input,
+        task: options.input,
+        ...vars,
+      }
+    : vars;
+  for (const [key, value] of Object.entries(resolvedVars)) {
     description = description.replaceAll(`{{${key}}}`, value);
   }
 

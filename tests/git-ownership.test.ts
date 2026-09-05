@@ -106,6 +106,45 @@ describe("git-ownership", () => {
     expect(srcSuggestion!.alreadyClaimed).toBe(false);
   });
 
+  it("keeps unselected authors in the confidence denominator", async () => {
+    const { suggestOwnership } =
+      await import("../src/core/coordination/git-ownership.js");
+    await setupGitRepo(projectRoot);
+    await initHandoff(projectRoot);
+    await mkdir(join(projectRoot, "src"), { recursive: true });
+    await writeFile(join(projectRoot, "src", "agent.ts"), "1");
+    await git(projectRoot, "add", ".");
+    await git(projectRoot, "commit", "-m", "agent");
+    await git(projectRoot, "config", "user.name", "HumanMaintainer");
+    for (let index = 0; index < 2; index++) {
+      await writeFile(
+        join(projectRoot, "src", `human-${index}.ts`),
+        `${index}`,
+      );
+      await git(projectRoot, "add", ".");
+      await git(projectRoot, "commit", "-m", `human ${index}`);
+    }
+
+    const result = await suggestOwnership(projectRoot, ["TestUser"], {
+      threshold: 60,
+    });
+    expect(result.suggestions).toEqual([]);
+  });
+
+  it("maps an agent identity to its configured Git author", async () => {
+    const { suggestOwnership } =
+      await import("../src/core/coordination/git-ownership.js");
+    await setupGitRepo(projectRoot);
+    await initHandoff(projectRoot);
+    await mkdir(join(projectRoot, "src"), { recursive: true });
+    await writeFile(join(projectRoot, "src", "app.ts"), "1");
+    await git(projectRoot, "add", ".");
+    await git(projectRoot, "commit", "-m", "agent work");
+
+    const result = await suggestOwnership(projectRoot, ["codex=TestUser"]);
+    expect(result.suggestions[0].suggestedOwner).toBe("codex");
+  });
+
   it("marks already-claimed directories", async () => {
     const { suggestOwnership } =
       await import("../src/core/coordination/git-ownership.js");
@@ -181,6 +220,17 @@ describe("git-ownership", () => {
 
     const stats = await scanGitHistory(projectRoot);
     expect(stats).toEqual([]);
+  });
+
+  it("rejects invalid history bounds", async () => {
+    const { scanGitHistory } =
+      await import("../src/core/coordination/git-ownership.js");
+    await expect(scanGitHistory(projectRoot, { depth: 0 })).rejects.toThrow(
+      /depth/i,
+    );
+    await expect(
+      scanGitHistory(projectRoot, { maxCommits: 0 }),
+    ).rejects.toThrow(/max commits/i);
   });
 
   it("skips node_modules and .git directories", async () => {

@@ -35,7 +35,7 @@ const SPLIT_PATTERNS: Record<
     label: "backend / frontend",
     groups: [
       /^(server|backend|api|src\/api|src\/server|src\/backend|app\/api|packages\/api|packages\/server|packages\/backend|lib|services)/,
-      /^(client|frontend|web|app|src\/app|src\/client|src\/frontend|src\/components|src\/pages|src\/views|packages\/web|packages\/client|packages\/frontend|components|pages|views|ui)/,
+      /^(client|frontend|web|app|src\/app|src\/web|src\/client|src\/frontend|src\/components|src\/pages|src\/views|packages\/web|packages\/client|packages\/frontend|components|pages|views|ui)/,
     ],
   },
   "core/tests": {
@@ -53,7 +53,11 @@ async function listTopDirs(projectRoot: string): Promise<string[]> {
   for (const entry of entries) {
     if (!entry.isDirectory()) continue;
     if (entry.name.startsWith(".") || entry.name === "node_modules") continue;
-    if (entry.name === "dist" || entry.name === "build" || entry.name === "out")
+    if (
+      ["dist", "build", "out", "coverage", "test-results", ".next"].includes(
+        entry.name,
+      )
+    )
       continue;
     dirs.push(entry.name);
   }
@@ -63,10 +67,16 @@ async function listTopDirs(projectRoot: string): Promise<string[]> {
     const srcEntries = await readdir(join(projectRoot, "src"), {
       withFileTypes: true,
     });
+    const nested: string[] = [];
     for (const entry of srcEntries) {
       if (entry.isDirectory() && !entry.name.startsWith(".")) {
-        dirs.push(`src/${entry.name}`);
+        nested.push(`src/${entry.name}`);
       }
+    }
+    if (nested.length > 0) {
+      const srcIndex = dirs.indexOf("src");
+      if (srcIndex >= 0) dirs.splice(srcIndex, 1);
+      dirs.push(...nested);
     }
   } catch {
     // No src/ directory — that's fine.
@@ -75,11 +85,27 @@ async function listTopDirs(projectRoot: string): Promise<string[]> {
   return dirs;
 }
 
+function collapsePaths(paths: string[]): string[] {
+  const sorted = [...new Set(paths)].sort(
+    (a, b) => a.split("/").length - b.split("/").length || a.localeCompare(b),
+  );
+  return sorted.filter(
+    (path, index) =>
+      !sorted
+        .slice(0, index)
+        .some((parent) => path === parent || path.startsWith(`${parent}/`)),
+  );
+}
+
 export async function detectSplit(
   projectRoot: string,
   agents: [string, string],
   preferredSplit?: string,
 ): Promise<DirectorySplit> {
+  if (agents.some((agent) => !agent.trim()) || agents[0] === agents[1])
+    throw new Error("Coordination requires two distinct, non-empty agents");
+  if (preferredSplit && !SPLIT_PATTERNS[preferredSplit])
+    throw new Error(`Unknown split strategy '${preferredSplit}'`);
   const dirs = await listTopDirs(projectRoot);
 
   // Try preferred split first, then all patterns
@@ -101,8 +127,8 @@ export async function detectSplit(
       const assigned = new Set([...groupA, ...groupB]);
       return {
         assignments: new Map([
-          [agents[0], groupA],
-          [agents[1], groupB],
+          [agents[0], collapsePaths(groupA)],
+          [agents[1], collapsePaths(groupB)],
         ]),
         unassigned: dirs.filter((d) => !assigned.has(d)),
         strategy: pattern.label,
@@ -115,8 +141,8 @@ export async function detectSplit(
   const mid = Math.ceil(sorted.length / 2);
   return {
     assignments: new Map([
-      [agents[0], sorted.slice(0, mid)],
-      [agents[1], sorted.slice(mid)],
+      [agents[0], collapsePaths(sorted.slice(0, mid))],
+      [agents[1], collapsePaths(sorted.slice(mid))],
     ]),
     unassigned: [],
     strategy: "even split (no recognized pattern)",

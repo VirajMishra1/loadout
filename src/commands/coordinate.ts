@@ -123,10 +123,16 @@ export function registerCoordinate(program: Command): void {
       "--scope <dirs...>",
       "only scan these directories (default: whole project)",
     )
-    .option("--publish", "auto-publish detected contracts (default: preview)")
+    .option("--publish", "prepare publication of detected contracts")
+    .option("--yes", "publish exact candidates after previewing")
     .option("--json", "machine-readable output")
     .action(
-      async (opts: { scope?: string[]; publish?: boolean; json?: boolean }) => {
+      async (opts: {
+        scope?: string[];
+        publish?: boolean;
+        yes?: boolean;
+        json?: boolean;
+      }) => {
         const cwd = process.cwd();
         try {
           const result = await detectContracts(cwd, { scope: opts.scope });
@@ -143,7 +149,9 @@ export function registerCoordinate(program: Command): void {
                     sourceAgent: c.sourceAgent,
                     consumers: c.consumers,
                     symbols: c.sharedSymbols.map((s) => s.name),
-                    covered: !!c.existingContract,
+                    coverageState: c.coverageState,
+                    publishable: c.publishable,
+                    sourceHash: c.sourceHash,
                   })),
                 },
                 null,
@@ -156,11 +164,24 @@ export function registerCoordinate(program: Command): void {
 
           if (opts.publish) {
             const uncovered = result.candidates.filter(
-              (c) => !c.existingContract,
+              (c) => c.coverageState !== "current",
             );
             if (uncovered.length === 0) {
               if (!opts.json)
                 console.log("\nAll boundaries already covered by contracts.");
+              return;
+            }
+            const manual = uncovered.filter((c) => !c.publishable);
+            if (manual.length > 0) {
+              throw new Error(
+                `${manual.length} candidate(s) require manual declarations: ${manual.map((c) => c.name).join(", ")}`,
+              );
+            }
+            if (!opts.yes) {
+              if (!opts.json)
+                console.log(
+                  `\nPreview only — ${uncovered.length} exact contract(s) ready. Re-run with --publish --yes.`,
+                );
               return;
             }
             for (const c of uncovered) {
@@ -192,7 +213,7 @@ export function registerCoordinate(program: Command): void {
     )
     .requiredOption(
       "--agents <agents>",
-      "agent names to match against git authors, comma-separated",
+      "agent=Git Author mappings, comma-separated (exact names also work)",
     )
     .option("--depth <n>", "directory grouping depth (default 1)", parseInt, 1)
     .option(

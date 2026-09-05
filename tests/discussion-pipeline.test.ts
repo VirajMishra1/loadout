@@ -1,10 +1,13 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { mkdtemp, mkdir } from "node:fs/promises";
+import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { emit } from "../src/core/coordination/coordinator.js";
 import { claimOwnership } from "../src/core/coordination/coordinator.js";
-import { initHandoff } from "../src/core/delegation/handoff.js";
+import {
+  getHandoffState,
+  initHandoff,
+} from "../src/core/delegation/handoff.js";
 import {
   buildImplementationPlan,
   runPipeline,
@@ -154,6 +157,40 @@ describe("discussion-pipeline", () => {
     );
   });
 
+  it("rejects discussions that exceed the coordination event file limit", async () => {
+    const paths = Array.from(
+      { length: 257 },
+      (_, index) => `src/f${index}.ts`,
+    ).join(" ");
+    await createClosedDiscussion(root, "too-many-paths", {
+      topic: "Large migration",
+      decision: "Apply the migration",
+      proposalContent: paths,
+      critiqueContent: "Keep the migration bounded",
+    });
+
+    await expect(
+      buildImplementationPlan(root, "too-many-paths"),
+    ).rejects.toThrow(/more than 256 unique paths/i);
+  });
+
+  it("does not treat traversal-shaped references as owned project paths", async () => {
+    await claimOwnership(root, {
+      agent: "claude-code",
+      paths: ["src"],
+      mode: "exclusive",
+    });
+    await createClosedDiscussion(root, "unsafe-path", {
+      topic: "Check a suspicious path",
+      decision: "Do not escape the repository",
+      proposalContent: "Inspect src/../../outside.txt",
+      critiqueContent: "Keep all work in the project",
+    });
+
+    const plan = await buildImplementationPlan(root, "unsafe-path");
+    expect(plan.tasks.every((task) => task.paths.length === 0)).toBe(true);
+  });
+
   it("assigns tasks based on file ownership", async () => {
     await claimOwnership(root, {
       agent: "claude-code",
@@ -227,10 +264,67 @@ describe("discussion-pipeline", () => {
     await createClosedDiscussion(root, "send-it", {
       topic: "Test sending",
       decision: "Ship it",
+      proposalContent: "Implement the accepted decision",
+      critiqueContent: "Review the result after implementation",
     });
 
     const result = await runPipeline(root, "send-it", { dryRun: false });
     expect(result.handoffsSent).toBe(2);
+    expect(result.handoffIds).toHaveLength(2);
+    expect(
+      (await getHandoffState(root)).messages
+        .filter((message) => message.type === "task")
+        .every((message) => !!message.verification),
+    ).toBe(true);
+
+    const repeated = await runPipeline(root, "send-it", { dryRun: false });
+    expect(repeated.handoffsSent).toBe(0);
+    expect(repeated.handoffIds).toEqual(result.handoffIds);
+    expect(repeated.reused).toBe(true);
+    expect(
+      formatPlan(repeated.plan, false, repeated.handoffsSent, repeated.reused),
+    ).toContain("already dispatched");
+  });
+
+  it("bundles existing owned files into implementation handoffs", async () => {
+    await initHandoff(root);
+    await mkdir(join(root, "src/api"), { recursive: true });
+    await writeFile(
+      join(root, "src/api/handler.ts"),
+      "export const ok = true;\n",
+    );
+    await claimOwnership(root, {
+      agent: "claude-code",
+      paths: ["src/api"],
+      mode: "exclusive",
+    });
+    await createClosedDiscussion(root, "bundle-work", {
+      topic: "Refactor handler",
+      decision: "Refactor the handler",
+      proposalContent: "Update src/api/handler.ts",
+      critiqueContent: "Keep its public behavior",
+    });
+
+    await runPipeline(root, "bundle-work", { dryRun: false });
+    const task = (await getHandoffState(root)).messages.find(
+      (message) => message.type === "task" && message.to === "claude-code",
+    );
+    expect(task?.bundle).toMatchObject({ fileCount: 1 });
+  });
+
+  it("refuses approved execution when discussed paths have no owner", async () => {
+    await initHandoff(root);
+    await createClosedDiscussion(root, "unowned-work", {
+      topic: "Change an unowned file",
+      decision: "Update the configuration",
+      proposalContent: "Update src/unowned.ts",
+      critiqueContent: "Keep it compatible",
+    });
+
+    await expect(
+      runPipeline(root, "unowned-work", { dryRun: false }),
+    ).rejects.toThrow(/unassigned/i);
+    expect((await getHandoffState(root)).messages).toHaveLength(0);
   });
 
   it("includes context from discussion in tasks", async () => {

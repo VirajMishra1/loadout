@@ -98,55 +98,35 @@ export async function completeHandoff(
     runner?: HandoffVerificationRunner;
   } = {},
 ): Promise<CompleteHandoffOutcome> {
-  return withHandoffLock(projectRoot, async () => {
+  const original = await withHandoffLock(projectRoot, async () => {
     const state = await getHandoffState(projectRoot);
-    const original = state.messages.find((message) => message.id === messageId);
-    if (!original) throw new Error(`Message '${messageId}' not found`);
-    if (original.type !== "task")
+    const task = state.messages.find((message) => message.id === messageId);
+    if (!task) throw new Error(`Message '${messageId}' not found`);
+    if (task.type !== "task")
       throw new Error(`Message '${messageId}' is not a task`);
     if (state.done.some((message) => message.id === messageId))
       throw new Error(`Message '${messageId}' is already settled`);
+    return task;
+  });
 
-    if (!original.verification) {
-      const message = await sendHandoffUnlocked(
-        projectRoot,
-        original.from,
-        `Completed: ${original.description}`,
-        {
-          from: original.to,
-          type: "done",
-          resolves: messageId,
-        },
-      );
-      return { completed: true, message };
-    }
-    if (!original.verification.command) {
-      if (!options.manualEvidence?.trim())
-        throw new Error(
-          `Task '${messageId}' requires manual evidence for: ${original.verification.criteria}`,
-        );
-      const message = await sendHandoffUnlocked(
-        projectRoot,
-        original.from,
-        `Completed: ${original.description}`,
-        {
-          from: original.to,
-          type: "done",
-          resolves: messageId,
-          evidence: {
-            mode: "manual",
-            status: "passed",
-            summary: options.manualEvidence.trim(),
-            isTruncated: false,
-          },
-        },
-      );
-      return { completed: true, message };
-    }
-    if (!options.approveCommand)
-      throw new Error(
-        `Task '${messageId}' requires explicit approval to run its stored verification command`,
-      );
+  if (
+    original.verification &&
+    !original.verification.command &&
+    !options.manualEvidence?.trim()
+  )
+    throw new Error(
+      `Task '${messageId}' requires manual evidence for: ${original.verification.criteria}`,
+    );
+  if (original.verification?.command && !options.approveCommand)
+    throw new Error(
+      `Task '${messageId}' requires explicit approval to run its stored verification command`,
+    );
+
+  let completed = true;
+  let description = `Completed: ${original.description}`;
+  let evidence: HandoffMessage["evidence"];
+
+  if (original.verification?.command) {
     const command = original.verification.command;
     const result = await (options.runner ?? defaultHandoffVerificationRunner)(
       projectRoot,
@@ -155,29 +135,45 @@ export async function completeHandoff(
     const passed = result.exitCode === 0 && !result.timedOut;
     const stdout = boundedOutput(result.stdout);
     const stderr = boundedOutput(result.stderr);
+    completed = passed;
+    description = passed
+      ? `Completed: ${original.description}`
+      : `Verification failed: ${original.verification.criteria}`;
+    evidence = {
+      mode: "command",
+      status: passed ? "passed" : "failed",
+      command: [command.executable, ...command.args],
+      exitCode: result.exitCode,
+      durationMs: result.durationMs,
+      stdout: stdout.value,
+      stderr: stderr.value,
+      timedOut: result.timedOut,
+      isTruncated: stdout.isTruncated || stderr.isTruncated,
+    };
+  } else if (original.verification) {
+    evidence = {
+      mode: "manual",
+      status: "passed",
+      summary: options.manualEvidence!.trim(),
+      isTruncated: false,
+    };
+  }
+
+  return withHandoffLock(projectRoot, async () => {
+    const current = await getHandoffState(projectRoot);
+    if (current.done.some((message) => message.id === messageId))
+      throw new Error(`Message '${messageId}' is already settled`);
     const message = await sendHandoffUnlocked(
       projectRoot,
       original.from,
-      passed
-        ? `Completed: ${original.description}`
-        : `Verification failed: ${original.verification.criteria}`,
+      description,
       {
         from: original.to,
-        type: passed ? "done" : "status",
+        type: completed ? "done" : "status",
         resolves: messageId,
-        evidence: {
-          mode: "command",
-          status: passed ? "passed" : "failed",
-          command: [command.executable, ...command.args],
-          exitCode: result.exitCode,
-          durationMs: result.durationMs,
-          stdout: stdout.value,
-          stderr: stderr.value,
-          timedOut: result.timedOut,
-          isTruncated: stdout.isTruncated || stderr.isTruncated,
-        },
+        ...(evidence ? { evidence } : {}),
       },
     );
-    return { completed: passed, message };
+    return { completed, message };
   });
 }

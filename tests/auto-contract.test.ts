@@ -2,7 +2,10 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { detectContracts } from "../src/core/coordination/auto-contract.js";
+import {
+  detectContracts,
+  normalizeProjectPath,
+} from "../src/core/coordination/auto-contract.js";
 import {
   claimOwnership,
   publishContract,
@@ -13,6 +16,10 @@ describe("auto-contract detection", () => {
 
   beforeEach(async () => {
     root = await mkdtemp(join(tmpdir(), "loadout-auto-contract-"));
+  });
+
+  it("normalizes Windows project paths at the scanner boundary", () => {
+    expect(normalizeProjectPath("src\\api\\types.ts")).toBe("src/api/types.ts");
   });
 
   it("returns empty when no ownership exists", async () => {
@@ -105,11 +112,14 @@ describe("auto-contract detection", () => {
       mode: "exclusive",
     });
 
-    // Publish a contract that covers this
+    const initial = await detectContracts(root);
+    const suggested = initial.candidates.find((c) => c.name === "api-types")!;
+
+    // Publish the exact generated contract.
     await publishContract(root, {
       from: "claude-code",
       name: "api-types",
-      body: "export interface UserResponse { id: string; }",
+      body: suggested.suggestedBody,
       format: "typescript",
     });
 
@@ -118,6 +128,17 @@ describe("auto-contract detection", () => {
     expect(candidate).toBeDefined();
     expect(candidate!.existingContract).toBeDefined();
     expect(candidate!.existingContract!.revision).toBe(1);
+    expect(candidate!.coverageState).toBe("current");
+
+    await writeFile(
+      join(root, "src/api/types.ts"),
+      "export interface UserResponse { id: string; name: string; }\n",
+    );
+    expect(
+      (await detectContracts(root)).candidates.find(
+        (c) => c.name === "api-types",
+      )!.coverageState,
+    ).toBe("stale");
   });
 
   it("ignores imports within same ownership boundary", async () => {
@@ -250,7 +271,7 @@ describe("auto-contract detection", () => {
     expect(allFiles).not.toContain("docs/guide.ts");
   });
 
-  it("builds suggested contract body with typed stubs", async () => {
+  it("builds suggested contract body from exact source declarations", async () => {
     await mkdir(join(root, "api"), { recursive: true });
     await mkdir(join(root, "web"), { recursive: true });
 
@@ -279,8 +300,39 @@ describe("auto-contract detection", () => {
 
     const result = await detectContracts(root);
     const body = result.candidates[0].suggestedBody;
-    expect(body).toContain("export interface Request");
-    expect(body).toContain("export function validate");
+    expect(body).toContain("export interface Request { body: string; }");
+    expect(body).toContain("export function validate(r: Request): boolean;");
     expect(body).toContain("2 shared export(s)");
+    expect(body).toMatch(/snapshot only/i);
+    expect(body).not.toContain("/* ... */");
+    expect(body).not.toContain("unknown");
+    expect(result.candidates[0].publishable).toBe(true);
+  });
+
+  it("marks unsupported multiline declarations as manual-only", async () => {
+    await mkdir(join(root, "api"), { recursive: true });
+    await mkdir(join(root, "web"), { recursive: true });
+    await writeFile(
+      join(root, "api/schema.ts"),
+      "export interface Request {\n  body: string;\n}\n",
+    );
+    await writeFile(
+      join(root, "web/page.ts"),
+      'import { Request } from "../api/schema.js";\n',
+    );
+    await claimOwnership(root, {
+      agent: "a",
+      paths: ["api"],
+      mode: "exclusive",
+    });
+    await claimOwnership(root, {
+      agent: "b",
+      paths: ["web"],
+      mode: "exclusive",
+    });
+
+    const candidate = (await detectContracts(root)).candidates[0];
+    expect(candidate.publishable).toBe(false);
+    expect(candidate.suggestedBody).toContain("MANUAL");
   });
 });

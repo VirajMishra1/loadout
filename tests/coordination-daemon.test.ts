@@ -19,8 +19,20 @@ function randomPort(): number {
 }
 
 async function startAuthenticatedDaemon(): Promise<NonNullable<typeof daemon>> {
-  daemon = await startDaemon(root, randomPort());
-  return daemon;
+  // Retry on EACCES — Windows can deny random ephemeral ports.
+  for (let attempt = 0; attempt < 5; attempt++) {
+    try {
+      daemon = await startDaemon(root, randomPort());
+      return daemon;
+    } catch (error: unknown) {
+      const code =
+        typeof error === "object" && error !== null && "code" in error
+          ? (error as { code?: string }).code
+          : undefined;
+      if (code !== "EACCES" || attempt === 4) throw error;
+    }
+  }
+  throw new Error("unreachable");
 }
 
 function authorization(token = daemon?.token): Record<string, string> {

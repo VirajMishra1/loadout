@@ -5,9 +5,19 @@
  * and creates handoff tasks assigned to the right agents.
  */
 
+import { createHash } from "node:crypto";
+import { lstat } from "node:fs/promises";
+import { relative, resolve, sep } from "node:path";
 import { getDiscussion, type DiscussionState } from "./discussion.js";
-import { getOwnership } from "./coordinator.js";
-import { sendHandoff } from "../delegation/handoff.js";
+import { emit, getOwnership, readCoordLog } from "./coordinator.js";
+import {
+  getHandoffState,
+  sendHandoff,
+} from "../delegation/handoff.js";
+import {
+  createHandoffBundle,
+  removeHandoffBundle,
+} from "../delegation/handoff-bundle.js";
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -19,6 +29,7 @@ export interface ImplementationTask {
 }
 
 export interface ImplementationPlan {
+  planId: string;
   threadId: string;
   decision: string;
   tasks: ImplementationTask[];
@@ -28,6 +39,8 @@ export interface ImplementationPlan {
 export interface PipelineResult {
   plan: ImplementationPlan;
   handoffsSent: number;
+  handoffIds: string[];
+  reused: boolean;
 }
 
 // ── Task extraction ────────────────────────────────────────────────────
@@ -104,7 +117,17 @@ export async function buildImplementationPlan(
     });
   }
 
+  const planIdentity = JSON.stringify({
+    threadId,
+    decision: discussion.finalDecision,
+    tasks: tasks.map(({ agent, description, paths }) => ({
+      agent,
+      description,
+      paths,
+    })),
+  });
   return {
+    planId: createHash("sha256").update(planIdentity).digest("hex").slice(0, 16),
     threadId,
     decision: discussion.finalDecision,
     tasks,
@@ -118,16 +141,80 @@ export async function executeImplementationPlan(
   projectRoot: string,
   plan: ImplementationPlan,
 ): Promise<PipelineResult> {
+  if (plan.unassigned.length > 0)
+    throw new Error(
+      `Implementation plan has unassigned paths: ${plan.unassigned.join(", ")}. Claim ownership and preview again.`,
+    );
+  const marker = `[loadout-implementation:${plan.planId}]`;
+  const initialState = await getHandoffState(projectRoot);
   let sent = 0;
+  const handoffIds: string[] = [];
   for (const task of plan.tasks) {
-    await sendHandoff(projectRoot, task.agent, task.description, {
+    const existing = initialState.messages.find(
+      (message) =>
+        message.type === "task" &&
+        message.to === task.agent &&
+        message.context?.includes(marker),
+    );
+    if (existing) {
+      handoffIds.push(existing.id);
+      continue;
+    }
+    const bundlePaths: string[] = [];
+    for (const path of task.paths) {
+      try {
+        const root = resolve(projectRoot);
+        const absolute = resolve(root, path);
+        const local = relative(root, absolute);
+        if (
+          local &&
+          local !== ".." &&
+          !local.startsWith(`..${sep}`) &&
+          (await lstat(absolute)).isFile()
+        )
+          bundlePaths.push(path);
+      } catch {
+        // A discussed path may be planned but not created yet.
+      }
+    }
+    const bundle = bundlePaths.length
+      ? await createHandoffBundle(projectRoot, bundlePaths)
+      : undefined;
+    let message;
+    try {
+      message = await sendHandoff(projectRoot, task.agent, task.description, {
       from: "loadout",
       type: "task",
-      context: task.context,
-    });
+        context: `${marker}\n${task.context}`,
+        ...(bundle ? { bundle } : {}),
+        verification: {
+          criteria:
+            "Implementation matches the recorded discussion decision and reported checks pass",
+        },
+      });
+    } catch (error) {
+      if (bundle) await removeHandoffBundle(projectRoot, bundle);
+      throw error;
+    }
+    handoffIds.push(message.id);
     sent++;
   }
-  return { plan, handoffsSent: sent };
+
+  const eventDescription = `Implementation plan ${plan.planId} dispatched`;
+  const log = await readCoordLog(projectRoot);
+  if (!log.events.some((event) => event.description === eventDescription)) {
+    await emit(projectRoot, {
+      from: "loadout",
+      to: "*",
+      type: "update",
+      description: eventDescription,
+      payload: {
+        note: `Discussion ${plan.threadId} created handoffs: ${handoffIds.join(", ")}`,
+        files: plan.tasks.flatMap((task) => task.paths),
+      },
+    });
+  }
+  return { plan, handoffsSent: sent, handoffIds, reused: sent === 0 };
 }
 
 /** Build plan + send handoffs in one call. */
@@ -138,7 +225,7 @@ export async function runPipeline(
 ): Promise<PipelineResult> {
   const plan = await buildImplementationPlan(projectRoot, threadId);
   if (options.dryRun) {
-    return { plan, handoffsSent: 0 };
+    return { plan, handoffsSent: 0, handoffIds: [], reused: false };
   }
   return executeImplementationPlan(projectRoot, plan);
 }
@@ -254,12 +341,18 @@ function buildTaskContext(discussion: DiscussionState): string {
 
 // ── Terminal formatting ────────────────────────────────────────────────
 
-export function formatPlan(plan: ImplementationPlan, dryRun: boolean): string {
+export function formatPlan(
+  plan: ImplementationPlan,
+  dryRun: boolean,
+  handoffsSent = plan.tasks.length,
+  reused = false,
+): string {
   const lines: string[] = [];
 
   lines.push(
     `\x1b[1mImplementation plan\x1b[0m from discussion ${plan.threadId}`,
   );
+  lines.push(`Plan ID: \x1b[90m${plan.planId}\x1b[0m`);
   lines.push(`Decision: \x1b[36m${plan.decision}\x1b[0m`);
   lines.push("");
 
@@ -285,8 +378,10 @@ export function formatPlan(plan: ImplementationPlan, dryRun: boolean): string {
     lines.push(
       "\x1b[90mDry run — no handoffs sent. Add --yes to send tasks.\x1b[0m",
     );
+  } else if (reused) {
+    lines.push("\x1b[32m✓ This plan was already dispatched; no duplicate tasks were created.\x1b[0m");
   } else {
-    lines.push(`\x1b[32m✓ ${plan.tasks.length} handoff task(s) sent.\x1b[0m`);
+    lines.push(`\x1b[32m✓ ${handoffsSent} handoff task(s) sent.\x1b[0m`);
     lines.push(
       "  Each agent will see the task on their next `loadout handoff <agent>` check.",
     );

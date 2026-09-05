@@ -22,6 +22,32 @@ import {
 
 type DiscussionProvider = "claude-code" | "codex";
 
+const QUOTA_PATTERNS = [
+  /rate.?limit/i,
+  /quota.?exceed/i,
+  /too many requests/i,
+  /429/,
+  /usage.?limit/i,
+  /capacity/i,
+  /try again later/i,
+  /billing/i,
+  /insufficient.?credits/i,
+];
+
+export function wrapProviderError(provider: string, error: unknown): Error {
+  const message = error instanceof Error ? error.message : String(error);
+  const isQuota = QUOTA_PATTERNS.some((pattern) => pattern.test(message));
+  if (isQuota) {
+    return new Error(
+      `${provider} appears to be out of quota or rate-limited. ` +
+        `The discussion cannot continue until usage resets. ` +
+        `Original error: ${message}`,
+    );
+  }
+  if (error instanceof Error) return error;
+  return new Error(`${provider} provider error: ${message}`);
+}
+
 export interface DiscussionSelectionItem {
   provider: DiscussionProvider;
   sessionId?: string;
@@ -150,27 +176,31 @@ export function createSessionParticipant(
     agent: selection.provider,
     role,
     async respond(prompt: string): Promise<string> {
-      if (!sessionId) {
-        const started = await sessions.startSession(
-          selection.provider,
-          cwd,
-          prompt,
-          timeoutMs,
-        );
-        sessionId = started.sessionId;
-      } else {
-        const accepted = await sessions.submitTurn(
-          sessionId,
-          prompt,
-          timeoutMs,
-        );
-        if (!accepted) {
-          throw new Error(
-            `${selection.provider}:${sessionId} rejected the discussion turn`,
+      try {
+        if (!sessionId) {
+          const started = await sessions.startSession(
+            selection.provider,
+            cwd,
+            prompt,
+            timeoutMs,
           );
+          sessionId = started.sessionId;
+        } else {
+          const accepted = await sessions.submitTurn(
+            sessionId,
+            prompt,
+            timeoutMs,
+          );
+          if (!accepted) {
+            throw new Error(
+              `${selection.provider}:${sessionId} rejected the discussion turn`,
+            );
+          }
         }
+        return sessions.getLastResponse(sessionId) ?? "";
+      } catch (error: unknown) {
+        throw wrapProviderError(selection.provider, error);
       }
-      return sessions.getLastResponse(sessionId) ?? "";
     },
   };
 }
@@ -337,6 +367,22 @@ export function registerCoordinationDiscussions(coord: Command): void {
         const sessions = createManager(projectRoot);
         try {
           await sessions.start();
+
+          // Pre-flight: verify both provider CLIs are reachable before
+          // spending any paid turns.
+          const detected = await sessions.detectProviders();
+          const needed = selection.participants.map((p) => p.provider);
+          const missing = needed.filter(
+            (name) => !detected.some((d) => d.provider === name),
+          );
+          if (missing.length) {
+            throw new Error(
+              `Cannot start discussion: ${missing.join(", ")} not detected. ` +
+                `Install the CLI or check that it is on PATH. ` +
+                `Detected providers: ${detected.map((d) => `${d.provider} ${d.version}`).join(", ") || "none"}.`,
+            );
+          }
+
           if (selection.mode === "existing") {
             for (const item of selection.participants) {
               await sessions.attachSession(

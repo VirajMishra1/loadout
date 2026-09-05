@@ -6,6 +6,7 @@ import {
   resolveDiscussionSelection,
   createSessionParticipant,
   discussionTimeoutMs,
+  wrapProviderError,
 } from "../src/commands/coordination-discussions.js";
 
 describe("provider session references", () => {
@@ -144,5 +145,38 @@ describe("discussion participant selection", () => {
       "submit:claude-code-new:revision prompt:120000",
       "submit:existing-thread:critique prompt:120000",
     ]);
+  });
+});
+
+describe("wrapProviderError", () => {
+  it("detects quota and rate-limit errors from provider output", () => {
+    const rateLimited = wrapProviderError(
+      "codex",
+      new Error("HTTP 429 Too Many Requests"),
+    );
+    expect(rateLimited.message).toMatch(/out of quota or rate-limited/);
+    expect(rateLimited.message).toContain("codex");
+
+    const quota = wrapProviderError(
+      "claude-code",
+      new Error("Usage limit exceeded for this billing period"),
+    );
+    expect(quota.message).toMatch(/out of quota or rate-limited/);
+
+    const billing = wrapProviderError(
+      "codex",
+      new Error("Insufficient credits on your billing plan"),
+    );
+    expect(billing.message).toMatch(/out of quota or rate-limited/);
+  });
+
+  it("passes through non-quota errors unchanged", () => {
+    const regular = new Error("network timeout");
+    expect(wrapProviderError("codex", regular)).toBe(regular);
+  });
+
+  it("wraps non-Error values with provider name", () => {
+    const wrapped = wrapProviderError("codex", "string error");
+    expect(wrapped.message).toBe("codex provider error: string error");
   });
 });

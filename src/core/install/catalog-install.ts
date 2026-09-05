@@ -494,10 +494,18 @@ export async function applyPreparedCatalogInstall(
   const failures = prepared.skipped.filter(
     (item) => item.kind === "preparation-failed",
   );
-  if (failures.length)
+  if (failures.length && prepared.selection.mode !== "maximum") {
     throw new Error(
       `Setup is incomplete because reviewed packages failed to prepare: ${failures.map((item) => item.packageId).join(", ")}. Retry when GitHub is reachable; no partial loadout was installed.`,
     );
+  }
+  if (failures.length) {
+    for (const fail of failures) {
+      console.error(
+        `Warning: skipping ${fail.packageId} (preparation failed). The remaining library will install without it.`,
+      );
+    }
+  }
   const risky = prepared.entries.filter(
     (entry) => entry.safety.approvalRequired,
   );

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { mkdtemp, realpath } from "node:fs/promises";
+import { mkdtemp, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import {
@@ -27,18 +27,19 @@ describe("handoff verification", () => {
   });
 
   it("runs literal argv without a shell from the project root", async () => {
+    await writeFile(join(projectRoot, "cwd-marker.txt"), "project-root\n");
     const result = await defaultHandoffVerificationRunner(projectRoot, {
       executable: process.execPath,
-      args: ["-e", "console.log(process.cwd())"],
+      args: [
+        "-e",
+        'console.log(require("node:fs").readFileSync("cwd-marker.txt", "utf8").trim())',
+      ],
       timeoutMs: 30_000,
     });
 
     expect(result.exitCode).toBe(0);
     expect(result.timedOut).toBe(false);
-    // Windows can return 8.3 short paths (RUNNER~1 vs runneradmin)
-    const actual = result.stdout.trim().toLowerCase();
-    const expected = (await realpath(projectRoot)).toLowerCase();
-    expect(actual).toBe(expected);
+    expect(result.stdout.trim()).toBe("project-root");
   });
 
   it("bounds a real verification process by its configured timeout", async () => {
@@ -241,5 +242,50 @@ describe("handoff verification", () => {
         (message) => message.type === "done" && message.resolves === task.id,
       ),
     ).toHaveLength(1);
+  });
+
+  it("does not block new handoffs while a verification process runs", async () => {
+    const task = await sendHandoff(projectRoot, "codex", "slow verification", {
+      verification: {
+        criteria: "tests pass",
+        command: { executable: "npm", args: ["test"], timeoutMs: 30_000 },
+      },
+    });
+    let releaseRunner!: () => void;
+    let announceStarted!: () => void;
+    const runnerGate = new Promise<void>((resolve) => {
+      releaseRunner = resolve;
+    });
+    const runnerStarted = new Promise<void>((resolve) => {
+      announceStarted = resolve;
+    });
+    const completion = completeHandoff(projectRoot, task.id, {
+      approveCommand: true,
+      runner: async () => {
+        announceStarted();
+        await runnerGate;
+        return {
+          stdout: "passed\n",
+          stderr: "",
+          exitCode: 0,
+          durationMs: 250,
+          timedOut: false,
+        };
+      },
+    });
+    await runnerStarted;
+
+    const send = sendHandoff(projectRoot, "claude-code", "parallel task");
+    const first = await Promise.race([
+      send.then(() => "sent" as const),
+      new Promise<"blocked">((resolve) =>
+        setTimeout(() => resolve("blocked"), 250),
+      ),
+    ]);
+    releaseRunner();
+    await completion;
+    await send;
+
+    expect(first).toBe("sent");
   });
 });

@@ -7,8 +7,9 @@
  * standalone via `loadout coord detect`.
  */
 
+import { createHash } from "node:crypto";
 import { readdir, readFile } from "node:fs/promises";
-import { join, relative, dirname, resolve } from "node:path";
+import { join, relative, posix } from "node:path";
 import {
   getOwnership,
   getContracts,
@@ -26,6 +27,8 @@ export interface ExportedSymbol {
   file: string;
   /** 1-indexed line number. */
   line: number;
+  /** Exact, safely reusable declaration when it fits on one line. */
+  declaration?: string;
 }
 
 export interface CrossBoundaryImport {
@@ -56,6 +59,11 @@ export interface ContractCandidate {
   existingContract?: ActiveContract;
   /** Suggested contract body (TypeScript export declarations). */
   suggestedBody: string;
+  /** Hash of the exact declaration block used to detect stale contracts. */
+  sourceHash: string;
+  /** False when at least one consumed export needs a human-written contract. */
+  publishable: boolean;
+  coverageState: "uncovered" | "current" | "stale";
 }
 
 export interface DetectionResult {
@@ -119,7 +127,14 @@ function scanExports(content: string, filePath: string): ExportedSymbol[] {
     for (const { pattern, kind } of EXPORT_PATTERNS) {
       const match = line.match(pattern);
       if (match) {
-        symbols.push({ name: match[1], kind, file: filePath, line: i + 1 });
+        const declaration = exactDeclaration(line.trim(), kind);
+        symbols.push({
+          name: match[1],
+          kind,
+          file: filePath,
+          line: i + 1,
+          ...(declaration ? { declaration } : {}),
+        });
         break;
       }
     }
@@ -143,12 +158,29 @@ function scanExports(content: string, filePath: string): ExportedSymbol[] {
           kind: "re-export",
           file: filePath,
           line: i + 1,
+          declaration: line.trim(),
         });
       }
     }
   }
 
   return symbols;
+}
+
+function exactDeclaration(line: string, kind: string): string | undefined {
+  if (kind === "function") {
+    const close = line.lastIndexOf(")");
+    const body = close >= 0 ? line.indexOf("{", close) : -1;
+    if (body > close) return `${line.slice(0, body).trimEnd()};`;
+    return line.endsWith(";") ? line : undefined;
+  }
+  if (kind === "interface" || kind === "class" || kind === "enum") {
+    return line.includes("{") && line.includes("}") ? line : undefined;
+  }
+  if (kind === "type" || kind === "const") {
+    return line.includes("=") ? line : undefined;
+  }
+  return undefined;
 }
 
 // ── Import scanning ────────────────────────────────────────────────────
@@ -243,7 +275,7 @@ async function walkFiles(
       } else if (entry.isFile()) {
         const ext = entry.name.slice(entry.name.lastIndexOf("."));
         if (ALL_EXTENSIONS.has(ext)) {
-          files.push(relative(rootDir, fullPath));
+          files.push(normalizeProjectPath(relative(rootDir, fullPath)));
         }
       }
     }
@@ -257,6 +289,11 @@ async function walkFiles(
 
 type OwnershipMap = Map<string, { agent: string; paths: string[] }>;
 
+export function normalizeProjectPath(value: string): string {
+  const normalized = posix.normalize(value.replaceAll("\\", "/"));
+  return normalized.startsWith("./") ? normalized.slice(2) : normalized;
+}
+
 function findOwner(
   filePath: string,
   ownership: OwnershipMap,
@@ -265,14 +302,16 @@ function findOwner(
   let bestMatch = "";
   let bestAgent: string | undefined;
 
+  const normalizedFile = normalizeProjectPath(filePath);
   for (const [, claim] of ownership) {
     for (const ownedPath of claim.paths) {
-      const normalized = ownedPath.endsWith("/")
-        ? ownedPath.slice(0, -1)
-        : ownedPath;
+      const claimPath = normalizeProjectPath(ownedPath);
+      const normalized = claimPath.endsWith("/")
+        ? claimPath.slice(0, -1)
+        : claimPath;
       if (
-        (filePath === normalized ||
-          filePath.startsWith(normalized + "/") ||
+        (normalizedFile === normalized ||
+          normalizedFile.startsWith(normalized + "/") ||
           normalized === ".") &&
         normalized.length > bestMatch.length
       ) {
@@ -288,11 +327,11 @@ function findOwner(
 // ── Import resolution ──────────────────────────────────────────────────
 
 function resolveImportPath(importSource: string, importerFile: string): string {
-  // Resolve relative import to a project-relative path
-  const importerDir = dirname(importerFile);
-  let resolved = resolve("/", importerDir, importSource);
-  // Strip leading /
-  resolved = resolved.startsWith("/") ? resolved.slice(1) : resolved;
+  const importerDir = posix.dirname(normalizeProjectPath(importerFile));
+  let resolved = posix.normalize(
+    posix.join(importerDir, normalizeProjectPath(importSource)),
+  );
+  if (resolved === ".." || resolved.startsWith("../")) return "";
   // Strip .js extension (TS files import as .js)
   resolved = resolved.replace(/\.js$/, "");
   return resolved;
@@ -340,15 +379,28 @@ export async function detectContracts(
   const maxFiles = options.maxFiles ?? MAX_FILES;
 
   // Walk project files
-  const allFiles = options.scope
+  const walkedFiles = options.scope
     ? (
         await Promise.all(
-          options.scope.map((dir) =>
-            walkFiles(join(projectRoot, dir), projectRoot, maxFiles),
-          ),
+          options.scope.map((dir) => {
+            const scope = normalizeProjectPath(dir);
+            if (
+              !scope ||
+              posix.isAbsolute(scope) ||
+              scope === ".." ||
+              scope.startsWith("../")
+            )
+              throw new Error(`Scope must stay inside the project: ${dir}`);
+            return walkFiles(
+              join(projectRoot, ...scope.split("/")),
+              projectRoot,
+              maxFiles,
+            );
+          }),
         )
       ).flat()
     : await walkFiles(projectRoot, projectRoot, maxFiles);
+  const allFiles = [...new Set(walkedFiles)].slice(0, maxFiles);
 
   // Scan exports for every file
   const exportsByFile = new Map<string, ExportedSymbol[]>();
@@ -434,7 +486,12 @@ export async function detectContracts(
     const existingContract = existingContracts.get(name);
 
     // Build suggested body from shared exports
-    const suggestedBody = buildContractBody(sourceFile, sharedSymbols);
+    const generated = buildContractBody(sourceFile, sharedSymbols);
+    const coverageState = !existingContract
+      ? "uncovered"
+      : existingContract.body === generated.body
+        ? "current"
+        : "stale";
 
     candidates.push({
       name,
@@ -443,7 +500,10 @@ export async function detectContracts(
       consumers: [...info.consumers],
       sharedSymbols,
       existingContract,
-      suggestedBody,
+      suggestedBody: generated.body,
+      sourceHash: generated.sourceHash,
+      publishable: generated.publishable,
+      coverageState,
     });
   }
 
@@ -476,44 +536,38 @@ function contractNameFromPath(filePath: string): string {
 function buildContractBody(
   sourceFile: string,
   symbols: ExportedSymbol[],
-): string {
+): { body: string; sourceHash: string; publishable: boolean } {
   if (symbols.length === 0) {
-    return `// Contract for ${sourceFile}\n// No typed exports detected — add manually.`;
+    const manual = `// MANUAL: no exact typed exports detected for ${sourceFile}`;
+    return {
+      body: manual,
+      sourceHash: createHash("sha256").update("").digest("hex"),
+      publishable: false,
+    };
   }
+
+  const declarations = symbols.map(
+    (symbol) =>
+      symbol.declaration ??
+      `// MANUAL: copy the complete ${symbol.kind} declaration for ${symbol.name}`,
+  );
+  const declarationBlock = declarations.join("\n");
+  const sourceHash = createHash("sha256")
+    .update(declarationBlock)
+    .digest("hex");
 
   const lines: string[] = [
     `// Auto-detected contract for ${sourceFile}`,
     `// ${symbols.length} shared export(s)`,
+    `// loadout-source-sha256: sha256-${sourceHash}`,
     "",
+    ...declarations,
   ];
-
-  for (const sym of symbols) {
-    switch (sym.kind) {
-      case "interface":
-        lines.push(`export interface ${sym.name} { /* ... */ }`);
-        break;
-      case "type":
-        lines.push(`export type ${sym.name} = /* ... */;`);
-        break;
-      case "function":
-        lines.push(`export function ${sym.name}(...args: unknown[]): unknown;`);
-        break;
-      case "const":
-        lines.push(`export const ${sym.name}: unknown;`);
-        break;
-      case "class":
-        lines.push(`export class ${sym.name} { /* ... */ }`);
-        break;
-      case "enum":
-        lines.push(`export enum ${sym.name} { /* ... */ }`);
-        break;
-      case "re-export":
-        lines.push(`export { ${sym.name} };`);
-        break;
-    }
-  }
-
-  return lines.join("\n");
+  return {
+    body: lines.join("\n"),
+    sourceHash,
+    publishable: symbols.every((symbol) => !!symbol.declaration),
+  };
 }
 
 // ── Terminal formatting ────────────────────────────────────────────────
@@ -541,9 +595,12 @@ export function formatDetectionResult(result: DetectionResult): string {
   lines.push("");
 
   for (const c of result.candidates) {
-    const status = c.existingContract
-      ? `\x1b[32m✓ covered by rev${c.existingContract.revision}\x1b[0m`
-      : "\x1b[33m⚠ no contract\x1b[0m";
+    const status =
+      c.coverageState === "current"
+        ? `\x1b[32m✓ current at rev${c.existingContract!.revision}\x1b[0m`
+        : c.coverageState === "stale"
+          ? `\x1b[33m⚠ stale at rev${c.existingContract!.revision}\x1b[0m`
+          : "\x1b[33m⚠ no contract\x1b[0m";
 
     lines.push(`  \x1b[1m${c.name}\x1b[0m  ${status}`);
     lines.push(
@@ -553,10 +610,14 @@ export function formatDetectionResult(result: DetectionResult): string {
     lines.push(
       `    Shared: ${c.sharedSymbols.map((s) => s.name).join(", ") || "(barrel/re-exports)"}`,
     );
+    if (!c.publishable)
+      lines.push("    \x1b[31mManual declaration required before publishing.\x1b[0m");
     lines.push("");
   }
 
-  const uncovered = result.candidates.filter((c) => !c.existingContract);
+  const uncovered = result.candidates.filter(
+    (c) => c.coverageState !== "current",
+  );
   if (uncovered.length > 0) {
     lines.push(
       `\x1b[33m${uncovered.length} uncovered boundary(ies).\x1b[0m Publish with:`,

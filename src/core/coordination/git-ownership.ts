@@ -45,6 +45,27 @@ export interface GitOwnershipResult {
   ownershipApplied: boolean;
 }
 
+interface AgentAuthorMapping {
+  agent: string;
+  author: string;
+}
+
+function parseAgentAuthorMappings(values: string[]): AgentAuthorMapping[] {
+  const mappings = values.map((value) => {
+    const separator = value.indexOf("=");
+    const agent = (separator >= 0 ? value.slice(0, separator) : value).trim();
+    const author = (separator >= 0 ? value.slice(separator + 1) : value).trim();
+    if (!agent || !author)
+      throw new Error(
+        `Invalid agent/author mapping '${value}'; use agent=Git Author`,
+      );
+    return { agent, author };
+  });
+  if (new Set(mappings.map((mapping) => mapping.agent)).size !== mappings.length)
+    throw new Error("Each agent may have only one Git author mapping");
+  return mappings;
+}
+
 // ── Git scanning ───────────────────────────────────────────────────────
 
 const SKIP_DIRS = new Set([
@@ -160,9 +181,14 @@ export async function suggestOwnership(
   } = {},
 ): Promise<GitOwnershipResult> {
   const threshold = options.threshold ?? 60;
+  if (!Number.isInteger(threshold) || threshold < 1 || threshold > 100)
+    throw new Error("Ownership threshold must be an integer from 1 to 100");
+  const mappings = parseAgentAuthorMappings(agents);
+  const agentForAuthor = new Map(
+    mappings.map((mapping) => [mapping.author, mapping.agent]),
+  );
   const stats = await scanGitHistory(projectRoot, {
     maxCommits: options.maxCommits,
-    authors: agents,
     depth: options.depth,
   });
 
@@ -197,18 +223,19 @@ export async function suggestOwnership(
     authorCounts.sort((a, b) => b.count - a.count);
     const dominant = authorCounts[0];
     const percentage = Math.round((dominant.count / totalDirCommits) * 100);
+    const suggestedOwner = agentForAuthor.get(dominant.author);
 
-    if (percentage < threshold) continue;
+    if (percentage < threshold || !suggestedOwner) continue;
 
     const alreadyClaimed = [...existingOwnership.values()].some(
       (claim) =>
-        claim.agent === dominant.author &&
+        claim.agent === suggestedOwner &&
         claim.paths.some((p) => p === dir || dir.startsWith(p + "/")),
     );
 
     suggestions.push({
       directory: dir,
-      suggestedOwner: dominant.author,
+      suggestedOwner,
       commits: dominant.count,
       percentage,
       alreadyClaimed,

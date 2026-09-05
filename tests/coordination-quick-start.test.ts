@@ -101,6 +101,28 @@ describe("coordination quick-start", () => {
       expect(all).not.toContain(".git");
       expect(all).not.toContain("node_modules");
     });
+
+    it("ignores generated directories and collapses child assignments", async () => {
+      for (const dir of ["src/core", "tests", "coverage", "test-results"]) {
+        await mkdir(join(projectRoot, dir), { recursive: true });
+      }
+      const split = await detectSplit(projectRoot, ["claude-code", "codex"]);
+      const all = [...split.assignments.values()].flat().concat(split.unassigned);
+      expect(all).not.toContain("coverage");
+      expect(all).not.toContain("test-results");
+      expect(split.assignments.get("claude-code")).toEqual(["src"]);
+    });
+
+    it("rejects unknown split names and empty agents", async () => {
+      await mkdir(join(projectRoot, "src"), { recursive: true });
+      await mkdir(join(projectRoot, "tests"), { recursive: true });
+      await expect(
+        detectSplit(projectRoot, ["claude-code", "codex"], "mystery"),
+      ).rejects.toThrow(/unknown split/i);
+      await expect(detectSplit(projectRoot, ["", "codex"])).rejects.toThrow(
+        /agent/i,
+      );
+    });
   });
 
   describe("quickStart", () => {

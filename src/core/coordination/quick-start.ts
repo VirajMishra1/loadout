@@ -35,7 +35,7 @@ const SPLIT_PATTERNS: Record<
     label: "backend / frontend",
     groups: [
       /^(server|backend|api|src\/api|src\/server|src\/backend|app\/api|packages\/api|packages\/server|packages\/backend|lib|services)/,
-      /^(client|frontend|web|app|src\/app|src\/client|src\/frontend|src\/components|src\/pages|src\/views|packages\/web|packages\/client|packages\/frontend|components|pages|views|ui)/,
+      /^(client|frontend|web|app|src\/app|src\/web|src\/client|src\/frontend|src\/components|src\/pages|src\/views|packages\/web|packages\/client|packages\/frontend|components|pages|views|ui)/,
     ],
   },
   "core/tests": {
@@ -54,14 +54,9 @@ async function listTopDirs(projectRoot: string): Promise<string[]> {
     if (!entry.isDirectory()) continue;
     if (entry.name.startsWith(".") || entry.name === "node_modules") continue;
     if (
-      [
-        "dist",
-        "build",
-        "out",
-        "coverage",
-        "test-results",
-        ".next",
-      ].includes(entry.name)
+      ["dist", "build", "out", "coverage", "test-results", ".next"].includes(
+        entry.name,
+      )
     )
       continue;
     dirs.push(entry.name);
@@ -72,10 +67,16 @@ async function listTopDirs(projectRoot: string): Promise<string[]> {
     const srcEntries = await readdir(join(projectRoot, "src"), {
       withFileTypes: true,
     });
+    const nested: string[] = [];
     for (const entry of srcEntries) {
       if (entry.isDirectory() && !entry.name.startsWith(".")) {
-        dirs.push(`src/${entry.name}`);
+        nested.push(`src/${entry.name}`);
       }
+    }
+    if (nested.length > 0) {
+      const srcIndex = dirs.indexOf("src");
+      if (srcIndex >= 0) dirs.splice(srcIndex, 1);
+      dirs.push(...nested);
     }
   } catch {
     // No src/ directory — that's fine.

@@ -107,10 +107,12 @@ describe("coordination quick-start", () => {
         await mkdir(join(projectRoot, dir), { recursive: true });
       }
       const split = await detectSplit(projectRoot, ["claude-code", "codex"]);
-      const all = [...split.assignments.values()].flat().concat(split.unassigned);
+      const all = [...split.assignments.values()]
+        .flat()
+        .concat(split.unassigned);
       expect(all).not.toContain("coverage");
       expect(all).not.toContain("test-results");
-      expect(split.assignments.get("claude-code")).toEqual(["src"]);
+      expect(split.assignments.get("claude-code")).toEqual(["src/core"]);
     });
 
     it("rejects unknown split names and empty agents", async () => {

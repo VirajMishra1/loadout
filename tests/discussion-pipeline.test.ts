@@ -157,6 +157,40 @@ describe("discussion-pipeline", () => {
     );
   });
 
+  it("rejects discussions that exceed the coordination event file limit", async () => {
+    const paths = Array.from(
+      { length: 257 },
+      (_, index) => `src/f${index}.ts`,
+    ).join(" ");
+    await createClosedDiscussion(root, "too-many-paths", {
+      topic: "Large migration",
+      decision: "Apply the migration",
+      proposalContent: paths,
+      critiqueContent: "Keep the migration bounded",
+    });
+
+    await expect(
+      buildImplementationPlan(root, "too-many-paths"),
+    ).rejects.toThrow(/more than 256 unique paths/i);
+  });
+
+  it("does not treat traversal-shaped references as owned project paths", async () => {
+    await claimOwnership(root, {
+      agent: "claude-code",
+      paths: ["src"],
+      mode: "exclusive",
+    });
+    await createClosedDiscussion(root, "unsafe-path", {
+      topic: "Check a suspicious path",
+      decision: "Do not escape the repository",
+      proposalContent: "Inspect src/../../outside.txt",
+      critiqueContent: "Keep all work in the project",
+    });
+
+    const plan = await buildImplementationPlan(root, "unsafe-path");
+    expect(plan.tasks.every((task) => task.paths.length === 0)).toBe(true);
+  });
+
   it("assigns tasks based on file ownership", async () => {
     await claimOwnership(root, {
       agent: "claude-code",
@@ -248,19 +282,17 @@ describe("discussion-pipeline", () => {
     expect(repeated.handoffIds).toEqual(result.handoffIds);
     expect(repeated.reused).toBe(true);
     expect(
-      formatPlan(
-        repeated.plan,
-        false,
-        repeated.handoffsSent,
-        repeated.reused,
-      ),
+      formatPlan(repeated.plan, false, repeated.handoffsSent, repeated.reused),
     ).toContain("already dispatched");
   });
 
   it("bundles existing owned files into implementation handoffs", async () => {
     await initHandoff(root);
     await mkdir(join(root, "src/api"), { recursive: true });
-    await writeFile(join(root, "src/api/handler.ts"), "export const ok = true;\n");
+    await writeFile(
+      join(root, "src/api/handler.ts"),
+      "export const ok = true;\n",
+    );
     await claimOwnership(root, {
       agent: "claude-code",
       paths: ["src/api"],

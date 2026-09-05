@@ -558,6 +558,7 @@ function buildContractBody(
 
   const lines: string[] = [
     `// Auto-detected contract for ${sourceFile}`,
+    "// Snapshot only — the canonical source module remains authoritative.",
     `// ${symbols.length} shared export(s)`,
     `// loadout-source-sha256: sha256-${sourceHash}`,
     "",
@@ -611,7 +612,9 @@ export function formatDetectionResult(result: DetectionResult): string {
       `    Shared: ${c.sharedSymbols.map((s) => s.name).join(", ") || "(barrel/re-exports)"}`,
     );
     if (!c.publishable)
-      lines.push("    \x1b[31mManual declaration required before publishing.\x1b[0m");
+      lines.push(
+        "    \x1b[31mManual declaration required before publishing.\x1b[0m",
+      );
     lines.push("");
   }
 

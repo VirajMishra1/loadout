@@ -19,9 +19,7 @@ describe("auto-contract detection", () => {
   });
 
   it("normalizes Windows project paths at the scanner boundary", () => {
-    expect(normalizeProjectPath("src\\api\\types.ts")).toBe(
-      "src/api/types.ts",
-    );
+    expect(normalizeProjectPath("src\\api\\types.ts")).toBe("src/api/types.ts");
   });
 
   it("returns empty when no ownership exists", async () => {
@@ -303,10 +301,9 @@ describe("auto-contract detection", () => {
     const result = await detectContracts(root);
     const body = result.candidates[0].suggestedBody;
     expect(body).toContain("export interface Request { body: string; }");
-    expect(body).toContain(
-      "export function validate(r: Request): boolean;",
-    );
+    expect(body).toContain("export function validate(r: Request): boolean;");
     expect(body).toContain("2 shared export(s)");
+    expect(body).toMatch(/snapshot only/i);
     expect(body).not.toContain("/* ... */");
     expect(body).not.toContain("unknown");
     expect(result.candidates[0].publishable).toBe(true);

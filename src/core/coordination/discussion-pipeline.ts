@@ -7,13 +7,10 @@
 
 import { createHash } from "node:crypto";
 import { lstat } from "node:fs/promises";
-import { relative, resolve, sep } from "node:path";
+import { posix, relative, resolve, sep } from "node:path";
 import { getDiscussion, type DiscussionState } from "./discussion.js";
 import { emit, getOwnership, readCoordLog } from "./coordinator.js";
-import {
-  getHandoffState,
-  sendHandoff,
-} from "../delegation/handoff.js";
+import { getHandoffState, sendHandoff } from "../delegation/handoff.js";
 import {
   createHandoffBundle,
   removeHandoffBundle,
@@ -127,7 +124,10 @@ export async function buildImplementationPlan(
     })),
   });
   return {
-    planId: createHash("sha256").update(planIdentity).digest("hex").slice(0, 16),
+    planId: createHash("sha256")
+      .update(planIdentity)
+      .digest("hex")
+      .slice(0, 16),
     threadId,
     decision: discussion.finalDecision,
     tasks,
@@ -183,8 +183,8 @@ export async function executeImplementationPlan(
     let message;
     try {
       message = await sendHandoff(projectRoot, task.agent, task.description, {
-      from: "loadout",
-      type: "task",
+        from: "loadout",
+        type: "task",
         context: `${marker}\n${task.context}`,
         ...(bundle ? { bundle } : {}),
         verification: {
@@ -235,6 +235,27 @@ export async function runPipeline(
 // Matches file-like references: src/foo/bar.ts, lib/utils, ./components
 const PATH_PATTERN =
   /(?:^|\s|`)((?:\.\/|src\/|lib\/|app\/|packages\/|server\/|client\/|tests\/|test\/)[a-zA-Z0-9_\-/.]+)/g;
+const MAX_IMPLEMENTATION_PATHS = 256;
+
+function addImplementationPath(paths: Set<string>, candidate: string): void {
+  let path = candidate.trim().replace(/[.,;:!?)]+$/, "");
+  if (path.startsWith("./")) path = path.slice(2);
+  const normalized = posix.normalize(path);
+  if (
+    !normalized ||
+    normalized === "." ||
+    normalized === ".." ||
+    normalized.startsWith("../") ||
+    posix.isAbsolute(normalized)
+  )
+    return;
+  paths.add(normalized);
+  if (paths.size > MAX_IMPLEMENTATION_PATHS) {
+    throw new Error(
+      `Discussion references more than ${MAX_IMPLEMENTATION_PATHS} unique paths; narrow the decision before implementation`,
+    );
+  }
+}
 
 function extractPaths(discussion: DiscussionState): string[] {
   const paths = new Set<string>();
@@ -247,12 +268,7 @@ function extractPaths(discussion: DiscussionState): string[] {
     PATH_PATTERN.lastIndex = 0;
     let match;
     while ((match = PATH_PATTERN.exec(payload.content)) !== null) {
-      let path = match[1].trim();
-      // Clean trailing punctuation
-      path = path.replace(/[.,;:!?)]+$/, "");
-      // Normalize
-      if (path.startsWith("./")) path = path.slice(2);
-      if (path) paths.add(path);
+      addImplementationPath(paths, match[1]);
     }
   }
 
@@ -261,9 +277,7 @@ function extractPaths(discussion: DiscussionState): string[] {
     PATH_PATTERN.lastIndex = 0;
     let match;
     while ((match = PATH_PATTERN.exec(discussion.finalDecision)) !== null) {
-      let path = match[1].trim().replace(/[.,;:!?)]+$/, "");
-      if (path.startsWith("./")) path = path.slice(2);
-      if (path) paths.add(path);
+      addImplementationPath(paths, match[1]);
     }
   }
 
@@ -379,7 +393,9 @@ export function formatPlan(
       "\x1b[90mDry run — no handoffs sent. Add --yes to send tasks.\x1b[0m",
     );
   } else if (reused) {
-    lines.push("\x1b[32m✓ This plan was already dispatched; no duplicate tasks were created.\x1b[0m");
+    lines.push(
+      "\x1b[32m✓ This plan was already dispatched; no duplicate tasks were created.\x1b[0m",
+    );
   } else {
     lines.push(`\x1b[32m✓ ${handoffsSent} handoff task(s) sent.\x1b[0m`);
     lines.push(

@@ -8,5 +8,5 @@
 - [x] Make discussion implementation linked, bundled, and idempotent.
 - [x] Complete documentation and automated user-flow coverage.
 - [x] Run bounded real Claude Code ↔ Codex discussion and handoff exercises.
-- [ ] Pass `npm run verify:full` and green Ubuntu/Windows GitHub Actions.
-- [ ] Review, version, tag, publish, and create the GitHub release.
+- [x] Pass `npm run verify:full` and green Ubuntu/Windows GitHub Actions.
+- [x] Review, version, tag, publish, and create the GitHub release.

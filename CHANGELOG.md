@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.9.1 - 2026-09-05
+
 ### Added
 
 - Snapshot capture and restore preserve Unix file permission modes, with

@@ -219,6 +219,17 @@ describe("git-ownership", () => {
     expect(stats).toEqual([]);
   });
 
+  it("rejects invalid history bounds", async () => {
+    const { scanGitHistory } =
+      await import("../src/core/coordination/git-ownership.js");
+    await expect(scanGitHistory(projectRoot, { depth: 0 })).rejects.toThrow(
+      /depth/i,
+    );
+    await expect(
+      scanGitHistory(projectRoot, { maxCommits: 0 }),
+    ).rejects.toThrow(/max commits/i);
+  });
+
   it("skips node_modules and .git directories", async () => {
     const { scanGitHistory } =
       await import("../src/core/coordination/git-ownership.js");

@@ -98,6 +98,10 @@ export async function scanGitHistory(
 ): Promise<GitAuthorStats[]> {
   const maxCommits = options.maxCommits ?? 200;
   const depth = options.depth ?? 1;
+  if (!Number.isInteger(maxCommits) || maxCommits < 1 || maxCommits > 10_000)
+    throw new Error("Max commits must be an integer from 1 to 10000");
+  if (!Number.isInteger(depth) || depth < 1 || depth > 20)
+    throw new Error("Directory depth must be an integer from 1 to 20");
 
   let stdout: string;
   try {

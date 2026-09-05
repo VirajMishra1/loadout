@@ -227,6 +227,8 @@ export interface SnapshotFile {
   directory?: boolean;
   content?: string;
   encoding?: "base64";
+  /** Unix file permissions (e.g. 0o755). Stored for files and directories. */
+  mode?: number;
 }
 
 export interface Snapshot {

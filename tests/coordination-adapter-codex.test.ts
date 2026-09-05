@@ -9,6 +9,7 @@ class FakeThread implements CodexThreadDriver {
   id: string | null;
   readonly prompts: string[] = [];
   private readonly assignedId: string;
+  abort?(): void;
 
   constructor(id: string | null, assignedId = "codex-thread-1") {
     this.id = id;
@@ -119,5 +120,95 @@ describe("CodexAdapter", () => {
     finishTurn?.();
     await expect(first).resolves.toBe(true);
     expect(session.busy).toBe(false);
+  });
+
+  it("aborts start when signal fires during the initial run", async () => {
+    const controller = new AbortController();
+    let runResolve: (() => void) | undefined;
+    const thread = new FakeThread(null);
+    thread.run = () =>
+      new Promise((resolve) => {
+        runResolve = () => resolve({});
+      });
+    const abortCalled: boolean[] = [];
+    thread.abort = () => {
+      abortCalled.push(true);
+    };
+    const driver: CodexSdkDriver = {
+      startThread: () => thread,
+      resumeThread: () => thread,
+    };
+    const adapter = new CodexAdapter(driver);
+
+    const startPromise = adapter.start({
+      cwd: "/work",
+      prompt: "Build it",
+      signal: controller.signal,
+    });
+    controller.abort();
+    await expect(startPromise).rejects.toThrow();
+    expect(abortCalled).toHaveLength(1);
+    runResolve?.(); // clean up
+  });
+
+  it("aborts submitTurn and releases busy state", async () => {
+    const driver = new FakeCodexDriver();
+    const adapter = new CodexAdapter(driver);
+    const session = await adapter.resume("codex-thread-1", "/work");
+
+    const controller = new AbortController();
+    let runResolve: (() => void) | undefined;
+    const thread = driver.resumedThread!;
+    thread.run = (prompt: string) => {
+      return new Promise((resolve) => {
+        runResolve = () => resolve({ finalResponse: `response:${prompt}` });
+      });
+    };
+
+    const turnPromise = adapter.submitTurn(session, {
+      message: "Do something",
+      signal: controller.signal,
+    });
+    controller.abort();
+    const result = await turnPromise;
+    expect(result).toBe(false);
+    expect(session.busy).toBe(false);
+    runResolve?.(); // clean up
+  });
+
+  it("rejects start immediately when signal is already aborted", async () => {
+    const driver = new FakeCodexDriver();
+    const adapter = new CodexAdapter(driver);
+    const controller = new AbortController();
+    controller.abort();
+
+    await expect(
+      adapter.start({ cwd: "/work", prompt: "Hi", signal: controller.signal }),
+    ).rejects.toThrow();
+    expect(driver.startCalls).toHaveLength(0);
+  });
+
+  it("permits a new turn after a cancelled one", async () => {
+    const driver = new FakeCodexDriver();
+    const adapter = new CodexAdapter(driver);
+    const session = await adapter.resume("codex-thread-1", "/work");
+
+    // Cancel first turn
+    const controller = new AbortController();
+    const thread = driver.resumedThread!;
+    thread.run = () => new Promise(() => {}); // never resolves
+    const turnPromise = adapter.submitTurn(session, {
+      message: "Cancel me",
+      signal: controller.signal,
+    });
+    controller.abort();
+    await turnPromise;
+
+    // Session should accept new turn
+    expect(session.busy).toBe(false);
+    expect(session.active).toBe(true);
+    thread.run = async (prompt: string) => ({ finalResponse: `ok:${prompt}` });
+    const result = await adapter.submitTurn(session, { message: "Try again" });
+    expect(result).toBe(true);
   });
 });

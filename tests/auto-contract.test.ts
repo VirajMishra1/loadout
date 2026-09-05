@@ -335,4 +335,64 @@ describe("auto-contract detection", () => {
     expect(candidate.publishable).toBe(false);
     expect(candidate.suggestedBody).toContain("MANUAL");
   });
+
+  it("captures inline-typed imports from mixed import statements", async () => {
+    await mkdir(join(root, "api"), { recursive: true });
+    await mkdir(join(root, "web"), { recursive: true });
+    await writeFile(
+      join(root, "api/schema.ts"),
+      [
+        "export interface Request { body: string; }",
+        'export type Mode = "dev" | "prod";',
+      ].join("\n"),
+    );
+    await writeFile(
+      join(root, "web/page.ts"),
+      'import { Request, type Mode } from "../api/schema.js";\n',
+    );
+
+    await claimOwnership(root, {
+      agent: "a",
+      paths: ["api"],
+      mode: "exclusive",
+    });
+    await claimOwnership(root, {
+      agent: "b",
+      paths: ["web"],
+      mode: "exclusive",
+    });
+
+    const result = await detectContracts(root);
+    const symbols = result.candidates[0].sharedSymbols.map((s) => s.name);
+    expect(symbols).toContain("Request");
+    expect(symbols).toContain("Mode");
+  });
+
+  it("rejects incomplete multi-line const declarations as unpublishable", async () => {
+    await mkdir(join(root, "api"), { recursive: true });
+    await mkdir(join(root, "web"), { recursive: true });
+    await writeFile(
+      join(root, "api/config.ts"),
+      "export const CONFIG = {\n  port: 3000,\n  host: 'localhost',\n};\n",
+    );
+    await writeFile(
+      join(root, "web/app.ts"),
+      'import { CONFIG } from "../api/config.js";\n',
+    );
+
+    await claimOwnership(root, {
+      agent: "a",
+      paths: ["api"],
+      mode: "exclusive",
+    });
+    await claimOwnership(root, {
+      agent: "b",
+      paths: ["web"],
+      mode: "exclusive",
+    });
+
+    const candidate = (await detectContracts(root)).candidates[0];
+    expect(candidate.publishable).toBe(false);
+    expect(candidate.suggestedBody).toContain("MANUAL");
+  });
 });

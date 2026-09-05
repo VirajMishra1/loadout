@@ -8,8 +8,12 @@
 
 import { readFile, writeFile, rename, stat, mkdir } from "node:fs/promises";
 import { join } from "node:path";
+import type { CoordinationEvent } from "./events.js";
 import { assertCoordinationEnabled, readCoordLog } from "./coordinator.js";
 import { withCoordinationLock } from "./lock.js";
+
+/** Event types whose latest value defines current system state. */
+const STATE_BEARING_TYPES = new Set(["ownership", "contract", "decision"]);
 
 const COORD_DIR = ".handoff";
 const COORD_LOG = "coordination.jsonl";
@@ -63,8 +67,13 @@ export async function compact(
     const ageStart = firstFresh === -1 ? log.events.length : firstFresh;
     const countStart = Math.max(0, log.events.length - config.maxEvents);
     const keepStart = Math.max(ageStart, countStart);
-    const remove = log.events.slice(0, keepStart);
-    const finalRetained = log.events.slice(keepStart);
+    const removable = log.events.slice(0, keepStart);
+    const keptByIndex = log.events.slice(keepStart);
+
+    // Preserve state-bearing events that would otherwise be lost.
+    const stateCheckpoints = extractStateCheckpoints(removable, keptByIndex);
+    const finalRetained = [...stateCheckpoints, ...keptByIndex];
+    const remove = removable.filter((e) => !stateCheckpoints.includes(e));
 
     if (remove.length === 0) {
       return {
@@ -167,5 +176,54 @@ export async function logSize(
       return { events: 0, bytes: 0 };
     }
     throw error;
+  }
+}
+
+/**
+ * Extract the latest state-bearing events from the removable set that are not
+ * already represented in the kept set. Ownership, contracts, and decisions
+ * define current system state — losing them during compaction would silently
+ * drop ownership claims, contract revisions, or active decisions.
+ */
+function extractStateCheckpoints(
+  removable: CoordinationEvent[],
+  kept: CoordinationEvent[],
+): CoordinationEvent[] {
+  const keptKeys = new Set<string>();
+  for (const e of kept) {
+    const key = stateKey(e);
+    if (key) keptKeys.add(key);
+  }
+
+  // Walk removable in reverse to find the *latest* event per state key.
+  const seen = new Set<string>();
+  const checkpoints: CoordinationEvent[] = [];
+  for (let i = removable.length - 1; i >= 0; i--) {
+    const e = removable[i]!;
+    const key = stateKey(e);
+    if (!key) continue;
+    if (keptKeys.has(key) || seen.has(key)) continue;
+    seen.add(key);
+    checkpoints.push(e);
+  }
+
+  // Return in original chronological order.
+  return checkpoints.reverse();
+}
+
+function stateKey(event: CoordinationEvent): string | undefined {
+  if (!STATE_BEARING_TYPES.has(event.type) || !event.payload) return undefined;
+  const p = event.payload as Record<string, unknown>;
+  switch (event.type) {
+    case "ownership":
+      // Key by agent + sorted paths — an ownership event replaces the previous
+      // one for the same agent/path combination.
+      return `ownership:${event.from}:${((p.paths as string[]) ?? []).sort().join(",")}`;
+    case "contract":
+      return `contract:${p.name as string}`;
+    case "decision":
+      return `decision:${p.title as string}`;
+    default:
+      return undefined;
   }
 }

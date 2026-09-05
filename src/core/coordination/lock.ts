@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { open, readFile, rm, stat } from "node:fs/promises";
+import { open, readFile, rename, rm, stat } from "node:fs/promises";
 import { join } from "node:path";
 
 const LOCK_FILE = "coordination.lock";
@@ -95,12 +95,32 @@ export async function withCoordinationLock<T>(
       } finally {
         await handle.close();
       }
-      break;
+      // Verify we still own the lock — another recovery could have renamed
+      // our lock file away between open and write in a tight race.
+      const verification = await readFile(path, "utf8").catch(() => null);
+      if (verification !== null) {
+        try {
+          const parsed = JSON.parse(verification) as Partial<LockOwner>;
+          if (parsed.token === token) break;
+        } catch {
+          // Corrupted lock file — retry
+        }
+      }
+      // Someone else owns the lock now — retry
+      continue;
     } catch (error) {
       if (errorCode(error) !== "EEXIST") throw error;
 
       if (await lockCanBeRecovered(path)) {
-        await rm(path, { force: true });
+        // Atomic recovery: rename claims the stale file; only one recoverer
+        // can win the rename since the source is a single path.
+        const recoveryPath = `${path}.${token}.recovery`;
+        try {
+          await rename(path, recoveryPath);
+          await rm(recoveryPath, { force: true });
+        } catch (error) {
+          if (errorCode(error) !== "ENOENT") throw error;
+        }
         continue;
       }
       if (Date.now() >= deadline) {

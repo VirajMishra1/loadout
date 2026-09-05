@@ -4,6 +4,12 @@
 
 ### Added
 
+- Snapshot capture and restore preserve Unix file permission modes, with
+  validation that rejects out-of-range values and tolerance for legacy
+  snapshots missing the `mode` field.
+- Provider cancellation via `AbortSignal` on adapter `start()` and
+  `submitTurn()` methods. Cancelled turns release the busy flag so new
+  turns can proceed.
 - Opt-in `loadout handoff ... --bundle <paths...>` context snapshots give the
   receiving agent exact source context, with versioned references and visible
   truncation metadata, while preserving all existing handoff messages.
@@ -18,6 +24,12 @@
 
 ### Changed
 
+- Log compaction preserves ownership, contract, and decision state by
+  extracting the latest checkpoint for each state key before removing events.
+  Double compaction is stable.
+- Auto-detected contracts handle mixed `import { A, type B }` syntax and
+  reject incomplete multi-line `const` declarations as unpublishable instead
+  of emitting truncated contract bodies.
 - Auto-detected contracts preserve exact supported declarations, expose a
   source hash, distinguish current from stale revisions, and require both
   `--publish` and `--yes`. Unsupported declarations require manual completion.
@@ -28,6 +40,9 @@
 
 ### Fixed
 
+- Coordination lock recovery uses atomic rename so concurrent recoverers
+  cannot both delete and recreate the lock file. Post-acquisition token
+  verification ensures the winner still holds the lock after write.
 - Normalized contract-scanner paths across Windows and POSIX platforms and made
   the verification cwd test independent of Windows short-path spelling.
 - Removed generated directories and redundant parent/child claims from

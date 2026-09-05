@@ -27,6 +27,8 @@ export interface CodexThreadOptions {
 export interface CodexThreadDriver {
   readonly id: string | null;
   run(prompt: string): Promise<unknown>;
+  /** Abort the current run if supported. */
+  abort?(): void;
 }
 
 export interface CodexSdkDriver {
@@ -45,6 +47,35 @@ function requireThreadId(thread: CodexThreadDriver): string {
     throw new Error("Codex SDK did not return a valid thread id");
   }
   return id;
+}
+
+async function withAbort(
+  promise: Promise<unknown>,
+  thread: CodexThreadDriver,
+  signal?: AbortSignal,
+): Promise<unknown> {
+  if (!signal) return promise;
+  signal.throwIfAborted();
+  return new Promise((resolve, reject) => {
+    const onAbort = () => {
+      thread.abort?.();
+      reject(
+        signal.reason ??
+          new DOMException("The operation was aborted", "AbortError"),
+      );
+    };
+    signal.addEventListener("abort", onAbort, { once: true });
+    promise.then(
+      (value) => {
+        signal.removeEventListener("abort", onAbort);
+        resolve(value);
+      },
+      (error) => {
+        signal.removeEventListener("abort", onAbort);
+        reject(error);
+      },
+    );
+  });
 }
 
 function responseFromRun(result: unknown): string | undefined {
@@ -92,10 +123,12 @@ export class CodexAdapter implements AgentAdapter {
     if (options.resumeSessionId) {
       throw new Error("Use resume() to continue a Codex thread");
     }
+    options.signal?.throwIfAborted();
     const thread = this.driver.startThread({
       workingDirectory: options.cwd,
     });
-    const result = await thread.run(options.prompt ?? "");
+    const runPromise = thread.run(options.prompt ?? "");
+    const result = await withAbort(runPromise, thread, options.signal);
     const sessionId = requireThreadId(thread);
     const session: AgentSession = {
       sessionId,
@@ -143,7 +176,8 @@ export class CodexAdapter implements AgentAdapter {
     if (!thread) return false;
     session.busy = true;
     try {
-      const result = await thread.run(options.message);
+      const runPromise = thread.run(options.message);
+      const result = await withAbort(runPromise, thread, options.signal);
       const response = responseFromRun(result);
       if (response) this.responses.set(session.sessionId, response);
       return true;

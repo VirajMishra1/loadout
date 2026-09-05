@@ -178,7 +178,13 @@ function exactDeclaration(line: string, kind: string): string | undefined {
     return line.includes("{") && line.includes("}") ? line : undefined;
   }
   if (kind === "type" || kind === "const") {
-    return line.includes("=") ? line : undefined;
+    if (!line.includes("=")) return undefined;
+    // Reject incomplete multi-line declarations (opens a block without closing it).
+    const afterEq = line.slice(line.indexOf("=") + 1).trim();
+    if (afterEq.includes("{") && !afterEq.includes("}")) return undefined;
+    if (afterEq.includes("(") && !afterEq.includes(")")) return undefined;
+    if (afterEq.includes("[") && !afterEq.includes("]")) return undefined;
+    return line;
   }
   return undefined;
 }
@@ -221,6 +227,7 @@ function scanImports(content: string): ImportInfo[] {
               .map((s) =>
                 s
                   .trim()
+                  .replace(/^type\s+/, "")
                   .split(/\s+as\s+/)[0]
                   .trim(),
               )

@@ -7,6 +7,7 @@ import {
   rename,
   rm,
   lstat,
+  chmod,
 } from "node:fs/promises";
 import { dirname, join, resolve, sep } from "node:path";
 import type { Snapshot, SnapshotFile } from "../../shared/types.js";
@@ -50,12 +51,18 @@ export async function createSnapshot(
         existed: true,
         content: (await readFile(path)).toString("base64"),
         encoding: "base64",
+        mode: info.mode & 0o777,
       });
       return;
     }
     if (!info.isDirectory())
       throw new Error(`Refusing unsupported snapshot target: ${path}`);
-    snapshot.files.push({ path, existed: true, directory: true });
+    snapshot.files.push({
+      path,
+      existed: true,
+      directory: true,
+      mode: info.mode & 0o777,
+    });
     const entries = (await readdir(path, { withFileTypes: true })).sort(
       (left, right) => left.name.localeCompare(right.name),
     );
@@ -64,14 +71,16 @@ export async function createSnapshot(
       if (entry.isSymbolicLink())
         throw new Error(`Refusing to snapshot symlink: ${child}`);
       if (entry.isDirectory()) await capture(child);
-      else if (entry.isFile())
+      else if (entry.isFile()) {
+        const childInfo = await lstat(child);
         snapshot.files.push({
           path: child,
           existed: true,
           content: (await readFile(child)).toString("base64"),
           encoding: "base64",
+          mode: childInfo.mode & 0o777,
         });
-      else throw new Error(`Refusing unsupported snapshot target: ${child}`);
+      } else throw new Error(`Refusing unsupported snapshot target: ${child}`);
     }
   }
   for (const path of snapshot.roots) await capture(path);
@@ -99,8 +108,10 @@ export async function restoreSnapshot(
     await rm(root, { recursive: true, force: true });
   for (const directory of snapshot.files
     .filter((file) => file.existed && file.directory)
-    .sort((a, b) => a.path.length - b.path.length))
+    .sort((a, b) => a.path.length - b.path.length)) {
     await mkdir(directory.path, { recursive: true });
+    if (directory.mode !== undefined) await chmod(directory.path, directory.mode);
+  }
   for (const file of snapshot.files) {
     if (!file.existed || file.directory) continue;
     await mkdir(dirname(file.path), { recursive: true });
@@ -110,6 +121,7 @@ export async function restoreSnapshot(
         ? Buffer.from(file.content ?? "", "base64")
         : (file.content ?? ""),
     );
+    if (file.mode !== undefined) await chmod(file.path, file.mode);
   }
 }
 
@@ -329,7 +341,12 @@ function validateSnapshotFiles(
       typeof file.existed !== "boolean" ||
       (file.directory !== undefined && typeof file.directory !== "boolean") ||
       (file.content !== undefined && typeof file.content !== "string") ||
-      (file.encoding !== undefined && file.encoding !== "base64")
+      (file.encoding !== undefined && file.encoding !== "base64") ||
+      (file.mode !== undefined &&
+        (typeof file.mode !== "number" ||
+          !Number.isInteger(file.mode) ||
+          file.mode < 0 ||
+          file.mode > 0o7777))
     )
       throw new Error(`${label} file ${index} is invalid`);
     const filePath = file.path;

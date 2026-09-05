@@ -24,7 +24,7 @@ describe("npm release contract", () => {
     };
 
     expect(manifest.name).toBe("loadout-ai");
-    expect(manifest.version).toBe("0.9.0");
+    expect(manifest.version).toBe("0.9.1");
     expect(lockfile.version).toBe(manifest.version);
     expect(lockfile.packages?.[""]?.version).toBe(manifest.version);
     expect(manifest.private).toBe(false);

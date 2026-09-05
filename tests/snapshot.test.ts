@@ -9,6 +9,7 @@ import {
   readdir,
   rm,
   writeFile,
+  chmod,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, parse } from "node:path";
@@ -20,6 +21,7 @@ import {
   summarizeSnapshot,
   validateSnapshot,
 } from "../src/core/install/snapshot.js";
+import type { Snapshot } from "../src/shared/types.js";
 
 describe("rollback snapshots", () => {
   let root = "";
@@ -294,4 +296,109 @@ describe("rollback snapshots", () => {
       ).toThrow(/bytes are invalid/);
     },
   );
+
+  it.skipIf(process.platform === "win32")(
+    "preserves file permission modes through snapshot and restore",
+    async () => {
+      root = await mkdtemp(join(tmpdir(), "loadout-snapshot-mode-"));
+      process.env.LOADOUT_HOME = join(root, ".loadout");
+      const target = join(root, "target");
+      await mkdir(target, { recursive: true });
+      const script = join(target, "run.sh");
+      await writeFile(script, "#!/bin/sh\necho ok\n");
+      await chmod(script, 0o755);
+      const snapshot = await createSnapshot([target]);
+      // Verify mode was captured
+      const captured = snapshot.files.find((f) => f.path === script);
+      expect(captured?.mode).toBe(0o755);
+      // Trash and restore
+      await writeFile(script, "corrupted");
+      await chmod(script, 0o644);
+      await restoreSnapshot(snapshot);
+      const restored = await lstat(script);
+      expect(restored.mode & 0o777).toBe(0o755);
+    },
+  );
+
+  it.skipIf(process.platform === "win32")(
+    "preserves directory permission modes through snapshot and restore",
+    async () => {
+      root = await mkdtemp(join(tmpdir(), "loadout-snapshot-dirmode-"));
+      process.env.LOADOUT_HOME = join(root, ".loadout");
+      const target = join(root, "target");
+      const restricted = join(target, "private");
+      await mkdir(restricted, { recursive: true });
+      await chmod(restricted, 0o700);
+      const snapshot = await createSnapshot([target]);
+      const captured = snapshot.files.find((f) => f.path === restricted);
+      expect(captured?.mode).toBe(0o700);
+      await rm(restricted, { recursive: true });
+      await restoreSnapshot(snapshot);
+      const restored = await lstat(restricted);
+      expect(restored.mode & 0o777).toBe(0o700);
+    },
+  );
+
+  it("tolerates legacy snapshots without mode fields", async () => {
+    root = await mkdtemp(join(tmpdir(), "loadout-snapshot-legacy-mode-"));
+    process.env.LOADOUT_HOME = join(root, ".loadout");
+    const target = join(root, "target");
+    await mkdir(target, { recursive: true });
+    await writeFile(join(target, "file.txt"), "content");
+    // Build a snapshot manually without mode fields (legacy format)
+    const snapshot: Snapshot = {
+      id: `${Date.now()}-${"e".repeat(12)}`,
+      createdAt: new Date().toISOString(),
+      roots: [target],
+      files: [
+        { path: target, existed: true, directory: true },
+        {
+          path: join(target, "file.txt"),
+          existed: true,
+          content: Buffer.from("content").toString("base64"),
+          encoding: "base64",
+        },
+      ],
+    };
+    // Should not throw — mode is optional
+    await rm(target, { recursive: true });
+    await restoreSnapshot(snapshot);
+    expect(await readFile(join(target, "file.txt"), "utf8")).toBe("content");
+  });
+
+  it("rejects invalid permission mode values", () => {
+    const target = join(tmpdir(), "loadout-invalid-mode.bin");
+    expect(() =>
+      validateSnapshot({
+        id: `${Date.now()}-${"f".repeat(12)}`,
+        createdAt: new Date().toISOString(),
+        roots: [target],
+        files: [
+          {
+            path: target,
+            existed: true,
+            content: "dGVzdA==",
+            encoding: "base64",
+            mode: -1,
+          },
+        ],
+      }),
+    ).toThrow();
+    expect(() =>
+      validateSnapshot({
+        id: `${Date.now()}-${"f".repeat(12)}`,
+        createdAt: new Date().toISOString(),
+        roots: [target],
+        files: [
+          {
+            path: target,
+            existed: true,
+            content: "dGVzdA==",
+            encoding: "base64",
+            mode: 0o10000,
+          },
+        ],
+      }),
+    ).toThrow();
+  });
 });

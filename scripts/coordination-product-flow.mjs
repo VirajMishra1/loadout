@@ -117,6 +117,85 @@ const completion = JSON.parse(
 assert.equal(completion.completed, true);
 assert.match(completion.message.evidence.stdout, /verified/);
 
+// ── Phase 5: Discussion → implementation flow ────────────────────────
+const discussion = JSON.parse(
+  (
+    await loadout(
+      "coord",
+      "discuss",
+      "start",
+      "api-design",
+      "--topic",
+      "REST vs GraphQL for checkout",
+      "--agents",
+      "claude-code,codex",
+      "--json",
+    )
+  ).stdout,
+);
+assert.ok(discussion.threadId, "discussion should have a thread ID");
+
+await loadout(
+  "coord",
+  "discuss",
+  "vote",
+  discussion.threadId,
+  "--agent",
+  "claude-code",
+  "--vote",
+  "REST",
+  "--reason",
+  "Simpler for this use case",
+);
+
+await loadout(
+  "coord",
+  "discuss",
+  "vote",
+  discussion.threadId,
+  "--agent",
+  "codex",
+  "--vote",
+  "REST",
+  "--reason",
+  "Agree with simplicity argument",
+);
+
+const decided = JSON.parse(
+  (
+    await loadout(
+      "coord",
+      "discuss",
+      "close",
+      discussion.threadId,
+      "--decision",
+      "Use REST for checkout API",
+      "--json",
+    )
+  ).stdout,
+);
+assert.ok(decided.closed || decided.decision, "discussion should be closed");
+
+// ── Phase 6: Compaction preserves state ──────────────────────────────
+// Add enough events to trigger compaction
+for (let i = 0; i < 15; i++) {
+  await loadout("coord", "emit", "--from", "loadout", "--type", "status", "--description", `padding event ${i}`);
+}
+
+const compactionResult = JSON.parse(
+  (await loadout("coord", "compact", "--max-events", "5", "--json")).stdout,
+);
+assert.equal(compactionResult.compacted, true);
+
+// Ownership must survive compaction
+const postCompactDetect = JSON.parse(
+  (await loadout("coord", "detect", "--json")).stdout,
+);
+assert.ok(
+  postCompactDetect.candidates.length >= 1,
+  "contract candidates should survive compaction",
+);
+
 console.log(
-  "Coordination product flow passed: preview/apply ownership -> exact contract -> template bundle -> verified handoff.",
+  "Coordination product flow passed: preview/apply ownership -> exact contract -> template bundle -> verified handoff -> discussion/vote/close -> compaction with state preservation.",
 );

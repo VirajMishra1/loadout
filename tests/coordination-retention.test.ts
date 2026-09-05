@@ -2,7 +2,14 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { chmod, mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { emit, readCoordLog } from "../src/core/coordination/coordinator.js";
+import {
+  claimOwnership,
+  emit,
+  getContracts,
+  getOwnership,
+  publishContract,
+  readCoordLog,
+} from "../src/core/coordination/coordinator.js";
 import { compact, logSize } from "../src/core/coordination/retention.js";
 import { activateKillSwitch } from "../src/core/coordination/crash-recovery.js";
 
@@ -176,4 +183,134 @@ describe("logSize", () => {
       }
     },
   );
+});
+
+describe("retention equivalence", () => {
+  it("preserves ownership claims through compaction", async () => {
+    await claimOwnership(root, {
+      agent: "claude-code",
+      paths: ["src/api"],
+      mode: "exclusive",
+    });
+    // Pad with enough tasks to trigger compaction
+    for (let i = 0; i < 20; i++) {
+      await emit(root, {
+        from: "agent",
+        to: "*",
+        type: "task",
+        description: `padding ${i}`,
+      });
+    }
+
+    const ownershipBefore = await getOwnership(root);
+    expect(ownershipBefore.size).toBe(1);
+
+    const result = await compact(root, { maxEvents: 5, maxAgeDays: 30 });
+    expect(result.compacted).toBe(true);
+    expect(result.removed).toBeGreaterThan(0);
+
+    const ownershipAfter = await getOwnership(root);
+    expect(ownershipAfter.size).toBe(1);
+    const claim = [...ownershipAfter.values()][0]!;
+    expect(claim.agent).toBe("claude-code");
+    expect(claim.paths).toContain("src/api");
+  });
+
+  it("preserves contract revisions through compaction", async () => {
+    await publishContract(root, {
+      from: "claude-code",
+      name: "auth-api",
+      body: "export interface Token { value: string; }",
+      format: "typescript",
+    });
+    await publishContract(root, {
+      from: "claude-code",
+      name: "auth-api",
+      body: "export interface Token { value: string; exp: number; }",
+      format: "typescript",
+    });
+    for (let i = 0; i < 20; i++) {
+      await emit(root, {
+        from: "agent",
+        to: "*",
+        type: "task",
+        description: `padding ${i}`,
+      });
+    }
+
+    const contractsBefore = await getContracts(root);
+    expect(contractsBefore.get("auth-api")!.revision).toBe(2);
+
+    await compact(root, { maxEvents: 5, maxAgeDays: 30 });
+
+    const contractsAfter = await getContracts(root);
+    expect(contractsAfter.get("auth-api")).toBeDefined();
+    expect(contractsAfter.get("auth-api")!.revision).toBe(2);
+    expect(contractsAfter.get("auth-api")!.body).toContain("exp: number");
+  });
+
+  it("preserves released ownership as released after compaction", async () => {
+    await claimOwnership(root, {
+      agent: "claude-code",
+      paths: ["src/api"],
+      mode: "exclusive",
+    });
+    const { releaseOwnership } = await import(
+      "../src/core/coordination/coordinator.js"
+    );
+    await releaseOwnership(root, {
+      agent: "claude-code",
+      paths: ["src/api"],
+    });
+    for (let i = 0; i < 20; i++) {
+      await emit(root, {
+        from: "agent",
+        to: "*",
+        type: "task",
+        description: `padding ${i}`,
+      });
+    }
+
+    expect((await getOwnership(root)).size).toBe(0);
+    await compact(root, { maxEvents: 5, maxAgeDays: 30 });
+    expect((await getOwnership(root)).size).toBe(0);
+  });
+
+  it("produces stable state after double compaction", async () => {
+    await claimOwnership(root, {
+      agent: "codex",
+      paths: ["tests"],
+      mode: "exclusive",
+    });
+    await publishContract(root, {
+      from: "codex",
+      name: "db-schema",
+      body: "CREATE TABLE users (id INT);",
+    });
+    for (let i = 0; i < 30; i++) {
+      await emit(root, {
+        from: "agent",
+        to: "*",
+        type: "task",
+        description: `padding ${i}`,
+      });
+    }
+
+    await compact(root, { maxEvents: 10, maxAgeDays: 30 });
+    const afterFirst = await readCoordLog(root);
+
+    await compact(root, { maxEvents: 5, maxAgeDays: 30 });
+    const afterSecond = await readCoordLog(root);
+
+    // State must survive both rounds
+    const ownership = await getOwnership(root);
+    expect([...ownership.values()][0]!.agent).toBe("codex");
+    const contracts = await getContracts(root);
+    expect(contracts.get("db-schema")!.body).toContain("CREATE TABLE");
+
+    // Second compaction should not lose the checkpoints
+    expect(afterSecond.events.length).toBeLessThanOrEqual(
+      afterFirst.events.length,
+    );
+  });
 });

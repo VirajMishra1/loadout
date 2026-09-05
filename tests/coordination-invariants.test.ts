@@ -64,6 +64,39 @@ describe("cross-process coordination", () => {
   });
 });
 
+describe("abandoned coordination lock recovery", () => {
+  it("keeps competing recoverers out of each other's critical sections", async () => {
+    const dir = join(root, ".handoff");
+    await mkdir(dir, { recursive: true });
+    for (let trial = 0; trial < 10; trial++) {
+      await writeFile(
+        join(dir, "coordination.lock"),
+        JSON.stringify({
+          token: "previous-process",
+          pid: 2147483647,
+          createdAt: new Date().toISOString(),
+        }),
+      );
+      let active = 0;
+      let maximum = 0;
+      await Promise.all(
+        Array.from({ length: 12 }, () =>
+          withCoordinationLock(dir, async () => {
+            active++;
+            maximum = Math.max(maximum, active);
+            try {
+              await new Promise((resolve) => setTimeout(resolve, 5));
+            } finally {
+              active--;
+            }
+          }),
+        ),
+      );
+      expect(maximum).toBe(1);
+    }
+  });
+});
+
 describe("coordination invariants", () => {
   it("stores the project coordination log with owner-only permissions", async () => {
     await emit(root, {

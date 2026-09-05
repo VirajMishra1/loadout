@@ -49,6 +49,8 @@ export interface SubmitTurnOptions {
   message: string;
   /** Timeout in milliseconds. */
   timeout?: number;
+  /** Abort signal to cancel the turn. */
+  signal?: AbortSignal;
 }
 
 export interface StartOptions {
@@ -62,6 +64,8 @@ export interface StartOptions {
   flags?: string[];
   /** Timeout for the initial provider turn in milliseconds. */
   timeout?: number;
+  /** Abort signal to cancel the initial turn. */
+  signal?: AbortSignal;
 }
 
 export interface AgentAdapter {

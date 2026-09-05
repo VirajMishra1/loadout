@@ -110,7 +110,8 @@ export async function restoreSnapshot(
     .filter((file) => file.existed && file.directory)
     .sort((a, b) => a.path.length - b.path.length)) {
     await mkdir(directory.path, { recursive: true });
-    if (directory.mode !== undefined) await chmod(directory.path, directory.mode);
+    if (directory.mode !== undefined)
+      await chmod(directory.path, directory.mode);
   }
   for (const file of snapshot.files) {
     if (!file.existed || file.directory) continue;

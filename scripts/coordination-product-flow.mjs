@@ -179,7 +179,16 @@ assert.ok(decided.closed || decided.decision, "discussion should be closed");
 // ── Phase 6: Compaction preserves state ──────────────────────────────
 // Add enough events to trigger compaction
 for (let i = 0; i < 15; i++) {
-  await loadout("coord", "emit", "--from", "loadout", "--type", "status", "--description", `padding event ${i}`);
+  await loadout(
+    "coord",
+    "emit",
+    "--from",
+    "loadout",
+    "--type",
+    "status",
+    "--description",
+    `padding event ${i}`,
+  );
 }
 
 const compactionResult = JSON.parse(

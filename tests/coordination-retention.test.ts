@@ -255,9 +255,8 @@ describe("retention equivalence", () => {
       paths: ["src/api"],
       mode: "exclusive",
     });
-    const { releaseOwnership } = await import(
-      "../src/core/coordination/coordinator.js"
-    );
+    const { releaseOwnership } =
+      await import("../src/core/coordination/coordinator.js");
     await releaseOwnership(root, {
       agent: "claude-code",
       paths: ["src/api"],

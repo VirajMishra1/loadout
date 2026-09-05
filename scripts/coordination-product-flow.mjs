@@ -124,12 +124,9 @@ assert.match(completion.message.evidence.stdout, /verified/);
 for (let i = 0; i < 15; i++) {
   await loadout(
     "coord",
-    "emit",
-    "--from",
-    "loadout",
-    "--type",
-    "status",
-    "--description",
+    "update",
+    "claude-code",
+    "--note",
     `padding event ${i}`,
   );
 }

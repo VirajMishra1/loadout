@@ -215,11 +215,16 @@ export function registerCoordinate(program: Command): void {
       "--agents <agents>",
       "agent=Git Author mappings, comma-separated (exact names also work)",
     )
-    .option("--depth <n>", "directory grouping depth (default 1)", parseInt, 1)
+    .option(
+      "--depth <n>",
+      "directory grouping depth (default 1)",
+      (_v: string) => Number(_v),
+      1,
+    )
     .option(
       "--threshold <n>",
       "minimum % of commits to suggest ownership (default 60)",
-      parseInt,
+      (_v: string) => Number(_v),
       60,
     )
     .option("--max-commits <n>", "max commits to scan (default 200)", parseInt)
@@ -498,7 +503,12 @@ export function registerCoordinate(program: Command): void {
     .command("subscribe")
     .description("Read events after a cursor")
     .argument("<agent>", "subscribing agent")
-    .option("--cursor <n>", "sequence number to read after", parseInt, -1)
+    .option(
+      "--cursor <n>",
+      "sequence number to read after",
+      (_v: string) => Number(_v),
+      -1,
+    )
     .option("--json", "machine-readable JSON output")
     .action(
       async (agent: string, options: { cursor: number; json?: boolean }) => {
@@ -812,8 +822,13 @@ export function registerCoordinate(program: Command): void {
   coord
     .command("compact")
     .description("Compact the coordination log — archive old events")
-    .option("--max-events <n>", "max events to keep", parseInt, 10000)
-    .option("--max-age <days>", "max age in days", parseInt, 30)
+    .option(
+      "--max-events <n>",
+      "max events to keep",
+      (v: string) => Number(v),
+      10000,
+    )
+    .option("--max-age <days>", "max age in days", (v: string) => Number(v), 30)
     .option("--json", "machine-readable JSON output")
     .action(
       async (options: {
@@ -850,7 +865,7 @@ export function registerCoordinate(program: Command): void {
     .description(
       "Start the coordination daemon — HTTP server with live dashboard",
     )
-    .option("--port <n>", "port to listen on", parseInt, 4510)
+    .option("--port <n>", "port to listen on", (_v: string) => Number(_v), 4510)
     .action(async (options: { port: number }) => {
       const cwd = process.cwd();
       console.log(`Starting coordination daemon on port ${options.port}...`);

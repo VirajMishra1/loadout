@@ -97,9 +97,9 @@ describe("handoff templates", () => {
     const packagePath = join(projectRoot, "package.json");
     await writeFile(packagePath, '{"private":true}\n');
 
-    await expect(
-      deleteTemplate(projectRoot, "../../package"),
-    ).rejects.toThrow(/template name/i);
+    await expect(deleteTemplate(projectRoot, "../../package")).rejects.toThrow(
+      /template name/i,
+    );
     expect(await readFile(packagePath, "utf8")).toBe('{"private":true}\n');
   });
 

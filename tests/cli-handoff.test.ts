@@ -257,7 +257,10 @@ describe("handoff CLI", () => {
   });
 
   it("applies custom template bundle paths to the handoff", async () => {
-    await writeFile(join(projectRoot, "auth.ts"), "export const auth = true;\n");
+    await writeFile(
+      join(projectRoot, "auth.ts"),
+      "export const auth = true;\n",
+    );
     await mkdir(join(projectRoot, ".handoff", "templates"), {
       recursive: true,
     });

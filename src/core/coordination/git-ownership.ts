@@ -61,7 +61,9 @@ function parseAgentAuthorMappings(values: string[]): AgentAuthorMapping[] {
       );
     return { agent, author };
   });
-  if (new Set(mappings.map((mapping) => mapping.agent)).size !== mappings.length)
+  if (
+    new Set(mappings.map((mapping) => mapping.agent)).size !== mappings.length
+  )
     throw new Error("Each agent may have only one Git author mapping");
   return mappings;
 }

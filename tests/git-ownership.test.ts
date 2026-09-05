@@ -117,7 +117,10 @@ describe("git-ownership", () => {
     await git(projectRoot, "commit", "-m", "agent");
     await git(projectRoot, "config", "user.name", "HumanMaintainer");
     for (let index = 0; index < 2; index++) {
-      await writeFile(join(projectRoot, "src", `human-${index}.ts`), `${index}`);
+      await writeFile(
+        join(projectRoot, "src", `human-${index}.ts`),
+        `${index}`,
+      );
       await git(projectRoot, "add", ".");
       await git(projectRoot, "commit", "-m", `human ${index}`);
     }

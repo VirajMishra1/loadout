@@ -10,7 +10,16 @@ import { lstat } from "node:fs/promises";
 import { posix, relative, resolve, sep } from "node:path";
 import { getDiscussion, type DiscussionState } from "./discussion.js";
 import { emit, getOwnership, readCoordLog } from "./coordinator.js";
-import { getHandoffState, sendHandoff } from "../delegation/handoff.js";
+import {
+  applyPickup,
+  getHandoffState,
+  initHandoff,
+  isHandoffInitialized,
+  isPickupTarget,
+  planPickup,
+  sendHandoffUnlocked,
+  withHandoffLock,
+} from "../delegation/handoff.js";
 import {
   createHandoffBundle,
   removeHandoffBundle,
@@ -145,76 +154,93 @@ export async function executeImplementationPlan(
     throw new Error(
       `Implementation plan has unassigned paths: ${plan.unassigned.join(", ")}. Claim ownership and preview again.`,
     );
-  const marker = `[loadout-implementation:${plan.planId}]`;
-  const initialState = await getHandoffState(projectRoot);
-  let sent = 0;
-  const handoffIds: string[] = [];
-  for (const task of plan.tasks) {
-    const existing = initialState.messages.find(
-      (message) =>
-        message.type === "task" &&
-        message.to === task.agent &&
-        message.context?.includes(marker),
-    );
-    if (existing) {
-      handoffIds.push(existing.id);
-      continue;
+  // Re-read and append under the same cross-process lock. Keep setup and the
+  // summary inside it as well, so concurrent applies cannot race either step.
+  return withHandoffLock(projectRoot, async () => {
+    if (!(await isHandoffInitialized(projectRoot))) {
+      await initHandoff(projectRoot);
     }
-    const bundlePaths: string[] = [];
-    for (const path of task.paths) {
-      try {
-        const root = resolve(projectRoot);
-        const absolute = resolve(root, path);
-        const local = relative(root, absolute);
-        if (
-          local &&
-          local !== ".." &&
-          !local.startsWith(`..${sep}`) &&
-          (await lstat(absolute)).isFile()
-        )
-          bundlePaths.push(path);
-      } catch {
-        // A discussed path may be planned but not created yet.
+    for (const agent of new Set(plan.tasks.map((task) => task.agent))) {
+      if (!isPickupTarget(agent)) continue;
+      const pickup = await planPickup(projectRoot, agent);
+      if (!pickup.replacing) await applyPickup(pickup);
+    }
+    const marker = `[loadout-implementation:${plan.planId}]`;
+    const initialState = await getHandoffState(projectRoot);
+    let sent = 0;
+    const handoffIds: string[] = [];
+    for (const task of plan.tasks) {
+      const existing = initialState.messages.find(
+        (message) =>
+          message.type === "task" &&
+          message.to === task.agent &&
+          message.context?.includes(marker),
+      );
+      if (existing) {
+        handoffIds.push(existing.id);
+        continue;
       }
+      const bundlePaths: string[] = [];
+      for (const path of task.paths) {
+        try {
+          const root = resolve(projectRoot);
+          const absolute = resolve(root, path);
+          const local = relative(root, absolute);
+          if (
+            local &&
+            local !== ".." &&
+            !local.startsWith(`..${sep}`) &&
+            (await lstat(absolute)).isFile()
+          )
+            bundlePaths.push(path);
+        } catch {
+          // A discussed path may be planned but not created yet.
+        }
+      }
+      const bundle = bundlePaths.length
+        ? await createHandoffBundle(projectRoot, bundlePaths)
+        : undefined;
+      let message;
+      try {
+        message = await sendHandoffUnlocked(
+          projectRoot,
+          task.agent,
+          task.description,
+          {
+            from: "loadout",
+            type: "task",
+            context: `${marker}\n${task.context}`,
+            ...(bundle ? { bundle } : {}),
+            verification: {
+              criteria:
+                "Implementation matches the recorded discussion decision and reported checks pass",
+            },
+          },
+        );
+      } catch (error) {
+        if (bundle) await removeHandoffBundle(projectRoot, bundle);
+        throw error;
+      }
+      handoffIds.push(message.id);
+      sent++;
     }
-    const bundle = bundlePaths.length
-      ? await createHandoffBundle(projectRoot, bundlePaths)
-      : undefined;
-    let message;
-    try {
-      message = await sendHandoff(projectRoot, task.agent, task.description, {
+
+    const eventDescription = `Implementation plan ${plan.planId} dispatched`;
+    const log = await readCoordLog(projectRoot);
+    if (!log.events.some((event) => event.description === eventDescription)) {
+      await emit(projectRoot, {
         from: "loadout",
-        type: "task",
-        context: `${marker}\n${task.context}`,
-        ...(bundle ? { bundle } : {}),
-        verification: {
-          criteria:
-            "Implementation matches the recorded discussion decision and reported checks pass",
+        to: "*",
+        type: "update",
+        description: eventDescription,
+        payload: {
+          note: `Discussion ${plan.threadId} created handoffs: ${handoffIds.join(", ")}`,
+          files: plan.tasks.flatMap((task) => task.paths),
         },
       });
-    } catch (error) {
-      if (bundle) await removeHandoffBundle(projectRoot, bundle);
-      throw error;
     }
-    handoffIds.push(message.id);
-    sent++;
-  }
-
-  const eventDescription = `Implementation plan ${plan.planId} dispatched`;
-  const log = await readCoordLog(projectRoot);
-  if (!log.events.some((event) => event.description === eventDescription)) {
-    await emit(projectRoot, {
-      from: "loadout",
-      to: "*",
-      type: "update",
-      description: eventDescription,
-      payload: {
-        note: `Discussion ${plan.threadId} created handoffs: ${handoffIds.join(", ")}`,
-        files: plan.tasks.flatMap((task) => task.paths),
-      },
-    });
-  }
-  return { plan, handoffsSent: sent, handoffIds, reused: sent === 0 };
+    return { plan, handoffsSent: sent, handoffIds, reused: sent === 0 };
+  });
 }
 
 /** Build plan + send handoffs in one call. */

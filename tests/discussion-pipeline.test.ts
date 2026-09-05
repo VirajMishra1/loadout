@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { emit } from "../src/core/coordination/coordinator.js";
+import { emit, readCoordLog } from "../src/core/coordination/coordinator.js";
 import { claimOwnership } from "../src/core/coordination/coordinator.js";
 import {
   getHandoffState,
@@ -10,6 +10,7 @@ import {
 } from "../src/core/delegation/handoff.js";
 import {
   buildImplementationPlan,
+  executeImplementationPlan,
   runPipeline,
   formatPlan,
 } from "../src/core/coordination/discussion-pipeline.js";
@@ -284,6 +285,123 @@ describe("discussion-pipeline", () => {
     expect(
       formatPlan(repeated.plan, false, repeated.handoffsSent, repeated.reused),
     ).toContain("already dispatched");
+  });
+
+  it("keeps a fresh preview read-only and sets up pickup instructions on apply", async () => {
+    await writeFile(join(root, "AGENTS.md"), "# Project rules\nKeep this.\n");
+    await createClosedDiscussion(root, "fresh-apply", {
+      topic: "Fresh project",
+      decision: "Implement the accepted decision",
+      proposalContent: "Make the change",
+      critiqueContent: "Validate the change",
+    });
+    const filesBefore = await readdir(root, { recursive: true });
+    const logBefore = await readFile(
+      join(root, ".handoff/coordination.jsonl"),
+      "utf8",
+    );
+
+    const preview = await runPipeline(root, "fresh-apply", { dryRun: true });
+
+    expect(await readdir(root, { recursive: true })).toEqual(filesBefore);
+    expect(
+      await readFile(join(root, ".handoff/coordination.jsonl"), "utf8"),
+    ).toBe(logBefore);
+    expect(await readFile(join(root, "AGENTS.md"), "utf8")).toBe(
+      "# Project rules\nKeep this.\n",
+    );
+    expect((await getHandoffState(root)).initialized).toBe(false);
+
+    const result = await executeImplementationPlan(root, preview.plan);
+
+    expect(result.handoffsSent).toBe(2);
+    expect((await getHandoffState(root)).initialized).toBe(true);
+    expect(await readFile(join(root, "AGENTS.md"), "utf8")).toContain(
+      "# Project rules\nKeep this.",
+    );
+    expect(await readFile(join(root, "AGENTS.md"), "utf8")).toContain(
+      "loadout handoff codex",
+    );
+    expect(await readFile(join(root, "CLAUDE.md"), "utf8")).toContain(
+      "loadout handoff claude-code",
+    );
+  });
+
+  it("concurrent applies reuse the same task IDs and dispatch summary", async () => {
+    await initHandoff(root);
+    await createClosedDiscussion(root, "concurrent-apply", {
+      topic: "Concurrent dispatch",
+      decision: "Implement the accepted decision",
+      proposalContent: "Make the change",
+      critiqueContent: "Validate the change",
+    });
+    const plan = await buildImplementationPlan(root, "concurrent-apply");
+
+    const results = await Promise.all([
+      executeImplementationPlan(root, plan),
+      executeImplementationPlan(root, plan),
+    ]);
+
+    const tasks = (await getHandoffState(root)).messages.filter(
+      (message) => message.type === "task",
+    );
+    expect(tasks).toHaveLength(2);
+    expect(results[0].handoffIds).toEqual(results[1].handoffIds);
+    expect(results.map((result) => result.handoffsSent).sort()).toEqual([0, 2]);
+    expect(
+      (await readCoordLog(root)).events.filter(
+        (event) =>
+          event.description === `Implementation plan ${plan.planId} dispatched`,
+      ),
+    ).toHaveLength(1);
+  });
+
+  it("retries a partial dispatch without replacing the first task or bundle", async () => {
+    await initHandoff(root);
+    await mkdir(join(root, "src"));
+    await writeFile(join(root, "src/first.ts"), "export const first = true;\n");
+    await writeFile(join(root, "src/second.ts"), Buffer.from([0, 1, 2]));
+    await claimOwnership(root, {
+      agent: "claude-code",
+      paths: ["src/first.ts"],
+      mode: "exclusive",
+    });
+    await claimOwnership(root, {
+      agent: "codex",
+      paths: ["src/second.ts"],
+      mode: "exclusive",
+    });
+    await createClosedDiscussion(root, "partial-apply", {
+      topic: "Partial dispatch",
+      decision: "Update both files",
+      proposalContent: "Update src/first.ts",
+      critiqueContent: "Also update src/second.ts",
+    });
+    const plan = await buildImplementationPlan(root, "partial-apply");
+
+    await expect(executeImplementationPlan(root, plan)).rejects.toThrow(
+      /binary/i,
+    );
+    const firstTasks = (await getHandoffState(root)).messages;
+    expect(firstTasks).toHaveLength(1);
+    expect(firstTasks[0].bundle).toBeDefined();
+    expect(
+      (await readCoordLog(root)).events.filter(
+        (event) =>
+          event.description === `Implementation plan ${plan.planId} dispatched`,
+      ),
+    ).toHaveLength(0);
+
+    await writeFile(
+      join(root, "src/second.ts"),
+      "export const second = true;\n",
+    );
+    const retried = await executeImplementationPlan(root, plan);
+    const tasks = (await getHandoffState(root)).messages;
+    expect(tasks).toHaveLength(2);
+    expect(tasks[0]).toEqual(firstTasks[0]);
+    expect(retried.handoffIds).toEqual(tasks.map((task) => task.id));
+    expect(retried.handoffsSent).toBe(1);
   });
 
   it("bundles existing owned files into implementation handoffs", async () => {

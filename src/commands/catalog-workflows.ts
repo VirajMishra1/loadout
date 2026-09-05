@@ -27,6 +27,16 @@ import {
 } from "../core/delegation/handoff-bundle.js";
 import { completeHandoff } from "../core/delegation/handoff-verification.js";
 import {
+  applyTemplate,
+  deleteTemplate,
+  formatTemplateDetail,
+  formatTemplateList,
+  listTemplates,
+  loadTemplate,
+  saveTemplate,
+  type HandoffTemplate,
+} from "../core/delegation/handoff-templates.js";
+import {
   completionCommandPaths,
   parseCompletionShell,
   renderShellCompletion,
@@ -154,6 +164,7 @@ export function registerWorkflowCommands(program: Command): void {
       "explicitly approve the stored no-shell verification command",
     )
     .option("--evidence <text>", "manual evidence for human-only criteria")
+    .option("--template <name>", "use a handoff template for defaults")
     .option("--json", "emit machine-readable JSON")
     .action(
       async (
@@ -170,10 +181,39 @@ export function registerWorkflowCommands(program: Command): void {
           done?: string;
           runVerification?: boolean;
           evidence?: string;
+          template?: string;
           json?: boolean;
         },
       ) => {
         const cwd = process.cwd();
+
+        // Apply template defaults if specified
+        if (options.template) {
+          const tmpl = await loadTemplate(cwd, options.template);
+          if (!tmpl) {
+            throw new Error(
+              `Unknown template '${options.template}'. List with: loadout template list`,
+            );
+          }
+          const applied = applyTemplate(tmpl, {
+            task: taskWords.join(" ").trim() || undefined,
+            agent: agent || undefined,
+          });
+          if (applied.agent && !agent) agent = applied.agent;
+          if (!taskWords.length && applied.description)
+            taskWords = [applied.description];
+          if (applied.context && !options.context)
+            options.context = applied.context;
+          if (applied.verifyCriteria && !options.verify)
+            options.verify = applied.verifyCriteria;
+          if (applied.verifyCommand && !options.verifyCommand) {
+            options.verifyCommand = applied.verifyCommand.executable;
+            options.verifyArgs = JSON.stringify(applied.verifyCommand.args);
+            options.verifyTimeout = String(
+              applied.verifyCommand.timeoutMs / 1000,
+            );
+          }
+        }
 
         if (options.verifyCommand && !options.verify)
           throw new Error("--verify-command requires --verify");
@@ -322,6 +362,133 @@ export function registerWorkflowCommands(program: Command): void {
         );
       },
     );
+
+  // `loadout template` — manage handoff templates
+  const template = program
+    .command("template")
+    .description("Manage reusable handoff task templates");
+
+  template
+    .command("list")
+    .description("List available templates (built-in and custom)")
+    .option("--json", "machine-readable output")
+    .action(async (opts: { json?: boolean }) => {
+      const templates = await listTemplates(process.cwd());
+      if (opts.json) {
+        console.log(
+          JSON.stringify(
+            {
+              custom: templates.custom,
+              builtin: templates.builtin,
+            },
+            null,
+            2,
+          ),
+        );
+      } else {
+        console.log(formatTemplateList(templates));
+      }
+    });
+
+  template
+    .command("show")
+    .description("Show details of a template")
+    .argument("<name>", "template name")
+    .option("--json", "machine-readable output")
+    .action(async (name: string, opts: { json?: boolean }) => {
+      const tmpl = await loadTemplate(process.cwd(), name);
+      if (!tmpl) {
+        console.error(`No template named '${name}'.`);
+        process.exitCode = 1;
+        return;
+      }
+      if (opts.json) {
+        console.log(JSON.stringify(tmpl, null, 2));
+      } else {
+        console.log(formatTemplateDetail(tmpl));
+      }
+    });
+
+  template
+    .command("create")
+    .description("Create a custom handoff template")
+    .argument("<name>", "template name (kebab-case)")
+    .requiredOption("--description <text>", "one-line description")
+    .option("--agent <agent>", "default receiver agent")
+    .option("--task <text>", "task template (use {{placeholders}})")
+    .option("--context <text>", "default context")
+    .option("--verify <criteria>", "default verification criteria")
+    .option("--verify-command <executable>", "verification command")
+    .option("--verify-args <json>", "JSON array of args for verify command")
+    .option("--verify-timeout <seconds>", "verification timeout in seconds")
+    .option("--json", "machine-readable output")
+    .action(
+      async (
+        name: string,
+        opts: {
+          description: string;
+          agent?: string;
+          task?: string;
+          context?: string;
+          verify?: string;
+          verifyCommand?: string;
+          verifyArgs?: string;
+          verifyTimeout?: string;
+          json?: boolean;
+        },
+      ) => {
+        const tmpl: HandoffTemplate = {
+          name,
+          description: opts.description,
+          ...(opts.agent ? { defaultAgent: opts.agent } : {}),
+          ...(opts.task ? { taskTemplate: opts.task } : {}),
+          ...(opts.context ? { context: opts.context } : {}),
+          ...(opts.verify ? { verifyCriteria: opts.verify } : {}),
+        };
+
+        if (opts.verifyCommand) {
+          let args: string[] = [];
+          if (opts.verifyArgs) {
+            const parsed = JSON.parse(opts.verifyArgs);
+            if (
+              !Array.isArray(parsed) ||
+              parsed.some((v: unknown) => typeof v !== "string")
+            )
+              throw new Error("--verify-args must be a JSON array of strings");
+            args = parsed;
+          }
+          const timeoutMs = opts.verifyTimeout
+            ? Number(opts.verifyTimeout) * 1000
+            : 120_000;
+          tmpl.verifyCommand = {
+            executable: opts.verifyCommand,
+            args,
+            timeoutMs,
+          };
+        }
+
+        await saveTemplate(process.cwd(), tmpl);
+        if (opts.json) {
+          console.log(JSON.stringify(tmpl, null, 2));
+        } else {
+          console.log(`\x1b[32m✓\x1b[0m Template '${name}' saved.`);
+        }
+      },
+    );
+
+  template
+    .command("delete")
+    .description("Delete a custom template")
+    .argument("<name>", "template name to delete")
+    .action(async (name: string) => {
+      const deleted = await deleteTemplate(process.cwd(), name);
+      if (deleted) {
+        console.log(`Deleted template '${name}'.`);
+      } else {
+        console.error(`No custom template named '${name}'.`);
+        process.exitCode = 1;
+      }
+    });
 
   program
     .command("completion")

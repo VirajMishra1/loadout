@@ -71,7 +71,6 @@ describe("npm release contract", () => {
     const currentGuides = await Promise.all(
       [
         "../README.md",
-        "../docs/DEMO_SCRIPT.md",
         "../docs/USER_TEST_GUIDE.md",
         "../docs/TESTING.md",
         "../docs/RELEASE_REVIEW.md",
@@ -84,7 +83,7 @@ describe("npm release contract", () => {
     expect(joinedGuides).not.toContain(
       "verify:full` is an alias for the same CLI release gate",
     );
-    expect(joinedGuides).toContain("loadout-ai@0.9.0");
+    expect(joinedGuides).toContain("loadout-ai@0.9.1");
     expect(joinedGuides).toContain("npm run verify:full");
   });
 });

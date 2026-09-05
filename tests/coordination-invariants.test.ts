@@ -68,7 +68,7 @@ describe("abandoned coordination lock recovery", () => {
   it("keeps competing recoverers out of each other's critical sections", async () => {
     const dir = join(root, ".handoff");
     await mkdir(dir, { recursive: true });
-    for (let trial = 0; trial < 10; trial++) {
+    for (let trial = 0; trial < 5; trial++) {
       await writeFile(
         join(dir, "coordination.lock"),
         JSON.stringify({

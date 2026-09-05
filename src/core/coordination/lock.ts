@@ -109,7 +109,10 @@ export async function withCoordinationLock<T>(
       // Someone else owns the lock now — retry
       continue;
     } catch (error) {
-      if (errorCode(error) !== "EEXIST") throw error;
+      const code = errorCode(error);
+      // EEXIST: lock file exists. EPERM: Windows holds the handle during
+      // another process's rename recovery — treat as transient contention.
+      if (code !== "EEXIST" && code !== "EPERM") throw error;
 
       if (await lockCanBeRecovered(path)) {
         // Atomic recovery: rename claims the stale file; only one recoverer
@@ -119,7 +122,10 @@ export async function withCoordinationLock<T>(
           await rename(path, recoveryPath);
           await rm(recoveryPath, { force: true });
         } catch (error) {
-          if (errorCode(error) !== "ENOENT") throw error;
+          const rc = errorCode(error);
+          // ENOENT: another recoverer already renamed it away.
+          // EPERM: Windows file-handle contention during rename.
+          if (rc !== "ENOENT" && rc !== "EPERM") throw error;
         }
         continue;
       }

@@ -22,6 +22,7 @@ const CLI = "claude";
 export interface ClaudeCommandOptions {
   cwd?: string;
   timeout: number;
+  signal?: AbortSignal;
 }
 
 export type ClaudeCommandDriver = (
@@ -109,6 +110,7 @@ export class ClaudeCodeAdapter implements AgentAdapter {
     const { stdout } = await this.runCommand(CLI, args, {
       cwd: options.cwd,
       timeout: options.timeout ?? 30000,
+      ...(options.signal ? { signal: options.signal } : {}),
     });
     const output = parseSessionOutput(stdout);
     const sessionId = output.sessionId;
@@ -162,6 +164,7 @@ export class ClaudeCodeAdapter implements AgentAdapter {
       const { stdout } = await this.runCommand(CLI, args, {
         cwd: session.cwd,
         timeout: options.timeout ?? 30000,
+        ...(options.signal ? { signal: options.signal } : {}),
       });
       const output = parseSessionOutput(stdout);
       if (output.response) {

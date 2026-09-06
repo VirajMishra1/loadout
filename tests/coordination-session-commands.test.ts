@@ -170,9 +170,12 @@ describe("wrapProviderError", () => {
     expect(billing.message).toMatch(/out of quota or rate-limited/);
   });
 
-  it("passes through non-quota errors unchanged", () => {
+  it("adds provider context to non-quota errors", () => {
     const regular = new Error("network timeout");
-    expect(wrapProviderError("codex", regular)).toBe(regular);
+    const wrapped = wrapProviderError("codex", regular);
+    expect(wrapped).not.toBe(regular);
+    expect(wrapped.message).toBe("codex provider error: network timeout");
+    expect(wrapped.cause).toBe(regular);
   });
 
   it("wraps non-Error values with provider name", () => {

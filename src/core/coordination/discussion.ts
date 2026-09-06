@@ -127,6 +127,8 @@ export function formatDiscussion(state: DiscussionState): string {
   ];
   for (const event of state.events) {
     const payload = payloadOf(event);
+    if (payload.kind === "started") continue;
+    if (payload.kind === "closed" && state.status !== "failed") continue;
     lines.push(
       `[round ${payload.round}] ${event.from} · ${payload.kind}`,
       payload.content,
@@ -136,7 +138,16 @@ export function formatDiscussion(state: DiscussionState): string {
   if (state.truncatedEvents > 0) {
     lines.push(`${state.truncatedEvents} earlier event(s) omitted.`, "");
   }
+  if (state.finalDecision || state.status === "failed") {
+    lines.push("Outcome", "-------");
+  }
   if (state.finalDecision) lines.push(`Decision: ${state.finalDecision}`);
+  if (state.status === "failed") {
+    const failure = [...state.events]
+      .reverse()
+      .find((event) => payloadOf(event).kind === "closed");
+    if (failure) lines.push(`Failure: ${payloadOf(failure).content}`);
+  }
   if (state.alternatives.length > 0) {
     lines.push(`Alternatives: ${state.alternatives.join("; ")}`);
   }

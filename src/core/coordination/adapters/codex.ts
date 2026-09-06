@@ -26,9 +26,7 @@ export interface CodexThreadOptions {
 
 export interface CodexThreadDriver {
   readonly id: string | null;
-  run(prompt: string): Promise<unknown>;
-  /** Abort the current run if supported. */
-  abort?(): void;
+  run(prompt: string, options?: { signal?: AbortSignal }): Promise<unknown>;
 }
 
 export interface CodexSdkDriver {
@@ -49,33 +47,35 @@ function requireThreadId(thread: CodexThreadDriver): string {
   return id;
 }
 
-async function withAbort(
-  promise: Promise<unknown>,
+async function runWithCancellation(
   thread: CodexThreadDriver,
-  signal?: AbortSignal,
+  prompt: string,
+  options: { signal?: AbortSignal; timeout?: number },
 ): Promise<unknown> {
-  if (!signal) return promise;
-  signal.throwIfAborted();
-  return new Promise((resolve, reject) => {
-    const onAbort = () => {
-      thread.abort?.();
-      reject(
-        signal.reason ??
-          new DOMException("The operation was aborted", "AbortError"),
-      );
-    };
-    signal.addEventListener("abort", onAbort, { once: true });
-    promise.then(
-      (value) => {
-        signal.removeEventListener("abort", onAbort);
-        resolve(value);
-      },
-      (error) => {
-        signal.removeEventListener("abort", onAbort);
-        reject(error);
-      },
+  if (options.timeout === undefined) {
+    return thread.run(
+      prompt,
+      options.signal ? { signal: options.signal } : undefined,
     );
-  });
+  }
+  const controller = new AbortController();
+  const onAbort = () => controller.abort(options.signal?.reason);
+  if (options.signal?.aborted) onAbort();
+  else options.signal?.addEventListener("abort", onAbort, { once: true });
+  const timer = setTimeout(
+    () =>
+      controller.abort(
+        new Error(`Codex provider turn timed out after ${options.timeout}ms`),
+      ),
+    options.timeout,
+  );
+  timer.unref();
+  try {
+    return await thread.run(prompt, { signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+    options.signal?.removeEventListener("abort", onAbort);
+  }
 }
 
 function responseFromRun(result: unknown): string | undefined {
@@ -127,8 +127,10 @@ export class CodexAdapter implements AgentAdapter {
     const thread = this.driver.startThread({
       workingDirectory: options.cwd,
     });
-    const runPromise = thread.run(options.prompt ?? "");
-    const result = await withAbort(runPromise, thread, options.signal);
+    const result = await runWithCancellation(thread, options.prompt ?? "", {
+      ...(options.signal ? { signal: options.signal } : {}),
+      ...(options.timeout === undefined ? {} : { timeout: options.timeout }),
+    });
     const sessionId = requireThreadId(thread);
     const session: AgentSession = {
       sessionId,
@@ -176,8 +178,10 @@ export class CodexAdapter implements AgentAdapter {
     if (!thread) return false;
     session.busy = true;
     try {
-      const runPromise = thread.run(options.message);
-      const result = await withAbort(runPromise, thread, options.signal);
+      const result = await runWithCancellation(thread, options.message, {
+        ...(options.signal ? { signal: options.signal } : {}),
+        ...(options.timeout === undefined ? {} : { timeout: options.timeout }),
+      });
       const response = responseFromRun(result);
       if (response) this.responses.set(session.sessionId, response);
       return true;

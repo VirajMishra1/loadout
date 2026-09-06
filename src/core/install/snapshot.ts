@@ -104,14 +104,14 @@ export async function restoreSnapshot(
   validateSnapshot(snapshot);
   if (options.requireUnchangedPostMutationState)
     await assertUnchangedPostMutationState(snapshot);
-  for (const root of snapshot.roots)
+  for (const root of snapshot.roots) {
+    await makeTreeRemovable(root);
     await rm(root, { recursive: true, force: true });
+  }
   for (const directory of snapshot.files
     .filter((file) => file.existed && file.directory)
     .sort((a, b) => a.path.length - b.path.length)) {
     await mkdir(directory.path, { recursive: true });
-    if (directory.mode !== undefined)
-      await chmod(directory.path, directory.mode);
   }
   for (const file of snapshot.files) {
     if (!file.existed || file.directory) continue;
@@ -123,6 +123,28 @@ export async function restoreSnapshot(
         : (file.content ?? ""),
     );
     if (file.mode !== undefined) await chmod(file.path, file.mode);
+  }
+  for (const directory of snapshot.files
+    .filter((file) => file.existed && file.directory)
+    .sort((a, b) => b.path.length - a.path.length)) {
+    if (directory.mode !== undefined)
+      await chmod(directory.path, directory.mode);
+  }
+}
+
+async function makeTreeRemovable(path: string): Promise<void> {
+  let info;
+  try {
+    info = await lstat(path);
+  } catch (error) {
+    if (isFileError(error, "ENOENT")) return;
+    throw error;
+  }
+  if (!info.isDirectory() || info.isSymbolicLink()) return;
+  await chmod(path, (info.mode & 0o777) | 0o700);
+  for (const entry of await readdir(path, { withFileTypes: true })) {
+    if (entry.isDirectory() && !entry.isSymbolicLink())
+      await makeTreeRemovable(join(path, entry.name));
   }
 }
 
@@ -347,7 +369,7 @@ function validateSnapshotFiles(
         (typeof file.mode !== "number" ||
           !Number.isInteger(file.mode) ||
           file.mode < 0 ||
-          file.mode > 0o7777))
+          file.mode > 0o777))
     )
       throw new Error(`${label} file ${index} is invalid`);
     const filePath = file.path;

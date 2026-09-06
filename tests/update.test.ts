@@ -12,6 +12,7 @@ import {
 import { applySkillInstall } from "../src/core/install/install.js";
 import { repositoryCachePath } from "../src/core/install/source.js";
 import { readInstallState } from "../src/core/workspace/state.js";
+import type { CatalogPackage } from "../src/shared/types.js";
 
 describe("update planning", () => {
   const roots: string[] = [];
@@ -266,6 +267,122 @@ describe("update planning", () => {
     expect(plans[0].diff).toEqual([
       { path: "skills/SKILL.md", kind: "skill", status: "changed" },
     ]);
+  });
+
+  it("requires review when an update is newer than every catalog pin", async () => {
+    const root = await mkdtemp(join(tmpdir(), "loadout-update-drift-"));
+    roots.push(root);
+    process.env.LOADOUT_HOME = join(root, ".loadout");
+    const repository = "owner/repo";
+    const installedCommit = "a".repeat(40);
+    const availableCommit = "b".repeat(40);
+    const oldPath = repositoryCachePath(repository, installedCommit);
+    const newPath = join(root, "new");
+    await mkdir(oldPath, { recursive: true });
+    await mkdir(newPath, { recursive: true });
+    await writeFile(join(oldPath, "SKILL.md"), "old");
+    await writeFile(join(newPath, "SKILL.md"), "new");
+    await mkdir(process.env.LOADOUT_HOME, { recursive: true });
+    await writeFile(
+      join(process.env.LOADOUT_HOME, "state.json"),
+      JSON.stringify({
+        version: 1,
+        installs: [
+          {
+            packageId: "demo",
+            repository,
+            resolvedCommit: installedCommit,
+            targetAgents: ["codex"],
+            files: [],
+            snapshotId: "s",
+            installedAt: new Date().toISOString(),
+          },
+        ],
+      }),
+    );
+    const catalog = [installedCommit, "c".repeat(40)].map(
+      (commit, index): CatalogPackage => ({
+        id: `demo-${index}`,
+        displayName: `Demo ${index}`,
+        repository,
+        description: "test",
+        category: "test",
+        tier: "stable",
+        components: ["skill"],
+        source: {
+          type: "github",
+          url: `https://github.com/${repository}`,
+          defaultBranch: "main",
+          commit,
+          evidencePaths: ["SKILL.md"],
+          verifiedAt: "2026-09-05T00:00:00Z",
+        },
+      }),
+    );
+
+    const [plan] = await buildUpdatePlan(
+      async () => ({ commit: availableCommit, path: newPath }),
+      { catalog },
+    );
+    expect(plan.catalogDrift).toBe(true);
+    expect(plan.approvalRequired).toBe(true);
+    expect(plan.safetyFindings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ names: ["catalog-drift"] }),
+      ]),
+    );
+  });
+
+  it("accepts an update matching any reviewed pin for a shared repository", async () => {
+    const root = await mkdtemp(join(tmpdir(), "loadout-update-reviewed-"));
+    roots.push(root);
+    process.env.LOADOUT_HOME = join(root, ".loadout");
+    const repository = "owner/shared";
+    const installedCommit = "a".repeat(40);
+    const reviewedCommit = "b".repeat(40);
+    await mkdir(process.env.LOADOUT_HOME, { recursive: true });
+    await writeFile(
+      join(process.env.LOADOUT_HOME, "state.json"),
+      JSON.stringify({
+        version: 1,
+        installs: [
+          {
+            packageId: "demo",
+            repository,
+            resolvedCommit: installedCommit,
+            targetAgents: ["codex"],
+            files: [],
+            snapshotId: "s",
+            installedAt: new Date().toISOString(),
+          },
+        ],
+      }),
+    );
+    const catalog = ["c".repeat(40), reviewedCommit].map(
+      (commit, index): CatalogPackage => ({
+        id: `shared-${index}`,
+        displayName: `Shared ${index}`,
+        repository,
+        description: "test",
+        category: "test",
+        tier: "stable",
+        components: ["skill"],
+        source: {
+          type: "github",
+          url: `https://github.com/${repository}`,
+          defaultBranch: "main",
+          commit,
+          evidencePaths: ["SKILL.md"],
+          verifiedAt: "2026-09-05T00:00:00Z",
+        },
+      }),
+    );
+
+    const [plan] = await buildUpdatePlan(
+      async () => ({ commit: reviewedCommit }),
+      { catalog },
+    );
+    expect(plan.catalogDrift).not.toBe(true);
   });
 
   it("rejects malformed persisted state", async () => {

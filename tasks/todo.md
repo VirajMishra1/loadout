@@ -10,3 +10,16 @@
 - [x] Run bounded real Claude Code ↔ Codex discussion and handoff exercises.
 - [x] Pass `npm run verify:full` and green Ubuntu/Windows GitHub Actions.
 - [x] Review, version, tag, publish, and create the GitHub release.
+
+## Post-0.9.1 audit
+
+- [x] Audit Claude's post-release changes against the current source and tests.
+- [x] Fix native Claude/Codex cancellation and discussion timeout propagation.
+- [x] Fix read-only directory snapshot restore and permission validation.
+- [x] Keep compacted coordination event sequences monotonic.
+- [x] Correct shared-repository catalog drift detection and Maximum preview copy.
+- [x] Apply default time bounds to generic Git sources.
+- [x] Replace the stale threat-model draft with verified controls and residual risks.
+- [x] Pass the complete local release gate on the audit branch.
+- [ ] Pass Ubuntu and Windows GitHub Actions on the audit branch.
+- [ ] Cut and publish a follow-up version so npm contains the post-0.9.1 fixes.

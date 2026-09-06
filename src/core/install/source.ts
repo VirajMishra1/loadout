@@ -41,7 +41,7 @@ export const REPOSITORY_FETCH_DEFAULTS = {
   maxFiles: 20_000,
 } as const;
 
-function withFetchDefaults(
+export function withFetchDefaults(
   options: RepositoryFetchOptions,
 ): RepositoryFetchOptions & {
   timeoutMs: number;
@@ -451,22 +451,24 @@ export async function fetchGitSnapshot(
   // checked before fetching the way the GitHub path does. Enforce a bound
   // AFTER a shallow clone instead of refusing bounded requests, giving parity
   // with the catalog path and a default ceiling against an adversarial repo.
-  const boundedOptions: RepositoryFetchOptions = {
+  const boundedOptions = withFetchDefaults({
     ...options,
     maxBytes: options.maxBytes ?? 128 * 1024 * 1024,
     maxFiles: options.maxFiles ?? 20_000,
-  };
+  });
   const url = normalizeGitUrl(input);
   const temporary = await mkdtemp(join(tmpdir(), "loadout-git-"));
   try {
     const gitEnvironment = await isolatedGitEnvironment(loadoutHome());
-    const refArgs = options.ref ? ["--branch", normalizeRef(options.ref)] : [];
+    const refArgs = boundedOptions.ref
+      ? ["--branch", normalizeRef(boundedOptions.ref)]
+      : [];
     await execFileAsync(
       "git",
       ["clone", "--depth", "1", ...refArgs, "--", url, temporary],
       {
         maxBuffer: 10 * 1024 * 1024,
-        timeout: options.timeoutMs,
+        timeout: boundedOptions.timeoutMs,
         env: {
           ...gitEnvironment,
         },
@@ -475,7 +477,7 @@ export async function fetchGitSnapshot(
     const { stdout } = await execFileAsync(
       "git",
       ["-C", temporary, "rev-parse", "HEAD"],
-      { timeout: options.timeoutMs, env: gitEnvironment },
+      { timeout: boundedOptions.timeoutMs, env: gitEnvironment },
     );
     const commit = stdout.trim();
     if (!/^[0-9a-f]{40}$/i.test(commit))

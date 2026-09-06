@@ -214,6 +214,12 @@ describe("retention equivalence", () => {
     const claim = [...ownershipAfter.values()][0]!;
     expect(claim.agent).toBe("claude-code");
     expect(claim.paths).toContain("src/api");
+    const compactedLog = await readCoordLog(root);
+    for (let index = 1; index < compactedLog.events.length; index++) {
+      expect(compactedLog.events[index]!.seq).toBeGreaterThan(
+        compactedLog.events[index - 1]!.seq,
+      );
+    }
   });
 
   it("preserves contract revisions through compaction", async () => {

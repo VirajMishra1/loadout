@@ -339,6 +339,30 @@ describe("rollback snapshots", () => {
     },
   );
 
+  it.skipIf(process.platform === "win32")(
+    "restores files before reapplying read-only directory modes",
+    async () => {
+      root = await mkdtemp(join(tmpdir(), "loadout-snapshot-readonly-dir-"));
+      process.env.LOADOUT_HOME = join(root, ".loadout");
+      const target = join(root, "target");
+      const restricted = join(target, "readonly");
+      const nested = join(restricted, "kept.txt");
+      await mkdir(restricted, { recursive: true });
+      await writeFile(nested, "kept");
+      await chmod(restricted, 0o555);
+      const snapshot = await createSnapshot([target], { persist: false });
+
+      await restoreSnapshot(snapshot);
+
+      try {
+        expect(await readFile(nested, "utf8")).toBe("kept");
+        expect((await lstat(restricted)).mode & 0o777).toBe(0o555);
+      } finally {
+        await chmod(restricted, 0o700);
+      }
+    },
+  );
+
   it("tolerates legacy snapshots without mode fields", async () => {
     root = await mkdtemp(join(tmpdir(), "loadout-snapshot-legacy-mode-"));
     process.env.LOADOUT_HOME = join(root, ".loadout");
@@ -396,6 +420,22 @@ describe("rollback snapshots", () => {
             content: "dGVzdA==",
             encoding: "base64",
             mode: 0o10000,
+          },
+        ],
+      }),
+    ).toThrow();
+    expect(() =>
+      validateSnapshot({
+        id: `${Date.now()}-${"f".repeat(12)}`,
+        createdAt: new Date().toISOString(),
+        roots: [target],
+        files: [
+          {
+            path: target,
+            existed: true,
+            content: "dGVzdA==",
+            encoding: "base64",
+            mode: 0o4755,
           },
         ],
       }),

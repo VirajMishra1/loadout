@@ -69,7 +69,7 @@ const SUSPICIOUS_INSTRUCTIONS: Array<{ name: string; pattern: RegExp }> = [
   },
   {
     name: "hidden system prompt",
-    pattern: /\[(?:SYSTEM|INST)\]|\<\|(?:system|im_start)\|?\>/i,
+    pattern: /\[(?:SYSTEM|INST)\]|<\|(?:system|im_start)\|?>/i,
   },
   {
     name: "encoding evasion",
@@ -90,8 +90,7 @@ const SUSPICIOUS_INSTRUCTIONS: Array<{ name: string; pattern: RegExp }> = [
   },
   {
     name: "environment variable leak",
-    pattern:
-      /\b(?:print|echo|log|send|post)\b.{0,40}\bprocess\.env\b/i,
+    pattern: /\b(?:print|echo|log|send|post)\b.{0,40}\bprocess\.env\b/i,
   },
 
   // --- Destructive operations ---

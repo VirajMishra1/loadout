@@ -44,8 +44,9 @@ export function wrapProviderError(provider: string, error: unknown): Error {
         `Original error: ${message}`,
     );
   }
-  if (error instanceof Error) return error;
-  return new Error(`${provider} provider error: ${message}`);
+  return new Error(`${provider} provider error: ${message}`, {
+    ...(error instanceof Error ? { cause: error } : {}),
+  });
 }
 
 export interface DiscussionSelectionItem {

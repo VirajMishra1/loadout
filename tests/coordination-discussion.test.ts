@@ -211,6 +211,10 @@ describe("discussion protocol", () => {
     expect(output).toContain("Decision: Use REST for checkout");
     expect(output).toContain("Alternatives: GraphQL mutation");
     expect(output).toContain("Unresolved: Benchmark under peak load");
+    expect(output).toContain("Outcome");
+    expect(output).not.toContain("user · started");
+    expect(output).not.toContain("user · closed");
+    expect(output.match(/Decision: Use REST for checkout/g)).toHaveLength(1);
 
     const publicEvents = result.state.events.filter(
       (event) => event.type === "discussion",

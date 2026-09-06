@@ -68,6 +68,8 @@ export interface UpdatePlanOptions {
   resolveHead?: CommitResolver;
   /** Injectable changed-revision fetcher used by deterministic tests. */
   fetchChangedSnapshot?: CommitResolver;
+  /** Injectable reviewed catalog used by deterministic safety tests. */
+  catalog?: CatalogPackage[];
 }
 
 export interface UpdateSmokeTestContext {
@@ -210,11 +212,14 @@ async function analyzeManagedUpdate(
  */
 function buildCatalogCommitIndex(
   catalog: CatalogPackage[],
-): Map<string, string> {
-  const index = new Map<string, string>();
+): Map<string, Set<string>> {
+  const index = new Map<string, Set<string>>();
   for (const pkg of catalog) {
     if (pkg.source?.commit && pkg.repository) {
-      index.set(pkg.repository.toLowerCase(), pkg.source.commit.toLowerCase());
+      const repository = pkg.repository.toLowerCase();
+      const commits = index.get(repository) ?? new Set<string>();
+      commits.add(pkg.source.commit.toLowerCase());
+      index.set(repository, commits);
     }
   }
   return index;
@@ -235,9 +240,9 @@ export async function buildUpdatePlan(
   // the last reviewed snapshot. This is a read-only safety check — it
   // does not prevent the update, but adds a blocking safety finding
   // when the upstream HEAD has moved past the catalog-pinned commit.
-  let catalogIndex: Map<string, string>;
+  let catalogIndex: Map<string, Set<string>>;
   try {
-    const catalog = await loadEffectiveCatalog();
+    const catalog = options.catalog ?? (await loadEffectiveCatalog());
     catalogIndex = buildCatalogCommitIndex(catalog);
   } catch {
     catalogIndex = new Map();
@@ -344,12 +349,12 @@ export async function buildUpdatePlan(
             // hasn't been vetted, so flag it for human review.
             let catalogDrift = false;
             if (!same && record.repository) {
-              const pinnedCommit = catalogIndex.get(
+              const pinnedCommits = catalogIndex.get(
                 record.repository.toLowerCase(),
               );
               if (
-                pinnedCommit &&
-                pinnedCommit !== current.commit.toLowerCase()
+                pinnedCommits &&
+                !pinnedCommits.has(current.commit.toLowerCase())
               ) {
                 catalogDrift = true;
               }

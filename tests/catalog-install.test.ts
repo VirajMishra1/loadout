@@ -643,12 +643,19 @@ describe("CLI-first catalog setup", () => {
           safety: { approvalRequired: false, findings: [] },
         },
       ],
-      skipped: [],
+      skipped: [
+        {
+          packageId: "oversized-optional",
+          kind: "preparation-failed" as const,
+          reason: "repository exceeds inspection limit",
+        },
+      ],
       collisions: [],
     };
-    expect(formatPreparedCatalogInstall(prepared)).toContain(
-      "exceeds Stable's 30-skill bound",
-    );
+    const formatted = formatPreparedCatalogInstall(prepared);
+    expect(formatted).toContain("exceeds Stable's 30-skill bound");
+    expect(formatted).toContain("will be skipped");
+    expect(formatted).not.toContain("installation will remain blocked");
   });
 
   it("keeps the higher-ranked source when broad collections share a skill target", async () => {

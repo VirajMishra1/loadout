@@ -435,7 +435,7 @@ export function formatPreparedCatalogInstall(
     );
   if (failures.length)
     lines.push(
-      `Preparation failures (installation will remain blocked): ${failures.map((item) => item.packageId).join(", ")}`,
+      `Preparation failures (${prepared.selection.mode === "maximum" ? "will be skipped; remaining library can install" : "installation will remain blocked"}): ${failures.map((item) => item.packageId).join(", ")}`,
     );
   if (quarantined.length)
     lines.push(

@@ -2,6 +2,32 @@
 
 ## Unreleased
 
+### Changed
+
+- Coordination discussion output now removes duplicate lifecycle noise, shows a
+  single outcome section, and identifies the provider in every provider error.
+- Maximum Library preparation now skips packages that cannot be safely prepared
+  and clearly reports that the remaining reviewed library can still install.
+
+### Fixed
+
+- Forward cancellation and timeout signals natively to both Claude Code and the
+  Codex SDK so a timed-out paid turn cannot keep running while Loadout starts a
+  replacement turn.
+- Restore files before reapplying read-only directory modes and reject snapshot
+  modes containing special permission bits.
+- Preserve strictly increasing coordination sequence order after checkpoint
+  compaction.
+- Treat all reviewed commits for a shared catalog repository as valid when
+  detecting upstream catalog drift.
+- Apply the default repository timeout to generic HTTPS and SSH Git sources as
+  well as catalog GitHub sources.
+
+### Security
+
+- Expand deterministic instruction-injection signatures and document the
+  repository-grounded threat model in `loadout-threat-model.md`.
+
 ## 0.9.1 - 2026-09-05
 
 ### Added

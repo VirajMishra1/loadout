@@ -7,7 +7,7 @@ import {
 interface CommandCall {
   command: string;
   args: string[];
-  options: { cwd?: string; timeout: number };
+  options: { cwd?: string; timeout: number; signal?: AbortSignal };
 }
 
 function recordingDriver(outputs: string[]): {
@@ -96,6 +96,22 @@ describe("ClaudeCodeAdapter", () => {
     });
 
     expect(fake.calls[0]?.options.timeout).toBe(120_000);
+  });
+
+  it("forwards cancellation to the Claude CLI subprocess", async () => {
+    const fake = recordingDriver([
+      JSON.stringify({ session_id: "claude-session-1" }),
+    ]);
+    const adapter = new ClaudeCodeAdapter(fake.driver);
+    const controller = new AbortController();
+
+    await adapter.start({
+      cwd: "/work",
+      prompt: "Discuss the design",
+      signal: controller.signal,
+    });
+
+    expect(fake.calls[0]?.options.signal).toBe(controller.signal);
   });
 
   it("rejects output without a valid session_id", async () => {

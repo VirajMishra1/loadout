@@ -11,11 +11,25 @@ import {
   parseRepositoryHead,
   repositoryCachePath,
   validateGitHubTreeBounds,
+  withFetchDefaults,
 } from "../src/core/install/source.js";
 
 const exec = promisify(execFile);
 
 describe("repository sources", () => {
+  it("applies a default timeout and preserves tighter generic Git bounds", () => {
+    expect(
+      withFetchDefaults({
+        maxBytes: 128 * 1024 * 1024,
+        maxFiles: 20_000,
+      }),
+    ).toMatchObject({
+      timeoutMs: 120_000,
+      maxBytes: 128 * 1024 * 1024,
+      maxFiles: 20_000,
+    });
+  });
+
   it("normalizes supported GitHub references", () => {
     expect(normalizeRepository("https://github.com/obra/superpowers.git")).toBe(
       "obra/superpowers",

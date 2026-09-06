@@ -127,9 +127,19 @@ export async function compact(
     });
 
     const lines = [
-      summaryLine,
-      ...finalRetained.map((e) => JSON.stringify(e)),
-    ].join("\n");
+      ...stateCheckpoints.map((event) => ({
+        seq: event.seq,
+        line: JSON.stringify(event),
+      })),
+      { seq: remove[remove.length - 1]!.seq, line: summaryLine },
+      ...keptByIndex.map((event) => ({
+        seq: event.seq,
+        line: JSON.stringify(event),
+      })),
+    ]
+      .sort((left, right) => left.seq - right.seq)
+      .map(({ line }) => line)
+      .join("\n");
 
     // Atomic write: write to temp, rename over
     const tmpPath = `${logPath}.tmp`;
@@ -218,7 +228,7 @@ function stateKey(event: CoordinationEvent): string | undefined {
     case "ownership":
       // Key by agent + sorted paths — an ownership event replaces the previous
       // one for the same agent/path combination.
-      return `ownership:${event.from}:${((p.paths as string[]) ?? []).sort().join(",")}`;
+      return `ownership:${event.from}:${[...((p.paths as string[]) ?? [])].sort().join(",")}`;
     case "contract":
       return `contract:${p.name as string}`;
     case "decision":

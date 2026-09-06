@@ -124,15 +124,19 @@ describe("CodexAdapter", () => {
 
   it("aborts start when signal fires during the initial run", async () => {
     const controller = new AbortController();
-    let runResolve: (() => void) | undefined;
-    const thread = new FakeThread(null);
-    thread.run = () =>
-      new Promise((resolve) => {
-        runResolve = () => resolve({});
-      });
+    const thread = new FakeThread("codex-timeout-thread");
     const abortCalled: boolean[] = [];
-    thread.abort = () => {
-      abortCalled.push(true);
+    thread.run = (_prompt: string, options?: { signal?: AbortSignal }) => {
+      return new Promise((_resolve, reject) => {
+        options?.signal?.addEventListener(
+          "abort",
+          () => {
+            abortCalled.push(true);
+            reject(options.signal?.reason ?? new Error("aborted"));
+          },
+          { once: true },
+        );
+      });
     };
     const driver: CodexSdkDriver = {
       startThread: () => thread,
@@ -148,7 +152,78 @@ describe("CodexAdapter", () => {
     controller.abort();
     await expect(startPromise).rejects.toThrow();
     expect(abortCalled).toHaveLength(1);
-    runResolve?.(); // clean up
+  });
+
+  it("forwards cancellation to the Codex SDK run instead of only abandoning the promise", async () => {
+    const controller = new AbortController();
+    const thread = new FakeThread(null);
+    let receivedSignal: AbortSignal | undefined;
+    thread.run = (_prompt: string, options?: { signal?: AbortSignal }) => {
+      receivedSignal = options?.signal;
+      return new Promise((_resolve, reject) => {
+        options?.signal?.addEventListener(
+          "abort",
+          () => reject(options.signal?.reason ?? new Error("aborted")),
+          { once: true },
+        );
+      });
+    };
+    const driver: CodexSdkDriver = {
+      startThread: () => thread,
+      resumeThread: () => thread,
+    };
+    const adapter = new CodexAdapter(driver);
+
+    const started = adapter.start({
+      cwd: "/work",
+      prompt: "Build it",
+      signal: controller.signal,
+    });
+    controller.abort(new Error("cancelled by test"));
+
+    await expect(started).rejects.toThrow("cancelled by test");
+    expect(receivedSignal).toBe(controller.signal);
+  });
+
+  it("turns the configured provider timeout into a native SDK abort signal", async () => {
+    const thread = new FakeThread("codex-timeout-thread");
+    let receivedSignal: AbortSignal | undefined;
+    thread.run = async (
+      _prompt: string,
+      options?: { signal?: AbortSignal },
+    ) => {
+      receivedSignal = options?.signal;
+      return { finalResponse: "done" };
+    };
+    const driver: CodexSdkDriver = {
+      startThread: () => thread,
+      resumeThread: () => thread,
+    };
+    const adapter = new CodexAdapter(driver);
+
+    await adapter.start({ cwd: "/work", prompt: "Build it", timeout: 120_000 });
+
+    expect(receivedSignal).toBeInstanceOf(AbortSignal);
+  });
+
+  it("aborts a Codex SDK run when its provider timeout expires", async () => {
+    const thread = new FakeThread("codex-timeout-thread");
+    thread.run = (_prompt: string, options?: { signal?: AbortSignal }) =>
+      new Promise((_resolve, reject) => {
+        options?.signal?.addEventListener(
+          "abort",
+          () => reject(options.signal?.reason ?? new Error("aborted")),
+          { once: true },
+        );
+      });
+    const adapter = new CodexAdapter({
+      startThread: () => thread,
+      resumeThread: () => thread,
+    });
+
+    await expect(
+      adapter.start({ cwd: "/work", prompt: "Build it", timeout: 10 }),
+    ).rejects.toThrow(/timed out/i);
   });
 
   it("aborts submitTurn and releases busy state", async () => {
@@ -159,9 +234,14 @@ describe("CodexAdapter", () => {
     const controller = new AbortController();
     let runResolve: (() => void) | undefined;
     const thread = driver.resumedThread!;
-    thread.run = (prompt: string) => {
-      return new Promise((resolve) => {
+    thread.run = (prompt: string, options?: { signal?: AbortSignal }) => {
+      return new Promise((resolve, reject) => {
         runResolve = () => resolve({ finalResponse: `response:${prompt}` });
+        options?.signal?.addEventListener(
+          "abort",
+          () => reject(options.signal?.reason ?? new Error("aborted")),
+          { once: true },
+        );
       });
     };
 
@@ -196,7 +276,14 @@ describe("CodexAdapter", () => {
     // Cancel first turn
     const controller = new AbortController();
     const thread = driver.resumedThread!;
-    thread.run = () => new Promise(() => {}); // never resolves
+    thread.run = (_prompt: string, options?: { signal?: AbortSignal }) =>
+      new Promise((_resolve, reject) => {
+        options?.signal?.addEventListener(
+          "abort",
+          () => reject(options.signal?.reason ?? new Error("aborted")),
+          { once: true },
+        );
+      });
     const turnPromise = adapter.submitTurn(session, {
       message: "Cancel me",
       signal: controller.signal,

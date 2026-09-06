@@ -21,5 +21,5 @@
 - [x] Apply default time bounds to generic Git sources.
 - [x] Replace the stale threat-model draft with verified controls and residual risks.
 - [x] Pass the complete local release gate on the audit branch.
-- [ ] Pass Ubuntu and Windows GitHub Actions on the audit branch.
+- [x] Pass Ubuntu and Windows GitHub Actions on the audit branch.
 - [ ] Cut and publish a follow-up version so npm contains the post-0.9.1 fixes.

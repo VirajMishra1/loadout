@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.9.2 - 2026-09-06
+
 ### Changed
 
 - Coordination discussion output now removes duplicate lifecycle noise, shows a
@@ -11,6 +13,10 @@
 
 ### Fixed
 
+- Materialize multi-path ownership claims once per normalized path so snapshots
+  and status output do not repeat the full claim for every path.
+- Close the Claude Code subprocess stdin explicitly, avoiding its empty-input
+  wait before a bounded coordination turn begins.
 - Forward cancellation and timeout signals natively to both Claude Code and the
   Codex SDK so a timed-out paid turn cannot keep running while Loadout starts a
   replacement turn.

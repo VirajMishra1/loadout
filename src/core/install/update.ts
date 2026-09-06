@@ -17,10 +17,12 @@ import {
   type DiscoverSkillOptions,
 } from "../catalog/skills.js";
 import type {
+  CatalogPackage,
   DetectedAgent,
   InstallPlan,
   InstallState,
 } from "../../shared/types.js";
+import { loadEffectiveCatalog } from "../catalog/catalog.js";
 
 export type UpdateStatus =
   "update-available" | "up-to-date" | "untracked" | "error";
@@ -43,6 +45,8 @@ export interface UpdatePlan {
   safetyFindings?: SafetyFinding[];
   /** Set only when a blocked update was explicitly quarantined for later review. */
   quarantinePath?: string;
+  /** The update target commit was not found in any catalog-pinned source evidence. */
+  catalogDrift?: boolean;
   error?: string;
 }
 
@@ -200,6 +204,22 @@ async function analyzeManagedUpdate(
   };
 }
 
+/**
+ * Index catalog-pinned commits by repository for O(1) lookup during update.
+ * A commit matches if the catalog's source evidence references the same SHA.
+ */
+function buildCatalogCommitIndex(
+  catalog: CatalogPackage[],
+): Map<string, string> {
+  const index = new Map<string, string>();
+  for (const pkg of catalog) {
+    if (pkg.source?.commit && pkg.repository) {
+      index.set(pkg.repository.toLowerCase(), pkg.source.commit.toLowerCase());
+    }
+  }
+  return index;
+}
+
 /** Builds a read-only update plan from persisted installs and live GitHub snapshots. */
 export async function buildUpdatePlan(
   resolver?: CommitResolver,
@@ -210,6 +230,18 @@ export async function buildUpdatePlan(
     ? state.installs.filter((record) => record.packageId === options.packageId)
     : state.installs;
   const results = new Array<UpdatePlan>(records.length);
+
+  // Load catalog commit pins so we can flag updates that diverge from
+  // the last reviewed snapshot. This is a read-only safety check — it
+  // does not prevent the update, but adds a blocking safety finding
+  // when the upstream HEAD has moved past the catalog-pinned commit.
+  let catalogIndex: Map<string, string>;
+  try {
+    const catalog = await loadEffectiveCatalog();
+    catalogIndex = buildCatalogCommitIndex(catalog);
+  } catch {
+    catalogIndex = new Map();
+  }
   const lightweightResolver: CommitResolver =
     resolver ??
     options.resolveHead ??
@@ -306,6 +338,23 @@ export async function buildUpdatePlan(
                 );
               currentPath = fetched.path;
             }
+            // Check whether the upstream HEAD matches the catalog-pinned
+            // commit. A mismatch means the repository has changed since the
+            // catalog was last reviewed — the content may be fine, but it
+            // hasn't been vetted, so flag it for human review.
+            let catalogDrift = false;
+            if (!same && record.repository) {
+              const pinnedCommit = catalogIndex.get(
+                record.repository.toLowerCase(),
+              );
+              if (
+                pinnedCommit &&
+                pinnedCommit !== current.commit.toLowerCase()
+              ) {
+                catalogDrift = true;
+              }
+            }
+
             if (!same && currentPath) {
               const oldPath = repositoryCachePath(
                 record.repository,
@@ -317,8 +366,22 @@ export async function buildUpdatePlan(
                 managedUnitIds(state, record.packageId),
               );
               diff = analysis.diff;
-              safetyFindings = analysis.safetyFindings;
+              safetyFindings = analysis.safetyFindings ?? [];
               approvalRequired = analysis.approvalRequired;
+
+              if (catalogDrift) {
+                safetyFindings.push({
+                  severity: "blocking",
+                  category: "instruction",
+                  message:
+                    "Upstream HEAD has moved past the catalog-reviewed commit. " +
+                    "The new content has not been verified by the catalog maintainer. " +
+                    "Review the diff carefully before approving.",
+                  paths: [],
+                  names: ["catalog-drift"],
+                });
+                approvalRequired = true;
+              }
             }
             return {
               ...base,
@@ -334,6 +397,7 @@ export async function buildUpdatePlan(
               ...(approvalRequired ? { approvalRequired: true } : {}),
               ...(safetyFindings?.length ? { safetyFindings } : {}),
               ...(diff ? { diff } : {}),
+              ...(catalogDrift ? { catalogDrift: true } : {}),
             };
           } catch (error) {
             return {

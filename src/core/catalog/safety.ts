@@ -51,19 +51,73 @@ const SECRET_PATTERNS: Array<{ name: string; pattern: RegExp }> = [
   },
 ];
 const SUSPICIOUS_INSTRUCTIONS: Array<{ name: string; pattern: RegExp }> = [
+  // --- Prompt injection / instruction override ---
   {
     name: "instruction override",
     pattern:
       /\bignore (?:all |any )?(?:previous|prior|system|developer) instructions?\b/i,
   },
   {
-    name: "credential extraction",
+    name: "instruction override (disregard)",
     pattern:
-      /\b(?:read|print|send|upload|exfiltrate)\b.{0,80}\b(?:credentials?|tokens?|secrets?|\.ssh|\.aws)\b/i,
+      /\b(?:disregard|forget|override|bypass)\b.{0,40}\b(?:previous|prior|system|above|rules?|instructions?|guidelines?)\b/i,
   },
   {
+    name: "role hijack",
+    pattern:
+      /\byou are (?:now |actually )?(?:a|an|the)\b.{0,60}\b(?:assistant|system|admin|root)\b/i,
+  },
+  {
+    name: "hidden system prompt",
+    pattern: /\[(?:SYSTEM|INST)\]|\<\|(?:system|im_start)\|?\>/i,
+  },
+  {
+    name: "encoding evasion",
+    pattern:
+      /\b(?:base64|rot13|hex)[- ]?(?:decode|encoded?)\b.{0,60}\b(?:execute|run|eval)\b/i,
+  },
+
+  // --- Credential / data exfiltration ---
+  {
+    name: "credential extraction",
+    pattern:
+      /\b(?:read|print|send|upload|exfiltrate|output|display|echo|cat)\b.{0,80}\b(?:credentials?|tokens?|secrets?|\.ssh|\.aws|\.env|api[_-]?keys?|passwords?)\b/i,
+  },
+  {
+    name: "exfiltration via URL",
+    pattern:
+      /\b(?:curl|wget|fetch|http)\b.{0,120}\b(?:credentials?|tokens?|secrets?|api[_-]?key|password|\.env)\b/i,
+  },
+  {
+    name: "environment variable leak",
+    pattern:
+      /\b(?:print|echo|log|send|post)\b.{0,40}\bprocess\.env\b/i,
+  },
+
+  // --- Destructive operations ---
+  {
     name: "hidden destructive command",
-    pattern: /\b(?:rm\s+-rf|del\s+\/s|format\s+[a-z]:)\b/i,
+    pattern: /\b(?:rm\s+-rf|del\s+\/s|format\s+[a-z]:|mkfs\b|dd\s+if=)/i,
+  },
+  {
+    name: "git force push",
+    pattern: /\bgit\s+push\s+(?:--force|-f)\b/i,
+  },
+
+  // --- Stealth / persistence ---
+  {
+    name: "hidden file creation",
+    pattern:
+      /\b(?:create|write|add|mkdir)\b.{0,60}(?:\/\.[a-z]|\\\.|\bhidden\b)/i,
+  },
+  {
+    name: "cron/scheduler injection",
+    pattern: /\b(?:crontab|at\s+now|systemctl\s+enable|launchctl\s+load)\b/i,
+  },
+  {
+    name: "network listener",
+    pattern:
+      /\b(?:listen|bind|nc\s+-l|socat|ncat)\b.{0,40}\b(?:port|0\.0\.0\.0|\d{4,5})\b/i,
   },
 ];
 

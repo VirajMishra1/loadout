@@ -36,7 +36,11 @@ const defaultCommandDriver: ClaudeCommandDriver = async (
   args,
   options,
 ) => {
-  const { stdout } = await exec(command, [...args], options);
+  const { stdout } = await exec(command, [...args], {
+    ...options,
+    // Prevent Claude CLI from waiting on an empty stdin pipe.
+    stdio: ["ignore", "pipe", "pipe"],
+  } as Parameters<typeof exec>[2]);
   return { stdout: String(stdout) };
 };
 

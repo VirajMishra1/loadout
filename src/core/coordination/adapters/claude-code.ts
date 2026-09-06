@@ -6,7 +6,6 @@
  */
 
 import { execFile } from "node:child_process";
-import { promisify } from "node:util";
 import type {
   AgentAdapter,
   AgentSession,
@@ -14,8 +13,6 @@ import type {
   SubmitTurnOptions,
   StartOptions,
 } from "./types.js";
-const exec = promisify(execFile);
-
 const PROVIDER = "claude-code";
 const CLI = "claude";
 
@@ -31,18 +28,29 @@ export type ClaudeCommandDriver = (
   options: ClaudeCommandOptions,
 ) => Promise<{ stdout: string }>;
 
-const defaultCommandDriver: ClaudeCommandDriver = async (
+export const runClaudeCommand: ClaudeCommandDriver = async (
   command,
   args,
   options,
-) => {
-  const { stdout } = await exec(command, [...args], {
-    ...options,
-    // Prevent Claude CLI from waiting on an empty stdin pipe.
-    stdio: ["ignore", "pipe", "pipe"],
-  } as Parameters<typeof exec>[2]);
-  return { stdout: String(stdout) };
-};
+) =>
+  new Promise((resolve, reject) => {
+    const child = execFile(
+      command,
+      [...args],
+      { ...options, encoding: "utf8" },
+      (error, stdout) => {
+        if (error) {
+          reject(error);
+          return;
+        }
+        resolve({ stdout: String(stdout) });
+      },
+    );
+
+    // execFile opens a writable stdin pipe. Claude waits briefly for input
+    // unless the parent closes it, so end it as soon as the process starts.
+    child.stdin?.end();
+  });
 
 function parseSessionOutput(stdout: string): {
   sessionId: string;
@@ -79,7 +87,7 @@ export class ClaudeCodeAdapter implements AgentAdapter {
   private readonly responses = new Map<string, string>();
 
   constructor(
-    private readonly runCommand: ClaudeCommandDriver = defaultCommandDriver,
+    private readonly runCommand: ClaudeCommandDriver = runClaudeCommand,
   ) {}
 
   readonly capabilities: AdapterCapabilities = {

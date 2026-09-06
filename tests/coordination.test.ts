@@ -251,6 +251,31 @@ describe("acknowledgements", () => {
 });
 
 describe("snapshot", () => {
+  it("materializes each owned path exactly once for a multi-path claim", async () => {
+    await emit(root, {
+      from: "claude-code",
+      to: "*",
+      type: "ownership",
+      description: "Backend owned",
+      payload: {
+        paths: ["src/api/", "src/db/", "src/shared/"],
+        mode: "exclusive",
+      },
+    });
+
+    const snap = await snapshot(root, "codex");
+
+    expect(snap.ownership.map((claim) => claim.paths)).toEqual([
+      ["src/api"],
+      ["src/db"],
+      ["src/shared"],
+    ]);
+    const text = formatSnapshot(snap);
+    expect(text.match(/src\/api/g)).toHaveLength(1);
+    expect(text.match(/src\/db/g)).toHaveLength(1);
+    expect(text.match(/src\/shared/g)).toHaveLength(1);
+  });
+
   it("produces a bounded summary", async () => {
     await emit(root, {
       from: "claude-code",

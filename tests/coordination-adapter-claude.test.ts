@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   ClaudeCodeAdapter,
+  runClaudeCommand,
   type ClaudeCommandDriver,
 } from "../src/core/coordination/adapters/claude-code.js";
 
@@ -25,6 +26,18 @@ function recordingDriver(outputs: string[]): {
 }
 
 describe("ClaudeCodeAdapter", () => {
+  it("closes the Claude subprocess stdin immediately", async () => {
+    const script = [
+      "process.stdin.once('end', () => process.stdout.write('eof', () => process.exit(0)))",
+      "process.stdin.resume()",
+      "setTimeout(() => process.exit(2), 500)",
+    ].join(";");
+
+    await expect(
+      runClaudeCommand(process.execPath, ["-e", script], { timeout: 2_000 }),
+    ).resolves.toEqual({ stdout: "eof" });
+  });
+
   it("starts with the supported print-mode positional prompt", async () => {
     const fake = recordingDriver([
       JSON.stringify({

@@ -24,7 +24,7 @@ describe("npm release contract", () => {
     };
 
     expect(manifest.name).toBe("loadout-ai");
-    expect(manifest.version).toBe("0.9.1");
+    expect(manifest.version).toBe("0.9.2");
     expect(lockfile.version).toBe(manifest.version);
     expect(lockfile.packages?.[""]?.version).toBe(manifest.version);
     expect(manifest.private).toBe(false);
@@ -83,7 +83,7 @@ describe("npm release contract", () => {
     expect(joinedGuides).not.toContain(
       "verify:full` is an alias for the same CLI release gate",
     );
-    expect(joinedGuides).toContain("loadout-ai@0.9.1");
+    expect(joinedGuides).toContain("loadout-ai@0.9.2");
     expect(joinedGuides).toContain("npm run verify:full");
   });
 });

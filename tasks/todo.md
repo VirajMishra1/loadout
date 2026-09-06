@@ -22,4 +22,8 @@
 - [x] Replace the stale threat-model draft with verified controls and residual risks.
 - [x] Pass the complete local release gate on the audit branch.
 - [x] Pass Ubuntu and Windows GitHub Actions on the audit branch.
+- [x] Dogfood the packed artifact through setup, rollback, bundled handoff,
+      coordination, daemon lifecycle, and a bounded real-provider release gate.
+- [x] Fix and regression-test duplicate multi-path ownership output and Claude
+      subprocess stdin handling found during dogfooding.
 - [ ] Cut and publish a follow-up version so npm contains the post-0.9.1 fixes.

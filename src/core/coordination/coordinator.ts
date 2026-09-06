@@ -360,7 +360,7 @@ function ownershipFromEvents(
       }
       ownership.set(path, {
         agent: event.from,
-        paths,
+        paths: [path],
         mode: payload.mode as "exclusive" | "shared",
         eventId: event.id,
         seq: event.seq,
@@ -762,14 +762,14 @@ export function formatSnapshot(snap: CoordinationSnapshot): string {
 
   if (snap.ownership.length) {
     lines.push(`File ownership (${snap.ownership.length} paths):`);
-    const byAgent = new Map<string, string[]>();
+    const byAgent = new Map<string, Set<string>>();
     for (const claim of snap.ownership) {
-      const existing = byAgent.get(claim.agent) ?? [];
-      existing.push(...claim.paths);
+      const existing = byAgent.get(claim.agent) ?? new Set<string>();
+      for (const p of claim.paths) existing.add(p);
       byAgent.set(claim.agent, existing);
     }
     for (const [agent, paths] of byAgent) {
-      lines.push(`  ${agent}: ${paths.join(", ")}`);
+      lines.push(`  ${agent}: ${[...paths].join(", ")}`);
     }
     lines.push("");
   }

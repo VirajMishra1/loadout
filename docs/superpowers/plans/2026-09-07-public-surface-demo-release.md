@@ -23,10 +23,12 @@
 ### Task 1: Align the README collaboration story
 
 **Files:**
+
 - Modify: `README.md`
 - Test: `tests/readme-product-flow.test.ts`
 
 **Interfaces:**
+
 - Consumes: existing `loadout coord discuss start` CLI and provider-turn limits.
 - Produces: a prominent README explanation of one-command bounded discussion.
 
@@ -59,9 +61,11 @@
 ### Task 2: Align GitHub metadata and social preview
 
 **Files:**
+
 - Modify: `docs/assets/loadout-social-preview.png`
 
 **Interfaces:**
+
 - Consumes: `docs/assets/loadout-unified-workflow-v2.webp` as the approved content and style reference.
 - Produces: a 1280×640 GitHub social card with the same lifecycle and collaboration story.
 
@@ -97,11 +101,13 @@
 ### Task 3: Verify and publish 0.9.3 through Claude Code
 
 **Files:**
+
 - Modify: `package.json`
 - Modify: `package-lock.json`
 - Modify: `CHANGELOG.md`
 
 **Interfaces:**
+
 - Consumes: verified documentation commits on `main`.
 - Produces: npm package and GitHub release `0.9.3` whose README matches GitHub main.
 
@@ -132,10 +138,12 @@
 ### Task 4: Record and encode the real demo
 
 **Files:**
+
 - Create outside Git: `/tmp/loadout-demo-raw.mov`
 - Create outside Git: `/tmp/loadout-demo-final.mp4`
 
 **Interfaces:**
+
 - Consumes: public `loadout-ai@0.9.3`, authenticated Claude Code and Codex provider sessions, isolated demo home/project.
 - Produces: a 75–90 second 1920×1080 H.264 demonstration suitable for GitHub and X.
 

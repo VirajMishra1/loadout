@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+## 0.9.4 - 2026-09-07
+
+### Changed
+
+- Updated the Stable first-run flow to show detailed safety findings before
+  applying and require explicit acknowledgement of the currently reported
+  instruction-like files.
+
+### Fixed
+
+- Serialized coordination lock recovery within a process so competing
+  recoverers cannot enter the same critical section simultaneously.
+
 ## 0.9.3 - 2026-09-07
 
 ### Changed

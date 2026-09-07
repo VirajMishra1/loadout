@@ -125,7 +125,7 @@ and coordination without making you relay every command.
 For a reproducible install, pin the current release:
 
 ```bash
-npm install --global loadout-ai@0.9.3
+npm install --global loadout-ai@0.9.4
 loadout setup --mode stable --details
 loadout setup --mode stable --yes --approve-risk
 loadout status

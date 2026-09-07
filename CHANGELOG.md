@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+## 0.9.3 - 2026-09-07
+
+### Changed
+
+- Unified README around the full Loadout lifecycle: discover, curate, activate,
+  handoff, and coordinate — with a single hero image covering all five stages.
+- Added prominent documentation for one-command bounded Claude Code ↔ Codex
+  design discussions (`loadout coord discuss start`).
+- Aligned the GitHub social-preview asset with the unified workflow narrative.
+
 ## 0.9.2 - 2026-09-06
 
 ### Changed

@@ -11,6 +11,17 @@ import {
 
 let root: string;
 
+async function waitFor(
+  predicate: () => boolean,
+  timeoutMs = 2_000,
+): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  while (!predicate()) {
+    if (Date.now() >= deadline) return;
+    await new Promise((resolve) => setTimeout(resolve, 25));
+  }
+}
+
 beforeEach(async () => {
   root = await mkdtemp(join(tmpdir(), "loadout-watch-"));
 });
@@ -46,8 +57,8 @@ describe("coordination watcher", () => {
       payload: { name: "api", revision: 1, body: "types" },
     });
 
-    // Wait for debounce + fs.watch
-    await new Promise((resolve) => setTimeout(resolve, 300));
+    // Wait for debounce + fs.watch without assuming a fixed scheduler delay.
+    await waitFor(() => received.includes("New API"));
 
     watcher.stop();
 
@@ -80,7 +91,7 @@ describe("coordination watcher", () => {
       description: "Not for codex",
     });
 
-    await new Promise((resolve) => setTimeout(resolve, 300));
+    await waitFor(() => received.includes("For codex"));
     watcher.stop();
 
     expect(received).toContain("For codex");

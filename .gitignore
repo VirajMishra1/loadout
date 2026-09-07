@@ -18,3 +18,9 @@ bin/
 
 # generated npm release archives
 *.tgz
+
+# handoff runtime state (session-local, never commit)
+.handoff/bundles/
+.handoff/coordination.jsonl
+.handoff/coordination.jsonl.*.archive
+.handoff/sessions.json

@@ -106,60 +106,49 @@ describe("README product flow", () => {
   it("presents the approved proof-first product journey", async () => {
     const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
 
-    const productImages = readme.match(/<img\b[^>]*>/gi) ?? [];
-    const discoverImage = productImages.filter((element) =>
-      /\ssrc="\.\/docs\/assets\/loadout-discover-activate\.webp"/i.test(
-        element,
-      ),
+    const productImages =
+      readme.match(
+        /<img\b[^>]*src="\.\/docs\/assets\/loadout-[^"]+\.webp"[^>]*>/gi,
+      ) ?? [];
+    expect(productImages).toHaveLength(1);
+    expect(productImages[0]).toContain(
+      'src="./docs/assets/loadout-unified-workflow-v2.webp"',
     );
-    const coordinationImage = productImages.filter((element) =>
-      /\ssrc="\.\/docs\/assets\/loadout-handoff-coordinate\.webp"/i.test(
-        element,
-      ),
-    );
-    expect(discoverImage).toHaveLength(1);
-    expect(coordinationImage).toHaveLength(1);
-    expect(discoverImage[0]).toContain("discovers agent skills");
-    expect(coordinationImage[0]).toContain(
-      "durable task handoffs between sessions",
-    );
+    expect(productImages[0]).toContain("discovers, curates, and activates");
+    expect(productImages[0]).toContain("handoff and coordinate");
 
-    for (const name of [
-      "loadout-discover-activate.webp",
-      "loadout-handoff-coordinate.webp",
-    ]) {
-      const image = await readFile(
-        resolve(repositoryRoot, "docs/assets", name),
-      );
-      const { width, height } = webpDimensions(image);
-      expect(width / height).toBeGreaterThan(1.7);
-      expect(width / height).toBeLessThan(1.9);
-      expect(image.byteLength).toBeLessThan(300_000);
-    }
+    const image = await readFile(
+      resolve(repositoryRoot, "docs/assets/loadout-unified-workflow-v2.webp"),
+    );
+    const { width, height } = webpDimensions(image);
+    expect(width / height).toBeGreaterThan(1.7);
+    expect(width / height).toBeLessThan(1.9);
+    expect(image.byteLength).toBeLessThan(500_000);
     expect(readme).not.toMatch(/founder|revolutionary|game-changing/i);
-    expect(readme).toContain("Hand work between AI coding agents.");
+    expect(readme).toContain(
+      "Manage skills for 12 coding agents. Hand off and coordinate work between Claude Code and Codex.",
+    );
     expect(readme).toContain("Choose -> Inspect -> Preview -> Apply -> Undo");
-    expect(readme).toMatch(/abridged terminal transcript/i);
+    expect(readme).not.toMatch(/abridged terminal transcript/i);
     expect(readme).toContain("npm install --global loadout-ai");
     expect(readme).toContain("loadout coord discuss start");
     expect(readme).toContain("--verify-command npm");
     expect(readme).toMatch(/bounded design discussion/i);
     expect(readme.split(/\r?\n/).length).toBeLessThanOrEqual(425);
-    expect(readme.indexOf("### Demo")).toBeLessThan(
-      readme.indexOf("## Install"),
-    );
 
     expectOrderedReadmeStructure(
       readme,
       [
-        "## Install",
-        "## How it works",
-        "### Abridged terminal transcript",
+        "## Try it in 30 seconds",
+        "## What Loadout does",
+        "## Use Claude Code and Codex together",
+        "## Try these prompts",
+        "## Install and choose your agent",
+        "## Safety and trust",
+        "## Demo",
         "## Why Loadout",
-        "## Stable workflow",
         "## Profiles",
         "## Catalog and discovery",
-        "## Trust and limits",
         "## Agent support",
         "## Command reference",
         "## Built with Claude and Codex",
@@ -169,10 +158,10 @@ describe("README product flow", () => {
         "## License",
       ],
       [
+        "current-limits",
         "catalog-coverage",
         "evidence-stages",
         "daily-discovery",
-        "current-limits",
         "support-summary",
         "verification-summary",
       ],
@@ -197,7 +186,7 @@ describe("README product flow", () => {
   it("tells the Loadout story in the Why Loadout section", async () => {
     const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
     const start = readme.indexOf("## Why Loadout");
-    const end = readme.indexOf("## Stable workflow", start);
+    const end = readme.indexOf("## Profiles", start);
     expect(start).toBeGreaterThanOrEqual(0);
     expect(end).toBeGreaterThan(start);
 
@@ -225,8 +214,8 @@ describe("README product flow", () => {
 
   it("installs both first-party skills before promising their agent workflows", async () => {
     const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
-    const start = readme.indexOf("## Use it from inside your agent");
-    const end = readme.indexOf("## Passing work between two agents", start);
+    const start = readme.indexOf("## Try these prompts");
+    const end = readme.indexOf("## Install and choose your agent", start);
     expect(start).toBeGreaterThanOrEqual(0);
     expect(end).toBeGreaterThan(start);
 

@@ -1,16 +1,15 @@
 <p align="center">
-  <img src="./docs/assets/loadout-discover-activate.webp" alt="Loadout discovers agent skills, tools, and MCP servers; screens and pins them; activates the right set for a repository; and lets users preview or roll back every change." width="960">
+  <img src="./docs/assets/loadout-handoff-coordinate.webp" alt="Claude Code and Codex use Loadout in two ways: durable task handoffs between sessions, and structured coordination for contracts, file ownership, decisions, acknowledgements, and an audit trail." width="960">
 </p>
 
 <h1 align="center">Loadout</h1>
 
-<p align="center"><strong>Agent extensions, under control.</strong></p>
+<p align="center"><strong>Hand work between AI coding agents.<br>They share a task log, coordinate file ownership, and debate design decisions — without seeing each other's context.</strong></p>
 
 <p align="center">
-  <strong>The package manager for your AI coding setup.</strong><br>
-  Find skills worth having, activate the right ones per project,<br>
-  install them across 12 agents, hand work from Claude Code to Codex,<br>
-  and undo any of it.
+  <code>loadout handoff codex "write tests for auth"</code> →
+  Codex picks it up, does the work, marks it done →
+  <code>loadout handoff claude-code</code> picks up the result.
 </p>
 
 <p align="center">
@@ -23,45 +22,54 @@
 </p>
 
 <p align="center">
-  <a href="#what-it-looks-like">See it</a> ·
+  <a href="#the-30-second-version">30 seconds</a> ·
   <a href="#install">Install</a> ·
-  <a href="#use-it-from-inside-your-agent">Use it in your agent</a> ·
   <a href="#passing-work-between-two-agents">Two agents</a> ·
+  <a href="#skills-and-extensions">Skills</a> ·
   <a href="#why-loadout">Why</a> ·
   <a href="#command-reference">Commands</a>
 </p>
 
-## What it looks like
+## The 30-second version
 
-```console
-$ loadout doctor
-loadout doctor — HEALTHY
+```bash
+# In a Claude Code session:
+loadout handoff codex "write unit tests for src/auth.ts" --bundle src/auth.ts
 
-Platform:   darwin
-State:      ~/.loadout ✓ writable
-Agents:     3 detected, 9 available
+# Codex picks it up automatically:
+loadout handoff codex          # → shows the task
+# ... Codex does the work ...
+loadout handoff --done abc123  # → marked done
 
-DETECTED AGENTS
-  ✓ Claude Code
-    ~/.claude/skills
-    43 skills | supports: skill, command, agent, mcp, plugin, root
-  ✓ Codex
-    ~/.agents/skills
-    30 skills | supports: skill, command, agent, mcp, plugin, root
-
-$ loadout recommend --project .
-Project: checkout-service
-Detected: TypeScript, Zod, Vitest, next.js, react
-
-Rule-based project suggestions:
-  superpowers [high, skill library] — Useful engineering planning, testing, and review workflows.
-  context7 [high, skill library] — Current library documentation helps agents avoid outdated APIs.
-  ui-ux-pro-max [high, skill library] — Frontend framework detected: next.js, react.
-  playwright-mcp [medium, MCP/runtime setup] — Browser verification may help test the detected frontend.
+# Back in Claude Code:
+loadout handoff claude-code    # → sees the completed result
 ```
 
-It reads your repository rather than a config file, knows which agents you
-actually have, and previews and snapshots every write before it touches them.
+No shared context window. No copy-pasting between agents. Each agent checks its
+inbox, does the work, and hands it back — with an append-only audit trail in
+`.handoff/`.
+
+### Beyond handoffs: live coordination
+
+```bash
+loadout coord own claude-code src lib          # file ownership
+loadout coord own codex tests                  # no stepping on each other
+loadout coord discuss start "REST or GraphQL?" --agents claude-code,codex  # bounded debate
+loadout coord snapshot claude-code             # who owns what, what was decided
+```
+
+### Plus: a skill package manager for 12 agents
+
+<p align="center">
+  <img src="./docs/assets/loadout-discover-activate.webp" alt="Loadout discovers agent skills, tools, and MCP servers; screens and pins them; activates the right set for a repository; and lets users preview or roll back every change." width="960">
+</p>
+
+```bash
+loadout setup --mode stable    # preview 30 curated skills
+loadout setup --mode stable --yes
+loadout optimize --project .   # activate the right skills for this repo
+loadout rollback               # undo any of it
+```
 
 ### Demo
 
@@ -90,32 +98,22 @@ For a reproducible install, pin the release: `npm install --global loadout-ai@0.
 
 ## Use it from inside your agent
 
-A CLI you have to leave your agent to run is a context switch. Loadout ships two
-skills so you do not have to: one for agent handoffs and one for choosing a
-focused skill set for the current repository.
+Loadout ships skills so your agent can use it without you leaving the conversation:
 
 ```bash
 loadout skills install loadout-handoff --yes
 loadout skills install loadout-curator --yes
 ```
 
-Start a new agent session and just ask, in the conversation you are already in:
+Then just ask your agent:
 
 > _"Hand the test writing to Codex."_
 > _"What did Codex leave for me?"_
 > _"Which skills should be active for this repo?"_
 
-The skills teach your agent to call `loadout` and act on the results, so it
-checks its own inbox at the start of a session and can pass work to your other
-agent without you relaying it by hand.
-
-`loadout skills list` shows what ships with Loadout and what is already installed.
+Your agent checks its inbox at session start and hands work off without you relaying it.
 
 ## Passing work between two agents
-
-<p align="center">
-  <img src="./docs/assets/loadout-handoff-coordinate.webp" alt="Claude Code and Codex use Loadout in two ways: durable task handoffs between sessions, and structured coordination for contracts, file ownership, decisions, acknowledgements, and an audit trail." width="960">
-</p>
 
 If you pay for both Claude and a ChatGPT plan, the two agents cannot see each
 other. Loadout gives them a shared, append-only task log:

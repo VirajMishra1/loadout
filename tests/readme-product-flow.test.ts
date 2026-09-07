@@ -137,7 +137,7 @@ describe("README product flow", () => {
       expect(image.byteLength).toBeLessThan(300_000);
     }
     expect(readme).not.toMatch(/founder|revolutionary|game-changing/i);
-    expect(readme).toContain("Agent extensions, under control.");
+    expect(readme).toContain("Hand work between AI coding agents.");
     expect(readme).toContain("Choose -> Inspect -> Preview -> Apply -> Undo");
     expect(readme).toMatch(/abridged terminal transcript/i);
     expect(readme).toContain("npm install --global loadout-ai");

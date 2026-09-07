@@ -42,9 +42,13 @@ pinned public sources**, installed into each agent you choose.
 | [Agent Skills Marketplace](https://github.com/wshobson/agents)         | Architecture, review, error handling, JavaScript, Python      | [![GitHub stars](https://img.shields.io/github/stars/wshobson/agents?style=flat&label=stars)](https://github.com/wshobson/agents)                 |
 
 ```bash
-loadout setup --mode stable
-loadout setup --mode stable --yes
+loadout setup --mode stable --details
+loadout setup --mode stable --yes --approve-risk
 ```
+
+The current Stable selection reports instruction-like files in reviewed skill
+sources. Read the detailed preview before acknowledging those findings with
+`--approve-risk`.
 
 ### Power: a larger cross-project toolkit
 

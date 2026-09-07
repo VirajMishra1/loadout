@@ -5,6 +5,7 @@ import { join } from "node:path";
 const LOCK_FILE = "coordination.lock";
 const DEFAULT_TIMEOUT_MS = 10_000;
 const MALFORMED_LOCK_STALE_MS = 30_000;
+const localLockTails = new Map<string, Promise<void>>();
 
 interface LockOwner {
   token: string;
@@ -71,13 +72,32 @@ function wait(delayMs: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, delayMs));
 }
 
-/** Serialize coordination mutations across Node processes sharing a project. */
-export async function withCoordinationLock<T>(
-  coordinationDir: string,
+async function withLocalLock<T>(
+  path: string,
   operation: () => Promise<T>,
-  timeoutMs = DEFAULT_TIMEOUT_MS,
 ): Promise<T> {
-  const path = join(coordinationDir, LOCK_FILE);
+  const previous = localLockTails.get(path) ?? Promise.resolve();
+  let release: () => void = () => undefined;
+  const current = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const tail = previous.then(() => current);
+  localLockTails.set(path, tail);
+
+  await previous;
+  try {
+    return await operation();
+  } finally {
+    release();
+    if (localLockTails.get(path) === tail) localLockTails.delete(path);
+  }
+}
+
+async function withFileLock<T>(
+  path: string,
+  operation: () => Promise<T>,
+  timeoutMs: number,
+): Promise<T> {
   const deadline = Date.now() + timeoutMs;
   const token = randomUUID();
   const owner: LockOwner = {
@@ -144,4 +164,14 @@ export async function withCoordinationLock<T>(
   } finally {
     await releaseOwnedLock(path, token);
   }
+}
+
+/** Serialize coordination mutations within this process and across processes. */
+export async function withCoordinationLock<T>(
+  coordinationDir: string,
+  operation: () => Promise<T>,
+  timeoutMs = DEFAULT_TIMEOUT_MS,
+): Promise<T> {
+  const path = join(coordinationDir, LOCK_FILE);
+  return withLocalLock(path, () => withFileLock(path, operation, timeoutMs));
 }

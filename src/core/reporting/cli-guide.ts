@@ -5,8 +5,10 @@ Loadout — manage the skills, tools, and MCP servers your AI agents use.
 FIRST TIME
 
   loadout doctor                    which agents you have, and whether they are healthy
-  loadout setup --mode stable       preview 30 reviewed skills (nothing changes)
-  loadout setup --mode stable --yes install them
+  loadout setup --mode stable --details
+                                      preview 30 reviewed skills and findings
+  loadout setup --mode stable --yes --approve-risk
+                                      install only after reviewing those findings
 
 IN A PROJECT
 

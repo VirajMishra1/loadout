@@ -107,11 +107,12 @@ explicit.
 For unattended use only after reviewing a preview, the equivalent is:
 
 ```bash
-loadout setup --mode stable --agents codex,claude-code --yes
+loadout setup --mode stable --agents codex,claude-code --yes --approve-risk
 ```
 
-Do not add `--approve-risk` unless the displayed preview identifies a specific
-reviewed finding and you understand it.
+The current Stable preview identifies instruction-like files in reviewed skill
+sources, so unattended apply requires `--approve-risk`. Add it only after reading
+and accepting the displayed findings.
 
 ## 5. Test a change and recover
 

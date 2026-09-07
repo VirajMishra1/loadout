@@ -95,6 +95,9 @@ describe("CLI contract", () => {
     expect(guide.code).toBe(0);
     expect(guide.stdout).toContain("FIRST TIME");
     expect(guide.stdout).toContain("loadout setup --mode stable");
+    expect(guide.stdout).toContain(
+      "loadout setup --mode stable --yes --approve-risk",
+    );
     // The guide covers the current product surface, not only installation.
     expect(guide.stdout).toContain("loadout handoff");
     expect(guide.stdout).toContain("loadout skills install");

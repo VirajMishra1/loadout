@@ -29,21 +29,23 @@ You need Node.js 20 or newer and Git.
 
 ```bash
 npm install --global loadout-ai
-loadout setup --mode stable
+loadout setup --mode stable --details
 ```
 
 The second command detects your coding agents and previews the 30-skill Stable
 loadout. It does not change agent files. Review the plan, then apply it:
 
 ```bash
-loadout setup --mode stable --yes
+loadout setup --mode stable --yes --approve-risk
 loadout status
 ```
 
 Loadout saves a rollback snapshot before applying changes. Run
 `loadout rollback` to restore the previous managed state.
 
-> `Preview complete; nothing was changed. Re-run with --yes to install this exact screened plan.`
+`--approve-risk` acknowledges the instruction-like files reported by the current
+Stable preview. Use it only after reading those findings; it does not replace the
+preview or the pinned-source checks.
 
 A later `--yes` invocation recomputes the plan from pinned sources and current agent and filesystem state; it does not persist or prove identity with the earlier preview.
 
@@ -124,8 +126,8 @@ For a reproducible install, pin the current release:
 
 ```bash
 npm install --global loadout-ai@0.9.3
-loadout setup --mode stable
-loadout setup --mode stable --yes
+loadout setup --mode stable --details
+loadout setup --mode stable --yes --approve-risk
 loadout status
 ```
 
@@ -269,25 +271,25 @@ Configured CI platforms describe a manually triggered workflow, not evidence tha
 
 ## Command reference
 
-| Goal                               | Command                                                    |
-| ---------------------------------- | ---------------------------------------------------------- |
-| Guided first run                   | `loadout guide`                                            |
-| Preview or apply Stable            | `loadout setup --mode stable` · add `--yes` to apply       |
-| Inspect managed skills             | `loadout status` · `loadout library`                       |
-| Recommend for this repository      | `loadout recommend --project .`                            |
-| Activate a project-specific set    | `loadout optimize --project . --limit 30`                  |
-| Scan or update                     | `loadout scan` · `loadout update`                          |
-| Send a task                        | `loadout handoff codex "write tests"`                      |
-| Use a handoff template             | `loadout handoff codex src/auth.ts --template write-tests` |
-| Preview two-agent ownership        | `loadout coord start --agents claude-code,codex`           |
-| Inspect coordination state         | `loadout coord snapshot codex`                             |
-| Detect shared contract candidates  | `loadout coord detect`                                     |
-| Turn a decision into tasks         | `loadout coord discuss implement <thread-id>`              |
-| Start the coordination MCP server  | `loadout serve`                                            |
-| Health check                       | `loadout doctor`                                           |
-| Restore the previous managed state | `loadout rollback`                                         |
-| Preview complete removal           | `loadout uninstall`                                        |
-| Full CLI reference                 | `loadout --help` · `loadout advanced`                      |
+| Goal                               | Command                                                                            |
+| ---------------------------------- | ---------------------------------------------------------------------------------- |
+| Guided first run                   | `loadout guide`                                                                    |
+| Preview or apply Stable            | `loadout setup --mode stable --details` · then `--yes --approve-risk` after review |
+| Inspect managed skills             | `loadout status` · `loadout library`                                               |
+| Recommend for this repository      | `loadout recommend --project .`                                                    |
+| Activate a project-specific set    | `loadout optimize --project . --limit 30`                                          |
+| Scan or update                     | `loadout scan` · `loadout update`                                                  |
+| Send a task                        | `loadout handoff codex "write tests"`                                              |
+| Use a handoff template             | `loadout handoff codex src/auth.ts --template write-tests`                         |
+| Preview two-agent ownership        | `loadout coord start --agents claude-code,codex`                                   |
+| Inspect coordination state         | `loadout coord snapshot codex`                                                     |
+| Detect shared contract candidates  | `loadout coord detect`                                                             |
+| Turn a decision into tasks         | `loadout coord discuss implement <thread-id>`                                      |
+| Start the coordination MCP server  | `loadout serve`                                                                    |
+| Health check                       | `loadout doctor`                                                                   |
+| Restore the previous managed state | `loadout rollback`                                                                 |
+| Preview complete removal           | `loadout uninstall`                                                                |
+| Full CLI reference                 | `loadout --help` · `loadout advanced`                                              |
 
 Most mutating commands are previews first. Add `--yes` only after reviewing the plan.
 

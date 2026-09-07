@@ -131,6 +131,10 @@ describe("README product flow", () => {
     expect(readme).toContain("Choose -> Inspect -> Preview -> Apply -> Undo");
     expect(readme).not.toMatch(/abridged terminal transcript/i);
     expect(readme).toContain("npm install --global loadout-ai");
+    expect(readme).toContain(
+      "loadout setup --mode stable --yes --approve-risk",
+    );
+    expect(readme).not.toMatch(/^loadout setup --mode stable --yes\s*$/m);
     expect(readme).toContain("loadout coord discuss start");
     expect(readme).toContain("--verify-command npm");
     expect(readme).toMatch(/bounded design discussion/i);
@@ -264,9 +268,11 @@ describe("README product flow", () => {
     const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
 
     expect(readme).toContain(
-      "Preview complete; nothing was changed. Re-run with --yes to install this exact screened plan.",
+      "`--approve-risk` acknowledges the instruction-like files reported by the current",
     );
-    expect(readme.match(/exact screened plan/g)).toHaveLength(1);
+    expect(readme).toContain(
+      "Use it only after reading those findings; it does not replace the",
+    );
     expect(readme).toContain(
       "A later `--yes` invocation recomputes the plan from pinned sources and current agent and filesystem state; it does not persist or prove identity with the earlier preview.",
     );

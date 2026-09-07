@@ -1,15 +1,9 @@
-<p align="center">
-  <img src="./docs/assets/loadout-handoff-coordinate.webp" alt="Claude Code and Codex use Loadout in two ways: durable task handoffs between sessions, and structured coordination for contracts, file ownership, decisions, acknowledgements, and an audit trail." width="960">
-</p>
-
 <h1 align="center">Loadout</h1>
 
-<p align="center"><strong>Hand work between AI coding agents.<br>They share a task log, coordinate file ownership, and debate design decisions — without seeing each other's context.</strong></p>
+<p align="center"><strong>Manage skills for 12 coding agents. Hand off and coordinate work between Claude Code and Codex.</strong></p>
 
 <p align="center">
-  <code>loadout handoff codex "write tests for auth"</code> →
-  Codex picks it up, does the work, marks it done →
-  <code>loadout handoff claude-code</code> picks up the result.
+  <img src="./docs/assets/loadout-unified-workflow-v2.webp" alt="Loadout discovers, curates, and activates skills, tools, and MCP servers for coding agents, then helps Claude Code and Codex handoff and coordinate work through durable tasks, bundled context, ownership, contracts, and decisions." width="960">
 </p>
 
 <p align="center">
@@ -22,66 +16,14 @@
 </p>
 
 <p align="center">
-  <a href="#the-30-second-version">30 seconds</a> ·
-  <a href="#install">Install</a> ·
-  <a href="#passing-work-between-two-agents">Two agents</a> ·
-  <a href="#skills-and-extensions">Skills</a> ·
-  <a href="#why-loadout">Why</a> ·
+  <a href="#try-it-in-30-seconds">Quick start</a> ·
+  <a href="#use-claude-code-and-codex-together">Two agents</a> ·
+  <a href="#try-these-prompts">Agent skills</a> ·
+  <a href="#safety-and-trust">Safety</a> ·
   <a href="#command-reference">Commands</a>
 </p>
 
-## The 30-second version
-
-```bash
-# In a Claude Code session:
-loadout handoff codex "write unit tests for src/auth.ts" --bundle src/auth.ts
-
-# Codex picks it up automatically:
-loadout handoff codex          # → shows the task
-# ... Codex does the work ...
-loadout handoff --done abc123  # → marked done
-
-# Back in Claude Code:
-loadout handoff claude-code    # → sees the completed result
-```
-
-No shared context window. No copy-pasting between agents. Each agent checks its
-inbox, does the work, and hands it back — with an append-only audit trail in
-`.handoff/`.
-
-### Beyond handoffs: live coordination
-
-```bash
-loadout coord own claude-code src lib          # file ownership
-loadout coord own codex tests                  # no stepping on each other
-loadout coord discuss start "REST or GraphQL?" --agents claude-code,codex  # bounded debate
-loadout coord snapshot claude-code             # who owns what, what was decided
-```
-
-### Plus: a skill package manager for 12 agents
-
-<p align="center">
-  <img src="./docs/assets/loadout-discover-activate.webp" alt="Loadout discovers agent skills, tools, and MCP servers; screens and pins them; activates the right set for a repository; and lets users preview or roll back every change." width="960">
-</p>
-
-```bash
-loadout setup --mode stable    # preview 30 curated skills
-loadout setup --mode stable --yes
-loadout optimize --project .   # activate the right skills for this repo
-loadout rollback               # undo any of it
-```
-
-### Demo
-
-<p align="center">
-  <a href="https://www.youtube.com/watch?v=opNqJKX7xMw">
-    <img src="https://img.youtube.com/vi/opNqJKX7xMw/maxresdefault.jpg" alt="Watch the 72-second Loadout demo" width="880">
-  </a>
-</p>
-
-**[Watch the 72-second Loadout demo on YouTube](https://www.youtube.com/watch?v=opNqJKX7xMw).**
-
-## Install
+## Try it in 30 seconds
 
 You need Node.js 20 or newer and Git.
 
@@ -90,117 +32,136 @@ npm install --global loadout-ai
 loadout setup --mode stable
 ```
 
-The second command detects your agents and previews the 30-skill Stable loadout.
-Nothing changes until you approve it. If anything goes wrong, start with the
-[user test guide](./docs/USER_TEST_GUIDE.md).
+The second command detects your coding agents and previews the 30-skill Stable
+loadout. It does not change agent files. Review the plan, then apply it:
 
-For a reproducible install, pin the release: `npm install --global loadout-ai@0.9.2`.
+```bash
+loadout setup --mode stable --yes
+loadout status
+```
 
-## Use it from inside your agent
+Loadout saves a rollback snapshot before applying changes. Run
+`loadout rollback` to restore the previous managed state.
 
-Loadout ships skills so your agent can use it without you leaving the conversation:
+> `Preview complete; nothing was changed. Re-run with --yes to install this exact screened plan.`
+
+A later `--yes` invocation recomputes the plan from pinned sources and current agent and filesystem state; it does not persist or prove identity with the earlier preview.
+
+## What Loadout does
+
+| Capability     | What you get                                                          |
+| -------------- | --------------------------------------------------------------------- |
+| **Discover**   | Find skills, tools, and MCP servers worth reviewing                   |
+| **Curate**     | Inspect, screen, and pin sources before trusting them                 |
+| **Activate**   | Install a focused set for this repository across your agents          |
+| **Handoff**    | Pass durable tasks with bundled context between Claude Code and Codex |
+| **Coordinate** | Share file ownership, contracts, decisions, and acknowledgements      |
+
+The package manager works across supported agents. Handoff and coordination are
+currently designed for Claude Code and Codex working in the same repository.
+
+## Use Claude Code and Codex together
+
+### Handoff: pass a task that survives sessions
+
+```bash
+loadout handoff codex "write unit tests for auth" --bundle src/auth.ts src/types.ts --verify "tests pass" --verify-command npm --verify-args '["test"]'
+```
+
+Codex sees the task when it checks its inbox, works from the attached bounded
+context, and marks it done. Claude Code can then read the result. Handoffs live
+in an append-only project log, so restarting either agent does not erase them.
+Bundles contain secret-redacted text and are capped at 50 KiB total; still
+review them before committing and never attach credential files.
+
+### Coordinate: work at the same time without stepping on files
+
+```bash
+loadout coord start --agents claude-code,codex       # preview ownership
+loadout coord start --agents claude-code,codex --yes # apply ownership
+loadout coord snapshot codex                         # inspect shared state
+loadout coord discuss start "REST or GraphQL?" --agents claude-code,codex --rounds 2 --max-turns 5
+```
+
+Coordination is structured shared project state, not shared memory or a merged
+context window. Events reach an agent at safe turn boundaries or when it checks
+its snapshot; Loadout does not interrupt a turn in progress.
+
+The optional provider bridge spends your configured Claude and Codex quota.
+The bounded design discussion reports its paid-turn budget before it starts.
+See the [live coordination guide](./docs/LIVE_COLLABORATION.md) for ownership,
+contracts, acknowledgements, discussions, the local dashboard, and limitations.
+
+## Try these prompts
+
+Install Loadout's two first-party skills once so your agent knows the workflow:
 
 ```bash
 loadout skills install loadout-handoff --yes
 loadout skills install loadout-curator --yes
 ```
 
-Then just ask your agent:
+Then ask naturally:
 
 > _"Hand the test writing to Codex."_
+>
 > _"What did Codex leave for me?"_
+>
 > _"Which skills should be active for this repo?"_
 
-Your agent checks its inbox at session start and hands work off without you relaying it.
+The curator helps choose a focused active set; the handoff skill manages inboxes
+and coordination without making you relay every command.
 
-## Passing work between two agents
+## Install and choose your agent
 
-If you pay for both Claude and a ChatGPT plan, the two agents cannot see each
-other. Loadout gives them a shared, append-only task log:
-
-```bash
-loadout handoff codex "write unit tests for auth" --bundle src/auth.ts src/types.ts --verify "tests pass" --verify-command npm --verify-args '["test"]'
-```
-
-Bundles snapshot exact, secret-redacted text (50 KiB total). Verification runs
-only with `--done --run-verification`, without a shell; failures stay pending. The first send adds
-managed inbox blocks to `CLAUDE.md` and `AGENTS.md`. Treat bundles as untrusted
-project data, review before committing, and never include credential files.
+For a reproducible install, pin the current release:
 
 ```bash
-loadout handoff codex      # what is waiting for codex
-loadout handoff            # everything pending, both directions
-loadout handoff --done 4f2a1c
+npm install --global loadout-ai@0.9.2
+loadout setup --mode stable
+loadout setup --mode stable --yes
+loadout status
 ```
 
-### Make Claude Code and Codex coordinate live (beta)
+Stable is the recommended starting point: 30 selected skill directories from
+four pinned public sources. Loadout auto-detects supported agents; use
+`--agents` when you want to narrow the destination.
 
-Live coordination adds file ownership, versioned contracts, decisions, and
-acknowledgements over a shared project event stream — not a merged context
-window. See the [live coordination guide](./docs/LIVE_COLLABORATION.md).
+If anything fails, follow the [user test guide](./docs/USER_TEST_GUIDE.md).
+For profiles, per-agent paths, MCP configuration, and advanced commands, use the
+[full reference](./docs/REFERENCE.md).
 
-```bash
-loadout coord start --agents claude-code,codex          # preview ownership
-loadout coord start --agents claude-code,codex --yes    # apply it
-loadout coord detect                                    # shared interfaces
-loadout handoff codex src/auth.ts --template write-tests
-loadout coord discuss start "REST or GraphQL?" --agents claude-code,codex --rounds 2 --max-turns 5
-loadout coord discuss implement <thread-id>             # preview linked tasks
-```
-
-Contract publication and bounded design discussion implementation require a second `--yes`
-approval. Exact supported declarations are marked current or stale; ambiguous
-ones require manual review. The optional MCP server and provider bridge deliver
-events at safe turn boundaries, never during an active turn. The
-[coordination guide](./docs/LIVE_COLLABORATION.md) covers templates, Git-author
-mappings, the local dashboard, limitations, and the complete workflow.
-
-## How it works
+## Safety and trust
 
 **Choose -> Inspect -> Preview -> Apply -> Undo**
 
-1. **Choose** Stable, Power, Maximum, or your own package list.
-2. **Inspect** where each extension comes from and what it can do.
-3. **Preview** every planned change without changing agent files.
-4. **Apply** with `--yes`; Loadout saves a rollback snapshot first.
-5. **Undo** with `loadout rollback` if you change your mind.
+- Preview is the default for setup, updates, and removal.
+- Every managed apply creates a rollback snapshot first.
+- Catalog sources are pinned and technically inspected, not declared safe or useful by fiat.
+- Static inspection reports scripts, hooks, binaries, domains, credential references, and unsupported components; it is not a security audit.
+- Project recommendations read bounded local metadata. The documented local flow does not upload project source.
+- MCP servers and executable tools stay behind separate preview, permission, and setup steps.
+- Shared manifests store environment-variable or OS-keychain references, not secret values.
 
-### Abridged terminal transcript
+<!-- loadout:current-limits:start -->
 
-This is an explicitly abridged transcript from a disposable Stable run. A literal `…` marks omitted fetch output; `<snapshot-id>` is a variable placeholder because snapshot IDs vary. Loadout auto-detects installed agents; `--agents` narrows the selection when needed.
+- All catalog records have identified SPDX licenses. See the [recorded license decisions](./docs/UPSTREAM_LICENSE_DECISIONS.md) for the source-by-source record.
 
-```console
-$ loadout setup --mode stable
-…
-Loadout: Stable
-Detected agents: Claude Code, Cursor, Codex
-Catalog selection: 4 repositories
-Ready to install: 4 skill repositories (30 agent skill directories)
-Preview complete; nothing was changed. Re-run with --yes to install this exact screened plan.
+<!-- loadout:current-limits:end -->
 
-$ loadout setup --mode stable --yes
-…
-Loadout installed 4 repositories for 3 agent(s). Snapshot: <snapshot-id>
+Read the [security policy](./SECURITY.md), [catalog policy](./docs/CATALOG_POLICY.md),
+and [credential and update policy](./docs/CREDENTIAL_AND_UPDATE_POLICY.md) before
+trusting third-party content.
 
-$ loadout rollback
-Restored snapshot <snapshot-id>
+## Demo
 
-$ loadout handoff codex "write tests for the auth module" --context "zod schemas exist"
-  created .handoff/
-  told codex to check its inbox
-Sent to codex: write tests for the auth module
+<p align="center">
+  <a href="https://www.youtube.com/watch?v=opNqJKX7xMw">
+    <img src="https://img.youtube.com/vi/opNqJKX7xMw/maxresdefault.jpg" alt="Watch the 72-second Loadout demo" width="880">
+  </a>
+</p>
 
-$ loadout doctor
-loadout doctor — HEALTHY
-Platform:   darwin
-State:      ~/.loadout ✓ writable
-Agents:     3 detected, 9 available
-```
-
-The final preview sentence above is captured CLI wording. A later `--yes` invocation recomputes the plan from pinned sources and current agent and filesystem state; it does not persist or prove identity with the earlier preview.
-
-Preview may fill Loadout's private download cache, but it does not change your agent
-files. Review the summary and warnings before approving an apply command.
+**[Watch the 72-second Loadout demo on YouTube](https://www.youtube.com/watch?v=opNqJKX7xMw).**
 
 ## Why Loadout
 
@@ -223,7 +184,7 @@ structured project facts when Claude Code and Codex work together.
 
 Everything on this page is enforced. `docs/evidence/readme-claims.json` records
 each material claim with the code or command that proves it, and CI fails the
-build when the README and the implementation disagree — including the pinned
+build when the README and the implementation disagree—including the pinned
 version in the install line above.
 
 Loadout watches a much wider catalog than it activates. You can keep thousands of
@@ -241,53 +202,30 @@ everything into every prompt.
 | Manually remember what was changed                             | Scan, reconcile, remove, roll back, or completely uninstall      |
 
 Loadout is local, open source, and preview-first. It does not need an LLM API key
-to manage skills. MCP servers and executable tools stay behind their own explicit
-setup and permission steps.
-
-## Stable workflow
-
-### Stable: install the essentials and start building
-
-Stable is the recommended daily driver: **30 selected skill directories from four
-pinned public sources**, installed into each agent you choose.
-
-```bash
-loadout setup --mode stable
-loadout setup --mode stable --yes
-loadout status
-loadout scan
-loadout rollback
-```
-
-Stable is Loadout's strongest general starting point, not a claim that one setup is
-best for every person or project.
+to manage skills.
 
 ## Profiles
 
-| Mode      | Sources               | Skills | Active by default                |
-| --------- | --------------------- | ------ | -------------------------------- |
-| `stable`  | 4                     | 30     | yes — recommended starting point |
-| `power`   | 8                     | 56     | yes                              |
-| `maximum` | all reviewed          | all    | **no — downloaded but disabled** |
-| `custom`  | your `--package` list | varies | yes                              |
+| Mode      | Sources               | Skills | Active by default              |
+| --------- | --------------------- | ------ | ------------------------------ |
+| `stable`  | 4                     | 30     | yes—recommended starting point |
+| `power`   | 8                     | 56     | yes                            |
+| `maximum` | all reviewed          | all    | **no—downloaded but disabled** |
+| `custom`  | your `--package` list | varies | yes                            |
 
-**Maximum** downloads the entire reviewed library and leaves every skill _disabled_.
-Nothing reaches an agent prompt until a project activates what it needs.
-
-For detailed profile tables, source lists, and custom configuration, see the
-**[full reference](./docs/REFERENCE.md)**.
+Maximum downloads the reviewed library and leaves every skill disabled. Nothing
+reaches an agent prompt until a project activates what it needs. See the
+[full reference](./docs/REFERENCE.md) for source lists and custom configuration.
 
 ## Catalog and discovery
 
-The catalog is not a frozen list. Loadout separates **discovery** from
-**installation** so a viral repo can be noticed quickly without being trusted
-blindly.
+Discovery is separate from trust and installation. A popular new repository can
+enter the review queue without being installed or promoted automatically.
 
 ```bash
 loadout discover --source all --queue
 loadout review-queue
 loadout candidate inspect owner/repository
-loadout update
 ```
 
 <!-- loadout:catalog-coverage:start -->
@@ -307,23 +245,6 @@ Catalog maturity: **53 sourced**, **53 technically inspected**, and **4 selected
 **Discovery snapshot (generated 2026-09-07):** [237 repositories observed](./docs/DISCOVERED.md), including 221 uncataloged review candidates and 16 repositories already in the inspected catalog.
 <!-- loadout:daily-discovery:end -->
 
-## Trust and limits
-
-- A pinned commit identifies source bytes; it does not prove safety, correct licensing, usefulness, or future compatibility.
-- Static inspection reports scripts, hooks, binaries, domains, credential references, and unsupported components. It is not a security audit.
-- No bundled source is called proven until human review and recorded local outcomes support it.
-- Project recommendations read bounded local metadata. The documented local flow does not upload project source.
-- MCP servers and executable tools have separate preview and approval paths.
-- Shared manifests hold environment-variable or OS-keychain references, not secret values.
-
-<!-- loadout:current-limits:start -->
-
-- All catalog records have identified SPDX licenses. See the [recorded license decisions](./docs/UPSTREAM_LICENSE_DECISIONS.md) for the source-by-source record.
-
-<!-- loadout:current-limits:end -->
-
-Read the [security policy](./SECURITY.md), [catalog policy](./docs/CATALOG_POLICY.md), and [credential and update policy](./docs/CREDENTIAL_AND_UPDATE_POLICY.md) before trusting third-party content.
-
 ## Agent support
 
 <!-- loadout:support-summary:start -->
@@ -342,42 +263,35 @@ Configured CI platforms describe a manually triggered workflow, not evidence tha
 
 ## Command reference
 
-| What it does                            | Command                                                    |
-| --------------------------------------- | ---------------------------------------------------------- |
-| Beginner-friendly guided path           | `loadout guide`                                            |
-| Preview the 30-skill Stable setup       | `loadout setup --mode stable`                              |
-| Apply after reviewing the preview       | `loadout setup --mode stable --yes`                        |
-| Show managed packages and active skills | `loadout status` · `loadout library`                       |
-| What fits this repository               | `loadout recommend --project .`                            |
-| Project-specific active set             | `loadout optimize --project . --limit 30`                  |
-| Scan existing skills across agents      | `loadout scan`                                             |
-| Check for source updates                | `loadout update`                                           |
-| Find newly launched candidates          | `loadout discover --source all --queue`                    |
-| Install Loadout's own skill             | `loadout skills install loadout-handoff --yes`             |
-| Send a task to another agent            | `loadout handoff codex "write tests"`                      |
-| Use a reusable handoff template         | `loadout handoff codex src/auth.ts --template write-tests` |
-| Preview two-agent ownership setup       | `loadout coord start --agents claude-code,codex`           |
-| Detect shared contract candidates       | `loadout coord detect`                                     |
-| Inspect shared agent state              | `loadout coord snapshot codex`                             |
-| Detect live provider runtimes           | `loadout coord agents detect`                              |
-| Debate one design with both providers   | `loadout coord discuss start "<topic>" ...`                |
-| Turn a decision into linked tasks       | `loadout coord discuss implement <thread-id>`              |
-| Start the coordination MCP server       | `loadout serve`                                            |
-| Agent health check                      | `loadout doctor`                                           |
-| Rollback the latest managed change      | `loadout rollback`                                         |
-| Preview complete removal                | `loadout uninstall`                                        |
-| Full CLI reference                      | `loadout --help` · `loadout advanced`                      |
+| Goal                               | Command                                                    |
+| ---------------------------------- | ---------------------------------------------------------- |
+| Guided first run                   | `loadout guide`                                            |
+| Preview or apply Stable            | `loadout setup --mode stable` · add `--yes` to apply       |
+| Inspect managed skills             | `loadout status` · `loadout library`                       |
+| Recommend for this repository      | `loadout recommend --project .`                            |
+| Activate a project-specific set    | `loadout optimize --project . --limit 30`                  |
+| Scan or update                     | `loadout scan` · `loadout update`                          |
+| Send a task                        | `loadout handoff codex "write tests"`                      |
+| Use a handoff template             | `loadout handoff codex src/auth.ts --template write-tests` |
+| Preview two-agent ownership        | `loadout coord start --agents claude-code,codex`           |
+| Inspect coordination state         | `loadout coord snapshot codex`                             |
+| Detect shared contract candidates  | `loadout coord detect`                                     |
+| Turn a decision into tasks         | `loadout coord discuss implement <thread-id>`              |
+| Start the coordination MCP server  | `loadout serve`                                            |
+| Health check                       | `loadout doctor`                                           |
+| Restore the previous managed state | `loadout rollback`                                         |
+| Preview complete removal           | `loadout uninstall`                                        |
+| Full CLI reference                 | `loadout --help` · `loadout advanced`                      |
 
-Most mutating commands are dry runs first. Add `--yes` to apply.
+Most mutating commands are previews first. Add `--yes` only after reviewing the plan.
 
 ## Built with Claude and Codex
 
 Loadout was designed and built by [Viraj Mishra](https://github.com/VirajMishra1) with Claude Code and Codex.
 
-Loadout's core skill management does **not** call an LLM API or require an LLM API
-key. The opt-in provider bridge and design room do invoke your configured
-Claude/Codex sessions and spend their quota; neither is a hidden requirement for
-discovering, installing, or rolling back extensions.
+Core skill management does not call an LLM API or require an LLM API key. The
+opt-in provider bridge and design room invoke configured agent sessions and
+spend their quota.
 
 ## Development
 
@@ -393,25 +307,31 @@ npm run verify:full
 
 <!-- loadout:verification-summary:end -->
 
-The [testing guide](./docs/TESTING.md) documents the exact checks and their boundaries.
+The [testing guide](./docs/TESTING.md) documents each check and its boundary.
 
 ## Documentation
 
-- [Full reference (profiles, MCP, discovery, tools)](./docs/REFERENCE.md)
+- [Full CLI and profile reference](./docs/REFERENCE.md)
+- [User test guide](./docs/USER_TEST_GUIDE.md)
+- [Live Claude Code ↔ Codex coordination](./docs/LIVE_COLLABORATION.md)
 - [Catalog and upstream credits](./docs/CATALOG.md)
 - [Catalog evidence policy](./docs/CATALOG_POLICY.md)
 - [Feature and evidence matrix](./docs/FEATURE_TEST_MATRIX.md)
 - [Testing contract](./docs/TESTING.md)
-- [User test guide](./docs/USER_TEST_GUIDE.md)
-- [Live Codex ↔ Claude collaboration design](./docs/LIVE_COLLABORATION.md)
 - [Changelog](./CHANGELOG.md)
 
 ## Contributing, security, and attribution
 
-See [CONTRIBUTING.md](./CONTRIBUTING.md) · [Code of Conduct](./CODE_OF_CONDUCT.md) · Report vulnerabilities through [SECURITY.md](./SECURITY.md), without credentials, private source, or unredacted state. General bugs and proposals belong in the [issue tracker](https://github.com/VirajMishra1/loadout/issues).
+See [CONTRIBUTING.md](./CONTRIBUTING.md) · [Code of Conduct](./CODE_OF_CONDUCT.md) ·
+Report vulnerabilities through [SECURITY.md](./SECURITY.md), without credentials,
+private source, or unredacted state. General bugs and proposals belong in the
+[issue tracker](https://github.com/VirajMishra1/loadout/issues).
 
-The catalog contains 53 credited public repositories. Inclusion records discovery and attribution; it does not transfer ownership, imply endorsement, or relicense upstream work.
+The catalog contains 53 credited public repositories. Inclusion records discovery
+and attribution; it does not transfer ownership, imply endorsement, or relicense
+upstream work.
 
 ## License
 
-Loadout is licensed under the [MIT License](./LICENSE). Catalog entries retain their upstream licenses and terms.
+Loadout is licensed under the [MIT License](./LICENSE). Catalog entries retain
+their upstream licenses and terms.

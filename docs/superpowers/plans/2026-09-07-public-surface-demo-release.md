@@ -46,7 +46,7 @@
 
 - [ ] **Step 4: Run focused README tests**
 
-  Run: `npm test -- --run tests/readme-product-flow.test.ts tests/readme-command-evidence.test.ts`
+  Run: `npm test -- --run tests/readme-product-flow.test.ts tests/readme-claims.test.ts`
 
   Expected: PASS.
 

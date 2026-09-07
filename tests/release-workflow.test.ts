@@ -14,6 +14,7 @@ describe("npm release workflow", () => {
       `test "\${GITHUB_REF_NAME}" = "v$(node -p "require('./package.json').version")"`,
     );
     expect(workflow).toContain("npm publish --access public --provenance");
+    expect(workflow).not.toContain("NPM_TOKEN");
   });
 
   it("pins third-party actions to immutable commits with version comments", async () => {

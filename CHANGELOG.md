@@ -11,6 +11,8 @@
 - Added prominent documentation for one-command bounded Claude Code ↔ Codex
   design discussions (`loadout coord discuss start`).
 - Aligned the GitHub social-preview asset with the unified workflow narrative.
+- Moved npm release authentication fully to trusted publishing (OIDC), removing
+  the legacy publish-token fallback.
 
 ## 0.9.2 - 2026-09-06
 

@@ -52,7 +52,3 @@ jobs:
       - name: Publish with npm provenance
         if: steps.registry.outputs.exists != 'true'
         run: npm publish --access public --provenance
-        env:
-          # Needed only for the first publication before npm trusted publishing
-          # can be attached. OIDC is preferred and wins once configured.
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

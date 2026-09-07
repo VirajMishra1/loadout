@@ -87,8 +87,14 @@ Coordination is structured shared project state, not shared memory or a merged
 context window. Events reach an agent at safe turn boundaries or when it checks
 its snapshot; Loadout does not interrupt a turn in progress.
 
-The optional provider bridge spends your configured Claude and Codex quota.
-The bounded design discussion reports its paid-turn budget before it starts.
+### Let Claude and Codex debate one decision
+
+You prompt once and Loadout calls both providers in bounded turns—propose,
+critique, synthesize—then records the decision. Neither agent can inject into
+the other's in-progress turn; events arrive at safe turn boundaries. Each
+round consumes paid provider turns from your configured Claude and Codex quota.
+The bounded design discussion reports its turn budget before it starts.
+
 See the [live coordination guide](./docs/LIVE_COLLABORATION.md) for ownership,
 contracts, acknowledgements, discussions, the local dashboard, and limitations.
 
@@ -284,14 +290,6 @@ Configured CI platforms describe a manually triggered workflow, not evidence tha
 | Full CLI reference                 | `loadout --help` · `loadout advanced`                      |
 
 Most mutating commands are previews first. Add `--yes` only after reviewing the plan.
-
-## Built with Claude and Codex
-
-Loadout was designed and built by [Viraj Mishra](https://github.com/VirajMishra1) with Claude Code and Codex.
-
-Core skill management does not call an LLM API or require an LLM API key. The
-opt-in provider bridge and design room invoke configured agent sessions and
-spend their quota.
 
 ## Development
 

@@ -134,6 +134,10 @@ describe("README product flow", () => {
     expect(readme).toContain("loadout coord discuss start");
     expect(readme).toContain("--verify-command npm");
     expect(readme).toMatch(/bounded design discussion/i);
+    expect(readme).toMatch(/prompt once/i);
+    expect(readme).toMatch(/calls both providers/i);
+    expect(readme).toMatch(/paid provider turns/i);
+    expect(readme).not.toMatch(/^## Built with Claude and Codex$/m);
     expect(readme.split(/\r?\n/).length).toBeLessThanOrEqual(425);
 
     expectOrderedReadmeStructure(
@@ -151,7 +155,6 @@ describe("README product flow", () => {
         "## Catalog and discovery",
         "## Agent support",
         "## Command reference",
-        "## Built with Claude and Codex",
         "## Development",
         "## Documentation",
         "## Contributing, security, and attribution",
@@ -165,9 +168,6 @@ describe("README product flow", () => {
         "support-summary",
         "verification-summary",
       ],
-    );
-    expect(readme).toContain(
-      "designed and built by [Viraj Mishra](https://github.com/VirajMishra1) with Claude Code and Codex",
     );
   });
 

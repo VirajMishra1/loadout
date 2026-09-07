@@ -40,7 +40,7 @@ The layout has two related lanes:
    - Handoff: `durable tasks + bundled context`
    - Coordinate: `ownership • contracts • decisions`
 
-Use the exact headline `ONE LOADOUT. EVERY CODING AGENT.` and the exact footer
+Use the exact headline `YOUR TOOLS. YOUR AGENTS. ONE LOADOUT.` and the exact footer
 `Preview every change • Roll back anytime • Full audit trail`.
 
 Use restrained purple, blue, orange, and green accents with dark readable
@@ -59,10 +59,12 @@ later cleanup explicitly removes them.
 The README is a tutorial-first front page with reference material below it.
 Use this order:
 
-1. Centered project name, one-sentence value proposition, badges, and the
-   unified hero.
+1. Centered project name, the truthful value proposition **Manage skills for
+   12 coding agents. Hand off and coordinate work between Claude Code and
+   Codex.**, badges, and the unified hero.
 2. **Try it in 30 seconds**: install Loadout, preview the Stable loadout, and
-   explain what the user will see before anything changes.
+   explain that the preview command changes no agent files. Do not imply that
+   the preceding global npm installation changes nothing.
 3. **What Loadout does**: five short capabilities—discover, curate, activate,
    handoff, coordinate—with one outcome each.
 4. **Use Claude Code and Codex together**: a minimal handoff example followed
@@ -72,7 +74,9 @@ Use this order:
 5. **Try these prompts**: plain-language requests a user can paste into an
    agent after installing the curator and handoff skills.
 6. **Install and choose your agent**: the recommended npm installation first,
-   then concise agent-specific guidance with links to detailed documentation.
+   the preview and apply commands, then `loadout status` as a concrete success
+   check. Follow with concise agent-specific guidance and links to detailed
+   documentation.
 7. **Safety and trust**: preview-first behavior, pinned sources, secret-redacted
    bounded bundles, snapshots, rollback, and the audit trail.
 8. **Proof and demo**: keep the clickable YouTube thumbnail because it is a
@@ -94,6 +98,8 @@ the product architecture.
 - Keep the recommended path visible; move edge cases to linked guides.
 - Prefer one realistic command block over several near-duplicates.
 - Explain `handoff` and `coordinate` separately before contrasting them.
+- Put the optional Loadout skill installation before natural-language prompts
+  that depend on those skills.
 - Do not describe coordination as shared memory, a merged context window, or
   agents talking continuously.
 - Do not use hype words such as revolutionary, game-changing, or first-ever.
@@ -117,3 +123,13 @@ the product architecture.
 - Claiming market uniqueness or adding unverified benchmarks.
 - Removing detailed guides that advanced users already rely on.
 - Publishing a release or social post as part of this documentation change.
+
+## Two-agent review outcome
+
+A bounded Claude Code and Codex review agreed on the central changes: unify the
+product identity, move the safe preview above feature detail, remove repeated
+handoff demonstrations and the abridged transcript, show five capabilities in
+one compact section, and keep one explainer image. It also identified two copy
+risks now resolved by this spec: do not imply universal agent compatibility,
+and scope the “nothing changes” promise to the preview command rather than the
+global package installation.

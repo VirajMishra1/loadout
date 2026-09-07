@@ -13,6 +13,8 @@
 
 ### Fixed
 
+- Bound overlong provider-synthesized decisions to the coordination event limit
+  instead of failing after all paid discussion turns have completed.
 - Materialize multi-path ownership claims once per normalized path so snapshots
   and status output do not repeat the full claim for every path.
 - Close the Claude Code subprocess stdin explicitly, avoiding its empty-input

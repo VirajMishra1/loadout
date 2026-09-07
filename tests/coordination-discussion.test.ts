@@ -242,6 +242,51 @@ describe("discussion protocol", () => {
     }
   });
 
+  it("bounds an overlong final decision without spending another provider turn", async () => {
+    root = await mkdtemp(join(tmpdir(), "loadout-discussion-"));
+    const longDecision =
+      "Publish the exact verified artifact, confirm registry integrity, then create the matching durable tag and GitHub release. " +
+      "Do not rebuild, republish, or change code unless a concrete verification failure appears after publication.";
+    const proposerResponses = [
+      "Publish the verified artifact without another code change.",
+      JSON.stringify({
+        decision: longDecision,
+        rationale: "The tested artifact is the safest releasable unit.",
+        alternatives: [],
+        unresolved: [],
+      }),
+    ];
+    let proposerTurns = 0;
+    const proposer: DiscussionParticipant = {
+      agent: "claude-code",
+      role: "proposer",
+      respond: async () => {
+        proposerTurns += 1;
+        return proposerResponses.shift() ?? "unexpected extra turn";
+      },
+    };
+    const reviewer: DiscussionParticipant = {
+      agent: "codex",
+      role: "reviewer",
+      respond: async () => "Keep the OTP out of the discussion transcript.",
+    };
+
+    const result = await runDiscussion(root, {
+      threadId: "bounded-conclusion",
+      topic: "How should the verified release be published?",
+      rounds: 1,
+      maxTurns: 3,
+      participants: [proposer, reviewer],
+    });
+
+    expect(result.turnsUsed).toBe(3);
+    expect(proposerTurns).toBe(2);
+    expect(result.state.status).toBe("closed");
+    expect(result.conclusion.decision.length).toBeLessThanOrEqual(200);
+    expect(result.conclusion.decision).toMatch(/…$/u);
+    expect(result.conclusion.decision).toBe(result.state.finalDecision);
+  });
+
   it("records a failed close without silently retrying an empty provider response", async () => {
     root = await mkdtemp(join(tmpdir(), "loadout-discussion-"));
     const proposer: DiscussionParticipant = {

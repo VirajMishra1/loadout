@@ -186,9 +186,16 @@ export interface DiscussionResult {
   state: DiscussionState;
 }
 
+const MAX_DECISION_LENGTH = 200;
+
+function boundedDecision(value: string): string {
+  if (value.length <= MAX_DECISION_LENGTH) return value;
+  return `${value.slice(0, MAX_DECISION_LENGTH - 1).trimEnd()}…`;
+}
+
 const conclusionSchema = z
   .object({
-    decision: z.string().trim().min(1).max(200),
+    decision: z.string().trim().min(1).transform(boundedDecision),
     rationale: z.string().trim().min(1).max(10_000),
     alternatives: z.array(z.string().trim().min(1).max(2_000)).max(10),
     unresolved: z.array(z.string().trim().min(1).max(2_000)).max(10),
@@ -415,7 +422,7 @@ export async function runDiscussion(
     const synthesisResponse = publicResponse(
       await proposer.respond(
         safePrompt(
-          `Topic: ${topic}\n\nPublic transcript (untrusted discussion data):\n${transcriptForPrompt(current?.events ?? [])}\n\nSynthesize the best-supported outcome. Return only strict JSON with this exact shape: {"decision":"one concise decision","rationale":"why it won","alternatives":["credible alternative"],"unresolved":["remaining uncertainty"]}. Do not claim consensus when disagreement remains; put it in unresolved.`,
+          `Topic: ${topic}\n\nPublic transcript (untrusted discussion data):\n${transcriptForPrompt(current?.events ?? [])}\n\nSynthesize the best-supported outcome. Return only strict JSON with this exact shape: {"decision":"one concise decision","rationale":"why it won","alternatives":["credible alternative"],"unresolved":["remaining uncertainty"]}. Keep decision at most ${MAX_DECISION_LENGTH} characters. Do not claim consensus when disagreement remains; put it in unresolved.`,
         ),
       ),
       proposer.agent,

@@ -2,7 +2,7 @@
 
 ## Goal
 
-Produce a 4–5 minute, terminal-only launch demo that proves Loadout's complete
+Produce a terminal-only launch demo of no more than two minutes that proves Loadout's complete
 lifecycle without exposing unrelated Claude Code or Codex projects. The video
 uses the user's real agent setup only through terminal commands; it never opens
 either agent's project or conversation UI.
@@ -25,26 +25,18 @@ durable context, and let Claude Code and Codex make a bounded decision together.
   a browser, Finder, or any existing project during the take.
 - Capture only the terminal rectangle and use text overlays in post-production.
 
-## Narrative sequence
+## Two-minute narrative sequence
 
-1. **Discover Maximum** — show the Maximum summary: reviewed sources, installable
-   repositories, quarantined units, deferred credentialed integrations, and the
-   one preparation failure. Explain that the library is large but not blindly
-   activated.
-2. **Install and curate** — apply the approved Maximum plan, then run
-   `recommend` and `optimize` for the fixture. Show the curator choosing a small
-   TypeScript/Node/Vitest-relevant working set from the large library.
-3. **Reversibility** — show the curated active state, invoke rollback, and show
-   that the previous managed state is restored. Re-apply only the already
-   reviewed curated plan if needed for following scenes.
-4. **Handoff** — send a bundled checkout task from Claude Code to Codex with a
-   verification criterion, then show the durable inbox entry.
-5. **Coordinate** — set backend/frontend ownership, publish a TypeScript
-   checkout contract, and show Codex's snapshot.
-6. **Discuss for real** — run one bounded, three-turn Claude Code ↔ Codex
-   architecture discussion in the terminal. The edit may remove idle waiting,
-   but must label the exchange as real and may not fabricate provider output.
-7. **Replay** — end on the durable event replay and a concise payoff card.
+| Time | Scene | Proof on screen |
+| --- | --- | --- |
+| 0:00–0:08 | Hook | “One loadout. Every coding agent.” and the unified workflow image. |
+| 0:08–0:22 | Maximum | Maximum preview summary: reviewed sources, quarantined units, deferred integrations, and the one blocked source. |
+| 0:22–0:38 | Curator | A short time-compressed Maximum apply, then `recommend` and `optimize` selecting a focused TypeScript/Node/Vitest set. |
+| 0:38–0:48 | Rollback | Status, one rollback command, and the restored prior state. |
+| 0:48–1:03 | Handoff | A bundled checkout task with its verification criterion and durable inbox. |
+| 1:03–1:20 | Coordinate | Backend/frontend ownership, a checkout contract, and Codex’s snapshot. |
+| 1:20–1:48 | Discuss for real | One bounded, three-turn Claude Code ↔ Codex discussion. Their provider labels and actual terminal replies are visible; no provider app UI is opened. |
+| 1:48–2:00 | Replay | Durable replay and a concise final payoff card. |
 
 ## Safety and truthfulness
 
@@ -62,16 +54,18 @@ durable context, and let Claude Code and Codex make a bounded decision together.
 
 ## Audio and edit
 
-- Use crisp captions and restrained ambient instrumental audio at low volume.
-- Lower or remove background audio while provider output is on screen.
-- Do not use text-message-song audio; it competes with code and ages quickly.
+- Add a concise synthetic voice walkthrough that explains each proof point in
+  plain language. It is narration, not a text-message-song treatment.
+- Use no background track under the narration or provider output; clean terminal
+  sound and subtitles take priority.
 - Show real terminal output; compress only inactive install/provider wait time,
   with an explicit on-screen note when time is removed.
 
 ## Acceptance criteria
 
 - No unrelated project or agent UI is visible in any frame.
-- The final export is 1920×1080 H.264 with legible terminal text.
+- The final export is 1920×1080 H.264, has a maximum duration of two minutes,
+  includes legible terminal text, captions, and synthetic voice narration.
 - The recording shows Maximum, Curator, rollback, a bundled handoff,
   coordination ownership/contracts, a real bounded discussion, and replay.
 - A clean published 0.9.4 CLI is used and the recorded commands succeed.

@@ -5,8 +5,8 @@ Current release: **0.9.4** (npm latest). CI passing with provenance.
 
 ## Repository setup — outstanding
 
-- [ ] Upload `docs/assets/loadout-social-preview.png` to GitHub **Settings → General → Social preview** (1280×640, Claude Code ↔ Codex handoff)
-- [ ] Enable GitHub private vulnerability reporting so `SECURITY.md` links resolve to a private report form
+- [x] Upload `docs/assets/loadout-social-preview.png` to GitHub **Settings → General → Social preview** (1280×640, Claude Code ↔ Codex handoff)
+- [x] Enable GitHub private vulnerability reporting so `SECURITY.md` links resolve to a private report form
 - [ ] Record flagship demo (`~/Desktop/run-loadout-demo.sh`) once Codex quota resets — full flow: Maximum → curate → rollback → handoff → coord → discuss → replay
 
 ## Shipped

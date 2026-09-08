@@ -301,6 +301,9 @@ Most mutating commands are previews first. Add `--yes` only after reviewing the 
 | **GitHub Actions sync** | `loadout sync` in CI applies the committed skill selection — every team member and every CI run gets an identical curated set |
 | **Handoff templates** | reusable task blueprints (`--template write-tests`, `--template refactor-module`) with pre-configured verify commands |
 | **Cross-repo handoff** | pass a task from one repository to another with bundled context — useful when frontend and backend live in separate repos |
+| **Cost ledger** | track provider turns spent per discussion, project, and week so quota usage stays visible |
+| **Agent-generated skills** | agent notices a repeated pattern and proposes a new skill directly into the catalog |
+| **Outcome-based skill ratings** | record local install outcomes so rankings improve from real usage rather than star counts |
 
 ## Development
 

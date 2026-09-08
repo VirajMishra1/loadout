@@ -4,7 +4,7 @@
 
 **Goal:** Record, narrate, and export a truthful two-minute Loadout flagship demo to the user’s Desktop.
 
-**Architecture:** A disposable TypeScript fixture and a local copy of the published 0.9.4 CLI provide deterministic terminal output. The Maximum install intentionally targets the user’s real Claude Code and Codex setup after the approved risk acknowledgement; all visible work remains in one clean Terminal window. Screen capture, voice narration, captions, and H.264 export are produced outside the repository.
+**Architecture:** A disposable TypeScript fixture and a local copy of the published 0.9.4 CLI provide deterministic terminal output. The Maximum install intentionally targets every detected real agent after the approved risk acknowledgement so pre-existing active skills are preserved; the recorded curation and coordination scenes remain focused on Claude Code and Codex. All visible work remains in one clean Terminal window. Screen capture, voice narration, captions, and H.264 export are produced outside the repository.
 
 **Tech Stack:** Node.js 20+, npm, Loadout 0.9.4, macOS Terminal, `screencapture`, macOS `say`, FFmpeg, Claude Code CLI, Codex CLI/SDK.
 
@@ -85,17 +85,17 @@
   Expected: a summary containing reviewed sources, installable repositories,
   quarantined units, deferred integrations, and the Docker preparation failure.
 
-- [ ] **Step 2: Apply the approved Maximum plan to Claude Code and Codex.**
+- [ ] **Step 2: Apply the approved Maximum plan to every detected agent.**
 
   Run:
 
   ```bash
-  /Users/viraj/Desktop/.loadout-demo-2026-09-08/node_modules/.bin/loadout setup --mode maximum --agents claude-code,codex --api-access none --yes --approve-risk
+  /Users/viraj/Desktop/.loadout-demo-2026-09-08/node_modules/.bin/loadout setup --mode maximum --agents claude-code,codex,cursor,gemini-cli,windsurf --api-access none --yes --approve-risk
   ```
 
-  Expected: a managed library and rollback snapshot; Docker MCP Gateway is
-  explicitly skipped after its preparation failure, and no credentialed MCP
-  setup is enabled.
+  Expected: a managed library and rollback snapshot for every detected agent;
+  Docker MCP Gateway is explicitly skipped after its preparation failure, and no
+  credentialed MCP setup is enabled.
 
 - [ ] **Step 3: Curate and apply the fixture working set.**
 

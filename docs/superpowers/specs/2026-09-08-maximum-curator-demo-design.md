@@ -19,8 +19,10 @@ durable context, and let Claude Code and Codex make a bounded decision together.
 - Use a newly created, disposable TypeScript checkout fixture with no personal
   files or unrelated repositories.
 - Use the published Loadout 0.9.4 CLI, not the older globally installed binary.
-- Install Maximum into the real agent setup only after displaying its preview and
-  safety findings and using the user's approved `--yes --approve-risk` command.
+- Install Maximum into all detected real agent setups only after displaying its
+  preview and safety findings and using the user's approved `--yes --approve-risk`
+  command. This preserves the user's existing active skills across agents; the
+  recorded curation and coordination scenes remain focused on Claude Code and Codex.
 - Keep the capture to a single Terminal window. Do not open Claude Code, Codex,
   a browser, Finder, or any existing project during the take.
 - Capture only the terminal rectangle and use text overlays in post-production.

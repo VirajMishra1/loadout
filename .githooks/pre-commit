@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# Run Prettier on staged files before every commit
+set -euo pipefail
+
+STAGED=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '\.(ts|js|json|md|yml|yaml|css|html)$' || true)
+
+if [ -n "$STAGED" ]; then
+  echo "$STAGED" | xargs npx prettier --write --log-level warn
+  echo "$STAGED" | xargs git add
+fi

@@ -29,16 +29,16 @@ durable context, and let Claude Code and Codex make a bounded decision together.
 
 ## Two-minute narrative sequence
 
-| Time | Scene | Proof on screen |
-| --- | --- | --- |
-| 0:00–0:08 | Hook | “One loadout. Every coding agent.” and the unified workflow image. |
-| 0:08–0:22 | Maximum | Maximum preview summary: reviewed sources, quarantined units, deferred integrations, and the one blocked source. |
-| 0:22–0:38 | Curator | A short time-compressed Maximum apply, then `recommend` and `optimize` selecting a focused TypeScript/Node/Vitest set. |
-| 0:38–0:48 | Rollback | Status, one rollback command, and the restored prior state. |
-| 0:48–1:03 | Handoff | A bundled checkout task with its verification criterion and durable inbox. |
-| 1:03–1:20 | Coordinate | Backend/frontend ownership, a checkout contract, and Codex’s snapshot. |
+| Time      | Scene            | Proof on screen                                                                                                                                      |
+| --------- | ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0:00–0:08 | Hook             | “One loadout. Every coding agent.” and the unified workflow image.                                                                                   |
+| 0:08–0:22 | Maximum          | Maximum preview summary: reviewed sources, quarantined units, deferred integrations, and the one blocked source.                                     |
+| 0:22–0:38 | Curator          | A short time-compressed Maximum apply, then `recommend` and `optimize` selecting a focused TypeScript/Node/Vitest set.                               |
+| 0:38–0:48 | Rollback         | Status, one rollback command, and the restored prior state.                                                                                          |
+| 0:48–1:03 | Handoff          | A bundled checkout task with its verification criterion and durable inbox.                                                                           |
+| 1:03–1:20 | Coordinate       | Backend/frontend ownership, a checkout contract, and Codex’s snapshot.                                                                               |
 | 1:20–1:48 | Discuss for real | One bounded, three-turn Claude Code ↔ Codex discussion. Their provider labels and actual terminal replies are visible; no provider app UI is opened. |
-| 1:48–2:00 | Replay | Durable replay and a concise final payoff card. |
+| 1:48–2:00 | Replay           | Durable replay and a concise final payoff card.                                                                                                      |
 
 ## Safety and truthfulness
 

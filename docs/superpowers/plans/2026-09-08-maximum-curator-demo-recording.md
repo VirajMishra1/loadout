@@ -23,6 +23,7 @@
 ### Task 1: Prepare the isolated recording workspace and published CLI
 
 **Files:**
+
 - Create: `/Users/viraj/Desktop/.loadout-demo-2026-09-08/package.json`
 - Create: `/Users/viraj/Desktop/.loadout-demo-2026-09-08/fixture/src/api/checkout.ts`
 - Create: `/Users/viraj/Desktop/.loadout-demo-2026-09-08/fixture/src/frontend/checkout.ts`
@@ -31,6 +32,7 @@
 - Create: `/Users/viraj/Desktop/.loadout-demo-2026-09-08/output/final/`
 
 **Interfaces:**
+
 - Consumes: npm registry package `loadout-ai@0.9.4`.
 - Produces: `node_modules/.bin/loadout` resolving to 0.9.4 and a small backend/frontend checkout fixture.
 
@@ -67,10 +69,12 @@
 ### Task 2: Apply Maximum, curate a focused set, and prove rollback
 
 **Files:**
+
 - Create: `/Users/viraj/Desktop/.loadout-demo-2026-09-08/scripts/prepare-state.sh`
 - Create: `/Users/viraj/Desktop/.loadout-demo-2026-09-08/transcript/setup.txt`
 
 **Interfaces:**
+
 - Consumes: the published CLI from Task 1 and the user's approved real agent setup.
 - Produces: a verified Maximum library, a curated fixture-specific active set, and rollback evidence.
 
@@ -140,10 +144,12 @@
 ### Task 3: Capture handoff, coordination, and a real bounded discussion
 
 **Files:**
+
 - Create: `/Users/viraj/Desktop/.loadout-demo-2026-09-08/scripts/demo-scenes.sh`
 - Create: `/Users/viraj/Desktop/.loadout-demo-2026-09-08/transcript/coordination.txt`
 
 **Interfaces:**
+
 - Consumes: checkout fixture, Loadout 0.9.4, real Claude Code/Codex credentials.
 - Produces: durable handoff and coordination events including a real three-turn discussion.
 
@@ -189,12 +195,14 @@
 ### Task 4: Record, narrate, and edit the final two-minute video
 
 **Files:**
+
 - Create: `/Users/viraj/Desktop/.loadout-demo-2026-09-08/audio/narration.txt`
 - Create: `/Users/viraj/Desktop/.loadout-demo-2026-09-08/audio/narration.aiff`
 - Create: `/Users/viraj/Desktop/.loadout-demo-2026-09-08/output/raw/loadout-demo.mov`
 - Create: `/Users/viraj/Desktop/loadout-demo-maximum-curator-1080p.mp4`
 
 **Interfaces:**
+
 - Consumes: real terminal capture and scene timestamps from Tasks 2–3.
 - Produces: an H.264 1920×1080 video no longer than 120 seconds.
 
@@ -214,7 +222,7 @@
 
   Capture real scenes, cutting only idle Maximum-install and provider-wait time.
   Add visible cards reading `Maximum install — elapsed time removed` and `Real
-  Claude + Codex turns — waiting time removed` at those cuts.
+Claude + Codex turns — waiting time removed` at those cuts.
 
 - [ ] **Step 3: Generate concise synthetic narration.**
 

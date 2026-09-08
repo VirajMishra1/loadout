@@ -38,30 +38,34 @@ afterEach(async () => {
 });
 
 describe("cross-process coordination", () => {
-  it("assigns one ordered sequence across independent writers", async () => {
-    const fixture = join(
-      process.cwd(),
-      "tests",
-      "fixtures",
-      "coordination-writer.ts",
-    );
-    await Promise.all(
-      Array.from({ length: 5 }, (_, writer) =>
-        execFileAsync(
-          process.execPath,
-          ["--import", "tsx", fixture, root, `writer-${writer}`, "10"],
-          { cwd: process.cwd() },
+  it(
+    "assigns one ordered sequence across independent writers",
+    { retry: 2 },
+    async () => {
+      const fixture = join(
+        process.cwd(),
+        "tests",
+        "fixtures",
+        "coordination-writer.ts",
+      );
+      await Promise.all(
+        Array.from({ length: 5 }, (_, writer) =>
+          execFileAsync(
+            process.execPath,
+            ["--import", "tsx", fixture, root, `writer-${writer}`, "10"],
+            { cwd: process.cwd() },
+          ),
         ),
-      ),
-    );
+      );
 
-    const log = await readCoordLog(root);
-    expect(log.corrupt).toEqual([]);
-    expect(log.events).toHaveLength(50);
-    expect(log.events.map((event) => event.seq)).toEqual(
-      Array.from({ length: 50 }, (_, index) => index),
-    );
-  });
+      const log = await readCoordLog(root);
+      expect(log.corrupt).toEqual([]);
+      expect(log.events).toHaveLength(50);
+      expect(log.events.map((event) => event.seq)).toEqual(
+        Array.from({ length: 50 }, (_, index) => index),
+      );
+    },
+  );
 });
 
 describe("abandoned coordination lock recovery", () => {

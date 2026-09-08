@@ -407,6 +407,7 @@ describe("project-aware active-set policy", () => {
     const project = await writeNamedCodexLibrary([
       "mcp-csharp-publish",
       "mcp-csharp-test",
+      "convert-blazor-server-to-webapp",
       "uv-package-manager",
       "social-publishing",
       "vercel-cli-with-tokens",
@@ -439,10 +440,12 @@ describe("project-aware active-set policy", () => {
         "mcp-security",
       ]),
     );
+    expect(selected).not.toContain("convert-blazor-server-to-webapp");
     expect(selected).not.toEqual(
       expect.arrayContaining([
         "mcp-csharp-publish",
         "mcp-csharp-test",
+        "convert-blazor-server-to-webapp",
         "uv-package-manager",
         "social-publishing",
         "vercel-cli-with-tokens",

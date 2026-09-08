@@ -97,7 +97,7 @@ function hasProjectCompatibility(
   const hasLanguage = (language: string) =>
     project.languages.includes(language);
   const languageRequirements: Array<[RegExp, string]> = [
-    [/(?:dotnet|csharp|aspnet|nuget|maui)/, ".net"],
+    [/(?:dotnet|csharp|aspnet|nuget|maui|blazor)/, ".net"],
     [
       /(?:python|pytest|fastapi|django|flask|pydantic|poetry|uv-package)/,
       "python",

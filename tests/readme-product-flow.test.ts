@@ -159,6 +159,7 @@ describe("README product flow", () => {
         "## Catalog and discovery",
         "## Agent support",
         "## Command reference",
+        "## What's next",
         "## Development",
         "## Documentation",
         "## Contributing, security, and attribution",

@@ -293,6 +293,13 @@ Configured CI platforms describe a manually triggered workflow, not evidence tha
 
 Most mutating commands are previews first. Add `--yes` only after reviewing the plan.
 
+## What's next
+
+| Feature | What it unlocks |
+| --------------------------------------- | ------------------------------------------------------------------ |
+| **Async discuss** | `coord discuss` turns stored as events — agents debate across sessions, neither has to be live at the same time |
+| **GitHub Actions sync** | `loadout sync` in CI applies the committed skill selection — every team member and every CI run gets an identical curated set |
+
 ## Development
 
 ```bash

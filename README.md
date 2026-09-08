@@ -164,12 +164,12 @@ trusting third-party content.
 ## Demo
 
 <p align="center">
-  <a href="https://www.youtube.com/watch?v=opNqJKX7xMw">
+  <a href="https://www.youtube.com/watch?v=5NS5jcSlxm8">
     <img src="https://img.youtube.com/vi/opNqJKX7xMw/maxresdefault.jpg" alt="Watch the 72-second Loadout demo" width="880">
   </a>
 </p>
 
-**[Watch the 72-second Loadout demo on YouTube](https://www.youtube.com/watch?v=opNqJKX7xMw).**
+**[Watch the 72-second Loadout demo on YouTube](https://www.youtube.com/watch?v=5NS5jcSlxm8).**
 
 ## Why Loadout
 

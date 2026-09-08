@@ -299,6 +299,8 @@ Most mutating commands are previews first. Add `--yes` only after reviewing the 
 | --------------------------------------- | ------------------------------------------------------------------ |
 | **Async discuss** | `coord discuss` turns stored as events — agents debate across sessions, neither has to be live at the same time |
 | **GitHub Actions sync** | `loadout sync` in CI applies the committed skill selection — every team member and every CI run gets an identical curated set |
+| **Handoff templates** | reusable task blueprints (`--template write-tests`, `--template refactor-module`) with pre-configured verify commands |
+| **Cross-repo handoff** | pass a task from one repository to another with bundled context — useful when frontend and backend live in separate repos |
 
 ## Development
 

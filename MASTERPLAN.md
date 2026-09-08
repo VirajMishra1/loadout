@@ -1,101 +1,60 @@
-# Loadout 0.9.0 release candidate
+# Loadout — current state and roadmap
 
-Version **0.9.0** is prepared locally and is not published yet. This file tracks
-the release and launch steps and should be updated as each external step is
-verified.
+Current release: **0.9.4** (npm latest). CI passing with provenance.
+12 supported agents. 53 catalog sources. Phases 1–4 of live collaboration shipped.
 
-## Before publishing
+## Repository setup — outstanding
 
-1. Run the complete [user test guide](./docs/USER_TEST_GUIDE.md) on a disposable
-   profile, then the small real-profile path you are comfortable approving.
-2. Run `npm run verify:full` from a clean checkout and inspect `npm pack --dry-run`.
-3. Review `CHANGELOG.md`, then replace `Unreleased` with the actual release date.
-4. Merge the release candidate and create GitHub release `v0.9.0`. The release
-   workflow verifies the tag, runs the full gate, and publishes with provenance.
-5. Confirm `npm view loadout-ai@0.9.0 version` succeeds before announcing it.
+- [ ] Upload `docs/assets/loadout-social-preview.png` to GitHub **Settings → General → Social preview** (1280×640, Claude Code ↔ Codex handoff)
+- [ ] Enable GitHub private vulnerability reporting so `SECURITY.md` links resolve to a private report form
+- [ ] Record flagship demo (`~/Desktop/run-loadout-demo.sh`) once Codex quota resets — full flow: Maximum → curate → rollback → handoff → coord → discuss → replay
 
-## Repository launch setup
+## Shipped
 
-- Upload `docs/assets/loadout-social-preview.png` in GitHub **Settings → General →
-  Social preview**. The checked-in asset is 1280×640 and centers the Claude Code
-  ↔ Codex handoff.
-- Enable GitHub private vulnerability reporting so the links in `SECURITY.md`
-  and the issue chooser resolve to a private report form.
-- Confirm Discussions is enabled only if you intend to answer questions there.
-- Re-record the demo from `docs/DEMO_SCRIPT.md`; keep the current README video
-  until the replacement has been watched in a signed-out browser.
+### Skill management
+- `loadout setup` — preview-first install across 12 agents, 4 modes (Stable/Power/Maximum/Custom)
+- `loadout optimize` — project-aware active-set curation from the installed library
+- `loadout rollback` — every apply snapshots first; one command to undo
+- `loadout discover` / `loadout review-queue` — discovery feed watching without installing
+- `loadout scan` / `loadout update` / `loadout health` / `loadout alerts` — lifecycle management
 
-## Launch claims
+### Handoff
+- `loadout handoff` — durable append-only task log, survives session resets and quota limits
+- Context bundles — secret-redacted source attached to tasks, capped at 50 KiB
+- Verification criteria — tasks carry a pass/fail condition checked on completion
+
+### Coordination (Phases 1–4)
+- Typed events with Zod validation — contracts, ownership, decisions, updates, acks
+- Monotonic sequence numbers, cursor reads — reconnecting agents never miss events
+- File ownership with conflict detection — exclusive/shared modes
+- Contract versioning and diffing (`loadout coord diff`)
+- HTTP daemon with SSE push, bearer auth, loopback-only binding
+- Web dashboard — live contracts, ownership, event feed
+- Provider adapters — Claude Code (CLI) and Codex (SDK)
+- Session manager — tracks sessions, replays missed events on reconnect
+- Interrupt policy — immediate/boundary/passive per event type
+- Atomic file locking — no duplicate sequence numbers
+- Crash recovery and kill switch (`loadout daemon kill` / `loadout daemon resume`)
+- Conflict preview (`loadout coord conflicts`) — git diffs before you write
+- `loadout coord replay` — narrative timeline of all coordination events
+- `loadout coord discuss` — bounded multi-turn Claude Code ↔ Codex debate with recorded decision
+
+## What's next
+
+| Feature | What it unlocks |
+| ---------------------------------- | --------------------------------------------------------------- |
+| **Async discuss** | discuss turns stored as events — agents debate across sessions, no need to be live simultaneously |
+| **GitHub Actions sync** | `loadout sync` in CI applies the committed skill selection — identical curated set for every team member |
+| **Handoff templates** | reusable task blueprints (`--template write-tests`) with pre-configured verify commands |
+| **Cross-repo handoff** | pass a task from one repo to another with bundled context |
+| **Cost ledger** | track provider turns spent per discussion, project, and week |
+| **Agent-generated skills** | agent notices a repeated pattern and proposes a new skill into the catalog |
+| **Outcome-based skill ratings** | local install outcomes improve rankings beyond star counts |
+
+## Launch claims (still applies)
 
 Lead with what the tool actually does: discover, inspect, preview, install,
 activate, hand off, and roll back agent extensions. Handoff is an append-only
-local task log checked at session boundaries—not a live channel. Do not claim
+local task log checked at session boundaries — not a live channel. Do not claim
 quota detection, automatic model switching, guaranteed safety, or independent
 human review that has not happened.
-
-## Live collaboration — Phase 1 complete
-
-Phase 1 of the [live collaboration design](./docs/LIVE_COLLABORATION.md) ships
-in 0.9.0 as `loadout coordinate` (alias `coord`):
-
-- **Typed events**: contracts, file ownership, decisions, progress updates,
-  and acknowledgements with Zod-validated payloads.
-- **Monotonic sequence numbers** and cursor-based reads — reconnecting agents
-  never miss an event.
-- **File ownership and conflict detection** — exclusive vs shared modes,
-  same-agent re-claim allowed.
-- **Contract versioning** — auto-incrementing revision per named contract.
-- **Snapshot endpoint** — bounded current state summary for reconnecting agents.
-- **MCP server** (`loadout serve`) — exposes the same tools over stdio MCP
-  so both Claude Code and Codex connect to a shared coordinator. Requires
-  `@modelcontextprotocol/sdk` as an optional dependency.
-
-The existing `loadout handoff` and `.handoff/messages.jsonl` are preserved as
-the human-readable task log. The coordination log lives in
-`.handoff/coordination.jsonl`.
-
-## Live collaboration — Phase 2 complete
-
-Phase 2 ships as `loadout daemon` with a full HTTP coordination server:
-
-- **HTTP daemon** (`loadout daemon start`) — local REST API on 127.0.0.1:4510
-  with SSE push for connected agents.
-- **Web dashboard** — live status UI at the daemon URL showing contracts,
-  file ownership, agent activity, and a real-time event feed.
-- **SSE subscriptions** — agents connect to `/api/subscribe/:agent` and receive
-  events pushed in real time, no polling needed.
-- **Redaction** — secrets, API keys, tokens, and credentials are automatically
-  stripped from event payloads before storage.
-- **Retention and compaction** (`loadout coord compact`) — configurable max
-  events and max age, atomic log rewrite with archived backup.
-- **Full REST API** — snapshot, contracts, ownership, events, emit, ack,
-  compact, status endpoints.
-
-## Live collaboration — Phase 3+4 complete
-
-- **Provider adapters** — Claude Code (CLI-based sessions) and Codex
-  (SDK-based) with start, resume, and turn submission.
-- **Session manager** — tracks sessions across providers, replays missed
-  events on reconnection.
-- **Interrupt policy** — immediate/boundary/passive rules per event type,
-  configurable per-project.
-- **Crash recovery** — PID management, stale process detection, automatic
-  cleanup.
-- **Kill switch** (`loadout daemon kill`) — halts all coordination instantly,
-  resume with `loadout daemon resume`.
-- **Atomic locking** — cross-process file lock serializes all state mutations,
-  prevents duplicate sequence numbers.
-- **Daemon security** — bearer token auth (mode 0600), loopback-only binding,
-  origin validation, timing-safe comparison.
-- **Conflict preview** (`loadout coord conflicts`) — shows what another agent
-  changed in files you're about to write, with git diffs.
-- **Contract diffing** (`loadout coord diff`) — structured delta between
-  contract revisions.
-- **Coordination replay** (`loadout coord replay`) — narrative timeline of
-  all coordination events.
-
-## After 0.9.0
-
-- Real two-agent end-to-end walkthrough with installed Claude and Codex CLIs.
-- Demo recording for README and social media.
-- npm publish, GitHub release, launch post.

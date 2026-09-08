@@ -12,6 +12,7 @@ Current release: **0.9.4** (npm latest). CI passing with provenance.
 ## Shipped
 
 ### Skill management
+
 - `loadout setup` — preview-first install across 12 agents, 4 modes (Stable/Power/Maximum/Custom)
 - `loadout optimize` — project-aware active-set curation from the installed library
 - `loadout rollback` — every apply snapshots first; one command to undo
@@ -19,11 +20,13 @@ Current release: **0.9.4** (npm latest). CI passing with provenance.
 - `loadout scan` / `loadout update` / `loadout health` / `loadout alerts` — lifecycle management
 
 ### Handoff
+
 - `loadout handoff` — durable append-only task log, survives session resets and quota limits
 - Context bundles — secret-redacted source attached to tasks, capped at 50 KiB
 - Verification criteria — tasks carry a pass/fail condition checked on completion
 
 ### Coordination (Phases 1–4)
+
 - Typed events with Zod validation — contracts, ownership, decisions, updates, acks
 - Monotonic sequence numbers, cursor reads — reconnecting agents never miss events
 - File ownership with conflict detection — exclusive/shared modes
@@ -41,15 +44,15 @@ Current release: **0.9.4** (npm latest). CI passing with provenance.
 
 ## What's next
 
-| Feature | What it unlocks |
-| ---------------------------------- | --------------------------------------------------------------- |
-| **Async discuss** | discuss turns stored as events — agents debate across sessions, no need to be live simultaneously |
-| **GitHub Actions sync** | `loadout sync` in CI applies the committed skill selection — identical curated set for every team member |
-| **Handoff templates** | reusable task blueprints (`--template write-tests`) with pre-configured verify commands |
-| **Cross-repo handoff** | pass a task from one repo to another with bundled context |
-| **Cost ledger** | track provider turns spent per discussion, project, and week |
-| **Agent-generated skills** | agent notices a repeated pattern and proposes a new skill into the catalog |
-| **Outcome-based skill ratings** | local install outcomes improve rankings beyond star counts |
+| Feature                         | What it unlocks                                                                                          |
+| ------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| **Async discuss**               | discuss turns stored as events — agents debate across sessions, no need to be live simultaneously        |
+| **GitHub Actions sync**         | `loadout sync` in CI applies the committed skill selection — identical curated set for every team member |
+| **Handoff templates**           | reusable task blueprints (`--template write-tests`) with pre-configured verify commands                  |
+| **Cross-repo handoff**          | pass a task from one repo to another with bundled context                                                |
+| **Cost ledger**                 | track provider turns spent per discussion, project, and week                                             |
+| **Agent-generated skills**      | agent notices a repeated pattern and proposes a new skill into the catalog                               |
+| **Outcome-based skill ratings** | local install outcomes improve rankings beyond star counts                                               |
 
 ## Launch claims (still applies)
 

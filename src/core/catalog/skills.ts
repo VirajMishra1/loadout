@@ -127,11 +127,16 @@ async function withSharedReferences(
   if (skill === packageRoot) return skill;
   const text = await readFile(join(skill, "SKILL.md"), "utf8");
   const names = new Set([...text.matchAll(SHARED_REFERENCE)].map((m) => m[1]));
+  const sharedRoot = join(packageRoot, "references");
+  // lstat checks only the last path segment, so a symlinked folder would let a
+  // package copy files from anywhere on disk into the skill.
+  const rootInfo = await lstat(sharedRoot).catch(() => undefined);
+  if (!rootInfo?.isDirectory() || rootInfo.isSymbolicLink()) return skill;
   const shared: string[] = [];
   for (const name of names) {
     if (!name || (await isRegularFile(join(skill, "references", name))))
       continue;
-    const candidate = join(packageRoot, "references", name);
+    const candidate = join(sharedRoot, name);
     if (await isRegularFile(candidate)) shared.push(candidate);
   }
   if (!shared.length) return skill;

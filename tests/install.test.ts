@@ -1,5 +1,12 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { mkdtemp, mkdir, readFile, writeFile, rm } from "node:fs/promises";
+import {
+  mkdtemp,
+  mkdir,
+  readFile,
+  symlink,
+  writeFile,
+  rm,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, win32 } from "node:path";
 import {
@@ -527,6 +534,25 @@ describe("skill installation transaction", () => {
     expect(plan.files.find((file) => file.skillName === "plain")?.source).toBe(
       join(source, "skills", "plain"),
     );
+  });
+
+  it("ignores a shared references folder that is a symlink", async () => {
+    const root = await mkdtemp(join(tmpdir(), "loadout-test-"));
+    directories.push(root);
+    const outside = join(root, "outside");
+    await mkdir(outside, { recursive: true });
+    await writeFile(join(outside, "secret.md"), "private\n");
+    const source = join(root, "repo");
+    await mkdir(join(source, "skills", "linked"), { recursive: true });
+    await symlink(outside, join(source, "references"));
+    await writeFile(
+      join(source, "skills", "linked", "SKILL.md"),
+      "---\nname: linked\ndescription: Links shared files\n---\n\nSee `references/secret.md`.\n",
+    );
+
+    const plan = await planSkillInstall(source, [join(root, "skills")], "repo");
+
+    expect(plan.files[0]?.source).toBe(join(source, "skills", "linked"));
   });
 
   it("rejects symlinked package content", async () => {

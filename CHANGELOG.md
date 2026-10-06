@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+## 0.9.5 - 2026-10-06
+
+### Fixed
+
+- Skills that link to their repository's shared `references/` folder now
+  install with those files copied beside them, so the links resolve.
+- A shared `references/` folder that is a symlink is ignored, so a package
+  cannot copy files from elsewhere on disk into an installed skill.
+
+### Security
+
+- Patched dependency advisories, including proxy-addr (critical) and
+  source-map-js and brace-expansion (high), and moved vitest to 4.1.11.
+
 ## 0.9.4 - 2026-09-07
 
 ### Changed

@@ -9,6 +9,7 @@ import {
   snapshotPath,
 } from "../src/core/install/install.js";
 import {
+  applySkillPlan,
   detectInstallConflicts,
   planSkillInstall,
   validateSkillDirectory,
@@ -488,6 +489,44 @@ describe("skill installation transaction", () => {
     await expect(
       readFile(join(target, "broken", "SKILL.md")),
     ).rejects.toThrow();
+  });
+
+  it("carries a repository's shared references into each skill that links them", async () => {
+    const root = await mkdtemp(join(tmpdir(), "loadout-test-"));
+    directories.push(root);
+    const source = join(root, "repo");
+    const target = join(root, "skills");
+    await mkdir(join(source, "references"), { recursive: true });
+    await writeFile(join(source, "references", "checklist.md"), "- shared\n");
+    await mkdir(join(source, "skills", "linked"), { recursive: true });
+    await writeFile(
+      join(source, "skills", "linked", "SKILL.md"),
+      "---\nname: linked\ndescription: Links shared files\n---\n\nSee `references/checklist.md` and `references/missing.md`.\n",
+    );
+    await mkdir(join(source, "skills", "plain"), { recursive: true });
+    await writeFile(
+      join(source, "skills", "plain", "SKILL.md"),
+      "---\nname: plain\ndescription: Links nothing\n---\n\nSee docs/references/checklist.md.\n",
+    );
+
+    const plan = await planSkillInstall(source, [target], "repo");
+    await applySkillPlan(plan);
+
+    expect(
+      await readFile(
+        join(target, "linked", "references", "checklist.md"),
+        "utf8",
+      ),
+    ).toBe("- shared\n");
+    await expect(
+      readFile(join(target, "linked", "references", "missing.md"), "utf8"),
+    ).rejects.toThrow();
+    await expect(
+      readFile(join(target, "plain", "references", "checklist.md"), "utf8"),
+    ).rejects.toThrow();
+    expect(plan.files.find((file) => file.skillName === "plain")?.source).toBe(
+      join(source, "skills", "plain"),
+    );
   });
 
   it("rejects symlinked package content", async () => {

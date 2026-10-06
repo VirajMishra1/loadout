@@ -1,5 +1,6 @@
-import { cp, lstat, readdir, readFile, rm } from "node:fs/promises";
-import { dirname, join, relative, resolve, sep } from "node:path";
+import { cp, lstat, mkdtemp, readdir, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { basename, dirname, join, relative, resolve, sep } from "node:path";
 import type {
   ConflictDiagnostic,
   InstallPlan,
@@ -101,6 +102,59 @@ export async function discoverSkillDirectories(
   return result;
 }
 
+// A link such as `references/security-checklist.md`, not a deeper path like
+// `docs/references/x.md`, which the lookbehind leaves to its own directory.
+const SHARED_REFERENCE = /(?<![\w./-])references\/([A-Za-z0-9][\w.-]*\.md)\b/g;
+
+async function isRegularFile(path: string): Promise<boolean> {
+  try {
+    const info = await lstat(path);
+    return info.isFile() && !info.isSymbolicLink();
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Some repositories keep shared checklists in a root `references/` folder that
+ * their skills link to relatively. A skill copied on its own would point at
+ * nothing, so plan from a staged copy that carries those files beside it.
+ */
+async function withSharedReferences(
+  skill: string,
+  packageRoot: string,
+): Promise<string> {
+  if (skill === packageRoot) return skill;
+  const text = await readFile(join(skill, "SKILL.md"), "utf8");
+  const names = new Set([...text.matchAll(SHARED_REFERENCE)].map((m) => m[1]));
+  const shared: string[] = [];
+  for (const name of names) {
+    if (!name || (await isRegularFile(join(skill, "references", name))))
+      continue;
+    const candidate = join(packageRoot, "references", name);
+    if (await isRegularFile(candidate)) shared.push(candidate);
+  }
+  if (!shared.length) return skill;
+  // ponytail: staged copies stay in the OS temp dir until it is cleaned; track and remove them if installs become frequent
+  const staged = join(
+    await mkdtemp(join(tmpdir(), "loadout-skill-")),
+    basename(skill),
+  );
+  await cp(skill, staged, {
+    recursive: true,
+    errorOnExist: true,
+    force: false,
+  });
+  await ensureDirectory(join(staged, "references"));
+  for (const file of shared)
+    await cp(file, join(staged, "references", basename(file)), {
+      errorOnExist: true,
+      force: false,
+    });
+  await validateSkillDirectory(staged);
+  return staged;
+}
+
 function safeTarget(root: string, target: string): string {
   const resolvedRoot = resolve(root);
   const resolvedTarget = resolve(target);
@@ -122,6 +176,9 @@ export async function planSkillInstall(
   const skills = await discoverSkillDirectories(sourceRoot, options);
   if (skills.length === 0)
     throw new Error(`No SKILL.md found under ${sourceRoot}`);
+  const sources = new Map<string, string>();
+  for (const skill of skills)
+    sources.set(skill, await withSharedReferences(skill, sourceRoot));
   const files: PlannedFile[] = [];
   for (const targetRoot of targetDirectories) {
     try {
@@ -145,7 +202,7 @@ export async function planSkillInstall(
       const target = safeTarget(targetRoot, join(targetRoot, name));
       const frontmatter = await readFile(join(skill, "SKILL.md"), "utf8");
       const skillName = frontmatter.match(/^name:\s*(\S+)/m)?.[1];
-      files.push({ source: skill, target, skillName });
+      files.push({ source: sources.get(skill) ?? skill, target, skillName });
     }
   }
   const conflicts = detectInstallConflicts([

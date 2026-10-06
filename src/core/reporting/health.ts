@@ -141,7 +141,7 @@ export async function buildHealthReport(
       level: "warning",
       code: "managed-file-drift",
       message: `${drifted.length} managed file(s) changed or disappeared outside Loadout.`,
-      fix: "Review the files, then reinstall or remove the owning package.",
+      fix: "Review the files, then run `loadout accept --all` to keep intentional edits, or reinstall or remove the owning package.",
     });
   if (driftedMcpServers)
     findings.push({

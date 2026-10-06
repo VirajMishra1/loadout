@@ -48,7 +48,7 @@ export const ADVANCED_GUIDE = [
   "Sharing:      init, lock, export, import, share, card",
   "Integrations: mcp-recipe, mcp-config, credentials, models, handoff, skills, convert",
   "Coordination: coordinate (coord), daemon, serve",
-  "Lifecycle:    plan, adopt, uninstall, profiles, autopilot, tool, watch",
+  "Lifecycle:    plan, adopt, accept, uninstall, profiles, autopilot, tool, watch",
   "",
   "`loadout <command> --help` for options. Mutations preview first or require --yes.",
 ].join("\n");

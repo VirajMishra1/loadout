@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### Added
+
+- `loadout accept <skill>` (or `--all`) keeps intentional local edits to
+  managed skill files. It previews the edited files, then on `--yes` records
+  their current hashes as the new baseline in one rollback-safe transaction,
+  so health stops reporting them as drift. Edits to a disabled skill's library
+  copy update the library hashes too, so enabling it later still verifies.
+  Missing files are reported and never accepted.
+
 ## 0.9.5 - 2026-10-06
 
 ### Fixed

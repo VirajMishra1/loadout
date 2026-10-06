@@ -52,6 +52,11 @@ import {
   planSkillAdoption,
 } from "../core/install/adopt.js";
 import {
+  applyAccept,
+  formatAcceptPlan,
+  planAccept,
+} from "../core/install/accept.js";
+import {
   applyReconcilePlan,
   buildReconcilePlan,
   formatReconcilePlan,
@@ -462,6 +467,56 @@ export function registerInventory(program: Command): void {
           options.json
             ? JSON.stringify({ plan, snapshotId }, null, 2)
             : `${formatAdoptionPlan(plan)}\nAdopted without changing skill bytes. Snapshot: ${snapshotId}`,
+        );
+      },
+    );
+
+  program
+    .command("accept")
+    .description(
+      "Keep intentional local edits to managed skill files as Loadout's new baseline",
+    )
+    .argument("[skill]", "managed skill or package id whose edits to accept")
+    .option("--agent <id>", "only accept edits in this agent's copy")
+    .option("--all", "accept every drifted managed file")
+    .option("--yes", "record the edited bytes; otherwise show a dry-run plan")
+    .option("--json", "emit machine-readable JSON")
+    .action(
+      async (
+        skill: string | undefined,
+        options: {
+          agent?: string;
+          all?: boolean;
+          yes?: boolean;
+          json?: boolean;
+        },
+      ) => {
+        if (Boolean(skill) === Boolean(options.all))
+          throw new Error("Name one skill or package, or pass --all");
+        if (
+          options.agent &&
+          !(await detectAgents()).some((item) => item.id === options.agent)
+        )
+          throw new Error(`Agent '${options.agent}' is unknown`);
+        const plan = await planAccept({
+          selector: skill ?? null,
+          agent: options.agent,
+        });
+        if (!options.yes || (!plan.files.length && !plan.missing.length)) {
+          console.log(
+            options.json
+              ? JSON.stringify(plan, null, 2)
+              : plan.files.length
+                ? `${formatAcceptPlan(plan)}\nDry run only. Re-run with --yes to keep these edits.`
+                : formatAcceptPlan(plan),
+          );
+          return;
+        }
+        const snapshotId = await applyAccept(plan);
+        console.log(
+          options.json
+            ? JSON.stringify({ plan, snapshotId }, null, 2)
+            : `${formatAcceptPlan(plan)}\nAccepted ${plan.files.length} edited file(s). Snapshot: ${snapshotId}`,
         );
       },
     );

@@ -250,7 +250,7 @@ Catalog maturity: **53 sourced**, **53 technically inspected**, and **4 selected
 
 <!-- loadout:daily-discovery:start -->
 
-**Discovery snapshot (generated 2026-11-01):** [232 repositories observed](./docs/DISCOVERED.md), including 214 uncataloged review candidates and 18 repositories already in the inspected catalog.
+**Discovery snapshot (generated 2026-11-02):** [233 repositories observed](./docs/DISCOVERED.md), including 215 uncataloged review candidates and 18 repositories already in the inspected catalog.
 <!-- loadout:daily-discovery:end -->
 
 ## Agent support
